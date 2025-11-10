@@ -6,13 +6,13 @@
 #define COMPONENTS_SUPERVISED_USER_CORE_BROWSER_SUPERVISED_USER_METRICS_SERVICE_H_
 
 #include <memory>
-#include <vector>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
-#include "base/observer_list.h"
-#include "base/observer_list_types.h"
 #include "base/timer/timer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/supervised_user/core/browser/supervised_user_service_observer.h"
+#include "supervised_user_service.h"
 
 class PrefRegistrySimple;
 class PrefService;
@@ -23,26 +23,31 @@ class Time;
 
 namespace supervised_user {
 class SupervisedUserURLFilter;
-}  // namespace supervised_user
 
 // Service to initialize and control metric recorders of supervised users.
-class SupervisedUserMetricsService : public KeyedService {
+// Records metrics daily, or when the SupervisedUserService changes.
+class SupervisedUserMetricsService : public KeyedService,
+                                     public SupervisedUserServiceObserver {
  public:
-  // Interface for observing events on the SupervisedUserMetricsService.
-  class Observer : public base::CheckedObserver {
+  // Delegate for recording metrics relating to extensions for supervised users
+  // such as metrics that should be recorded daily.
+  class SupervisedUserMetricsServiceExtensionDelegate {
    public:
-    // Called when we detect a new day. This event can fire sooner or later than
-    // 24 hours due to clock or time zone changes.
-    virtual void OnNewDay() {}
+    virtual ~SupervisedUserMetricsServiceExtensionDelegate() = default;
+    // Record metrics relating to extensions.
+    // Returns true if new metrics where recorded.
+    virtual bool RecordExtensionsMetrics() = 0;
   };
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
   // Returns the day id for a given time for testing.
   static int GetDayIdForTesting(base::Time time);
 
-  explicit SupervisedUserMetricsService(
+  SupervisedUserMetricsService(
       PrefService* pref_service,
-      supervised_user::SupervisedUserURLFilter* url_filter);
+      SupervisedUserService& supervised_user_service,
+      std::unique_ptr<SupervisedUserMetricsServiceExtensionDelegate>
+          extensions_metrics_delegate);
   SupervisedUserMetricsService(const SupervisedUserMetricsService&) = delete;
   SupervisedUserMetricsService& operator=(const SupervisedUserMetricsService&) =
       delete;
@@ -51,21 +56,34 @@ class SupervisedUserMetricsService : public KeyedService {
   // KeyedService:
   void Shutdown() override;
 
+  // SupervisedUserServiceObserver:
+  void OnURLFilterChanged() override;
+
  private:
   // Helper function to check if a new day has arrived.
   void CheckForNewDay();
 
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  void EmitMetrics();
+  // Clears cache of last recorded metrics. Subsequent `::EmitMetrics` will emit
+  // all metrics.
+  void ClearMetricsCache();
 
   const raw_ptr<PrefService> pref_service_;
-
+  raw_ref<SupervisedUserService> supervised_user_service_;
+  std::unique_ptr<SupervisedUserMetricsServiceExtensionDelegate>
+      extensions_metrics_delegate_;
   // A periodic timer that checks if a new day has arrived.
   base::RepeatingTimer timer_;
 
-  // The |observers_| list is a superset of the |supervised_user_metrics_|.
-  base::ObserverList<Observer> observers_;
-  std::vector<std::unique_ptr<Observer>> supervised_user_metrics_;
+  // Cache of last recorded values of SupervisedUserURLFilter to avoid
+  // duplicated emissions.
+  std::optional<WebFilterType> last_recorded_web_filter_type_;
+  std::optional<SupervisedUserURLFilter::Statistics> last_recorded_statistics_;
+
+  base::ScopedObservation<SupervisedUserService, SupervisedUserServiceObserver>
+      supervised_user_service_observation_{this};
 };
+
+}  // namespace supervised_user
 
 #endif  // COMPONENTS_SUPERVISED_USER_CORE_BROWSER_SUPERVISED_USER_METRICS_SERVICE_H_

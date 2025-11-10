@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -19,6 +20,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gcm/base/fake_encryptor.h"
 #include "google_apis/gcm/base/gcm_constants.h"
 #include "google_apis/gcm/base/mcs_message.h"
@@ -97,8 +99,7 @@ std::unique_ptr<GCMStoreImpl> GCMStoreImplTest::BuildGCMStore() {
   store_path_ =
       temp_directory_.GetPath().Append(FILE_PATH_LITERAL("GCM Store"));
   return std::make_unique<GCMStoreImpl>(
-      store_path_, /*remove_account_mappings_with_email_key=*/true,
-      task_environment_.GetMainThreadTaskRunner(),
+      store_path_, task_environment_.GetMainThreadTaskRunner(),
       std::make_unique<FakeEncryptor>());
 }
 
@@ -206,20 +207,15 @@ TEST_F(GCMStoreImplTest, LastCheckinInfo) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   base::Time last_checkin_time = base::Time::Now();
-  std::set<std::string> accounts;
-  accounts.insert("test_user1@gmail.com");
-  accounts.insert("test_user2@gmail.com");
 
   gcm_store->SetLastCheckinInfo(
-      last_checkin_time, accounts,
-      base::BindOnce(&GCMStoreImplTest::UpdateCallback,
-                     base::Unretained(this)));
+      last_checkin_time, base::BindOnce(&GCMStoreImplTest::UpdateCallback,
+                                        base::Unretained(this)));
   PumpLoop();
 
   gcm_store = BuildGCMStore();
   LoadGCMStore(gcm_store.get(), &load_result);
   ASSERT_EQ(last_checkin_time, load_result->last_checkin_time);
-  ASSERT_EQ(accounts, load_result->last_checkin_accounts);
 
   // Negative cases, where the value read is gibberish.
   gcm_store->SetValueForTesting(
@@ -298,11 +294,9 @@ TEST_F(GCMStoreImplTest, Registrations) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   ASSERT_EQ(2u, load_result->registrations.size());
-  ASSERT_TRUE(load_result->registrations.find(kAppName) !=
-              load_result->registrations.end());
+  EXPECT_TRUE(base::Contains(load_result->registrations, kAppName));
   EXPECT_EQ(registration, load_result->registrations[kAppName]);
-  ASSERT_TRUE(load_result->registrations.find(kAppName2) !=
-              load_result->registrations.end());
+  EXPECT_TRUE(base::Contains(load_result->registrations, kAppName2));
   EXPECT_EQ(registration2, load_result->registrations[kAppName2]);
 
   gcm_store->RemoveRegistration(
@@ -314,8 +308,7 @@ TEST_F(GCMStoreImplTest, Registrations) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   ASSERT_EQ(1u, load_result->registrations.size());
-  ASSERT_TRUE(load_result->registrations.find(kAppName) !=
-              load_result->registrations.end());
+  EXPECT_TRUE(base::Contains(load_result->registrations, kAppName));
   EXPECT_EQ(registration, load_result->registrations[kAppName]);
 }
 
@@ -569,7 +562,8 @@ TEST_F(GCMStoreImplTest, AccountMapping) {
 
   // Add account mappings.
   AccountMapping account_mapping1;
-  account_mapping1.account_id = CoreAccountId::FromGaiaId("account_id_1");
+  account_mapping1.account_id =
+      CoreAccountId::FromGaiaId(GaiaId("account_id_1"));
   account_mapping1.email = "account_id_1@gmail.com";
   account_mapping1.access_token = "account_token1";
   account_mapping1.status = AccountMapping::ADDING;
@@ -577,7 +571,8 @@ TEST_F(GCMStoreImplTest, AccountMapping) {
   account_mapping1.last_message_id = "message_1";
 
   AccountMapping account_mapping2;
-  account_mapping2.account_id = CoreAccountId::FromGaiaId("account_id_2");
+  account_mapping2.account_id =
+      CoreAccountId::FromGaiaId(GaiaId("account_id_2"));
   account_mapping2.email = "account_id_2@gmail.com";
   account_mapping2.access_token = "account_token1";
   account_mapping2.status = AccountMapping::REMOVING;
@@ -661,11 +656,9 @@ TEST_F(GCMStoreImplTest, HeartbeatInterval) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   EXPECT_EQ(2UL, load_result->heartbeat_intervals.size());
-  ASSERT_TRUE(load_result->heartbeat_intervals.find(scope1) !=
-              load_result->heartbeat_intervals.end());
+  EXPECT_TRUE(base::Contains(load_result->heartbeat_intervals, scope1));
   EXPECT_EQ(heartbeat1, load_result->heartbeat_intervals[scope1]);
-  ASSERT_TRUE(load_result->heartbeat_intervals.find(scope2) !=
-              load_result->heartbeat_intervals.end());
+  EXPECT_TRUE(base::Contains(load_result->heartbeat_intervals, scope2));
   EXPECT_EQ(heartbeat2, load_result->heartbeat_intervals[scope2]);
 
   gcm_store->RemoveHeartbeatInterval(
@@ -677,8 +670,7 @@ TEST_F(GCMStoreImplTest, HeartbeatInterval) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   EXPECT_EQ(1UL, load_result->heartbeat_intervals.size());
-  ASSERT_TRUE(load_result->heartbeat_intervals.find(scope1) !=
-              load_result->heartbeat_intervals.end());
+  EXPECT_TRUE(base::Contains(load_result->heartbeat_intervals, scope1));
   EXPECT_EQ(heartbeat1, load_result->heartbeat_intervals[scope1]);
 }
 
@@ -767,10 +759,8 @@ TEST_F(GCMStoreImplTest, InstanceIDData) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   ASSERT_EQ(2u, load_result->instance_id_data.size());
-  ASSERT_TRUE(load_result->instance_id_data.find(kAppName) !=
-              load_result->instance_id_data.end());
-  ASSERT_TRUE(load_result->instance_id_data.find(kAppName2) !=
-              load_result->instance_id_data.end());
+  EXPECT_TRUE(base::Contains(load_result->instance_id_data, kAppName));
+  EXPECT_TRUE(base::Contains(load_result->instance_id_data, kAppName2));
   EXPECT_EQ(instance_id_data, load_result->instance_id_data[kAppName]);
   EXPECT_EQ(instance_id_data2, load_result->instance_id_data[kAppName2]);
 
@@ -783,8 +773,7 @@ TEST_F(GCMStoreImplTest, InstanceIDData) {
   LoadGCMStore(gcm_store.get(), &load_result);
 
   ASSERT_EQ(1u, load_result->instance_id_data.size());
-  ASSERT_TRUE(load_result->instance_id_data.find(kAppName2) !=
-              load_result->instance_id_data.end());
+  EXPECT_TRUE(base::Contains(load_result->instance_id_data, kAppName2));
   EXPECT_EQ(instance_id_data2, load_result->instance_id_data[kAppName2]);
 }
 

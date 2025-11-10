@@ -10,9 +10,9 @@
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_histogram_value.h"
 
-namespace base {
-class Value;
-}  // namespace base
+namespace ash::printing::proto {
+class PrintJobInfo;
+}  // namespace ash::printing::proto
 
 namespace extensions {
 
@@ -24,7 +24,9 @@ class PrintingMetricsGetPrintJobsFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
  private:
-  void OnPrintJobsRetrieved(std::vector<base::Value> print_jobs);
+  void OnPrintJobsRetrieved(
+      bool success,
+      std::vector<ash::printing::proto::PrintJobInfo> proto_infos);
 
   DECLARE_EXTENSION_FUNCTION("printingMetrics.getPrintJobs",
                              PRINTINGMETRICS_GETPRINTJOBS)

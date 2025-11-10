@@ -5,20 +5,16 @@
 #ifndef MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_MACROS_H_
 #define MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_MACROS_H_
 
-#include "build/build_config.h"
-#include "ipc/ipc_message_macros.h"
+#include "ipc/param_traits_macros.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/buffering_state.h"
 #include "media/base/cdm_config.h"
-#include "media/base/cdm_key_information.h"
 #include "media/base/cdm_promise.h"
 #include "media/base/channel_layout.h"
 #include "media/base/container_names.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/decoder.h"
-#include "media/base/decoder_status.h"
-#include "media/base/decrypt_config.h"
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/eme_constants.h"
@@ -31,7 +27,6 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/sample_format.h"
 #include "media/base/subsample_entry.h"
-#include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_color_space.h"
 #include "media/base/video_transformation.h"
@@ -40,13 +35,15 @@
 #include "media/base/watch_time_keys.h"
 #include "media/media_buildflags.h"
 #include "third_party/blink/public/platform/web_fullscreen_video_status.h"
-#include "ui/gfx/hdr_metadata.h"
-#include "ui/gfx/ipc/color/gfx_param_traits_macros.h"
 
 #if BUILDFLAG(ENABLE_MEDIA_DRM_STORAGE)
 #include "media/base/media_drm_key_type.h"
 #endif  // BUILDFLAG(ENABLE_MEDIA_DRM_STORAGE)
 
+// Note that this file historically used the same value as
+// ipc/ipc_message_macros.h, and not `COMPONENT_EXPORT(MEDIA)`.
+#undef IPC_MESSAGE_EXPORT
+#define IPC_MESSAGE_EXPORT
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/starboard/starboard_renderer_config.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -60,8 +57,8 @@ IPC_ENUM_TRAITS_MAX_VALUE(media::AudioCodec, media::AudioCodec::kMaxValue)
 IPC_ENUM_TRAITS_MAX_VALUE(media::AudioCodecProfile,
                           media::AudioCodecProfile::kMaxValue)
 
-IPC_ENUM_TRAITS_MAX_VALUE(media::AudioLatency::LatencyType,
-                          media::AudioLatency::LATENCY_COUNT)
+IPC_ENUM_TRAITS_MAX_VALUE(media::AudioLatency::Type,
+                          media::AudioLatency::Type::kMaxValue)
 
 IPC_ENUM_TRAITS_MAX_VALUE(media::AudioParameters::Format,
                           media::AudioParameters::AUDIO_FORMAT_LAST)
@@ -96,7 +93,8 @@ IPC_ENUM_TRAITS_MAX_VALUE(media::DemuxerStream::Status,
 IPC_ENUM_TRAITS_MAX_VALUE(media::DemuxerStream::Type,
                           media::DemuxerStream::TYPE_MAX)
 
-IPC_ENUM_TRAITS_MAX_VALUE(media::EmeInitDataType, media::EmeInitDataType::MAX)
+IPC_ENUM_TRAITS_MAX_VALUE(media::EmeInitDataType,
+                          media::EmeInitDataType::kMaxValue)
 
 IPC_ENUM_TRAITS_MAX_VALUE(media::EncryptionScheme,
                           media::EncryptionScheme::kMaxValue)
@@ -104,13 +102,13 @@ IPC_ENUM_TRAITS_MAX_VALUE(media::EncryptionScheme,
 IPC_ENUM_TRAITS_MAX_VALUE(media::HdcpVersion,
                           media::HdcpVersion::kMaxValue)
 
-IPC_ENUM_TRAITS_MAX_VALUE(media::MediaContentType, media::MediaContentType::Max)
+IPC_ENUM_TRAITS_MAX_VALUE(media::MediaContentType, media::MediaContentType::kMax)
 
 IPC_ENUM_TRAITS_MAX_VALUE(media::MediaLogRecord::Type,
                           media::MediaLogRecord::Type::kMaxValue)
 
 IPC_ENUM_TRAITS_MAX_VALUE(media::MediaStatus::State,
-                          media::MediaStatus::State::STATE_MAX)
+                          media::MediaStatus::State::kStateMax)
 
 IPC_ENUM_TRAITS_MAX_VALUE(media::OutputDeviceStatus,
                           media::OUTPUT_DEVICE_STATUS_MAX)
@@ -141,8 +139,9 @@ IPC_ENUM_TRAITS_MAX_VALUE(media::VideoPixelFormat, media::PIXEL_FORMAT_MAX)
 
 IPC_ENUM_TRAITS_MAX_VALUE(media::VideoRotation, media::VIDEO_ROTATION_MAX)
 
-IPC_ENUM_TRAITS_MAX_VALUE(media::container_names::MediaContainerName,
-                          media::container_names::CONTAINER_MAX)
+IPC_ENUM_TRAITS_MAX_VALUE(
+    media::container_names::MediaContainerName,
+    media::container_names::MediaContainerName::kMaxValue)
 
 #if BUILDFLAG(ENABLE_MEDIA_DRM_STORAGE)
 IPC_ENUM_TRAITS_MIN_MAX_VALUE(media::MediaDrmKeyType,
@@ -187,36 +186,6 @@ IPC_STRUCT_TRAITS_END()
 IPC_STRUCT_TRAITS_BEGIN(media::SubsampleEntry)
   IPC_STRUCT_TRAITS_MEMBER(clear_bytes)
   IPC_STRUCT_TRAITS_MEMBER(cypher_bytes)
-IPC_STRUCT_TRAITS_END()
-
-IPC_STRUCT_TRAITS_BEGIN(media::VideoColorSpace)
-  IPC_STRUCT_TRAITS_MEMBER(primaries)
-  IPC_STRUCT_TRAITS_MEMBER(transfer)
-  IPC_STRUCT_TRAITS_MEMBER(matrix)
-  IPC_STRUCT_TRAITS_MEMBER(range)
-IPC_STRUCT_TRAITS_END()
-
-IPC_STRUCT_TRAITS_BEGIN(SkColorSpacePrimaries)
-  IPC_STRUCT_TRAITS_MEMBER(fRX)
-  IPC_STRUCT_TRAITS_MEMBER(fRY)
-  IPC_STRUCT_TRAITS_MEMBER(fGX)
-  IPC_STRUCT_TRAITS_MEMBER(fGY)
-  IPC_STRUCT_TRAITS_MEMBER(fBX)
-  IPC_STRUCT_TRAITS_MEMBER(fBY)
-  IPC_STRUCT_TRAITS_MEMBER(fWX)
-  IPC_STRUCT_TRAITS_MEMBER(fWY)
-IPC_STRUCT_TRAITS_END()
-
-IPC_STRUCT_TRAITS_BEGIN(gfx::ColorVolumeMetadata)
-  IPC_STRUCT_TRAITS_MEMBER(primaries)
-  IPC_STRUCT_TRAITS_MEMBER(luminance_max)
-  IPC_STRUCT_TRAITS_MEMBER(luminance_min)
-IPC_STRUCT_TRAITS_END()
-
-IPC_STRUCT_TRAITS_BEGIN(gfx::HDRMetadata)
-  IPC_STRUCT_TRAITS_MEMBER(color_volume_metadata)
-  IPC_STRUCT_TRAITS_MEMBER(max_content_light_level)
-  IPC_STRUCT_TRAITS_MEMBER(max_frame_average_light_level)
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(media::OverlayInfo)

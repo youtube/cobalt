@@ -18,6 +18,15 @@ class SessionManagerObserver : public base::CheckedObserver {
   // Invoked when session state is changed.
   virtual void OnSessionStateChanged() {}
 
+  // Invoked when session creation is triggered.
+  virtual void OnSessionCreationStarted(const AccountId& account_id) {}
+
+  // Invoked when session is created. Note: though, on this invocation,
+  // the session may not be fully ready to be started. Followed by this
+  // callback, more initialization is required to set up a user session,
+  // such as profile creation, service initialization tied to user, etc.
+  virtual void OnSessionCreated(const AccountId& account_id) {}
+
   // Invoked when a user profile is loaded.
   virtual void OnUserProfileLoaded(const AccountId& account_id) {}
 
@@ -45,6 +54,13 @@ class SessionManagerObserver : public base::CheckedObserver {
   // failed unlock attempt.
   virtual void OnUnlockScreenAttempt(const bool success,
                                      const UnlockType unlock_type) {}
+
+  // Invoked when the tasks to make a user session work are completed.
+  // Currently following ones are considered as critical tasks:
+  // - Login state update.
+  // - Shelf Icon loading.
+  // - Browser window restoration.
+  virtual void OnUserSessionStartUpTaskCompleted() {}
 };
 
 }  // namespace session_manager

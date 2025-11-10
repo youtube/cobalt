@@ -33,10 +33,10 @@ found in the LICENSE file.
   <h3>Profile Autofill</h3>
 
 <form name="addr1.1" id="profile_form" action="destination.html" method="post">
-  Name: <input type="text" name="name" /><br />
-  Address: <input type="text" name="address" /><br />
-  City: <input type="text" name="city" /><br />
-  State: <select name="state">
+  Name: <input type="text" name="name" id="form_name" /><br />
+  Address: <input type="text" name="address" id="form_address" /><br />
+  City: <input type="text" name="city" id="form_city" /><br />
+  State: <select name="state" id="form_state">
     <option value="CA">CA</option>
     <option value="MA">MA</option>
     <option value="NY">NY</option>
@@ -47,6 +47,7 @@ found in the LICENSE file.
     <option value="DC">DC</option>
   </select> <br />
   Zip: <input name="zip" id="form_zip"> <br />
+  Email: <input name="email" id="form_email"> <br />
   <input type="reset" value="Reset" />
   <input id="submit_profile" type="submit" value="Submit Profile" />
 </form>

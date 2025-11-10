@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/policy/remote_commands/device_command_get_routine_update_job.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -19,7 +20,6 @@
 #include "chromeos/ash/services/cros_healthd/public/cpp/service_connection.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
 #include "components/policy/proto/device_management_backend.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace policy {
 
@@ -67,9 +67,8 @@ bool PopulateMojoEnumValueIfValid(int possible_enum, T* valid_enum_out) {
 }
 
 std::string CreatePayload(ash::cros_healthd::mojom::RoutineUpdatePtr update) {
-  base::Value::Dict root_dict;
-  root_dict.Set(kProgressPercentFieldName,
-                static_cast<int>(update->progress_percent));
+  auto root_dict = base::Value::Dict().Set(
+      kProgressPercentFieldName, static_cast<int>(update->progress_percent));
   if (update->output.is_valid()) {
     // TODO(crbug.com/1056323): Serialize update->output. For now, set a dummy
     // value.
@@ -80,16 +79,16 @@ std::string CreatePayload(ash::cros_healthd::mojom::RoutineUpdatePtr update) {
   if (routine_update_union->is_noninteractive_update()) {
     const auto& noninteractive_update =
         routine_update_union->get_noninteractive_update();
-    base::Value::Dict noninteractive_dict;
-    noninteractive_dict.Set(kStatusFieldName,
-                            static_cast<int>(noninteractive_update->status));
-    noninteractive_dict.Set(kStatusMessageFieldName,
-                            std::move(noninteractive_update->status_message));
+    auto noninteractive_dict =
+        base::Value::Dict()
+            .Set(kStatusFieldName,
+                 static_cast<int>(noninteractive_update->status))
+            .Set(kStatusMessageFieldName,
+                 std::move(noninteractive_update->status_message));
     root_dict.Set(kNonInteractiveUpdateFieldName,
                   std::move(noninteractive_dict));
   } else if (routine_update_union->is_interactive_update()) {
-    base::Value::Dict interactive_dict;
-    interactive_dict.Set(
+    auto interactive_dict = base::Value::Dict().Set(
         kUserMessageFieldName,
         static_cast<int>(
             routine_update_union->get_interactive_update()->user_message));
@@ -117,17 +116,14 @@ em::RemoteCommand_Type DeviceCommandGetRoutineUpdateJob::GetType() const {
 
 bool DeviceCommandGetRoutineUpdateJob::ParseCommandPayload(
     const std::string& command_payload) {
-  absl::optional<base::Value> root(base::JSONReader::Read(command_payload));
-  if (!root.has_value()) {
-    return false;
-  }
-  if (!root->is_dict()) {
+  std::optional<base::Value::Dict> root =
+      base::JSONReader::ReadDict(command_payload);
+  if (!root) {
     return false;
   }
 
-  const base::Value::Dict& dict = root->GetDict();
   // Make sure the command payload specified a valid integer for the routine ID.
-  absl::optional<int> id = dict.FindInt(kIdFieldName);
+  std::optional<int> id = root->FindInt(kIdFieldName);
   if (!id.has_value()) {
     return false;
   }
@@ -135,7 +131,7 @@ bool DeviceCommandGetRoutineUpdateJob::ParseCommandPayload(
 
   // Make sure the command payload specified a valid
   // DiagnosticRoutineCommandEnum.
-  absl::optional<int> command_enum = dict.FindInt(kCommandFieldName);
+  std::optional<int> command_enum = root->FindInt(kCommandFieldName);
   if (!command_enum.has_value()) {
     return false;
   }
@@ -146,7 +142,7 @@ bool DeviceCommandGetRoutineUpdateJob::ParseCommandPayload(
   }
 
   // Make sure the command payload specified a boolean for include_output.
-  absl::optional<bool> include_output = dict.FindBool(kIncludeOutputFieldName);
+  std::optional<bool> include_output = root->FindBool(kIncludeOutputFieldName);
   if (!include_output.has_value()) {
     return false;
   }
@@ -177,7 +173,7 @@ void DeviceCommandGetRoutineUpdateJob::OnCrosHealthdResponseReceived(
     SYSLOG(ERROR) << "No RoutineUpdate received from cros_healthd.";
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(result_callback),
-                                  ResultType::kFailure, absl::nullopt));
+                                  ResultType::kFailure, std::nullopt));
     return;
   }
 

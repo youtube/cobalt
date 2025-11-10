@@ -4,6 +4,8 @@
 
 #include "media/base/fake_audio_renderer_sink.h"
 
+#include <array>
+
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -111,14 +113,14 @@ void FakeAudioRendererSink::SetIsOptimizedForHardwareParameters(bool value) {
 }
 
 void FakeAudioRendererSink::ChangeState(State new_state) {
-  static const char* kStateNames[] = {
-    "kUninitialized",
-    "kInitialized",
-    "kStarted",
-    "kPaused",
-    "kPlaying",
-    "kStopped"
-  };
+  static auto kStateNames = std::to_array<const char*>({
+      "kUninitialized",
+      "kInitialized",
+      "kStarted",
+      "kPaused",
+      "kPlaying",
+      "kStopped",
+  });
 
   DVLOG(1) << __func__ << " : " << kStateNames[state_] << " -> "
            << kStateNames[new_state];

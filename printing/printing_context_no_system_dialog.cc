@@ -23,13 +23,16 @@ namespace printing {
 // static
 std::unique_ptr<PrintingContext> PrintingContext::CreateImpl(
     Delegate* delegate,
-    bool skip_system_calls) {
-  return std::make_unique<PrintingContextNoSystemDialog>(delegate);
+    OutOfProcessBehavior out_of_process_behavior) {
+  return std::make_unique<PrintingContextNoSystemDialog>(
+      delegate, out_of_process_behavior);
 }
 #endif  // !BUILDFLAG(USE_CUPS)
 
-PrintingContextNoSystemDialog::PrintingContextNoSystemDialog(Delegate* delegate)
-    : PrintingContext(delegate) {}
+PrintingContextNoSystemDialog::PrintingContextNoSystemDialog(
+    Delegate* delegate,
+    OutOfProcessBehavior out_of_process_behavior)
+    : PrintingContext(delegate, out_of_process_behavior) {}
 
 PrintingContextNoSystemDialog::~PrintingContextNoSystemDialog() {
   ReleaseContext();

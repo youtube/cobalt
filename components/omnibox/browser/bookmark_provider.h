@@ -44,6 +44,7 @@ class BookmarkProvider : public AutocompleteProvider {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(BookmarkProviderTest, InlineAutocompletion);
+  FRIEND_TEST_ALL_PREFIXES(BookmarkProviderTest, MatchingAlgorithmForHubSearch);
 
   ~BookmarkProvider() override;
 
@@ -51,21 +52,8 @@ class BookmarkProvider : public AutocompleteProvider {
   // |matches_|.
   void DoAutocomplete(const AutocompleteInput& input);
 
-  // Get the matches from |local_or_syncable_bookmark_model_| using the
-  // appropriate matching algorithm, determined by |GetMatchingAlgorithm()|.
-  std::vector<bookmarks::TitledUrlMatch> GetMatchesWithBookmarkPaths(
-      const AutocompleteInput& input,
-      size_t kMaxBookmarkMatches);
-
-  // There are 2 short bookmark features that determine the matching algorithm
-  // used, i.e. whether input words shorter than 3 chars can prefix match.
-  // 1) |IsShortBookmarkSuggestionsEnabled()| always allows short input word
-  //    prefix matching.
-  // 2) |IsShortBookmarkSuggestionsByTotalInputLengthEnabled()| allows short
-  //    input word prefix matching only if the input is longer than a threshold
-  //    param. This feature also has a counterfactual param.
-  // 3) Otherwise, if both features are disabled (or if the counterfactual param
-  //    is true), short input word matching won't be allowed.
+  // Allow short input word prefix matching only if the input is longer than 3
+  // chars.
   query_parser::MatchingAlgorithm GetMatchingAlgorithm(AutocompleteInput input);
 
   // Calculates the relevance score for |match|.
@@ -73,12 +61,8 @@ class BookmarkProvider : public AutocompleteProvider {
   std::pair<int, int> CalculateBookmarkMatchRelevance(
       const bookmarks::TitledUrlMatch& match) const;
 
-  // Removes any URL matches for query parameter keys (if the matching word
-  // starts immediately after a '?' or '&').
-  void RemoveQueryParamKeyMatches(bookmarks::TitledUrlMatch& match);
-
   const raw_ptr<AutocompleteProviderClient> client_;
-  const raw_ptr<bookmarks::BookmarkModel> local_or_syncable_bookmark_model_;
+  const raw_ptr<bookmarks::BookmarkModel> bookmark_model_;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_BOOKMARK_PROVIDER_H_

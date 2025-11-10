@@ -50,7 +50,8 @@ void PerformanceImpl::MeasureUsedCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());
-  auto used_memory = process_metrics->GetResidentSetSize();
+  auto info = process_metrics->GetMemoryInfo();
+  auto used_memory = info.has_value() ? info->resident_set_bytes : 0;
   std::move(callback).Run(used_memory);
 }
 

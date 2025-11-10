@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/functional/bind.h"
-#include "base/guid.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ref_counted_memory.h"
@@ -102,7 +101,7 @@ PrinterProviderInternalReportPrintResultFunction::
 
 ExtensionFunction::ResponseAction
 PrinterProviderInternalReportPrintResultFunction::Run() {
-  absl::optional<internal_api::ReportPrintResult::Params> params =
+  std::optional<internal_api::ReportPrintResult::Params> params =
       internal_api::ReportPrintResult::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -120,7 +119,7 @@ PrinterProviderInternalReportPrinterCapabilityFunction::
 
 ExtensionFunction::ResponseAction
 PrinterProviderInternalReportPrinterCapabilityFunction::Run() {
-  absl::optional<internal_api::ReportPrinterCapability::Params> params =
+  std::optional<internal_api::ReportPrinterCapability::Params> params =
       internal_api::ReportPrinterCapability::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -146,7 +145,7 @@ PrinterProviderInternalReportPrintersFunction::
 
 ExtensionFunction::ResponseAction
 PrinterProviderInternalReportPrintersFunction::Run() {
-  absl::optional<internal_api::ReportPrinters::Params> params =
+  std::optional<internal_api::ReportPrinters::Params> params =
       internal_api::ReportPrinters::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -173,7 +172,7 @@ PrinterProviderInternalGetPrintDataFunction::
 
 ExtensionFunction::ResponseAction
 PrinterProviderInternalGetPrintDataFunction::Run() {
-  absl::optional<internal_api::GetPrintData::Params> params =
+  std::optional<internal_api::GetPrintData::Params> params =
       internal_api::GetPrintData::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -181,18 +180,18 @@ PrinterProviderInternalGetPrintDataFunction::Run() {
       PrinterProviderAPIFactory::GetInstance()
           ->GetForBrowserContext(browser_context())
           ->GetPrintJob(extension(), params->request_id);
-  if (!job)
+  if (!job) {
     return RespondNow(Error("Print request not found."));
+  }
 
-  if (!job->document_bytes)
+  if (!job->document_bytes) {
     return RespondNow(Error("Job data not set"));
+  }
 
   // |job->document_bytes| are passed to the callback to make sure the ref
   // counted memory does not go away before the memory backed blob is created.
   browser_context()->CreateMemoryBackedBlob(
-      base::make_span(job->document_bytes->front(),
-                      job->document_bytes->size()),
-      job->content_type,
+      base::span(*job->document_bytes), job->content_type,
       base::BindOnce(&PrinterProviderInternalGetPrintDataFunction::OnBlob, this,
                      job->document_bytes));
   return RespondLater();
@@ -221,7 +220,7 @@ PrinterProviderInternalReportUsbPrinterInfoFunction::
 
 ExtensionFunction::ResponseAction
 PrinterProviderInternalReportUsbPrinterInfoFunction::Run() {
-  absl::optional<internal_api::ReportUsbPrinterInfo::Params> params =
+  std::optional<internal_api::ReportUsbPrinterInfo::Params> params =
       internal_api::ReportUsbPrinterInfo::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 

@@ -15,6 +15,7 @@ import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.Acces
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_EXPAND;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_FOCUS;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_IME_ENTER;
+import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_LONG_CLICK;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_NEXT_AT_MOVEMENT_GRANULARITY;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_NEXT_HTML_ELEMENT;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_PAGE_DOWN;
@@ -34,28 +35,37 @@ import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.Acces
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SET_SELECTION;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SET_TEXT;
 import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SHOW_ON_SCREEN;
+import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.CollectionInfoCompat.SELECTION_MODE_MULTIPLE;
+import static androidx.core.view.accessibility.AccessibilityNodeInfoCompat.CollectionInfoCompat.SELECTION_MODE_NONE;
 
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_CSS_DISPLAY;
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_OFFSCREEN;
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_SUPPORTED_ELEMENTS;
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_BOTTOM;
+import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_HEIGHT;
+import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_LEFT;
+import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_RIGHT;
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_TOP;
+import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_WIDTH;
 
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-/**
- * Utility class for common actions involving AccessibilityNodeInfo objects.
- */
+/** Utility class for common actions involving AccessibilityNodeInfo objects. */
+@NullMarked
 public class AccessibilityNodeInfoUtils {
     /**
      * Helper method to perform a custom toString on a given AccessibilityNodeInfo object.
@@ -63,7 +73,9 @@ public class AccessibilityNodeInfoUtils {
      * @param node Object to create a toString for
      * @return String Custom toString result for the given object
      */
-    public static String toString(AccessibilityNodeInfoCompat node) {
+    public static String toString(
+            @Nullable AccessibilityNodeInfoCompat node,
+            boolean includeScreenSizeDependentAttributes) {
         if (node == null) return "";
 
         StringBuilder builder = new StringBuilder();
@@ -87,6 +99,11 @@ public class AccessibilityNodeInfoUtils {
             builder.append(" hint:\"").append(node.getHintText()).append("\"");
         }
 
+        // Print tooltip text unless it is null or empty.
+        if (node.getTooltipText() != null && !node.getTooltipText().toString().isEmpty()) {
+            builder.append(" tooltipText:\"").append(node.getTooltipText()).append("\"");
+        }
+
         // Text properties - Only print when non-null.
         if (node.getContentDescription() != null) {
             builder.append(" contentDescription:\"")
@@ -106,6 +123,15 @@ public class AccessibilityNodeInfoUtils {
                 && !node.getStateDescription().toString().isEmpty()) {
             builder.append(" stateDescription:\"").append(node.getStateDescription()).append("\"");
         }
+        if (node.getContainerTitle() != null && !node.getContainerTitle().toString().isEmpty()) {
+            builder.append(" containerTitle:\"").append(node.getContainerTitle()).append("\"");
+        }
+        if (node.getSupplementalDescription() != null
+                && !node.getSupplementalDescription().toString().isEmpty()) {
+            builder.append(" supplementalDescription:\"")
+                    .append(node.getSupplementalDescription())
+                    .append("\"");
+        }
 
         // Boolean properties - Only print when set to true except for enabled and visibleToUser,
         // which are both mostly true, so only print when they are false.
@@ -114,9 +140,6 @@ public class AccessibilityNodeInfoUtils {
         }
         if (node.isCheckable()) {
             builder.append(" checkable");
-        }
-        if (node.isChecked()) {
-            builder.append(" checked");
         }
         if (node.isClickable()) {
             builder.append(" clickable");
@@ -145,7 +168,7 @@ public class AccessibilityNodeInfoUtils {
         if (node.isPassword()) {
             builder.append(" password");
         }
-        if (node.isScrollable()) {
+        if (node.isScrollable() && includeScreenSizeDependentAttributes) {
             builder.append(" scrollable");
         }
         if (node.isSelected()) {
@@ -153,6 +176,16 @@ public class AccessibilityNodeInfoUtils {
         }
         if (!node.isVisibleToUser()) {
             builder.append(" notVisibleToUser");
+        }
+
+        if (node.isFieldRequired()) {
+            // Use "required" rather than "fieldRequired" to match the chromium side naming:
+            // ax::mojom::State::kRequired.
+            builder.append(" required");
+        }
+
+        if (node.isHeading()) {
+            builder.append(" heading");
         }
 
         // Integer properties - Only print when not default values.
@@ -168,6 +201,17 @@ public class AccessibilityNodeInfoUtils {
         if (node.getMaxTextLength() != -1) {
             builder.append(" maxTextLength:").append(node.getMaxTextLength());
         }
+        if (node.getLiveRegion() != 0) {
+            builder.append(" liveRegion:").append(node.getLiveRegion());
+        }
+        if (node.getExpandedState() != AccessibilityNodeInfo.EXPANDED_STATE_UNDEFINED) {
+            builder.append(" expandedState:").append(node.getExpandedState());
+        }
+        if (node.getChecked() == AccessibilityNodeInfo.CHECKED_STATE_TRUE) {
+            builder.append(" checked");
+        } else if (node.getChecked() == AccessibilityNodeInfo.CHECKED_STATE_PARTIAL) {
+            builder.append(" partiallyChecked");
+        }
 
         // Child objects - print for non-null cases.
         if (node.getCollectionInfo() != null) {
@@ -181,8 +225,37 @@ public class AccessibilityNodeInfoUtils {
         }
 
         // Actions and Bundle extras - Always print.
-        builder.append(" actions:").append(toString(node.getActionList()));
-        builder.append(" bundle:").append(toString(node.getExtras()));
+        builder.append(" actions:")
+                .append(toString(node.getActionList(), includeScreenSizeDependentAttributes));
+        builder.append(" bundle:")
+                .append(toString(node.getExtras(), includeScreenSizeDependentAttributes));
+
+        // Add bounds when including screen size dependent attributes.
+        if (includeScreenSizeDependentAttributes) {
+            Rect output = new Rect();
+            node.getBoundsInScreen(output);
+            builder.append(" bounds:[")
+                    .append(output.left)
+                    .append(", ")
+                    .append(output.top)
+                    .append(" - ")
+                    .append(output.width())
+                    .append("x")
+                    .append(output.height())
+                    .append("]");
+
+            output = new Rect();
+            node.getBoundsInParent(output);
+            builder.append(" boundsInParent:[")
+                    .append(output.left)
+                    .append(", ")
+                    .append(output.top)
+                    .append(" - ")
+                    .append(output.width())
+                    .append("x")
+                    .append(output.height())
+                    .append("]");
+        }
 
         return builder.toString();
     }
@@ -195,6 +268,12 @@ public class AccessibilityNodeInfoUtils {
         if (info.isHierarchical()) {
             prefix += "hierarchical, ";
         }
+        if (info.getSelectionMode() != SELECTION_MODE_NONE) {
+            prefix +=
+                    (info.getSelectionMode() == SELECTION_MODE_MULTIPLE
+                            ? "selection_mode_multiple, "
+                            : "selection_mode_single, ");
+        }
         return String.format(
                 "%srows=%s, cols=%s]", prefix, info.getRowCount(), info.getColumnCount());
     }
@@ -203,7 +282,14 @@ public class AccessibilityNodeInfoUtils {
         // Only include isHeading and isSelected if true, since both are more often false.
         String prefix = "[";
         if (info.isHeading()) {
-            prefix += "heading, ";
+            // Clank only sets CollectionItemInfo.isHeading to true when the node is a table header.
+            // Name it as "tableHeader" here to differentiate the "heading" string in
+            // AccessibilityNodeInfo level.
+            // Note that in Android, CollectionItemInfo.isHeading API was deprecated and moved to
+            // AccessibilityNodeInfo.isHeading API, but ANI.isHeading will fall back to check
+            // CollectionItemInfo.isHeading. We'll continue logging the CollectionItemInfo.isHeading
+            // information here to differentiate the table header and heading in Clank.
+            prefix += "tableHeader, ";
         }
         if (info.isSelected()) {
             prefix += "selected, ";
@@ -226,25 +312,45 @@ public class AccessibilityNodeInfoUtils {
     }
 
     private static String toString(
-            List<AccessibilityNodeInfoCompat.AccessibilityActionCompat> actionList) {
+            List<AccessibilityNodeInfoCompat.AccessibilityActionCompat> actionList,
+            boolean includeScreenSizeDependentAttributes) {
         // Sort actions list to ensure consistent output of tests.
-        Collections.sort(actionList, (a1, b2) -> Integer.compare(a1.getId(), b2.getId()));
+        actionList.sort((a1, b2) -> Integer.compare(a1.getId(), b2.getId()));
 
         List<String> actionStrings = new ArrayList<String>();
         StringBuilder builder = new StringBuilder();
         builder.append("[");
         for (AccessibilityNodeInfoCompat.AccessibilityActionCompat action : actionList) {
-            // Four actions are set on all nodes, so ignore those when printing the tree.
+            // Five actions are set on all nodes, so ignore those when printing the tree.
             if (action.equals(ACTION_NEXT_HTML_ELEMENT)
                     || action.equals(ACTION_PREVIOUS_HTML_ELEMENT)
                     || action.equals(ACTION_SHOW_ON_SCREEN)
-                    || action.equals(ACTION_CONTEXT_CLICK)) {
+                    || action.equals(ACTION_CONTEXT_CLICK)
+                    || action.equals(ACTION_LONG_CLICK)) {
                 continue;
             }
+
+            // When |includeScreenSizeDependentAttributes| is true, we include all other actions,
+            // so append and return early, otherwise continue to checks below.
+            if (includeScreenSizeDependentAttributes) {
+                actionStrings.add(toString(action.getId()));
+                continue;
+            }
+
             // Scroll actions are dependent on screen size, so ignore them to reduce flakiness
-            if (action.equals(ACTION_SCROLL_FORWARD) || action.equals(ACTION_SCROLL_BACKWARD)
-                    || action.equals(ACTION_SCROLL_DOWN) || action.equals(ACTION_SCROLL_UP)
-                    || action.equals(ACTION_SCROLL_RIGHT) || action.equals(ACTION_SCROLL_LEFT)) {
+            if (action.equals(ACTION_SCROLL_FORWARD)
+                    || action.equals(ACTION_SCROLL_BACKWARD)
+                    || action.equals(ACTION_SCROLL_DOWN)
+                    || action.equals(ACTION_SCROLL_UP)
+                    || action.equals(ACTION_SCROLL_RIGHT)
+                    || action.equals(ACTION_SCROLL_LEFT)) {
+                continue;
+            }
+            // Page actions are dependent on screen size, so ignore them to reduce flakiness.
+            if (action.equals(ACTION_PAGE_UP)
+                    || action.equals(ACTION_PAGE_DOWN)
+                    || action.equals(ACTION_PAGE_LEFT)
+                    || action.equals(ACTION_PAGE_RIGHT)) {
                 continue;
             }
 
@@ -308,6 +414,14 @@ public class AccessibilityNodeInfoUtils {
             return "COLLAPSE";
         } else if (action == ACTION_SET_PROGRESS.getId()) {
             return "SET_PROGRESS";
+        } else if (action == ACTION_LONG_CLICK.getId()) {
+            return "LONG_CLICK";
+        } else if (action == ACTION_NEXT_HTML_ELEMENT.getId()) {
+            return "NEXT_HTML_ELEMENT";
+        } else if (action == ACTION_PREVIOUS_HTML_ELEMENT.getId()) {
+            return "PREVIOUS_HTML_ELEMENT";
+        } else if (action == ACTION_SHOW_ON_SCREEN.getId()) {
+            return "SHOW_ON_SCREEN";
         } else {
             return "NOT_IMPLEMENTED";
         }
@@ -319,24 +433,31 @@ public class AccessibilityNodeInfoUtils {
          */
     }
 
-    private static String toString(Bundle extras) {
+    private static String toString(Bundle extras, boolean includeScreenSizeDependentAttributes) {
         // Sort keys to ensure consistent output of tests.
         List<String> sortedKeySet = new ArrayList<String>(extras.keySet());
-        Collections.sort(sortedKeySet, CASE_INSENSITIVE_ORDER);
-
+        sortedKeySet.sort(CASE_INSENSITIVE_ORDER);
         List<String> bundleStrings = new ArrayList<>();
         StringBuilder builder = new StringBuilder();
         builder.append("[");
         for (String key : sortedKeySet) {
             // Two Bundle extras are related to bounding boxes, these should be ignored so the
-            // tests can safely run on varying devices and not be screen-dependent.
-            if (key.equals(EXTRAS_KEY_UNCLIPPED_TOP) || key.equals(EXTRAS_KEY_UNCLIPPED_BOTTOM)) {
+            // tests can safely run on varying devices and not be screen-dependent, unless
+            // explicitly allowed for this instance.
+            if (!includeScreenSizeDependentAttributes
+                    && (key.equals(EXTRAS_KEY_UNCLIPPED_TOP)
+                            || key.equals(EXTRAS_KEY_UNCLIPPED_BOTTOM)
+                            || key.equals(EXTRAS_KEY_UNCLIPPED_LEFT)
+                            || key.equals(EXTRAS_KEY_UNCLIPPED_RIGHT)
+                            || key.equals(EXTRAS_KEY_UNCLIPPED_WIDTH)
+                            || key.equals(EXTRAS_KEY_UNCLIPPED_HEIGHT))) {
                 continue;
             }
 
             // Since every node has a few Bundle extras, and some are often empty, we will only
             // print non-null and not empty values.
-            if (extras.get(key) == null || extras.get(key).toString().isEmpty()) {
+            Object value = extras.get(key);
+            if (value == null || value.toString().isEmpty()) {
                 continue;
             }
 
@@ -347,8 +468,8 @@ public class AccessibilityNodeInfoUtils {
             }
 
             // To prevent flakiness or dependency on screensize/form factor, drop the "offscreen"
-            // Bundle extra.
-            if (key.equals(EXTRAS_KEY_OFFSCREEN)) {
+            // Bundle extra, unless explicitly allowed for this instance.
+            if (!includeScreenSizeDependentAttributes && key.equals(EXTRAS_KEY_OFFSCREEN)) {
                 continue;
             }
 
@@ -365,8 +486,7 @@ public class AccessibilityNodeInfoUtils {
             }
 
             // Simplify the key String before printing to make test outputs easier to read.
-            bundleStrings.add(key.replace("AccessibilityNodeInfo.", "") + "=\""
-                    + extras.get(key).toString() + "\"");
+            bundleStrings.add(key.replace("AccessibilityNodeInfo.", "") + "=\"" + value + "\"");
         }
         builder.append(TextUtils.join(", ", bundleStrings)).append("]");
 

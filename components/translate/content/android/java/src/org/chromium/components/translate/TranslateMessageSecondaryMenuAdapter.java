@@ -4,6 +4,8 @@
 
 package org.chromium.components.translate;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,14 +16,22 @@ import android.widget.TextView;
 import androidx.annotation.IntDef;
 import androidx.annotation.LayoutRes;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.translate.TranslateMessage.MenuItem;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+@NullMarked
 final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
-    @IntDef({ViewType.DIVIDER, ViewType.MENU_ITEM, ViewType.MENU_ITEM_WITH_SUBTITLE,
-            ViewType.MENU_ITEM_WITH_CHECKMARK, ViewType.NUM_ENTRIES})
+    @IntDef({
+        ViewType.DIVIDER,
+        ViewType.MENU_ITEM,
+        ViewType.MENU_ITEM_WITH_SUBTITLE,
+        ViewType.MENU_ITEM_WITH_CHECKMARK,
+        ViewType.NUM_ENTRIES
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface ViewType {
         int DIVIDER = 0;
@@ -32,9 +42,9 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
     }
 
     private final LayoutInflater mInflater;
-    private MenuItem[] mMenuItems;
+    private MenuItem @Nullable [] mMenuItems;
 
-    public TranslateMessageSecondaryMenuAdapter(Context context, MenuItem[] menuItems) {
+    public TranslateMessageSecondaryMenuAdapter(Context context, MenuItem @Nullable [] menuItems) {
         mInflater = LayoutInflater.from(context);
         mMenuItems = menuItems;
     }
@@ -59,6 +69,7 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
 
     @Override
     public int getItemViewType(int position) {
+        assumeNonNull(mMenuItems);
         MenuItem item = mMenuItems[position];
         if (item.title.equals("")) return ViewType.DIVIDER;
         if (!item.subtitle.equals("")) {
@@ -92,7 +103,7 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
 
     @Override
     public Object getItem(int position) {
-        return mMenuItems[position];
+        return assumeNonNull(mMenuItems)[position];
     }
 
     @Override
@@ -102,22 +113,35 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
+        assumeNonNull(mMenuItems);
         switch (getItemViewType(position)) {
             case ViewType.DIVIDER:
-                convertView = reuseOrCreateView(
-                        convertView, ViewType.DIVIDER, R.layout.app_menu_divider, parent);
+                convertView =
+                        reuseOrCreateView(
+                                convertView,
+                                ViewType.DIVIDER,
+                                R.layout.list_section_divider,
+                                parent);
                 break;
 
             case ViewType.MENU_ITEM:
-                convertView = reuseOrCreateView(
-                        convertView, ViewType.MENU_ITEM, R.layout.translate_menu_item, parent);
+                convertView =
+                        reuseOrCreateView(
+                                convertView,
+                                ViewType.MENU_ITEM,
+                                R.layout.translate_menu_item,
+                                parent);
                 ((TextView) convertView.findViewById(R.id.menu_item_text))
                         .setText(mMenuItems[position].title);
                 break;
 
             case ViewType.MENU_ITEM_WITH_SUBTITLE:
-                convertView = reuseOrCreateView(convertView, ViewType.MENU_ITEM_WITH_SUBTITLE,
-                        R.layout.translate_menu_extended_item, parent);
+                convertView =
+                        reuseOrCreateView(
+                                convertView,
+                                ViewType.MENU_ITEM_WITH_SUBTITLE,
+                                R.layout.translate_menu_extended_item,
+                                parent);
                 ((TextView) convertView.findViewById(R.id.menu_item_text))
                         .setText(mMenuItems[position].title);
                 ((TextView) convertView.findViewById(R.id.menu_item_secondary_text))
@@ -125,8 +149,12 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
                 break;
 
             case ViewType.MENU_ITEM_WITH_CHECKMARK:
-                convertView = reuseOrCreateView(convertView, ViewType.MENU_ITEM_WITH_CHECKMARK,
-                        R.layout.translate_menu_item_checked, parent);
+                convertView =
+                        reuseOrCreateView(
+                                convertView,
+                                ViewType.MENU_ITEM_WITH_CHECKMARK,
+                                R.layout.translate_menu_item_checked,
+                                parent);
                 ((TextView) convertView.findViewById(R.id.menu_item_text))
                         .setText(mMenuItems[position].title);
                 break;
@@ -138,8 +166,11 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
         return convertView;
     }
 
-    private View reuseOrCreateView(View view, @ViewType int desiredViewType,
-            @LayoutRes int layoutResourceId, ViewGroup parent) {
+    private View reuseOrCreateView(
+            View view,
+            @ViewType int desiredViewType,
+            @LayoutRes int layoutResourceId,
+            ViewGroup parent) {
         if (canReuseView(view, desiredViewType)) return view;
         view = mInflater.inflate(layoutResourceId, parent, false);
         view.setTag(R.id.view_type, desiredViewType);
@@ -147,7 +178,8 @@ final class TranslateMessageSecondaryMenuAdapter extends BaseAdapter {
     }
 
     private static boolean canReuseView(View view, @ViewType int desiredViewType) {
-        return view != null && view.getTag(R.id.view_type) != null
+        return view != null
+                && view.getTag(R.id.view_type) != null
                 && (int) view.getTag(R.id.view_type) == desiredViewType;
     }
 }

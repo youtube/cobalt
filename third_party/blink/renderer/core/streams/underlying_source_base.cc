@@ -6,54 +6,52 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
+#include "third_party/blink/renderer/core/streams/readable_stream_default_controller.h"
 #include "third_party/blink/renderer/core/streams/readable_stream_default_controller_with_script_scope.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "v8/include/v8.h"
 
 namespace blink {
 
-ScriptPromise UnderlyingSourceBase::startWrapper(ScriptState* script_state,
-                                                 ScriptValue js_controller) {
+ScriptPromise<IDLUndefined> UnderlyingSourceBase::StartWrapper(
+    ScriptState* script_state,
+    ReadableStreamDefaultController* controller) {
   // Cannot call start twice (e.g., cannot use the same UnderlyingSourceBase to
   // construct multiple streams).
   DCHECK(!controller_);
 
   controller_ =
       MakeGarbageCollected<ReadableStreamDefaultControllerWithScriptScope>(
-          script_state, js_controller);
-
+          script_state, controller);
   return Start(script_state);
 }
 
-ScriptPromise UnderlyingSourceBase::Start(ScriptState* script_state) {
-  return ScriptPromise::CastUndefined(script_state);
+ScriptPromise<IDLUndefined> UnderlyingSourceBase::Start(
+    ScriptState* script_state) {
+  return ToResolvedUndefinedPromise(script_state);
 }
 
-ScriptPromise UnderlyingSourceBase::pull(ScriptState* script_state) {
-  return ScriptPromise::CastUndefined(script_state);
+ScriptPromise<IDLUndefined> UnderlyingSourceBase::Pull(
+    ScriptState* script_state,
+    ExceptionState&) {
+  return ToResolvedUndefinedPromise(script_state);
 }
 
-ScriptPromise UnderlyingSourceBase::cancelWrapper(ScriptState* script_state) {
-  v8::Isolate* isolate = script_state->GetIsolate();
-  return cancelWrapper(script_state,
-                       ScriptValue(isolate, v8::Undefined(isolate)));
-}
-
-ScriptPromise UnderlyingSourceBase::cancelWrapper(ScriptState* script_state,
-                                                  ScriptValue reason) {
-  DCHECK(controller_);  // startWrapper() must have been called
+ScriptPromise<IDLUndefined> UnderlyingSourceBase::CancelWrapper(
+    ScriptState* script_state,
+    ScriptValue reason,
+    ExceptionState& exception_state) {
+  DCHECK(controller_);  // StartWrapper() must have been called
   controller_->Deactivate();
-  return Cancel(script_state, reason);
+  return Cancel(script_state, reason, exception_state);
 }
 
-ScriptPromise UnderlyingSourceBase::Cancel(ScriptState* script_state,
-                                           ScriptValue reason) {
-  return ScriptPromise::CastUndefined(script_state);
-}
-
-ScriptValue UnderlyingSourceBase::type(ScriptState* script_state) const {
-  return ScriptValue(script_state->GetIsolate(),
-                     v8::Undefined(script_state->GetIsolate()));
+ScriptPromise<IDLUndefined> UnderlyingSourceBase::Cancel(
+    ScriptState* script_state,
+    ScriptValue reason,
+    ExceptionState&) {
+  return ToResolvedUndefinedPromise(script_state);
 }
 
 void UnderlyingSourceBase::ContextDestroyed() {
@@ -69,8 +67,49 @@ void UnderlyingSourceBase::ContextDestroyed() {
 
 void UnderlyingSourceBase::Trace(Visitor* visitor) const {
   visitor->Trace(controller_);
-  ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+}
+
+ScriptPromise<IDLUndefined> UnderlyingStartAlgorithm::Run(
+    ScriptState* script_state) {
+  return source_->StartWrapper(script_state, controller_.Get());
+}
+
+void UnderlyingStartAlgorithm::Trace(Visitor* visitor) const {
+  StreamStartAlgorithm::Trace(visitor);
+  visitor->Trace(source_);
+  visitor->Trace(controller_);
+}
+
+ScriptPromise<IDLUndefined> UnderlyingPullAlgorithm::Run(
+    ScriptState* script_state,
+    int argc,
+    v8::Local<v8::Value> argv[]) {
+  DCHECK_EQ(argc, 0);
+  return source_->Pull(script_state,
+                       PassThroughException(script_state->GetIsolate()));
+}
+
+void UnderlyingPullAlgorithm::Trace(Visitor* visitor) const {
+  StreamAlgorithm::Trace(visitor);
+  visitor->Trace(source_);
+}
+
+ScriptPromise<IDLUndefined> UnderlyingCancelAlgorithm::Run(
+    ScriptState* script_state,
+    int argc,
+    v8::Local<v8::Value> argv[]) {
+  v8::Isolate* isolate = script_state->GetIsolate();
+  v8::Local<v8::Value> reason =
+      argc > 0 ? argv[0] : v8::Undefined(isolate).As<v8::Value>();
+  return source_->CancelWrapper(
+      script_state, ScriptValue(isolate, reason),
+      PassThroughException(script_state->GetIsolate()));
+}
+
+void UnderlyingCancelAlgorithm::Trace(Visitor* visitor) const {
+  StreamAlgorithm::Trace(visitor);
+  visitor->Trace(source_);
 }
 
 }  // namespace blink

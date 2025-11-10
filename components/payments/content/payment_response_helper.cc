@@ -11,9 +11,9 @@
 #include "base/functional/bind.h"
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/autofill/core/browser/address_normalizer.h"
-#include "components/autofill/core/browser/autofill_data_util.h"
 #include "components/autofill/core/browser/autofill_type.h"
+#include "components/autofill/core/browser/data_quality/addresses/address_normalizer.h"
+#include "components/autofill/core/browser/data_quality/autofill_data_util.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/payments/content/payment_request_spec.h"
@@ -26,14 +26,14 @@
 namespace payments {
 
 PaymentResponseHelper::PaymentResponseHelper(
-    const std::string& app_locale,
+    std::string app_locale,
     base::WeakPtr<PaymentRequestSpec> spec,
     base::WeakPtr<PaymentApp> selected_app,
     base::WeakPtr<PaymentRequestDelegate> payment_request_delegate,
     autofill::AutofillProfile* selected_shipping_profile,
     autofill::AutofillProfile* selected_contact_profile,
     base::WeakPtr<Delegate> delegate)
-    : app_locale_(app_locale),
+    : app_locale_(std::move(app_locale)),
       is_waiting_for_shipping_address_normalization_(false),
       is_waiting_for_instrument_details_(false),
       spec_(spec),
@@ -67,7 +67,7 @@ PaymentResponseHelper::PaymentResponseHelper(
   selected_app_->InvokePaymentApp(weak_ptr_factory_.GetWeakPtr());
 }
 
-PaymentResponseHelper::~PaymentResponseHelper() {}
+PaymentResponseHelper::~PaymentResponseHelper() = default;
 
 void PaymentResponseHelper::OnInstrumentDetailsReady(
     const std::string& method_name,
@@ -126,7 +126,7 @@ mojom::PayerDetailPtr PaymentResponseHelper::GeneratePayerDetail(
     } else {
       DCHECK(selected_contact_profile);
       payer->name = base::UTF16ToUTF8(
-          selected_contact_profile->GetInfo(autofill::NAME_FULL, *app_locale_));
+          selected_contact_profile->GetInfo(autofill::NAME_FULL, app_locale_));
     }
   }
   if (spec_->request_payer_email()) {
@@ -150,10 +150,10 @@ mojom::PayerDetailPtr PaymentResponseHelper::GeneratePayerDetail(
       // https://w3c.github.io/payment-request/#paymentrequest-updated-algorithm
       const std::string original_number =
           base::UTF16ToUTF8(selected_contact_profile->GetInfo(
-              autofill::PHONE_HOME_WHOLE_NUMBER, *app_locale_));
+              autofill::PHONE_HOME_WHOLE_NUMBER, app_locale_));
 
       const std::string default_region_code =
-          autofill::AutofillCountry::CountryCodeForLocale(*app_locale_);
+          autofill::AutofillCountry::CountryCodeForLocale(app_locale_);
       payer->phone = autofill::i18n::FormatPhoneForResponse(
           original_number, default_region_code);
     }
@@ -184,7 +184,7 @@ void PaymentResponseHelper::GeneratePaymentResponse() {
     } else {
       payment_response->shipping_address =
           data_util::GetPaymentAddressFromAutofillProfile(shipping_address_,
-                                                          *app_locale_);
+                                                          app_locale_);
       payment_response->shipping_option = spec_->selected_shipping_option()->id;
     }
   }

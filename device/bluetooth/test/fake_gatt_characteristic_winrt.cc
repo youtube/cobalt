@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/bluetooth/test/fake_gatt_characteristic_winrt.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/win/async_operation.h"
 #include "base/win/winrt_storage_util.h"
@@ -67,7 +72,7 @@ using Microsoft::WRL::Make;
 FakeGattCharacteristicWinrt::FakeGattCharacteristicWinrt(
     BluetoothTestWinrt* bluetooth_test_winrt,
     int properties,
-    base::StringPiece uuid,
+    std::string_view uuid,
     uint16_t attribute_handle)
     : bluetooth_test_winrt_(bluetooth_test_winrt),
       properties_(static_cast<GattCharacteristicProperties>(properties)),
@@ -280,7 +285,7 @@ void FakeGattCharacteristicWinrt::SimulateGattCharacteristicWriteError(
 }
 
 void FakeGattCharacteristicWinrt::SimulateGattDescriptor(
-    base::StringPiece uuid) {
+    std::string_view uuid) {
   fake_descriptors_.push_back(Make<FakeGattDescriptorWinrt>(
       bluetooth_test_winrt_, uuid, ++last_descriptor_attribute_handle_));
 }

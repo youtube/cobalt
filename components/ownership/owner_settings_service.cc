@@ -15,10 +15,12 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/values.h"
 #include "components/ownership/owner_key_util.h"
+#include "components/policy/proto/device_management_backend.pb.h"
 #include "crypto/scoped_nss_types.h"
 
 namespace em = enterprise_management;
@@ -30,6 +32,31 @@ namespace {
 using ScopedSGNContext = std::unique_ptr<
     SGNContext,
     crypto::NSSDestroyer1<SGNContext, SGN_DestroyContext, PR_TRUE>>;
+
+crypto::ScopedSECItem SignPolicy(
+    const scoped_refptr<ownership::PrivateKey>& private_key,
+    base::span<const uint8_t> policy,
+    const em::PolicyFetchRequest::SignatureType signature_type) {
+  SECOidTag algorithm;
+  switch (signature_type) {
+    case em::PolicyFetchRequest::SHA1_RSA:
+      algorithm = SEC_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION;
+      break;
+    case em::PolicyFetchRequest::SHA256_RSA:
+      algorithm = SEC_OID_PKCS1_SHA256_WITH_RSA_ENCRYPTION;
+      break;
+    case em::PolicyFetchRequest::NONE:
+      NOTREACHED();
+  }
+
+  crypto::ScopedSECItem sign_result(SECITEM_AllocItem(nullptr, nullptr, 0));
+
+  if (SEC_SignData(sign_result.get(), policy.data(), policy.size(),
+                   private_key->key(), algorithm) != SECSuccess) {
+    return nullptr;
+  }
+  return sign_result;
+}
 
 // |public_key| is included in the |policy|
 // if the ChromeSideOwnerKeyGeneration Feature is enabled. |private_key|
@@ -45,46 +72,52 @@ std::unique_ptr<em::PolicyFetchResponse> AssembleAndSignPolicy(
   std::unique_ptr<em::PolicyFetchResponse> policy_response(
       new em::PolicyFetchResponse());
 
-  if (base::FeatureList::IsEnabled(ownership::kChromeSideOwnerKeyGeneration)) {
-    policy_response->set_new_public_key(public_key->data().data(),
-                                        public_key->data().size());
-  }
+  policy_response->set_new_public_key(public_key->data().data(),
+                                      public_key->data().size());
 
   if (!policy->SerializeToString(policy_response->mutable_policy_data())) {
     LOG(ERROR) << "Failed to encode policy payload.";
     return nullptr;
   }
 
-  ScopedSGNContext sign_context(SGN_NewContext(
-      SEC_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION, private_key->key()));
-  if (!sign_context) {
-    NOTREACHED();
-    return nullptr;
-  }
+  // Retry signature generation several times. At the low level this is
+  // performed by Chaps which implements the PKCS#11 interface. It's expected
+  // that some operations might fail because PKCS#11 sessions can get closed. In
+  // such cases the caller should retry the request. This is not expected to
+  // happen too often, 5 attempts should be enough.
+  int attempt_counter = 0;
+  constexpr int kMaxSignatureAttempts = 5;
+  crypto::ScopedSECItem signature_item;
 
-  SECItem signature_item;
-  if (SGN_Begin(sign_context.get()) != SECSuccess ||
-      SGN_Update(sign_context.get(),
-                 reinterpret_cast<const uint8_t*>(
-                     policy_response->policy_data().c_str()),
-                 policy_response->policy_data().size()) != SECSuccess ||
-      SGN_End(sign_context.get(), &signature_item) != SECSuccess) {
+  em::PolicyFetchRequest::SignatureType signature_type =
+      base::FeatureList::IsEnabled(ownership::kOwnerSettingsWithSha256)
+          ? em::PolicyFetchRequest::SHA256_RSA
+          : em::PolicyFetchRequest::SHA1_RSA;
+  do {
+    ++attempt_counter;
+    signature_item = SignPolicy(
+        private_key, base::as_byte_span(policy_response->policy_data()),
+        signature_type);
+  } while (!signature_item && attempt_counter < kMaxSignatureAttempts);
+
+  if (!signature_item) {
     LOG(ERROR) << "Failed to create policy signature.";
     return nullptr;
   }
 
   policy_response->mutable_policy_data_signature()->assign(
-      reinterpret_cast<const char*>(signature_item.data), signature_item.len);
-  SECITEM_FreeItem(&signature_item, PR_FALSE);
-
+      reinterpret_cast<const char*>(signature_item->data), signature_item->len);
+  if (base::FeatureList::IsEnabled(ownership::kOwnerSettingsWithSha256)) {
+    policy_response->set_policy_data_signature_type(signature_type);
+  }
   return policy_response;
 }
 
 }  // namespace
 
-BASE_FEATURE(kChromeSideOwnerKeyGeneration,
-             "ChromeSideOwnerKeyGeneration",
-             base::FeatureState::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kOwnerSettingsWithSha256,
+             "OwnerSettingsWithSha256",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 OwnerSettingsService::OwnerSettingsService(
     const scoped_refptr<ownership::OwnerKeyUtil>& owner_key_util)
@@ -165,6 +198,12 @@ void OwnerSettingsService::RunPendingIsOwnerCallbacksForTesting(bool is_owner) {
   is_owner_callbacks.swap(pending_is_owner_callbacks_);
   for (auto& callback : is_owner_callbacks)
     std::move(callback).Run(is_owner);
+}
+
+void OwnerSettingsService::Shutdown() {
+  for (auto& observer : observers_) {
+    observer.OnServiceShutdown();
+  }
 }
 
 bool OwnerSettingsService::SetString(const std::string& setting,

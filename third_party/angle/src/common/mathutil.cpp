@@ -50,7 +50,7 @@ unsigned int convertRGBFloatsTo999E5(float red, float green, float blue)
     const float green_c = std::max<float>(0, std::min(g_sharedexp_max, green));
     const float blue_c  = std::max<float>(0, std::min(g_sharedexp_max, blue));
 
-    const float max_c = std::max<float>(std::max<float>(red_c, green_c), blue_c);
+    const float max_c = std::max<float>({red_c, green_c, blue_c});
     const float exp_p =
         std::max<float>(-g_sharedexp_bias - 1, floor(log(max_c))) + 1 + g_sharedexp_bias;
     const int max_s = static_cast<int>(
@@ -78,6 +78,19 @@ void convert999E5toRGBFloats(unsigned int input, float *red, float *green, float
     *red   = inputData->R * pow2_exp;
     *green = inputData->G * pow2_exp;
     *blue  = inputData->B * pow2_exp;
+}
+
+std::ostream &operator<<(std::ostream &s, const IndexRange &a)
+{
+    if (a.isEmpty())
+    {
+        s << "[]";
+    }
+    else
+    {
+        s << "[" << a.start() << ", " << a.end() << "]";
+    }
+    return s;
 }
 
 }  // namespace gl

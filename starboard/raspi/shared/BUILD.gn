@@ -170,7 +170,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
     "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
     "//starboard/shared/starboard/media/media_get_initial_buffer_capacity.cc",
-    "//starboard/shared/starboard/media/media_get_max_buffer_capacity.cc",
     "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc",
@@ -230,8 +229,5 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
-  deps = [
-    "//third_party/libevent",
-    "//third_party/opus",
-  ]
+  deps = [ "//third_party/opus" ]
 }

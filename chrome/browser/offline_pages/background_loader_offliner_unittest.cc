@@ -17,7 +17,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_mock_time_message_loop_task_runner.h"
 #include "chrome/browser/offline_pages/offliner_helper.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
@@ -83,7 +83,7 @@ class MockOfflinePageModel : public StubOfflinePageModel {
   MockOfflinePageModel(const MockOfflinePageModel&) = delete;
   MockOfflinePageModel& operator=(const MockOfflinePageModel&) = delete;
 
-  ~MockOfflinePageModel() override {}
+  ~MockOfflinePageModel() override = default;
 
   void SavePage(const SavePageParams& save_page_params,
                 std::unique_ptr<OfflinePageArchiver> archiver,
@@ -187,7 +187,7 @@ TestBackgroundLoaderOffliner::TestBackgroundLoaderOffliner(
                                offline_page_model,
                                std::move(load_termination_listener)) {}
 
-TestBackgroundLoaderOffliner::~TestBackgroundLoaderOffliner() {}
+TestBackgroundLoaderOffliner::~TestBackgroundLoaderOffliner() = default;
 
 void TestBackgroundLoaderOffliner::ResetLoader() {
   stub_ = new background_loader::BackgroundLoaderContentsStub(browser_context_);
@@ -316,7 +316,7 @@ BackgroundLoaderOfflinerTest::BackgroundLoaderOfflinerTest()
       progress_(0LL),
       request_status_(Offliner::RequestStatus::UNKNOWN) {}
 
-BackgroundLoaderOfflinerTest::~BackgroundLoaderOfflinerTest() {}
+BackgroundLoaderOfflinerTest::~BackgroundLoaderOfflinerTest() = default;
 
 void BackgroundLoaderOfflinerTest::SetUp() {
   // Set the snapshot controller delay command line switch to short delays.
@@ -646,10 +646,6 @@ TEST_F(BackgroundLoaderOfflinerTest, FailsOnErrorPage) {
   handle.set_net_error_code(net::Error::ERR_NAME_NOT_RESOLVED);
   offliner()->DidFinishNavigation(&handle);
 
-  histograms().ExpectBucketCount(
-      "OfflinePages.Background.LoadingErrorStatusCode.async_loading",
-      -105,  // ERR_NAME_NOT_RESOLVED
-      1);
   CompleteLoading();
   PumpLoop();
 
@@ -940,10 +936,6 @@ TEST_F(BackgroundLoaderOfflinerTest,
   offliner()->DidFinishNavigation(&handle);
 
   // The error histogram should be 0.
-  histograms().ExpectBucketCount(
-      "OfflinePages.Background.LoadingErrorStatusCode.async_loading",
-      -105,  // ERR_NAME_NOT_RESOLVED
-      0);
   CompleteLoading();
   PumpLoop();
 

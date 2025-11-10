@@ -17,20 +17,9 @@ class MockPasswordFeatureManager : public PasswordFeatureManager {
   ~MockPasswordFeatureManager() override;
 
   MOCK_METHOD(bool, IsGenerationEnabled, (), (override, const));
-  MOCK_METHOD(bool, IsOptedInForAccountStorage, (), (override, const));
-  MOCK_METHOD(bool, ShouldShowAccountStorageOptIn, (), (override, const));
-  MOCK_METHOD(bool,
-              ShouldShowAccountStorageReSignin,
-              (const GURL&),
-              (override, const));
-  MOCK_METHOD(bool, ShouldShowAccountStorageBubbleUi, (), (override, const));
-  MOCK_METHOD(PasswordForm::Store,
-              GetDefaultPasswordStore,
-              (),
-              (override, const));
-  MOCK_METHOD(bool, IsDefaultPasswordStoreSet, (), (override, const));
+  MOCK_METHOD(bool, IsAccountStorageEnabled, (), (override, const));
 
-  MOCK_METHOD(metrics_util::PasswordAccountStorageUsageLevel,
+  MOCK_METHOD(features_util::PasswordAccountStorageUsageLevel,
               ComputePasswordAccountStorageUsageLevel,
               (),
               (override, const));
@@ -39,20 +28,9 @@ class MockPasswordFeatureManager : public PasswordFeatureManager {
               (),
               (override, const));
 
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
-  MOCK_METHOD(void, OptInToAccountStorage, (), (override));
-  MOCK_METHOD(void, OptOutOfAccountStorageAndClearSettings, (), (override));
-  MOCK_METHOD(bool,
-              ShouldOfferOptInAndMoveToAccountStoreAfterSavingLocally,
-              (),
-              (override, const));
-  MOCK_METHOD(void,
-              SetDefaultPasswordStore,
-              (const PasswordForm::Store& store),
-              (override));
-  MOCK_METHOD(void, RecordMoveOfferedToNonOptedInUser, (), (override));
-  MOCK_METHOD(int, GetMoveOfferedToNonOptedInUserCount, (), (override, const));
-#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  MOCK_METHOD(bool, ShouldUpdateGmsCore, (), (override));
+#endif  // BUILDFLAG(IS_ANDROID)
 };
 
 }  // namespace password_manager

@@ -49,7 +49,6 @@ DrmWindowHost* DrmWindowHostManager::GetWindow(gfx::AcceleratedWidget widget) {
     return it->second;
 
   NOTREACHED() << "Attempting to get non-existing window " << widget;
-  return NULL;
 }
 
 DrmWindowHost* DrmWindowHostManager::GetWindowAt(const gfx::Point& location) {

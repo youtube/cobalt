@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,34 +17,31 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
 #include "chrome/browser/safe_browsing/download_protection/download_request_maker.h"
 #include "chrome/browser/safe_browsing/download_protection/file_analyzer.h"
-#include "chrome/services/file_util/public/cpp/sandboxed_rar_analyzer.h"
-#include "chrome/services/file_util/public/cpp/sandboxed_zip_analyzer.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/content/browser/ui_manager.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
-#include "components/safe_browsing/core/browser/sync/safe_browsing_primary_account_token_fetcher.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(IS_MAC)
-#include "chrome/common/safe_browsing/disk_image_type_sniffer_mac.h"
-#include "chrome/services/file_util/public/cpp/sandboxed_dmg_analyzer_mac.h"
-#endif
 
 namespace network {
 class SimpleURLLoader;
 }
 
 namespace safe_browsing {
+
+class DownloadProtectionService;
+
+#if !BUILDFLAG(IS_ANDROID)
+class SafeBrowsingTokenFetcher;
+#endif
 
 class CheckClientDownloadRequestBase {
  public:
@@ -67,6 +65,10 @@ class CheckClientDownloadRequestBase {
 
   DownloadProtectionService* service() const { return service_; }
 
+  virtual download::DownloadItem* item() const = 0;
+
+  CheckDownloadCallback TakeCallback() { return std::move(callback_); }
+
  protected:
   // Subclasses can call this method to mark the request as finished (for
   // example because the download was cancelled) before the safe browsing
@@ -83,13 +85,30 @@ class CheckClientDownloadRequestBase {
   bool IsDownloadManuallyBlocklisted(const ClientDownloadRequest& request);
 
   void OnUrlAllowlistCheckDone(bool is_allowlisted);
-  void OnRequestBuilt(std::unique_ptr<ClientDownloadRequest> request_proto);
+  void OnRequestBuilt(DownloadRequestMaker::RequestCreationDetails details,
+                      std::unique_ptr<ClientDownloadRequest> request_proto);
 
   void StartTimeout();
   void SendRequest();
   void OnURLLoaderComplete(std::unique_ptr<std::string> response_body);
 
-  virtual bool IsSupportedDownload(DownloadCheckResultReason* reason) = 0;
+  // If we need to perform additional prompting (e.g. deep scanning, local
+  // password decryption) due to the response, this method will update `result`
+  // and `reason` appropriately. This method also performs logging related to
+  // these additional prompts. If both prompts are allowed, deep scanning will
+  // be prioritized.
+  void GetAdditionalPromptResult(const ClientDownloadResponse& response,
+                                 DownloadCheckResult* result,
+                                 DownloadCheckResultReason* reason,
+                                 std::string* token) const;
+
+  // Returns enum value indicating whether `item` is eligible for
+  // CheckClientDownloadRequest. If return value is not kMayCheckDownload, then
+  // `reason` will be populated with the reason why.
+  // TODO(chlily): Rename this method since it does not return a bool.
+  virtual MayCheckDownloadResult IsSupportedDownload(
+      DownloadCheckResultReason* reason) = 0;
+
   virtual content::BrowserContext* GetBrowserContext() const = 0;
   virtual bool IsCancelled() = 0;
   virtual base::WeakPtr<CheckClientDownloadRequestBase> GetWeakPtr() = 0;
@@ -109,16 +128,21 @@ class CheckClientDownloadRequestBase {
       const ClientDownloadResponse::Verdict& verdict,
       const ClientDownloadResponse::TailoredVerdict& tailored_verdict) = 0;
 
+  // TODO(crbug.com/397407934): Download feedback is not supported on Android
+  // yet, but it will be.
+#if !BUILDFLAG(IS_ANDROID)
   // Called when a valid response has been received from the server.
-  virtual void MaybeStorePingsForDownload(DownloadCheckResult result,
-                                          bool upload_requested,
-                                          const std::string& request_data,
-                                          const std::string& response_body) = 0;
+  virtual void MaybeBeginFeedbackForDownload(
+      DownloadCheckResult result,
+      bool upload_requested,
+      const std::string& request_data,
+      const std::string& response_body) = 0;
+#endif
 
   // Returns whether or not the file should be uploaded to Safe Browsing for
   // deep scanning. Returns the settings to apply for analysis if the file
-  // should be uploaded for deep scanning, or absl::nullopt if it should not.
-  virtual absl::optional<enterprise_connectors::AnalysisSettings>
+  // should be uploaded for deep scanning, or std::nullopt if it should not.
+  virtual std::optional<enterprise_connectors::AnalysisSettings>
   ShouldUploadBinary(DownloadCheckResultReason reason) = 0;
 
   // If ShouldUploadBinary returns settings, actually performs the upload to
@@ -132,13 +156,24 @@ class CheckClientDownloadRequestBase {
   virtual void NotifyRequestFinished(DownloadCheckResult result,
                                      DownloadCheckResultReason reason) = 0;
 
+  // Called when finishing the download, to decide whether to
+  // immediately start deep scanning or not.
+  virtual bool ShouldImmediatelyDeepScan(bool server_requests_prompt) const = 0;
+
   // Called when finishing the download, to decide whether to prompt the user
   // for deep scanning or not.
   virtual bool ShouldPromptForDeepScanning(
       bool server_requests_prompt) const = 0;
 
+  // Called when finishing the download, to decide whether to prompt the user
+  // for local decryption or not.
+  virtual bool ShouldPromptForLocalDecryption(
+      bool server_requests_prompt) const = 0;
+
+#if !BUILDFLAG(IS_ANDROID)
   // Called when |token_fetcher_| has finished fetching the access token.
   void OnGotAccessToken(const std::string& access_token);
+#endif
 
   // Called at the request start to determine if we should bailout due to the
   // file being allowlisted by policy
@@ -148,7 +183,19 @@ class CheckClientDownloadRequestBase {
   // |client_download_request_| with their origin.
   void SanitizeRequest();
 
-  // Source URL being downloaded from. This shuold always be set, but could be
+  // Called when we decide whether or not to show a deep scanning prompt
+  virtual void LogDeepScanningPrompt(bool did_prompt) const = 0;
+
+  // Returns whether we should skip sending a ping to Safe Browsing because the
+  // provided password was incorrect.
+  virtual bool ShouldPromptForIncorrectPassword() const = 0;
+
+  // Returns whether we should skip sending a ping to Safe Browsing because
+  // extraction failed in a way that makes the data useless (e.g. disk write
+  // failure).
+  virtual bool ShouldShowScanFailure() const = 0;
+
+  // Source URL being downloaded from. This should always be set, but could be
   // for example an artificial blob: URL if there is no source URL.
   const GURL source_url_;
   const base::FilePath target_file_path_;
@@ -167,7 +214,6 @@ class CheckClientDownloadRequestBase {
   const raw_ptr<DownloadProtectionService> service_;
   const scoped_refptr<SafeBrowsingDatabaseManager> database_manager_;
   const bool pingback_enabled_;
-  base::CancelableTaskTracker request_tracker_;  // For HistoryService lookup.
   base::TimeTicks start_time_ = base::TimeTicks::Now();  // Used for stats.
   base::TimeTicks timeout_start_time_;
   base::TimeTicks request_start_time_;
@@ -179,15 +225,19 @@ class CheckClientDownloadRequestBase {
   bool is_incognito_ = false;
   bool is_enhanced_protection_ = false;
 
+#if !BUILDFLAG(IS_ANDROID)
   // The token fetcher used to attach OAuth access tokens to requests for
   // appropriately consented users.
   std::unique_ptr<SafeBrowsingTokenFetcher> token_fetcher_;
 
   // The OAuth access token for the user profile, if needed in the request.
   std::string access_token_;
+#endif
 
   // Used to create the download request proto.
   std::unique_ptr<DownloadRequestMaker> download_request_maker_;
+  // Records details about the DownloadRequestMaker run.
+  DownloadRequestMaker::RequestCreationDetails request_creation_details_;
 };  // namespace safe_browsing
 
 }  // namespace safe_browsing

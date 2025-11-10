@@ -4,6 +4,9 @@
 
 #include "third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.h"
 
+#include <algorithm>
+#include <tuple>
+
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -14,6 +17,7 @@
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cc/tiles/image_decode_cache_utils.h"
+#include "cc/trees/layer_tree_settings.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
@@ -23,18 +27,16 @@
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/web_test_support.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
-#include "ui/native_theme/native_theme_features.h"
+#include "ui/native_theme/features/native_theme_features.h"
+#include "ui/native_theme/native_theme_utils.h"
 #include "ui/native_theme/overlay_scrollbar_constants_aura.h"
 
 namespace blink {
 
 namespace {
-
-BASE_FEATURE(kUnpremultiplyAndDitherLowBitDepthTiles,
-             "UnpremultiplyAndDitherLowBitDepthTiles",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, scrollbar fade animations' delay and duration are scaled
 // according to `kFadeDelayScalingFactor` and `kFadeDurationScalingFactor`
@@ -58,8 +60,15 @@ void InitializeScrollbarFadeAndDelay(cc::LayerTreeSettings& settings) {
 
 #if !BUILDFLAG(IS_ANDROID)
   if (ui::IsOverlayScrollbarEnabled()) {
-    settings.scrollbar_fade_delay = ui::kOverlayScrollbarFadeDelay;
-    settings.scrollbar_fade_duration = ui::kOverlayScrollbarFadeDuration;
+    settings.idle_thickness_scale = ui::kOverlayScrollbarIdleThicknessScale;
+    if (ui::IsFluentOverlayScrollbarEnabled()) {
+      settings.scrollbar_fade_delay = ui::kFluentOverlayScrollbarFadeDelay;
+      settings.scrollbar_fade_duration =
+          ui::kFluentOverlayScrollbarFadeDuration;
+    } else {
+      settings.scrollbar_fade_delay = ui::kOverlayScrollbarFadeDelay;
+      settings.scrollbar_fade_duration = ui::kOverlayScrollbarFadeDuration;
+    }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -78,6 +87,66 @@ bool IsSmallScreen(const gfx::Size& size) {
   if (!size.GetCheckedArea().AssignIfValid(&area))
     return false;
   return area < kSmallScreenPixelThreshold;
+}
+#endif
+
+std::pair<int, int> GetTilingInterestAreaSizes() {
+  int interest_area_size_in_pixels;
+
+  if (base::FeatureList::IsEnabled(::features::kSmallerInterestArea) &&
+      ::features::kInterestAreaSizeInPixels.Get() ==
+          ::features::kInterestAreaSizeInPixels.default_value) {
+    interest_area_size_in_pixels =
+        ::features::kDefaultInterestAreaSizeInPixelsWhenEnabled;
+  } else {
+    interest_area_size_in_pixels = ::features::kInterestAreaSizeInPixels.Get();
+  }
+
+  if (interest_area_size_in_pixels ==
+      ::features::kInterestAreaSizeInPixels.default_value) {
+    return {
+        ::features::kDefaultInterestAreaSizeInPixels,
+        cc::LayerTreeSettings::kDefaultSkewportExtrapolationLimitInScrenPixels};
+  }
+  // Keep the same ratio we have by default.
+  static_assert(
+      cc::LayerTreeSettings::kDefaultSkewportExtrapolationLimitInScrenPixels ==
+      2 * ::features::kDefaultInterestAreaSizeInPixels / 3);
+  return {interest_area_size_in_pixels, (2 * interest_area_size_in_pixels) / 3};
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+// Adjusting tile memory size in case a lot more websites need more tile
+// memory than the current calculation.
+BASE_FEATURE(kAdjustTileGpuMemorySize,
+             "AdjustTileGpuMemorySize",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+constexpr size_t kLargeResolutionMemoryMB = 1152;
+constexpr size_t kDefaultMemoryMB = 512;
+
+constexpr base::FeatureParam<int> kNewLargeResolutionMemoryMB{
+    &kAdjustTileGpuMemorySize, "new_large_resolution_memory_mb",
+    /*default_value=*/kLargeResolutionMemoryMB};
+
+constexpr base::FeatureParam<int> kNewDefaultMemoryMB{
+    &kAdjustTileGpuMemorySize, "new_default_memory_mb",
+    /*default_value=*/kDefaultMemoryMB};
+
+size_t GetLargeResolutionMemoryMB() {
+  if (base::FeatureList::IsEnabled(kAdjustTileGpuMemorySize)) {
+    return kNewLargeResolutionMemoryMB.Get();
+  } else {
+    return kLargeResolutionMemoryMB;
+  }
+}
+
+size_t GetDefaultMemoryMB() {
+  if (base::FeatureList::IsEnabled(kAdjustTileGpuMemorySize)) {
+    return kNewDefaultMemoryMB.Get();
+  } else {
+    return kDefaultMemoryMB;
+  }
 }
 #endif
 
@@ -119,19 +188,37 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     actual.bytes_limit_when_visible = 256 * 1024 * 1024;
   }
 #else
-  // Ignore what the system said and give all clients the same maximum
-  // allocation on desktop platforms.
-  actual.bytes_limit_when_visible = 512 * 1024 * 1024;
+  // This calculation will increase the tile memory size. It should apply to
+  // the other plateforms if no regression on Mac.
+  //
+  // For large monitors with high resolution, increase the tile memory to
+  // avoid frequent out of memory problems. With Mac M1 on
+  // https://www.334-28th.com/, it seems 512 MB works fine on 1920x1080 * 2
+  // (scale) and 1152 MB on 2056x1329 * 2 (scale). Use this ratio for the
+  // formula to increase |bytes_limit_when_visible| proportionally.
+  // For mobile platforms with small display (roughly less than 3k x 1.6k),
+  // mb_limit will still be 512 MB.
+  constexpr size_t kLargeResolution = 2056 * 1329 * 2 * 2;
+  size_t display_size =
+      std::round(initial_screen_size.width() * initial_device_scale_factor *
+                 initial_screen_size.height() * initial_device_scale_factor);
 
-  // For large monitors (4k), double the tile memory to avoid frequent out of
-  // memory problems. 4k could mean a screen width of anywhere from 3840 to 4096
-  // (see https://en.wikipedia.org/wiki/4K_resolution). We use 3500 as a proxy
-  // for "large enough".
-  static const int kLargeDisplayThreshold = 3500;
-  int display_width =
-      std::round(initial_screen_size.width() * initial_device_scale_factor);
-  if (display_width >= kLargeDisplayThreshold)
-    actual.bytes_limit_when_visible *= 2;
+  size_t large_resolution_memory_mb = GetLargeResolutionMemoryMB();
+  size_t mb_limit_when_visible =
+      large_resolution_memory_mb * (display_size * 1.0 / kLargeResolution);
+
+  // Cap the memory size to one fourth of the total system memory so it won't
+  // consume too much of the system memory. Still keep the minimum to the
+  // default of 512MB.
+  size_t default_memory_mb = GetDefaultMemoryMB();
+  size_t memory_cap_mb = base::SysInfo::AmountOfPhysicalMemoryMB() / 4;
+  if (mb_limit_when_visible > memory_cap_mb) {
+    mb_limit_when_visible = memory_cap_mb;
+  } else if (mb_limit_when_visible < default_memory_mb) {
+    mb_limit_when_visible = default_memory_mb;
+  }
+
+  actual.bytes_limit_when_visible = mb_limit_when_visible * 1024 * 1024;
 #endif
   return actual;
 }
@@ -149,23 +236,18 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.enable_synchronized_scrolling =
       base::FeatureList::IsEnabled(::features::kSynchronizedScrolling);
   Platform* platform = Platform::Current();
-  settings.percent_based_scrolling =
-      ::features::IsPercentBasedScrollingEnabled();
-
-  settings.resource_settings.use_r16_texture =
-      base::FeatureList::IsEnabled(media::kUseR16Texture);
 
   settings.commit_to_active_tree = !is_threaded;
   settings.is_for_embedded_frame = is_for_embedded_frame;
   settings.is_for_scalable_page = is_for_scalable_page;
 
   settings.main_frame_before_activation_enabled =
-      cmd.HasSwitch(cc::switches::kEnableMainFrameBeforeActivation);
+      cmd.HasSwitch(::switches::kEnableMainFrameBeforeActivation);
 
   // Checkerimaging is not supported for synchronous single-threaded mode, which
   // is what the renderer uses if its not threaded.
   settings.enable_checker_imaging =
-      !cmd.HasSwitch(cc::switches::kDisableCheckerImaging) && is_threaded;
+      !cmd.HasSwitch(::switches::kDisableCheckerImaging) && is_threaded;
 
 #if BUILDFLAG(IS_ANDROID)
   // WebView should always raster in the default color space.
@@ -283,23 +365,23 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   // Partial raster is not supported with RawDraw
   settings.use_partial_raster &= !::features::IsUsingRawDraw();
   settings.enable_elastic_overscroll = platform->IsElasticOverscrollEnabled();
-  settings.resource_settings.use_gpu_memory_buffer_resources =
+  settings.use_gpu_memory_buffer_resources =
       cmd.HasSwitch(switches::kEnableGpuMemoryBufferCompositorResources);
   settings.use_painted_device_scale_factor = true;
 
   // Build LayerTreeSettings from command line args.
-  if (cmd.HasSwitch(cc::switches::kBrowserControlsShowThreshold)) {
+  if (cmd.HasSwitch(::switches::kBrowserControlsShowThreshold)) {
     std::string top_threshold_str =
-        cmd.GetSwitchValueASCII(cc::switches::kBrowserControlsShowThreshold);
+        cmd.GetSwitchValueASCII(::switches::kBrowserControlsShowThreshold);
     double show_threshold;
     if (base::StringToDouble(top_threshold_str, &show_threshold) &&
         show_threshold >= 0.f && show_threshold <= 1.f)
       settings.top_controls_show_threshold = show_threshold;
   }
 
-  if (cmd.HasSwitch(cc::switches::kBrowserControlsHideThreshold)) {
+  if (cmd.HasSwitch(::switches::kBrowserControlsHideThreshold)) {
     std::string top_threshold_str =
-        cmd.GetSwitchValueASCII(cc::switches::kBrowserControlsHideThreshold);
+        cmd.GetSwitchValueASCII(::switches::kBrowserControlsHideThreshold);
     double hide_threshold;
     if (base::StringToDouble(top_threshold_str, &hide_threshold) &&
         hide_threshold >= 0.f && hide_threshold <= 1.f)
@@ -325,58 +407,48 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.single_thread_proxy_scheduler = false;
 
   // These flags should be mirrored by UI versions in ui/compositor/.
-  if (cmd.HasSwitch(cc::switches::kShowCompositedLayerBorders))
+  if (cmd.HasSwitch(::switches::kShowCompositedLayerBorders)) {
     settings.initial_debug_state.show_debug_borders.set();
+  }
   settings.initial_debug_state.show_fps_counter =
-      cmd.HasSwitch(cc::switches::kShowFPSCounter);
+      cmd.HasSwitch(::switches::kShowFPSCounter);
   settings.initial_debug_state.show_layer_animation_bounds_rects =
-      cmd.HasSwitch(cc::switches::kShowLayerAnimationBounds);
+      cmd.HasSwitch(::switches::kShowLayerAnimationBounds);
   settings.initial_debug_state.show_paint_rects =
       cmd.HasSwitch(switches::kShowPaintRects);
   settings.initial_debug_state.show_layout_shift_regions =
       cmd.HasSwitch(switches::kShowLayoutShiftRegions);
   settings.initial_debug_state.show_property_changed_rects =
-      cmd.HasSwitch(cc::switches::kShowPropertyChangedRects);
+      cmd.HasSwitch(::switches::kShowPropertyChangedRects);
   settings.initial_debug_state.show_surface_damage_rects =
-      cmd.HasSwitch(cc::switches::kShowSurfaceDamageRects);
+      cmd.HasSwitch(::switches::kShowSurfaceDamageRects);
   settings.initial_debug_state.show_screen_space_rects =
-      cmd.HasSwitch(cc::switches::kShowScreenSpaceRects);
+      cmd.HasSwitch(::switches::kShowScreenSpaceRects);
   settings.initial_debug_state.highlight_non_lcd_text_layers =
-      cmd.HasSwitch(cc::switches::kHighlightNonLCDTextLayers);
-  settings.initial_debug_state.show_web_vital_metrics =
-      base::FeatureList::IsEnabled(
-          ::features::kHudDisplayForPerformanceMetrics) &&
-      !is_for_embedded_frame;
-  settings.initial_debug_state.show_smoothness_metrics =
-      base::FeatureList::IsEnabled(
-          ::features::kHudDisplayForPerformanceMetrics) &&
-      !is_for_embedded_frame;
+      cmd.HasSwitch(::switches::kHighlightNonLCDTextLayers);
 
   settings.initial_debug_state.SetRecordRenderingStats(
-      cmd.HasSwitch(cc::switches::kEnableGpuBenchmarking));
+      cmd.HasSwitch(::switches::kEnableGpuBenchmarking));
 
-  if (cmd.HasSwitch(cc::switches::kSlowDownRasterScaleFactor)) {
+  if (cmd.HasSwitch(::switches::kSlowDownRasterScaleFactor)) {
     const int kMinSlowDownScaleFactor = 0;
     const int kMaxSlowDownScaleFactor = INT_MAX;
     switch_value_as_int(
-        cmd, cc::switches::kSlowDownRasterScaleFactor, kMinSlowDownScaleFactor,
+        cmd, ::switches::kSlowDownRasterScaleFactor, kMinSlowDownScaleFactor,
         kMaxSlowDownScaleFactor,
         &settings.initial_debug_state.slow_down_raster_scale_factor);
   }
 
-  // This is default overlay scrollbar settings for Android and DevTools mobile
-  // emulator. Aura Overlay Scrollbar will override below.
   settings.scrollbar_animator = cc::LayerTreeSettings::ANDROID_OVERLAY;
-  settings.solid_color_scrollbar_color = {0.5f, 0.5f, 0.5f, 0.5f};
 
   InitializeScrollbarFadeAndDelay(settings);
 
-  if (cmd.HasSwitch(cc::switches::kCCScrollAnimationDurationForTesting)) {
+  if (cmd.HasSwitch(::switches::kCCScrollAnimationDurationForTesting)) {
     const int kMinScrollAnimationDuration = 0;
     const int kMaxScrollAnimationDuration = INT_MAX;
     int duration;
     if (switch_value_as_int(cmd,
-                            cc::switches::kCCScrollAnimationDurationForTesting,
+                            ::switches::kCCScrollAnimationDurationForTesting,
                             kMinScrollAnimationDuration,
                             kMaxScrollAnimationDuration, &duration)) {
       settings.scroll_animation_duration_for_testing = base::Seconds(duration);
@@ -393,7 +465,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
       base::SysInfo::IsLowEndDevice() && !IsSmallScreen(screen_size) &&
       !platform->IsSynchronousCompositingEnabledForAndroidWebView();
 
-  settings.use_stream_video_draw_quad = true;
   settings.using_synchronous_renderer_compositor = use_synchronous_compositor;
   if (use_synchronous_compositor) {
     // Root frame in Android WebView uses system scrollbars, so make ours
@@ -401,11 +472,11 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // hide_scrollbars setting because supporting -webkit custom scrollbars is
     // still desired on sublayers.
     settings.scrollbar_animator = cc::LayerTreeSettings::NO_ANIMATOR;
-    settings.solid_color_scrollbar_color = SkColors::kTransparent;
+    // Rendering of scrollbars will be disabled in cc::SolidColorScrollbarLayer.
 
     // Early damage check works in combination with synchronous compositor.
     settings.enable_early_damage_check =
-        cmd.HasSwitch(cc::switches::kCheckDamageEarly);
+        cmd.HasSwitch(::switches::kCheckDamageEarly);
   }
   if (using_low_memory_policy) {
     // On low-end we want to be very careful about killing other
@@ -429,15 +500,34 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 #else   // BUILDFLAG(IS_ANDROID)
   const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
 
+  settings.enable_fluent_scrollbar = ui::IsFluentScrollbarEnabled();
+  settings.enable_fluent_overlay_scrollbar =
+      ui::IsFluentOverlayScrollbarEnabled();
+
   if (ui::IsOverlayScrollbarEnabled()) {
     settings.scrollbar_animator = cc::LayerTreeSettings::AURA_OVERLAY;
     settings.scrollbar_thinning_duration =
         ui::kOverlayScrollbarThinningDuration;
-    settings.scrollbar_flash_after_any_scroll_update = true;
+    settings.scrollbar_flash_after_any_scroll_update =
+        !settings.enable_fluent_overlay_scrollbar;
+    // Avoid animating in web tests to improve reliability.
+    if (settings.enable_fluent_overlay_scrollbar) {
+      settings.scrollbar_thinning_duration =
+          ui::kFluentOverlayScrollbarThinningDuration;
+      if (WebTestSupport::IsRunningWebTest()) {
+        settings.scrollbar_thinning_duration = base::Milliseconds(0);
+        settings.scrollbar_fade_delay = base::TimeDelta::Max();
+        settings.scrollbar_fade_duration = base::Milliseconds(0);
+      }
+    }
   }
-
-  settings.enable_fluent_scrollbar = ui::IsFluentScrollbarEnabled();
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
+    settings.scrollbar_thinning_duration = base::TimeDelta();
+    settings.scrollbar_fade_delay = base::TimeDelta::Max();
+    settings.scrollbar_fade_duration = base::TimeDelta();
+  }
 
   settings.decoded_image_working_set_budget_bytes =
       cc::ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
@@ -450,22 +540,21 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     //  - If we are not running in a WebView, where 4444 isn't supported.
     //  - If we are not using vulkan, since some GPU drivers don't support
     //    using RGBA4444 as color buffer.
-    // TODO(penghuang): query supported formats from GPU process.
+    //  - If we are not using Skia's Graphite-Dawn backend, since dawn does not
+    //  support RGBA_4444 formats.
+    // TODO(crbug.com/398868042): Instead of Graphite/Vulkan feature checks, add
+    // appropriate shared image capability and check for its support.
     if (!cmd.HasSwitch(switches::kDisableRGBA4444Textures) &&
         base::SysInfo::AmountOfPhysicalMemoryMB() <= 512 &&
-        !::features::IsUsingVulkan()) {
-      settings.use_rgba_4444 = viz::RGBA_4444;
+        !::features::IsUsingVulkan() &&
+        !::features::IsSkiaGraphiteEnabled(
+            base::CommandLine::ForCurrentProcess())) {
+      settings.use_rgba_4444 = true;
 
-      // If we are going to unpremultiply and dither these tiles, we need to
-      // allocate an additional RGBA_8888 intermediate for each tile
-      // rasterization when rastering to RGBA_4444 to allow for dithering.
-      // Setting a reasonable sized max tile size allows this intermediate to
-      // be consistently reused.
-      if (base::FeatureList::IsEnabled(
-              kUnpremultiplyAndDitherLowBitDepthTiles)) {
-        settings.max_gpu_raster_tile_size = gfx::Size(512, 256);
-        settings.unpremultiply_and_dither_low_bit_depth_tiles = true;
-      }
+      // TODO(crbug.com/40042400): Determine whether this is actually necessary;
+      // its purpose was to support unpremultiply-and-dither, but it ended up
+      // being always set for RGBA4444.
+      settings.max_gpu_raster_tile_size = gfx::Size(512, 256);
     }
   }
 
@@ -502,14 +591,23 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.enable_image_animation_resync =
       !cmd.HasSwitch(switches::kDisableImageAnimationResync);
 
-  settings.send_compositor_frame_ack = false;
-
   settings.enable_backface_visibility_interop =
       RuntimeEnabledFeatures::BackfaceVisibilityInteropEnabled();
 
   settings.disable_frame_rate_limit =
       cmd.HasSwitch(::switches::kDisableFrameRateLimit);
 
+  settings.enable_hit_test_opaqueness = true;
+
+  settings.enable_variable_refresh_rate =
+      ::features::IsVariableRefreshRateAlwaysOn();
+
+  std::tie(settings.tiling_interest_area_padding,
+           settings.skewport_extrapolation_limit_in_screen_pixels) =
+      GetTilingInterestAreaSizes();
+
+  settings.dynamic_safe_area_insets_on_scroll_enabled =
+      RuntimeEnabledFeatures::DynamicSafeAreaInsetsOnScrollEnabled();
   return settings;
 }
 

@@ -3,13 +3,14 @@
 // found in the LICENSE file.
 
 #include "base/android/meminfo_dump_provider.h"
-#include "base/android/build_info.h"
-#include "base/trace_event/base_tracing.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
 #include <cstdint>
 #include <map>
 #include <string>
+
+#include "base/android/build_info.h"
+#include "base/trace_event/base_tracing.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace base::android {
 
@@ -29,8 +30,8 @@ std::map<std::string, uint64_t> GetEntries(
 TEST(MeminfoDumpProviderTest, Simple) {
   auto& instance = MeminfoDumpProvider::Initialize();
 
-  base::trace_event::MemoryDumpArgs args{};
-  args.level_of_detail = base::trace_event::MemoryDumpLevelOfDetail::DETAILED;
+  base::trace_event::MemoryDumpArgs args = {};
+  args.level_of_detail = base::trace_event::MemoryDumpLevelOfDetail::kDetailed;
   base::trace_event::ProcessMemoryDump first_pmd{args};
 
   bool success = instance.OnMemoryDump(args, &first_pmd);
@@ -79,17 +80,18 @@ TEST(MeminfoDumpProviderTest, NoStaleReportsInBackgroundDumps) {
 
   // First dump, data may or may not be stale.
   {
-    base::trace_event::MemoryDumpArgs args{};
-    args.level_of_detail = base::trace_event::MemoryDumpLevelOfDetail::DETAILED;
+    base::trace_event::MemoryDumpArgs args = {};
+    args.level_of_detail =
+        base::trace_event::MemoryDumpLevelOfDetail::kDetailed;
     base::trace_event::ProcessMemoryDump pmd{args};
     ASSERT_TRUE(instance.OnMemoryDump(args, &pmd));
   }
 
   // Second one, stale data, should not report.
   {
-    base::trace_event::MemoryDumpArgs args{};
+    base::trace_event::MemoryDumpArgs args = {};
     args.level_of_detail =
-        base::trace_event::MemoryDumpLevelOfDetail::BACKGROUND;
+        base::trace_event::MemoryDumpLevelOfDetail::kBackground;
     base::trace_event::ProcessMemoryDump pmd{args};
     ASSERT_TRUE(instance.OnMemoryDump(args, &pmd));
     base::trace_event::MemoryAllocatorDump* dump =

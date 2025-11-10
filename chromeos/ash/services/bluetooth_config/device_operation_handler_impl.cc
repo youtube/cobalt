@@ -12,34 +12,6 @@
 
 namespace ash::bluetooth_config {
 
-namespace {
-
-device::ConnectionFailureReason GetConnectionFailureReason(
-    device::BluetoothDevice::ConnectErrorCode error_code) {
-  switch (error_code) {
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_AUTH_CANCELED:
-      return device::ConnectionFailureReason::kAuthCanceled;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_AUTH_FAILED:
-      return device::ConnectionFailureReason::kAuthFailed;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_AUTH_REJECTED:
-      return device::ConnectionFailureReason::kAuthRejected;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_AUTH_TIMEOUT:
-      return device::ConnectionFailureReason::kAuthTimeout;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_FAILED:
-      return device::ConnectionFailureReason::kFailed;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_INPROGRESS:
-      return device::ConnectionFailureReason::kInprogress;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_UNKNOWN:
-      return device::ConnectionFailureReason::kUnknownConnectionError;
-    case device::BluetoothDevice::ConnectErrorCode::ERROR_UNSUPPORTED_DEVICE:
-      return device::ConnectionFailureReason::kUnsupportedDevice;
-    default:
-      return device::ConnectionFailureReason::kUnknownError;
-  }
-}
-
-}  // namespace
-
 DeviceOperationHandlerImpl::DeviceOperationHandlerImpl(
     AdapterStateController* adapter_state_controller,
     scoped_refptr<device::BluetoothAdapter> bluetooth_adapter,
@@ -150,12 +122,11 @@ device::BluetoothDevice* DeviceOperationHandlerImpl::FindDevice(
 
 void DeviceOperationHandlerImpl::RecordUserInitiatedReconnectionMetrics(
     const device::BluetoothTransport transport,
-    absl::optional<base::Time> reconnection_attempt_start,
-    absl::optional<device::BluetoothDevice::ConnectErrorCode> error_code)
-    const {
-  absl::optional<device::ConnectionFailureReason> failure_reason =
-      error_code ? absl::make_optional(GetConnectionFailureReason(*error_code))
-                 : absl::nullopt;
+    std::optional<base::Time> reconnection_attempt_start,
+    std::optional<device::BluetoothDevice::ConnectErrorCode> error_code) const {
+  std::optional<device::ConnectionFailureReason> failure_reason =
+      error_code ? std::make_optional(GetConnectionFailureReason(*error_code))
+                 : std::nullopt;
   device::RecordUserInitiatedReconnectionAttemptResult(
       failure_reason, device::UserInitiatedReconnectionUISurfaces::kSettings);
   if (reconnection_attempt_start) {
@@ -167,7 +138,7 @@ void DeviceOperationHandlerImpl::RecordUserInitiatedReconnectionMetrics(
 
 void DeviceOperationHandlerImpl::OnDeviceConnect(
     device::BluetoothTransport transport,
-    absl::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
+    std::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
   if (error_code.has_value()) {
     BLUETOOTH_LOG(ERROR) << "Connect failed with error code: "
                          << error_code.value();

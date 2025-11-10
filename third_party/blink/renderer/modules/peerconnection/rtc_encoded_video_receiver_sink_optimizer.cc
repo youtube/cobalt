@@ -20,7 +20,7 @@ RtcEncodedVideoReceiverSinkOptimizer::PerformInProcessOptimization(
     ScriptState* script_state) {
   auto* new_sink = MakeGarbageCollected<RTCEncodedVideoUnderlyingSink>(
       script_state, std::move(transformer_),
-      webrtc::TransformableFrameInterface::Direction::kReceiver);
+      /*detach_frame_data_on_write=*/false);
 
   std::move(set_underlying_sink_).Run(WrapCrossThreadPersistent(new_sink));
 

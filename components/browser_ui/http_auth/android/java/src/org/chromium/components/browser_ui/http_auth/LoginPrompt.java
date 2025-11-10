@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.http_auth;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Build;
@@ -15,6 +17,8 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.text.AlertDialogEditText;
 import org.chromium.url.GURL;
 
@@ -23,6 +27,7 @@ import org.chromium.url.GURL;
  *
  * This borrows liberally from android.browser.HttpAuthenticationDialog.
  */
+@NullMarked
 public class LoginPrompt {
     private final Context mContext;
     private final String mMessageBody;
@@ -32,18 +37,12 @@ public class LoginPrompt {
     private AlertDialogEditText mUsernameView;
     private AlertDialogEditText mPasswordView;
 
-    /**
-     * This is a public interface that provides the result of the prompt.
-     */
+    /** This is a public interface that provides the result of the prompt. */
     public static interface Observer {
-        /**
-         * Cancel the authorization request.
-         */
+        /** Cancel the authorization request. */
         public void cancel();
 
-        /**
-         * Proceed with the authorization with the given credentials.
-         */
+        /** Proceed with the authorization with the given credentials. */
         public void proceed(String username, String password);
     }
 
@@ -56,17 +55,18 @@ public class LoginPrompt {
      *     given url being set as the web domain for the View control.
      * @param observer An interface to receive the result of the prompt.
      */
-    public LoginPrompt(Context context, String messageBody, GURL autofillUrl, Observer observer) {
+    public LoginPrompt(
+            Context context, String messageBody, @Nullable GURL autofillUrl, Observer observer) {
         mContext = context;
         mMessageBody = messageBody;
         mObserver = observer;
         createDialog(autofillUrl);
     }
 
-    private void createDialog(GURL autofillUrl) {
+    private void createDialog(@Nullable GURL autofillUrl) {
         View v = LayoutInflater.from(mContext).inflate(R.layout.http_auth_dialog, null);
-        mUsernameView = (AlertDialogEditText) v.findViewById(R.id.username);
-        mPasswordView = (AlertDialogEditText) v.findViewById(R.id.password);
+        mUsernameView = v.findViewById(R.id.username);
+        mPasswordView = v.findViewById(R.id.password);
         if (autofillUrl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // By default Android Autofill support is turned off for these controls because Chrome
             // uses its own autofill provider (Chrome Sync). If an app is using Android Autofill
@@ -76,45 +76,47 @@ public class LoginPrompt {
             mUsernameView.setUrl(autofillUrl);
             mPasswordView.setUrl(autofillUrl);
         }
-        mPasswordView.setOnEditorActionListener((v1, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                mDialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
-                return true;
-            }
-            return false;
-        });
+        mPasswordView.setOnEditorActionListener(
+                (v1, actionId, event) -> {
+                    if (actionId == EditorInfo.IME_ACTION_DONE) {
+                        mDialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+                        return true;
+                    }
+                    return false;
+                });
 
-        TextView explanationView = (TextView) v.findViewById(R.id.explanation);
+        TextView explanationView = v.findViewById(R.id.explanation);
         explanationView.setText(mMessageBody);
 
-        mDialog = new AlertDialog.Builder(mContext, R.style.ThemeOverlay_BrowserUI_AlertDialog)
-                          .setTitle(R.string.login_dialog_title)
-                          .setView(v)
-                          .setPositiveButton(R.string.login_dialog_ok_button_label,
-                                  (DialogInterface.OnClickListener) (dialog, whichButton)
-                                          -> mObserver.proceed(getUsername(), getPassword()))
-                          .setNegativeButton(R.string.cancel,
-                                  (DialogInterface.OnClickListener) (dialog,
-                                          whichButton) -> mObserver.cancel())
-                          .setOnCancelListener(dialog -> mObserver.cancel())
-                          .create();
+        mDialog =
+                new AlertDialog.Builder(mContext, R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                        .setTitle(R.string.login_dialog_title)
+                        .setView(v)
+                        .setPositiveButton(
+                                R.string.login_dialog_ok_button_label,
+                                (DialogInterface.OnClickListener)
+                                        (dialog, whichButton) ->
+                                                mObserver.proceed(getUsername(), getPassword()))
+                        .setNegativeButton(
+                                R.string.cancel,
+                                (DialogInterface.OnClickListener)
+                                        (dialog, whichButton) -> mObserver.cancel())
+                        .setOnCancelListener(dialog -> mObserver.cancel())
+                        .create();
         mDialog.getDelegate().setHandleNativeActionModesEnabled(false);
 
         // Make the IME appear when the dialog is displayed if applicable.
-        mDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        assumeNonNull(mDialog.getWindow())
+                .setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
     }
 
-    /**
-     * Shows the dialog.
-     */
+    /** Shows the dialog. */
     public void show() {
         mDialog.show();
         mUsernameView.requestFocus();
     }
 
-    /**
-     * Dismisses the dialog.
-     */
+    /** Dismisses the dialog. */
     public void dismiss() {
         mDialog.dismiss();
     }
@@ -125,11 +127,11 @@ public class LoginPrompt {
     }
 
     private String getUsername() {
-        return mUsernameView.getText().toString();
+        return assumeNonNull(mUsernameView.getText()).toString();
     }
 
     private String getPassword() {
-        return mPasswordView.getText().toString();
+        return assumeNonNull(mPasswordView.getText()).toString();
     }
 
     public void onAutofillDataAvailable(String username, String password) {

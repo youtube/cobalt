@@ -6,12 +6,12 @@
 
 #include <utility>
 
-#include "base/check.h"
 #include "base/check_op.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
@@ -21,17 +21,17 @@
 #include "components/update_client/network.h"
 #include "components/update_client/task_traits.h"
 #include "components/update_client/update_client_errors.h"
+#include "components/update_client/update_client_metrics.h"
 #include "components/update_client/url_fetcher_downloader.h"
 #include "components/update_client/utils.h"
 
-namespace update_client {
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/logging.h"
 
-CrxDownloader::DownloadMetrics::DownloadMetrics()
-    : downloader(kNone),
-      error(0),
-      downloaded_bytes(-1),
-      total_bytes(-1),
-      download_time_ms(0) {}
+// TODO(b/448186580): Replace LOG with D(V)LOG
+#endif
+
+namespace update_client {
 
 CrxDownloader::CrxDownloader(scoped_refptr<CrxDownloader> successor)
     : main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
@@ -50,8 +50,9 @@ GURL CrxDownloader::url() const {
 
 const std::vector<CrxDownloader::DownloadMetrics>
 CrxDownloader::download_metrics() const {
-  if (!successor_)
+  if (!successor_) {
     return download_metrics_;
+  }
 
   std::vector<DownloadMetrics> retval(successor_->download_metrics());
   retval.insert(retval.begin(), download_metrics_.begin(),
@@ -59,12 +60,13 @@ CrxDownloader::download_metrics() const {
   return retval;
 }
 
-void CrxDownloader::StartDownloadFromUrl(const GURL& url,
-                                         const std::string& expected_hash,
+base::OnceClosure CrxDownloader::StartDownloadFromUrl(
+    const GURL& url,
+    const std::string& expected_hash,
 #if defined(IN_MEMORY_UPDATES)
-                                         std::string* dst,
+    std::string* dst,
 #endif                                        
-                                         DownloadCallback download_callback) {
+    DownloadCallback download_callback) {
 #if BUILDFLAG(IS_STARBOARD)
   LOG(INFO) << "CrxDownloader::StartDownloadFromUrl: url=" << url;
 #endif
@@ -72,18 +74,19 @@ void CrxDownloader::StartDownloadFromUrl(const GURL& url,
   urls.push_back(url);
 #if defined(IN_MEMORY_UPDATES)
   CHECK(dst);
-  StartDownload(urls, expected_hash, dst, std::move(download_callback));
+  return StartDownload(urls, expected_hash, dst, std::move(download_callback));
 #else
-  StartDownload(urls, expected_hash, std::move(download_callback));
+  return StartDownload(urls, expected_hash, std::move(download_callback));
 #endif
 }
 
-void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
-                                  const std::string& expected_hash,
+base::OnceClosure CrxDownloader::StartDownload(
+    const std::vector<GURL>& urls,
+    const std::string& expected_hash,
 #if defined(IN_MEMORY_UPDATES)
-                                  std::string* dst,
+    std::string* dst,
 #endif                                  
-                                  DownloadCallback download_callback) {
+    DownloadCallback download_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(IN_MEMORY_UPDATES)
   CHECK(dst);
@@ -101,7 +104,7 @@ void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
     result.error = static_cast<int>(error);
     main_task_runner()->PostTask(
         FROM_HERE, base::BindOnce(std::move(download_callback), result));
-    return;
+    return base::DoNothing();
   }
 
 #if defined(IN_MEMORY_UPDATES)
@@ -114,15 +117,14 @@ void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
   download_callback_ = std::move(download_callback);
 
 #if defined(IN_MEMORY_UPDATES)
-  DoStartDownload(*current_url_, dst);
+  return DoStartDownload(*current_url_, dst);
 #else
-  DoStartDownload(*current_url_);
+  return DoStartDownload(*current_url_);
 #endif
 }
 
 #if BUILDFLAG(IS_STARBOARD)
 void CrxDownloader::CancelDownload() {
-  // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "CrxDownloader::CancelDownload";
   DoCancelDownload();
 }
@@ -134,10 +136,15 @@ void CrxDownloader::OnDownloadComplete(
     const DownloadMetrics& download_metrics) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if BUILDFLAG(IS_STARBOARD)
-  // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "CrxDownloader::OnDownloadComplete";
 #endif
 
+  // Release any references held by the progress callback, in case the
+  // CrxDownloader outlives the receiver of the progress_callback. (This is
+  // often the case in tests.)
+  progress_callback_.Reset();
+
+  metrics::RecordCRXDownloadComplete(result.error);
   if (result.error) {
     main_task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&CrxDownloader::HandleDownloadError, this,
@@ -148,7 +155,6 @@ void CrxDownloader::OnDownloadComplete(
   CHECK_EQ(0, download_metrics.error);
   CHECK(is_handled);
 #if BUILDFLAG(IS_STARBOARD)
-  // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "CrxDownloader::OnDownloadComplete, verifying response";
 #endif
 
@@ -211,8 +217,9 @@ void CrxDownloader::OnDownloadProgress(int64_t downloaded_bytes,
                                        int64_t total_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (progress_callback_.is_null())
+  if (progress_callback_.is_null()) {
     return;
+  }
 
   progress_callback_.Run(downloaded_bytes, total_bytes);
 }
@@ -229,7 +236,6 @@ void CrxDownloader::HandleDownloadError(
   CHECK_NE(0, download_metrics.error);
 
 #if BUILDFLAG(IS_STARBOARD)
-  // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "CrxDownloader::HandleDownloadError";
 #endif
 

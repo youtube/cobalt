@@ -45,7 +45,6 @@ void TestWallpaperControllerClient::AddCollection(
 
 void TestWallpaperControllerClient::ResetCounts() {
   open_count_ = 0;
-  set_default_wallpaper_count_ = 0;
   fetch_daily_refresh_wallpaper_param_ = std::string();
   fetch_daily_refresh_info_fails_ = false;
   fake_files_ids_.clear();
@@ -55,14 +54,6 @@ void TestWallpaperControllerClient::ResetCounts() {
 // WallpaperControllerClient:
 void TestWallpaperControllerClient::OpenWallpaperPicker() {
   open_count_++;
-}
-
-void TestWallpaperControllerClient::SetDefaultWallpaper(
-    const AccountId& account_id,
-    bool show_wallpaper,
-    base::OnceCallback<void(bool success)> callback) {
-  set_default_wallpaper_count_++;
-  std::move(callback).Run(/*success=*/true);
 }
 
 void TestWallpaperControllerClient::FetchDailyRefreshWallpaper(
@@ -98,6 +89,7 @@ void TestWallpaperControllerClient::FetchGooglePhotosPhoto(
     const AccountId& account_id,
     const std::string& id,
     FetchGooglePhotosPhotoCallback callback) {
+  fetch_google_photos_photo_id_ = id;
   auto iter = wallpaper_google_photos_integration_enabled_.find(account_id);
   if (iter != wallpaper_google_photos_integration_enabled_.end() &&
       !iter->second) {
@@ -105,9 +97,12 @@ void TestWallpaperControllerClient::FetchGooglePhotosPhoto(
     return;
   }
   base::Time time;
-  base::Time::Exploded exploded_time{2011, 6, 3, 15, 12, 0, 0, 0};
-  if (!base::Time::FromUTCExploded(exploded_time, &time))
-    NOTREACHED();
+  static constexpr base::Time::Exploded kTime = {.year = 2011,
+                                                 .month = 6,
+                                                 .day_of_week = 3,
+                                                 .day_of_month = 15,
+                                                 .hour = 12};
+  CHECK(base::Time::FromUTCExploded(kTime, &time));
   if (fetch_google_photos_photo_fails_ || google_photo_has_been_deleted_) {
     std::move(callback).Run(nullptr,
                             /*success=*/google_photo_has_been_deleted_);
@@ -132,7 +127,7 @@ void TestWallpaperControllerClient::FetchDailyGooglePhotosPhoto(
 void TestWallpaperControllerClient::FetchGooglePhotosAccessToken(
     const AccountId& account_id,
     FetchGooglePhotosAccessTokenCallback callback) {
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
 }
 
 void TestWallpaperControllerClient::GetFilesId(

@@ -10,6 +10,7 @@
 #include "chrome/browser/permissions/quiet_notification_permission_ui_state.h"
 #include "chrome/browser/ui/android/infobars/permission_infobar.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
 #include "components/permissions/android/permission_prompt/permission_prompt_android.h"
@@ -31,10 +32,7 @@ using SecondaryButtonBehavior =
 
 }  // namespace
 
-PermissionInfoBarDelegate::~PermissionInfoBarDelegate() {
-  permissions::PermissionUmaUtil::RecordInfobarDetailsExpanded(
-      details_expanded_);
-}
+PermissionInfoBarDelegate::~PermissionInfoBarDelegate() = default;
 
 // static
 infobars::InfoBar* PermissionInfoBarDelegate::Create(
@@ -72,10 +70,9 @@ std::u16string PermissionInfoBarDelegate::GetCompactLinkText() const {
   }
 
   NOTREACHED();
-  return std::u16string();
 }
 
-// TODO(crbug.com/1082737): Many methods of this class switches on the quiet UI
+// TODO(crbug.com/40131069): Many methods of this class switches on the quiet UI
 // reason. Refactor this into separate subclasses instead.
 std::u16string PermissionInfoBarDelegate::GetDescriptionText() const {
   return prompt_model_.description;
@@ -150,7 +147,6 @@ bool PermissionInfoBarDelegate::Cancel() {
       return true;
   }
   NOTREACHED();
-  return true;
 }
 
 PermissionInfoBarDelegate::PermissionInfoBarDelegate(
@@ -173,7 +169,8 @@ PermissionInfoBarDelegate::PermissionInfoBarDelegate(
 
   auto quiet_ui_reason = manager->ReasonForUsingQuietUi();
   DCHECK(quiet_ui_reason);
-  prompt_model_ = GetQuietNotificationPermissionPromptModel(*quiet_ui_reason);
+  prompt_model_ = GetQuietPermissionPromptModel(
+      *quiet_ui_reason, ContentSettingsType::NOTIFICATIONS);
 }
 
 infobars::InfoBarDelegate::InfoBarIdentifier

@@ -11,14 +11,10 @@
 #include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/label_button.h"
-#include "ui/views/view.h"
+#include "ui/views/layout/box_layout_view.h"
 
 namespace gfx {
 class Canvas;
-}
-
-namespace views {
-class View;
 }
 
 namespace ash {
@@ -28,6 +24,8 @@ class HUDDisplayView;
 class HUDTabStrip;
 
 class HUDTabButton : public views::LabelButton {
+  METADATA_HEADER(HUDTabButton, views::LabelButton)
+
  public:
   // Defines tab paint style.
   enum class Style {
@@ -35,8 +33,6 @@ class HUDTabButton : public views::LabelButton {
     ACTIVE,  // Active tab.
     RIGHT,   // Tab to the right of the active tab.
   };
-
-  METADATA_HEADER(HUDTabButton);
 
   HUDTabButton(Style style,
                const HUDDisplayMode display_mode,
@@ -61,10 +57,10 @@ class HUDTabButton : public views::LabelButton {
   HUDDisplayMode display_mode_;
 };
 
-class HUDTabStrip : public views::View {
- public:
-  METADATA_HEADER(HUDTabStrip);
+class HUDTabStrip : public views::BoxLayoutView {
+  METADATA_HEADER(HUDTabStrip, views::BoxLayoutView)
 
+ public:
   explicit HUDTabStrip(HUDDisplayView* hud);
 
   HUDTabStrip(const HUDTabStrip&) = delete;
@@ -79,8 +75,9 @@ class HUDTabStrip : public views::View {
   void ActivateTab(HUDDisplayMode mode);
 
  private:
-  raw_ptr<HUDDisplayView, ExperimentalAsh> hud_;
-  std::vector<HUDTabButton*> tabs_;  // Ordered list of child tabs.
+  raw_ptr<HUDDisplayView> hud_;
+  std::vector<raw_ptr<HUDTabButton, VectorExperimental>>
+      tabs_;  // Ordered list of child tabs.
 };
 
 }  // namespace hud_display

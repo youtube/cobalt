@@ -10,8 +10,6 @@
 #include "ash/ash_export.h"
 #include "ash/public/cpp/login_types.h"
 #include "ash/public/cpp/session/session_observer.h"
-#include "ash/tray_action/tray_action.h"
-#include "ash/tray_action/tray_action_observer.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
@@ -27,8 +25,7 @@ namespace ash {
 
 class LockContentsView;
 
-class ASH_EXPORT LockScreen : public TrayActionObserver,
-                              public SessionObserver {
+class ASH_EXPORT LockScreen : public SessionObserver {
  public:
   // TestApi is used for tests to get internal implementation details.
   class ASH_EXPORT TestApi {
@@ -40,7 +37,7 @@ class ASH_EXPORT LockScreen : public TrayActionObserver,
     void AddOnShownCallback(base::OnceClosure on_shown);
 
    private:
-    const raw_ptr<LockScreen, ExperimentalAsh> lock_screen_;
+    const raw_ptr<LockScreen, DanglingUntriaged> lock_screen_;
   };
 
   // The UI that this instance is displaying.
@@ -73,10 +70,9 @@ class ASH_EXPORT LockScreen : public TrayActionObserver,
   void FocusNextUser();
   void FocusPreviousUser();
   void ShowParentAccessDialog();
+  // Shows the current device privacy disclosures.
+  void ShowManagementDisclosureDialog();
   void SetHasKioskApp(bool has_kiosk_apps);
-
-  // TrayActionObserver:
-  void OnLockScreenNoteStateChanged(mojom::TrayActionState state) override;
 
   // SessionObserver:
   void OnSessionStateChanged(session_manager::SessionState state) override;
@@ -100,8 +96,7 @@ class ASH_EXPORT LockScreen : public TrayActionObserver,
   std::unique_ptr<views::Widget> widget_;
 
   // Unowned pointer to the LockContentsView hosted in lock window.
-  raw_ptr<LockContentsView, DanglingUntriaged | ExperimentalAsh>
-      contents_view_ = nullptr;
+  raw_ptr<LockContentsView> contents_view_ = nullptr;
 
   bool is_shown_ = false;
 
@@ -114,8 +109,6 @@ class ASH_EXPORT LockScreen : public TrayActionObserver,
 
   std::unique_ptr<views::Widget::PaintAsActiveLock> paint_as_active_lock_;
 
-  base::ScopedObservation<TrayAction, TrayActionObserver>
-      tray_action_observation_{this};
   ScopedSessionObserver session_observer_{this};
 
   std::vector<base::OnceClosure> on_shown_callbacks_;

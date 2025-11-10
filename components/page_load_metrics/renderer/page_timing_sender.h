@@ -22,11 +22,13 @@ class PageTimingSender {
       const mojom::FrameRenderDataUpdate& render_data,
       const mojom::CpuTimingPtr& cpu_timing,
       mojom::InputTimingPtr input_timing_delta,
-      const absl::optional<blink::SubresourceLoadMetrics>&
+      const std::optional<blink::SubresourceLoadMetrics>&
           subresource_load_metrics,
-      uint32_t soft_navigation_count) = 0;
-  virtual void SetUpSmoothnessReporting(
-      base::ReadOnlySharedMemoryRegion shared_memory) = 0;
+      const mojom::SoftNavigationMetricsPtr& soft_navigation_metrics) = 0;
+  virtual void SetUpUkmReporting(
+      base::ReadOnlySharedMemoryRegion shared_memory_smoothness,
+      base::ReadOnlySharedMemoryRegion shared_memory_dropped_frames) = 0;
+  virtual void SendCustomUserTiming(mojom::CustomUserTimingMarkPtr timing) = 0;
 };
 
 }  // namespace page_load_metrics

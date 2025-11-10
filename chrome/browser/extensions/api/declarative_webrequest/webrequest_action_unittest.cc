@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "extensions/browser/api/declarative_webrequest/webrequest_action.h"
+
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 
 #include "base/files/file_path.h"
@@ -18,7 +21,6 @@
 #include "chrome/common/extensions/extension_test_util.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/api/declarative_webrequest/request_stage.h"
-#include "extensions/browser/api/declarative_webrequest/webrequest_action.h"
 #include "extensions/browser/api/declarative_webrequest/webrequest_condition.h"
 #include "extensions/browser/api/declarative_webrequest/webrequest_constants.h"
 #include "extensions/browser/api/web_request/permission_helper.h"
@@ -47,10 +49,10 @@ const char kUnknownActionType[] = "unknownType";
 std::unique_ptr<WebRequestActionSet> CreateSetOfActions(const char* json) {
   base::Value::List parsed_value = base::test::ParseJsonList(json);
 
-  WebRequestActionSet::Values actions;
-  for (const base::Value& entry : parsed_value) {
+  base::Value::List actions;
+  for (base::Value& entry : parsed_value) {
     CHECK(entry.is_dict());
-    actions.push_back(entry.Clone());
+    actions.Append(std::move(entry));
   }
 
   std::string error;
@@ -200,7 +202,7 @@ TEST(WebRequestActionTest, CreateActionSet) {
   bool bad_message = false;
   std::unique_ptr<WebRequestActionSet> result;
 
-  WebRequestActionSet::Values input;
+  base::Value::List input;
 
   // Test empty input.
   error.clear();
@@ -220,7 +222,7 @@ TEST(WebRequestActionTest, CreateActionSet) {
   base::Value::List wrong_format_action;
 
   // Test success.
-  input.emplace_back(std::move(correct_action));
+  input.Append(std::move(correct_action));
   error.clear();
   result = WebRequestActionSet::Create(nullptr, nullptr, input, &error,
                                        &bad_message);
@@ -233,7 +235,7 @@ TEST(WebRequestActionTest, CreateActionSet) {
   EXPECT_EQ(10, result->GetMinimumPriority());
 
   // Test failure.
-  input.emplace_back(std::move(incorrect_action));
+  input.Append(std::move(incorrect_action));
   error.clear();
   result = WebRequestActionSet::Create(nullptr, nullptr, input, &error,
                                        &bad_message);
@@ -241,7 +243,7 @@ TEST(WebRequestActionTest, CreateActionSet) {
   EXPECT_FALSE(result.get());
 
   // Test wrong data type passed.
-  input.emplace_back(std::move(wrong_format_action));
+  input.Append(std::move(wrong_format_action));
   error.clear();
   result = WebRequestActionSet::Create(nullptr, nullptr, input, &error,
                                        &bad_message);
@@ -555,25 +557,25 @@ TEST(WebRequestActionTest, GetName) {
       " \"lowerPriorityThan\": 123,"
       " \"hasTag\": \"some_tag\""
       "}]";
-  const char* const kExpectedNames[] = {
-    "declarativeWebRequest.RedirectRequest",
-    "declarativeWebRequest.RedirectByRegEx",
-    "declarativeWebRequest.SetRequestHeader",
-    "declarativeWebRequest.RemoveRequestHeader",
-    "declarativeWebRequest.AddResponseHeader",
-    "declarativeWebRequest.RemoveResponseHeader",
-    "declarativeWebRequest.SendMessageToExtension",
-    "declarativeWebRequest.AddRequestCookie",
-    "declarativeWebRequest.AddResponseCookie",
-    "declarativeWebRequest.EditRequestCookie",
-    "declarativeWebRequest.EditResponseCookie",
-    "declarativeWebRequest.RemoveRequestCookie",
-    "declarativeWebRequest.RemoveResponseCookie",
-    "declarativeWebRequest.CancelRequest",
-    "declarativeWebRequest.RedirectToTransparentImage",
-    "declarativeWebRequest.RedirectToEmptyDocument",
-    "declarativeWebRequest.IgnoreRules",
-  };
+  const auto kExpectedNames = std::to_array<const char*>({
+      "declarativeWebRequest.RedirectRequest",
+      "declarativeWebRequest.RedirectByRegEx",
+      "declarativeWebRequest.SetRequestHeader",
+      "declarativeWebRequest.RemoveRequestHeader",
+      "declarativeWebRequest.AddResponseHeader",
+      "declarativeWebRequest.RemoveResponseHeader",
+      "declarativeWebRequest.SendMessageToExtension",
+      "declarativeWebRequest.AddRequestCookie",
+      "declarativeWebRequest.AddResponseCookie",
+      "declarativeWebRequest.EditRequestCookie",
+      "declarativeWebRequest.EditResponseCookie",
+      "declarativeWebRequest.RemoveRequestCookie",
+      "declarativeWebRequest.RemoveResponseCookie",
+      "declarativeWebRequest.CancelRequest",
+      "declarativeWebRequest.RedirectToTransparentImage",
+      "declarativeWebRequest.RedirectToEmptyDocument",
+      "declarativeWebRequest.IgnoreRules",
+  });
   std::unique_ptr<WebRequestActionSet> action_set(CreateSetOfActions(kActions));
   ASSERT_EQ(std::size(kExpectedNames), action_set->actions().size());
   size_t index = 0;

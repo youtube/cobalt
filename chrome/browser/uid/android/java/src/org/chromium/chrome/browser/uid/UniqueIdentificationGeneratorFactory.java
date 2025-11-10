@@ -4,7 +4,7 @@
 
 package org.chromium.chrome.browser.uid;
 
-import androidx.annotation.VisibleForTesting;
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +16,7 @@ import java.util.Map;
  * is any string you want to use for your generator. It is typically defined as a public static
  * field in the generator itself.
  */
+@NullMarked
 public final class UniqueIdentificationGeneratorFactory {
     private static final Object LOCK = new Object();
     private static final Map<String, UniqueIdentificationGenerator> GENERATOR_MAP =
@@ -58,7 +59,6 @@ public final class UniqueIdentificationGeneratorFactory {
         }
     }
 
-    @VisibleForTesting
     public static void clearGeneratorMapForTest() {
         synchronized (LOCK) {
             GENERATOR_MAP.clear();

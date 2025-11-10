@@ -6,6 +6,7 @@
 
 #include "base/functional/callback.h"
 #include "base/json/json_reader.h"
+#include "base/strings/stringprintf.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/test/browser_test_utils.h"
@@ -26,8 +27,8 @@ namespace {
 std::string GetScriptToLog(const std::string& script) {
   // The maximum script size for which to print on failure.
   static constexpr int kMaxFailingScriptSizeToLog = 1000;
-  return (script.size() < kMaxFailingScriptSizeToLog) ? script
-                                                      : "<script too large>";
+  return script.size() < kMaxFailingScriptSizeToLog ? script
+                                                    : "<script too large>";
 }
 
 }  // namespace
@@ -133,7 +134,7 @@ base::Value BackgroundScriptExecutor::WaitForResult() {
     AddTestFailure("Failed to wait for message");
     return base::Value();
   }
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       base::JSONReader::Read(next_message, base::JSON_ALLOW_TRAILING_COMMAS);
   if (!value) {
     AddTestFailure("Received bad message: " + next_message);
@@ -146,12 +147,15 @@ bool BackgroundScriptExecutor::ExecuteScriptInServiceWorker() {
   std::vector<WorkerId> worker_ids =
       process_manager_->GetServiceWorkersForExtension(extension_->id());
   if (worker_ids.size() != 1u) {
-    AddTestFailure("Incorrect number of workers registered for extension");
+    AddTestFailure(base::StringPrintf(
+        "Incorrect number of workers registered for extension: %zu",
+        worker_ids.size()));
     return false;
   }
 
-  if (result_capture_method_ == ResultCapture::kSendScriptResult)
+  if (result_capture_method_ == ResultCapture::kSendScriptResult) {
     script_result_queue_ = std::make_unique<ScriptResultQueue>();
+  }
 
   content::ServiceWorkerContext* service_worker_context =
       util::GetServiceWorkerContextForExtensionId(extension_->id(),
@@ -161,7 +165,7 @@ bool BackgroundScriptExecutor::ExecuteScriptInServiceWorker() {
       script_, worker_ids[0].version_id,
       base::BindOnce(
           [](std::string script, base::Value _ignored_value,
-             const absl::optional<std::string>& error) {
+             const std::optional<std::string>& error) {
             // `_ignored_value` is ignored, because extension tests are expected
             // to communicate their result via `chrome.test.sendScriptResult`
             // instead (see also `BackgroundScriptExecutor::WaitForResult`).

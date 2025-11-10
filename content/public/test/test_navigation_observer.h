@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "base/callback_list.h"
 #include "base/containers/unique_ptr_adapters.h"
@@ -14,7 +15,7 @@
 #include "content/public/browser/child_process_host.h"
 #include "content/public/test/test_utils.h"
 #include "net/base/net_errors.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/http/http_status_code.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "third_party/blink/public/mojom/navigation/navigation_initiator_activation_and_ad_status.mojom.h"
 #include "url/gurl.h"
@@ -92,6 +93,9 @@ class TestNavigationObserver {
   // WebContents.
   void WatchExistingWebContents();
 
+  // Start watching the provided |web_contents|.
+  void WatchWebContents(content::WebContents* web_contents);
+
   // The URL of the last finished navigation (that matched URL / net error
   // filters, if set).
   const GURL& last_navigation_url() const { return last_navigation_url_; }
@@ -108,14 +112,14 @@ class TestNavigationObserver {
 
   // Returns the initiator origin of the last finished navigation (that matched
   // URL / net error filters, if set).
-  const absl::optional<url::Origin>& last_initiator_origin() const {
+  const std::optional<url::Origin>& last_initiator_origin() const {
     return last_navigation_initiator_origin_;
   }
 
   // Returns the frame token of the initiator RenderFrameHost of the last
   // finished navigation. This is defined if and only if
   // last_initiator_process_id below is.
-  const absl::optional<blink::LocalFrameToken>& last_initiator_frame_token()
+  const std::optional<blink::LocalFrameToken>& last_initiator_frame_token()
       const {
     return last_initiator_frame_token_;
   }
@@ -130,12 +134,21 @@ class TestNavigationObserver {
   // URL / net error filters, if set).
   net::Error last_net_error_code() const { return last_net_error_code_; }
 
+  // Returns the HTTP response code of the last navigation, if applicable
+  std::optional<net::HttpStatusCode> last_http_response_code() const {
+    return last_http_response_code_;
+  }
+
   // Returns the navigation entry ID of the last finished navigation (that
   // matched URL if set).
   int last_nav_entry_id() const { return last_nav_entry_id_; }
 
   SiteInstance* last_source_site_instance() const {
     return last_source_site_instance_.get();
+  }
+
+  ukm::SourceId next_page_ukm_source_id() const {
+    return next_page_ukm_source_id_;
   }
 
  protected:
@@ -187,8 +200,8 @@ class TestNavigationObserver {
 
   TestNavigationObserver(WebContents* web_contents,
                          int expected_number_of_navigations,
-                         const absl::optional<GURL>& expected_target_url,
-                         absl::optional<net::Error> expected_target_error,
+                         const std::optional<GURL>& expected_target_url,
+                         std::optional<net::Error> expected_target_error,
                          MessageLoopRunner::QuitMode quit_mode =
                              MessageLoopRunner::QuitMode::IMMEDIATE,
                          bool ignore_uncommitted_navigations = true);
@@ -232,14 +245,14 @@ class TestNavigationObserver {
   int expected_number_of_navigations_;
 
   // The target URL to wait for.  If this is nullopt, any URL counts.
-  const absl::optional<GURL> expected_target_url_;
+  const std::optional<GURL> expected_target_url_;
 
   // The initial URL to wait for.  If this is nullopt, any URL counts.
-  absl::optional<GURL> expected_initial_url_;
+  std::optional<GURL> expected_initial_url_;
 
   // The net error of the finished navigation to wait for.
   // If this is nullopt, any net::Error counts.
-  const absl::optional<net::Error> expected_target_error_;
+  const std::optional<net::Error> expected_target_error_;
 
   // Whether to ignore navigations that finish but don't commit.
   bool ignore_uncommitted_navigations_;
@@ -262,12 +275,12 @@ class TestNavigationObserver {
   bool was_event_consumed_ = false;
 
   // The initiator origin of the last navigation.
-  absl::optional<url::Origin> last_navigation_initiator_origin_;
+  std::optional<url::Origin> last_navigation_initiator_origin_;
 
   // The frame token of the initiator frame for the last observed
   // navigation. This parameter is defined if and only if
   // |initiator_process_id_| below is.
-  absl::optional<blink::LocalFrameToken> last_initiator_frame_token_;
+  std::optional<blink::LocalFrameToken> last_initiator_frame_token_;
 
   // The process id of the initiator frame for the last observed navigation.
   // This is defined if and only if |initiator_frame_token_| above is, and it is
@@ -277,10 +290,19 @@ class TestNavigationObserver {
   // The net error code of the last navigation.
   net::Error last_net_error_code_;
 
+  // HTTP status code of the last navigation.
+  std::optional<net::HttpStatusCode> last_http_response_code_ = std::nullopt;
+
   // The navigation entry ID of the last navigation.
   int last_nav_entry_id_ = 0;
 
   scoped_refptr<SiteInstance> last_source_site_instance_;
+
+  // The UKM source ID of the next page.
+  //
+  // For prerender activations, this will retain a bit different UKM source ID
+  // from usual. See NavigationHandle::GetNextPageUkmSourceId() for details.
+  ukm::SourceId next_page_ukm_source_id_ = ukm::kInvalidSourceId;
 
   // The MessageLoopRunner used to spin the message loop.
   scoped_refptr<MessageLoopRunner> message_loop_runner_;

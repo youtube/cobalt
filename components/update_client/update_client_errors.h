@@ -26,16 +26,18 @@ enum class Error {
 // the enums below; the order must be kept stable.
 enum class ErrorCategory {
   kNone = 0,
-  kDownload,
-  kUnpack,
-  kInstall,
-  kService,  // Runtime errors which occur in the service itself.
-  kUpdateCheck,
+  kDownload = 1,
+  kUnpack = 2,
+  kInstall = 3,
+  kService = 4,  // Runtime errors which occur in the service itself.
+  kUpdateCheck = 5,
+  // kUnknown = 6, defined in `updater_service.mojom`.
+  kInstaller = 7,
 };
 
-// These errors are returned with the |kNetworkError| error category. This
-// category could include other errors such as the errors defined by
-// the Chrome net stack.
+// These errors are returned with the `kDownload` error category. This category
+// could include other errors such as the errors defined by the Chrome net
+// stack.
 enum class CrxDownloaderError {
   NONE = 0,
 #if BUILDFLAG(IS_STARBOARD)
@@ -44,9 +46,20 @@ enum class CrxDownloaderError {
   NO_URL = 10,
   NO_HASH = 11,
   BAD_HASH = 12,  // The downloaded file fails the hash verification.
+  DISK_FULL = 13,
+  CANCELLED = 14,
+  NO_DOWNLOAD_DIR = 15,
+
   // The Windows BITS queue contains to many update client jobs. The value is
   // chosen so that it can be reported as a custom COM error on this platform.
   BITS_TOO_MANY_JOBS = 0x0200,
+  // Errors 11XX are reserved for Mac background downloader errors.
+  MAC_BG_CANNOT_CREATE_DOWNLOAD_CACHE = 1101,
+  MAC_BG_MOVE_TO_CACHE_FAIL = 1102,
+  MAC_BG_MISSING_COMPLETION_DATA = 1103,
+  MAC_BG_DUPLICATE_DOWNLOAD = 1104,
+  MAC_BG_SESSION_INVALIDATED = 1105,
+  MAC_BG_SESSION_TOO_MANY_TASKS = 1106,
   GENERIC_ERROR = -1
 };
 
@@ -75,6 +88,13 @@ enum class UnpackerError {
   kFailedToAddToCache = 19,
   kFailedToCreateCacheDir = 20,
   kCrxCacheNotProvided = 21,
+  kCrxCacheMetadataCorrupted = 22,
+  kCrxCacheFileNotCached = 23,
+  kPatchInvalidOldFile = 24,
+  kPatchInvalidPatchFile = 25,
+  kPatchInvalidNewFile = 26,
+  kXzFailed = 27,
+  kPatchOutHashMismatch = 28,
 };
 
 // These errors are returned with the |kInstall| error category and
@@ -131,7 +151,7 @@ enum class UpdateCheckError {
 enum class ProtocolError : int {
   NONE = 0,
   RESPONSE_NOT_TRUSTED = -10000,
-  MISSING_PUBLIC_KEY = -10001,
+  // Obsolete: MISSING_PUBLIC_KEY = -10001,
   MISSING_URLS = -10002,
   PARSE_FAILED = -10003,
   UPDATE_RESPONSE_NOT_FOUND = -10004,
@@ -139,6 +159,21 @@ enum class ProtocolError : int {
   UNKNOWN_APPLICATION = -10006,
   RESTRICTED_APPLICATION = -10007,
   INVALID_APPID = -10008,
+  OS_NOT_SUPPORTED = -10009,
+  HW_NOT_SUPPORTED = -10010,
+  NO_HASH = -10011,
+  UNSUPPORTED_PROTOCOL = -10012,
+  INTERNAL = -10013,
+  UNSUPPORTED_OPERATION = -10014,
+  INEXPRESSIBLE = -10015,
+  UNKNOWN_ERROR = -10016,
+  INVALID_OPERATION_ATTRIBUTES = -10017,
+};
+
+struct CategorizedError {
+  ErrorCategory category = ErrorCategory::kNone;
+  int code = 0;
+  int extra = 0;
 };
 
 }  // namespace update_client

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "base/containers/circular_deque.h"
@@ -15,14 +16,13 @@
 #include "base/functional/callback.h"
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
-#include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/types/optional_ref.h"
 #include "net/base/schemeful_site.h"
 #include "net/first_party_sets/first_party_set_entry.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
 #include "net/first_party_sets/first_party_sets_context_config.h"
 #include "net/first_party_sets/global_first_party_sets.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 
@@ -50,10 +50,9 @@ class FirstPartySetsManager {
   // with the result. The callback will be invoked iff the return value is
   // nullopt; i.e. a result will be provided via return value or callback, but
   // not both, and not neither.
-  [[nodiscard]] absl::optional<net::FirstPartySetMetadata> ComputeMetadata(
+  [[nodiscard]] std::optional<net::FirstPartySetMetadata> ComputeMetadata(
       const net::SchemefulSite& site,
-      const net::SchemefulSite* top_frame_site,
-      const std::set<net::SchemefulSite>& party_context,
+      base::optional_ref<const net::SchemefulSite> top_frame_site,
       const net::FirstPartySetsContextConfig& fps_context_config,
       base::OnceCallback<void(net::FirstPartySetMetadata)> callback);
 
@@ -75,7 +74,7 @@ class FirstPartySetsManager {
   // with the result. The callback will be invoked iff the return value is
   // nullopt; i.e. a result will be provided via return value or callback, but
   // not both, and not neither.
-  [[nodiscard]] absl::optional<EntriesResult> FindEntries(
+  [[nodiscard]] std::optional<EntriesResult> FindEntries(
       const base::flat_set<net::SchemefulSite>& sites,
       const net::FirstPartySetsContextConfig& fps_context_config,
       base::OnceCallback<void(EntriesResult)> callback);
@@ -85,18 +84,15 @@ class FirstPartySetsManager {
   // only be called once the instance is fully initialized.
   void ComputeMetadataAndInvoke(
       const net::SchemefulSite& site,
-      const absl::optional<net::SchemefulSite> top_frame_site,
-      const std::set<net::SchemefulSite>& party_context,
+      base::optional_ref<const net::SchemefulSite> top_frame_site,
       const net::FirstPartySetsContextConfig& fps_context_config,
-      base::OnceCallback<void(net::FirstPartySetMetadata)> callback,
-      base::ElapsedTimer timer) const;
+      base::OnceCallback<void(net::FirstPartySetMetadata)> callback) const;
 
   // Synchronous version of `ComputeMetadata`, to be run only once the instance
   // is fully initialized.
   net::FirstPartySetMetadata ComputeMetadataInternal(
       const net::SchemefulSite& site,
-      const net::SchemefulSite* top_frame_site,
-      const std::set<net::SchemefulSite>& party_context,
+      base::optional_ref<const net::SchemefulSite> top_frame_site,
       const net::FirstPartySetsContextConfig& fps_context_config) const;
 
   // Returns `site`'s entry, or `nullopt` if `site` has no entry.
@@ -104,7 +100,7 @@ class FirstPartySetsManager {
   //
   // This is synchronous, and must not be called until the instance is fully
   // initialized.
-  absl::optional<net::FirstPartySetEntry> FindEntry(
+  std::optional<net::FirstPartySetEntry> FindEntry(
       const net::SchemefulSite& site,
       const net::FirstPartySetsContextConfig& fps_context_config) const;
 
@@ -113,8 +109,7 @@ class FirstPartySetsManager {
   void FindEntriesAndInvoke(
       const base::flat_set<net::SchemefulSite>& sites,
       const net::FirstPartySetsContextConfig& fps_context_config,
-      base::OnceCallback<void(EntriesResult)> callback,
-      base::ElapsedTimer timer) const;
+      base::OnceCallback<void(EntriesResult)> callback) const;
 
   // Synchronous version of `FindEntries`, to be run only once the instance is
   // initialized.
@@ -133,18 +128,17 @@ class FirstPartySetsManager {
   //
   // Optional because it is unset until the data has been received from the
   // browser process.
-  absl::optional<net::GlobalFirstPartySets> sets_
+  std::optional<net::GlobalFirstPartySets> sets_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   bool enabled_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
 
+  // Whether this instance should wait for First-Party Sets initialization (in
+  // the browser process) before responding to queries.
+  const bool wait_for_init_ GUARDED_BY_CONTEXT(sequence_checker_);
+
   // The queue of queries that are waiting for the instance to be initialized.
   std::unique_ptr<base::circular_deque<base::OnceClosure>> pending_queries_
-      GUARDED_BY_CONTEXT(sequence_checker_);
-
-  // Timer starting when the first async query was enqueued, if any. Used for
-  // metrics.
-  absl::optional<base::ElapsedTimer> first_async_query_timer_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Timer starting when the instance is constructed. Used for metrics.

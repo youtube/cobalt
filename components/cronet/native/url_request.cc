@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notreached.h"
 #include "components/cronet/cronet_upload_data_stream.h"
 #include "components/cronet/native/engine.h"
 #include "components/cronet/native/generated/cronet.idl_impl_struct.h"
@@ -22,7 +23,6 @@
 #include "components/cronet/native/upload_data_sink.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -231,8 +231,7 @@ Cronet_UrlRequestStatusListener_Status ConvertLoadState(
       // A load state is retrieved but there is no corresponding
       // request status. This most likely means that the mapping is
       // incorrect.
-      CHECK(false);
-      return Cronet_UrlRequestStatusListener_Status_INVALID;
+      NOTREACHED();
   }
 }
 
@@ -278,6 +277,7 @@ class Cronet_UrlRequestImpl::NetworkTasks : public CronetURLRequest::Callback {
   void OnSucceeded(int64_t received_byte_count) override;
   void OnError(int net_error,
                int quic_error,
+               quic::ConnectionCloseSource source,
                const std::string& error_string,
                int64_t received_byte_count) override;
   void OnCanceled() override;
@@ -304,7 +304,8 @@ class Cronet_UrlRequestImpl::NetworkTasks : public CronetURLRequest::Callback {
       LOCKS_EXCLUDED(url_request_->lock_) override;
 
   // The UrlRequest which owns context that owns the callback.
-  const raw_ptr<Cronet_UrlRequestImpl> url_request_ = nullptr;
+  const raw_ptr<Cronet_UrlRequestImpl, AcrossTasksDanglingUntriaged>
+      url_request_ = nullptr;
 
   // URL chain contains the URL currently being requested, and
   // all URLs previously requested. New URLs are added before
@@ -379,11 +380,13 @@ Cronet_RESULT Cronet_UrlRequestImpl::InitWithParams(
   request_ = new CronetURLRequest(
       engine_->cronet_url_request_context(), std::move(network_tasks),
       GURL(url), ConvertRequestPriority(params->priority),
-      params->disable_cache, true /* params->disableConnectionMigration */,
+      params->disable_cache, /*disable_connection_migration=*/true,
       // TODO(pauljensen): Consider exposing TrafficStats API via C++ API.
-      false /* traffic_stats_tag_set */, 0 /* traffic_stats_tag */,
-      false /* traffic_stats_uid_set */, 0 /* traffic_stats_uid */,
-      ConvertIdempotency(params->idempotency));
+      /*traffic_stats_tag_set=*/false,
+      /*traffic_stats_tag=*/0,
+      /*traffic_stats_uid_set=*/false,
+      /*traffic_stats_uid=*/0, ConvertIdempotency(params->idempotency),
+      /*shared_dictionary=*/nullptr);
 
   if (params->upload_data_provider) {
     upload_data_sink_ = std::make_unique<Cronet_UploadDataSinkImpl>(
@@ -512,9 +515,13 @@ void Cronet_UrlRequestImpl::GetStatus(
     base::AutoLock lock(lock_);
     if (started_ && request_) {
       status_listeners_.insert(listener);
+      // UnsafeDanglingUntriaged triggered by test:
+      // UrlRequestTest.GetStatus
+      // TODO(crbug.com/40061562): Remove `UnsafeDanglingUntriaged`
       request_->GetStatus(
           base::BindOnce(&Cronet_UrlRequestImpl::NetworkTasks::OnStatus,
-                         base::Unretained(network_tasks_), listener));
+                         base::Unretained(network_tasks_),
+                         base::UnsafeDanglingUntriaged(listener)));
       return;
     }
   }
@@ -764,6 +771,7 @@ void Cronet_UrlRequestImpl::NetworkTasks::OnSucceeded(
 void Cronet_UrlRequestImpl::NetworkTasks::OnError(
     int net_error,
     int quic_error,
+    quic::ConnectionCloseSource source,
     const std::string& error_string,
     int64_t received_byte_count) {
   DCHECK_CALLED_ON_VALID_THREAD(network_thread_checker_);

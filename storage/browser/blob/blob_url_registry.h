@@ -8,6 +8,7 @@
 #include <map>
 
 #include "base/component_export.h"
+#include "base/functional/callback.h"
 #include "base/sequence_checker.h"
 #include "base/unguessable_token.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -19,6 +20,7 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom.h"
+#include "third_party/blink/public/mojom/devtools/inspector_issue.mojom.h"
 
 class GURL;
 
@@ -34,18 +36,46 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) BlobUrlRegistry {
 
   ~BlobUrlRegistry();
 
+  enum class MappingStatus {
+    kIsMapped,
+    // This refers to a third-party context attempting to access a Blob URL
+    // created in a first-party context.
+    kNotMappedCrossPartitionSameOriginAccessFirstPartyBlobURL,
+    // This refers to either a first-party or different third-party context
+    // attempting to access a Blob URL created in a third-party context.
+    kNotMappedCrossPartitionSameOriginAccessThirdPartyBlobURL,
+    kNotMappedOther
+  };
+
   // Binds receivers corresponding to connections from renderer frame
   // contexts and stores them in `frame_receivers_`.
+  // `partitioning_blob_url_closure` runs when the storage_key check fails
+  // in `BlobURLStoreImpl::ResolveAsURLLoaderFactory` and increments the use
+  // counter.
   void AddReceiver(
       const blink::StorageKey& storage_key,
-      mojo::PendingAssociatedReceiver<blink::mojom::BlobURLStore> receiver);
+      const url::Origin& renderer_origin,
+      int render_process_host_id,
+      mojo::PendingAssociatedReceiver<blink::mojom::BlobURLStore> receiver,
+      base::RepeatingCallback<
+          void(const GURL&,
+               std::optional<blink::mojom::PartitioningBlobURLInfo>)>
+          partitioning_blob_url_closure,
+      base::RepeatingCallback<bool()> storage_access_check_callback,
+      bool partitioning_disabled_by_policy = false);
 
   // Binds receivers corresponding to connections from renderer worker
   // contexts and stores them in `worker_receivers_`.
-  void AddReceiver(const blink::StorageKey& storage_key,
-                   mojo::PendingReceiver<blink::mojom::BlobURLStore> receiver,
-                   BlobURLValidityCheckBehavior validity_check_behavior =
-                       BlobURLValidityCheckBehavior::DEFAULT);
+  void AddReceiver(
+      const blink::StorageKey& storage_key,
+      const url::Origin& renderer_origin,
+      int render_process_host_id,
+      mojo::PendingReceiver<blink::mojom::BlobURLStore> receiver,
+      base::RepeatingCallback<bool()> storage_access_check_callback =
+          base::BindRepeating([]() -> bool { return false; }),
+      bool partitioning_disabled_by_policy = false,
+      BlobURLValidityCheckBehavior validity_check_behavior =
+          BlobURLValidityCheckBehavior::DEFAULT);
 
   // Returns the receivers corresponding to renderer frame contexts for use in
   // tests.
@@ -54,31 +84,32 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) BlobUrlRegistry {
   // Creates a URL mapping from blob to the given URL. Returns false if
   // there already is a map for the URL. The URL mapping will be associated with
   // the `storage_key`, and most subsequent URL lookup attempts will require a
-  // matching StorageKey to succeed (unless the kSupportPartitionedBlobUrl flag
-  // is disabled, in which case `storage_key` is not used).
+  // matching StorageKey to succeed. `origin` is the origin of the Blob URL, and
+  // `render_process_host_id` is the ID of the process where the blob URL
+  // registration comes from.
   bool AddUrlMapping(
       const GURL& url,
       mojo::PendingRemote<blink::mojom::Blob> blob,
       const blink::StorageKey& storage_key,
-      // TODO(https://crbug.com/1224926): Remove these once experiment is over.
+      const url::Origin& renderer_origin,
+      int render_process_host_id,
+      // TODO(crbug.com/40775506): Remove these once experiment is over.
       const base::UnguessableToken& unsafe_agent_cluster_id,
-      const absl::optional<net::SchemefulSite>& unsafe_top_level_site);
+      const std::optional<net::SchemefulSite>& unsafe_top_level_site);
 
-  // Removes the given URL mapping associated with `storage_key` (unless the
-  // kSupportPartitionedBlobUrl flag is disabled, in which case `storage_key` is
-  // not used). Returns false if the URL wasn't mapped.
+  // Removes the given URL mapping associated with `storage_key`. Returns false
+  // if the URL wasn't mapped.
   bool RemoveUrlMapping(const GURL& url, const blink::StorageKey& storage_key);
 
   // Returns whether the URL is mapped to a blob and whether the URL is
-  // associated with `storage_key` (unless the kSupportPartitionedBlobUrl flag
-  // is disabled, in which case `storage_key` is not used).
-  bool IsUrlMapped(const GURL& blob_url,
-                   const blink::StorageKey& storage_key) const;
+  // associated with `storage_key`.
+  MappingStatus IsUrlMapped(const GURL& blob_url,
+                            const blink::StorageKey& storage_key) const;
 
-  // TODO(https://crbug.com/1224926): Remove this once experiment is over.
-  absl::optional<base::UnguessableToken> GetUnsafeAgentClusterID(
+  // TODO(crbug.com/40775506): Remove this once experiment is over.
+  std::optional<base::UnguessableToken> GetUnsafeAgentClusterID(
       const GURL& blob_url) const;
-  absl::optional<net::SchemefulSite> GetUnsafeTopLevelSite(
+  std::optional<net::SchemefulSite> GetUnsafeTopLevelSite(
       const GURL& blob_url) const;
 
   // Returns the blob from the given url. Returns a null remote if the mapping
@@ -94,6 +125,13 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) BlobUrlRegistry {
   bool GetTokenMapping(const base::UnguessableToken& token,
                        GURL* url,
                        mojo::PendingRemote<blink::mojom::Blob>* blob);
+
+  // Returns the origin for a Blob URL navigation to `url`, given the precursor
+  // origin and target process information.
+  url::Origin GetOriginForNavigation(
+      const GURL& url,
+      const url::Origin& precursor_origin,
+      std::optional<int> target_render_process_host_id);
 
   // Support adding a handler to be run when AddReceiver is called. This allows
   // browser tests to intercept incoming BlobURLStore connections and swap in
@@ -117,7 +155,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) BlobUrlRegistry {
   base::WeakPtr<BlobUrlRegistry> fallback_;
 
   std::map<GURL, mojo::PendingRemote<blink::mojom::Blob>> url_to_blob_;
-  // TODO(https://crbug.com/1224926): Remove this once experiment is over.
+  // TODO(crbug.com/40775506): Remove this once experiment is over.
   std::map<GURL, base::UnguessableToken> url_to_unsafe_agent_cluster_id_;
   std::map<GURL, net::SchemefulSite> url_to_unsafe_top_level_site_;
   std::map<base::UnguessableToken,
@@ -125,6 +163,8 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) BlobUrlRegistry {
       token_to_url_and_blob_;
 
   std::map<GURL, blink::StorageKey> url_to_storage_key_;
+  std::map<GURL, url::Origin> url_to_origin_;
+  std::map<GURL, int> url_to_render_process_host_id_;
 
   // When the renderer uses the BlobUrlRegistry from a frame context or from a
   // main thread worklet context, a navigation-associated interface is used to

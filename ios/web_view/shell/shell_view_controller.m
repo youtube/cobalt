@@ -12,10 +12,6 @@
 #import "ios/web_view/shell/shell_translation_delegate.h"
 #import "ios/web_view/shell/shell_trusted_vault_provider.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 // Externed accessibility identifier.
 NSString* const kWebViewShellBackButtonAccessibilityLabel = @"Back";
 NSString* const kWebViewShellForwardButtonAccessibilityLabel = @"Forward";
@@ -32,9 +28,9 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                                    UIScrollViewDelegate,
                                    UITextFieldDelegate>
 // Header containing navigation buttons and |field|.
-@property(nonatomic, strong) UIView* headerBackgroundView;
+@property(nonatomic, strong) UIStackView* headerBackgroundView;
 // Header containing navigation buttons and |field|.
-@property(nonatomic, strong) UIView* headerContentView;
+@property(nonatomic, strong) UIStackView* headerContentView;
 // Button to navigate backwards.
 @property(nonatomic, strong) UIButton* backButton;
 // Button to navigate forwards.
@@ -54,7 +50,7 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
 // The on-going download task if any.
 @property(nonatomic, strong, nullable) CWVDownloadTask* downloadTask;
 // The path to a local file which the download task is writing to.
-@property(nonatomic, strong, nullable) NSString* downloadFilePath;
+@property(nonatomic, copy, nullable) NSString* downloadFilePath;
 // A controller to show a "Share" menu for the downloaded file.
 @property(nonatomic, strong, nullable)
     UIDocumentInteractionController* documentInteractionController;
@@ -107,8 +103,8 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
   self.popupWebViews = [[NSMutableArray alloc] init];
 
   // View creation.
-  self.headerBackgroundView = [[UIView alloc] init];
-  self.headerContentView = [[UIView alloc] init];
+  self.headerBackgroundView = [[UIStackView alloc] init];
+  self.headerContentView = [[UIStackView alloc] init];
   self.contentView = [[UIView alloc] init];
   self.backButton = [[UIButton alloc] init];
   self.forwardButton = [[UIButton alloc] init];
@@ -117,20 +113,36 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
   self.field = [[UITextField alloc] init];
 
   // View hierarchy.
+  // `_headerBackgroundView` is a 1-item UIStackView. We use a UIStackView so
+  // that we can:
+  // 1. Easily hide `_headerContentView` when entering fullscreen mode in a way
+  // that removes it from the layout.
+  // 2. Let UIStackView figure out most constraints for `_headerContentView` so
+  // that we do not have to do it manually.
   [self.view addSubview:_headerBackgroundView];
   [self.view addSubview:_contentView];
-  [_headerBackgroundView addSubview:_headerContentView];
-  [_headerContentView addSubview:_backButton];
-  [_headerContentView addSubview:_forwardButton];
-  [_headerContentView addSubview:_reloadOrStopButton];
-  [_headerContentView addSubview:_menuButton];
-  [_headerContentView addSubview:_field];
+  [_headerBackgroundView addArrangedSubview:_headerContentView];
+  [_headerContentView addArrangedSubview:_backButton];
+  [_headerContentView addArrangedSubview:_forwardButton];
+  [_headerContentView addArrangedSubview:_reloadOrStopButton];
+  [_headerContentView addArrangedSubview:_menuButton];
+  [_headerContentView addArrangedSubview:_field];
 
   // Additional view setup.
   _headerBackgroundView.backgroundColor = [UIColor colorWithRed:66.0 / 255.0
                                                           green:133.0 / 255.0
                                                            blue:244.0 / 255.0
                                                           alpha:1.0];
+  _headerBackgroundView.alignment = UIStackViewAlignmentBottom;
+  _headerBackgroundView.axis = UILayoutConstraintAxisHorizontal;
+  // Use the root view's layout margins (which account for safe areas and the
+  // system's minimum margins).
+  _headerBackgroundView.layoutMarginsRelativeArrangement = YES;
+  _headerBackgroundView.preservesSuperviewLayoutMargins = YES;
+
+  _headerContentView.alignment = UIStackViewAlignmentCenter;
+  _headerContentView.axis = UILayoutConstraintAxisHorizontal;
+  _headerContentView.spacing = 16.0;
 
   [_backButton setImage:[UIImage imageNamed:@"ic_back"]
                forState:UIControlStateNormal];
@@ -167,21 +179,17 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                   action:@selector(showMainMenu)
         forControlEvents:UIControlEventTouchUpInside];
 
+  _field.borderStyle = UITextBorderStyleRoundedRect;
   _field.placeholder = @"Search or type URL";
   _field.backgroundColor = [UIColor whiteColor];
   _field.tintColor = _headerBackgroundView.backgroundColor;
   [_field setContentHuggingPriority:UILayoutPriorityDefaultLow - 1
                             forAxis:UILayoutConstraintAxisHorizontal];
   _field.delegate = self;
-  _field.layer.cornerRadius = 2.0;
   _field.keyboardType = UIKeyboardTypeWebSearch;
   _field.autocapitalizationType = UITextAutocapitalizationTypeNone;
   _field.clearButtonMode = UITextFieldViewModeWhileEditing;
   _field.autocorrectionType = UITextAutocorrectionTypeNo;
-  UIView* spacerView = [[UIView alloc] init];
-  spacerView.frame = CGRectMake(0, 0, 8, 8);
-  _field.leftViewMode = UITextFieldViewModeAlways;
-  _field.leftView = spacerView;
 
   // Constraints.
   _headerBackgroundView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -192,21 +200,10 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
         constraintEqualToAnchor:self.view.leadingAnchor],
     [_headerBackgroundView.trailingAnchor
         constraintEqualToAnchor:self.view.trailingAnchor],
-    [_headerBackgroundView.bottomAnchor
-        constraintEqualToAnchor:_headerContentView.bottomAnchor],
   ]];
 
   _headerContentView.translatesAutoresizingMaskIntoConstraints = NO;
   [NSLayoutConstraint activateConstraints:@[
-    [_headerContentView.topAnchor
-        constraintEqualToAnchor:_headerBackgroundView.safeAreaLayoutGuide
-                                    .topAnchor],
-    [_headerContentView.leadingAnchor
-        constraintEqualToAnchor:_headerBackgroundView.safeAreaLayoutGuide
-                                    .leadingAnchor],
-    [_headerContentView.trailingAnchor
-        constraintEqualToAnchor:_headerBackgroundView.safeAreaLayoutGuide
-                                    .trailingAnchor],
     [_headerContentView.heightAnchor constraintEqualToConstant:56.0],
   ]];
 
@@ -221,57 +218,10 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
     [_contentView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
   ]];
 
-  _backButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_backButton.leadingAnchor
-        constraintEqualToAnchor:_headerContentView.safeAreaLayoutGuide
-                                    .leadingAnchor
-                       constant:16.0],
-    [_backButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-
-  _forwardButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_forwardButton.leadingAnchor
-        constraintEqualToAnchor:_backButton.trailingAnchor
-                       constant:16.0],
-    [_forwardButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-
-  _reloadOrStopButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_reloadOrStopButton.leadingAnchor
-        constraintEqualToAnchor:_forwardButton.trailingAnchor
-                       constant:16.0],
-    [_reloadOrStopButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-  _menuButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_menuButton.leadingAnchor
-        constraintEqualToAnchor:_reloadOrStopButton.trailingAnchor
-                       constant:16.0],
-    [_menuButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-
-  _field.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_field.leadingAnchor constraintEqualToAnchor:_menuButton.trailingAnchor
-                                         constant:16.0],
-    [_field.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-    [_field.trailingAnchor
-        constraintEqualToAnchor:_headerContentView.safeAreaLayoutGuide
-                                    .trailingAnchor
-                       constant:-16.0],
-    [_field.heightAnchor constraintEqualToConstant:32.0],
-  ]];
-
-  [CWVWebView setUserAgentProduct:@"Dummy/1.0"];
+  CWVGlobalState.sharedInstance.userAgentProduct = @"Dummy/1.0";
   CWVWebView.chromeContextMenuEnabled = YES;
+
+  CWVWebView.webInspectorEnabled = YES;
 
   _authService = [[ShellAuthService alloc] init];
   CWVSyncController.dataSource = _authService;
@@ -516,9 +466,11 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                                   weakAlertController.textFields[1].text;
                               NSString* site =
                                   weakAlertController.textFields[2].text;
+                              NSDate* now = [NSDate date];
                               [dataManager addNewPasswordForUsername:username
                                                             password:password
-                                                                site:site];
+                                                                site:site
+                                                           timestamp:now];
                             }]];
   [self presentViewController:alertController animated:YES completion:nil];
 }
@@ -585,10 +537,11 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                                          NSString* newPassword =
                                              weakAlertController.textFields
                                                  .lastObject.text;
-                                         [dataManager
-                                             updatePassword:password
-                                                newUsername:newUsername
-                                                newPassword:newPassword];
+                                         NSDate* now = [NSDate date];
+                                         [dataManager updatePassword:password
+                                                         newUsername:newUsername
+                                                         newPassword:newPassword
+                                                           timestamp:now];
                                        }]];
   [self presentViewController:alertController animated:YES completion:nil];
 }
@@ -700,6 +653,21 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                                        handler:^(UIAlertAction* action) {
                                          [weakSelf checkLeakedPasswords];
                                        }]];
+
+  [alertController
+      addAction:[UIAlertAction actionWithTitle:@"Check weak passwords"
+                                         style:UIAlertActionStyleDefault
+                                       handler:^(UIAlertAction* action) {
+                                         [weakSelf checkWeakPasswords];
+                                       }]];
+
+  [alertController
+      addAction:[UIAlertAction actionWithTitle:@"Check reused passwords"
+                                         style:UIAlertActionStyleDefault
+                                       handler:^(UIAlertAction* action) {
+                                         [weakSelf checkReusedPasswords];
+                                       }]];
+
   [alertController
       addAction:[UIAlertAction actionWithTitle:@"Cancel"
                                          style:UIAlertActionStyleCancel
@@ -840,12 +808,30 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                                          [weakSelf showEvaluateJavaScriptUI];
                                        }]];
 
+  [alertController
+      addAction:[UIAlertAction actionWithTitle:@"User Scripts"
+                                         style:UIAlertActionStyleDefault
+                                       handler:^(UIAlertAction* action) {
+                                         [weakSelf showUserScriptsUI];
+                                       }]];
+
   if (self.downloadTask) {
     [alertController
         addAction:[UIAlertAction actionWithTitle:@"Cancel download"
                                            style:UIAlertActionStyleDefault
                                          handler:^(UIAlertAction* action) {
                                            [weakSelf.downloadTask cancel];
+                                         }]];
+  }
+
+  // Using native FiP through is only available for 16.0, otherwise fallback
+  // to iGA JS FiP.
+  if (@available(iOS 16.0, *)) {
+    [alertController
+        addAction:[UIAlertAction actionWithTitle:@"Start Find In Page"
+                                           style:UIAlertActionStyleDefault
+                                         handler:^(UIAlertAction* action) {
+                                           [weakSelf startFindInPageSession];
                                          }]];
   }
 
@@ -902,15 +888,66 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
   }];
 }
 
+- (void)checkWeakPasswords {
+  CWVAutofillDataManager* dataManager =
+      _webView.configuration.autofillDataManager;
+  [dataManager fetchPasswordsWithCompletionHandler:^(
+                   NSArray<CWVPassword*>* _Nonnull passwords) {
+    NSLog(@"Checking weak status of %@ passwords.", @(passwords.count));
+    for (CWVPassword* password in passwords) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        BOOL isWeak = [CWVWeakCheckUtils isPasswordWeak:password.password];
+        NSLog(@"Weak password status for %@ at %@ is %s", password.username,
+              password.site, isWeak ? "true" : "false");
+      });
+    }
+  }];
+}
+
+- (void)checkReusedPasswords {
+  CWVAutofillDataManager* dataManager =
+      _webView.configuration.autofillDataManager;
+  [dataManager fetchPasswordsWithCompletionHandler:^(
+                   NSArray<CWVPassword*>* _Nonnull passwords) {
+    NSLog(@"Checking reuse status of %@ passwords.", @(passwords.count));
+    [self.webView.configuration.reuseCheckService
+        checkReusedPasswords:passwords
+           completionHandler:^(NSSet<NSString*>* reusedPasswords) {
+             int useCount = 0;
+             for (CWVPassword* password in passwords) {
+               if ([reusedPasswords containsObject:password.password]) {
+                 useCount++;
+               }
+             }
+             NSLog(@"%@ reused password(s).", @(reusedPasswords.count));
+             NSLog(@"Used %d times.", useCount);
+
+             UIAlertController* alertController = [UIAlertController
+                 alertControllerWithTitle:@"Reuse Check Complete"
+                                  message:[NSString
+                                              stringWithFormat:
+                                                  @"%@ reused password(s). "
+                                                  @"Used %d times.",
+                                                  @(reusedPasswords.count),
+                                                  useCount]
+                           preferredStyle:UIAlertControllerStyleAlert];
+             [alertController
+                 addAction:[UIAlertAction
+                               actionWithTitle:@"OK"
+                                         style:UIAlertActionStyleDefault
+                                       handler:nil]];
+             [self presentViewController:alertController
+                                animated:YES
+                              completion:nil];
+           }];
+  }];
+}
+
 - (void)showEvaluateJavaScriptUI {
   UIAlertController* alertController =
-      [UIAlertController alertControllerWithTitle:@"Evaluate JavaScript"
-                                          message:nil
-                                   preferredStyle:UIAlertControllerStyleAlert];
-  alertController.popoverPresentationController.sourceView = _menuButton;
-  alertController.popoverPresentationController.sourceRect =
-      CGRectMake(CGRectGetWidth(_menuButton.bounds) / 2,
-                 CGRectGetHeight(_menuButton.bounds), 1, 1);
+      [self alertControllerWithTitle:@"Evaluate JavaScript"
+                             message:nil
+                      preferredStyle:UIAlertControllerStyleAlert];
 
   [alertController
       addTextFieldWithConfigurationHandler:^(UITextField* textField) {
@@ -951,6 +988,77 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
               }];
 }
 
+- (void)showUserScriptsUI {
+  UIAlertController* alertController =
+      [self alertControllerWithTitle:@"Add or Remove User Scripts"
+                             message:@"This will also recreate the web view."
+                      preferredStyle:UIAlertControllerStyleAlert];
+
+  [alertController
+      addTextFieldWithConfigurationHandler:^(UITextField* textField) {
+        textField.placeholder = @"All frames script";
+      }];
+
+  [alertController
+      addTextFieldWithConfigurationHandler:^(UITextField* textField) {
+        textField.placeholder = @"Main frame script";
+      }];
+
+  __weak UIAlertController* weakAlertController = alertController;
+  __weak ShellViewController* weakSelf = self;
+  [alertController
+      addAction:[UIAlertAction
+                    actionWithTitle:@"Add"
+                              style:UIAlertActionStyleDefault
+                            handler:^(UIAlertAction* action) {
+                              NSString* allFramesSource =
+                                  weakAlertController.textFields[0].text;
+                              NSString* mainFrameSource =
+                                  weakAlertController.textFields[1].text;
+                              [weakSelf
+                                  addUserScriptForAllFrames:allFramesSource
+                                           forMainFrameOnly:mainFrameSource];
+                            }]];
+  [alertController
+      addAction:[UIAlertAction actionWithTitle:@"Remove All"
+                                         style:UIAlertActionStyleDestructive
+                                       handler:^(UIAlertAction* action) {
+                                         [weakSelf removeAllUserScripts];
+                                       }]];
+
+  [alertController
+      addAction:[UIAlertAction actionWithTitle:@"Cancel"
+                                         style:UIAlertActionStyleCancel
+                                       handler:nil]];
+  [self presentViewController:alertController animated:YES completion:nil];
+}
+
+- (void)addUserScriptForAllFrames:(nullable NSString*)allFramesSource
+                 forMainFrameOnly:(nullable NSString*)mainFrameSource {
+  CWVWebViewConfiguration* configuration = self.webView.configuration;
+  [self removeWebView];
+  if (allFramesSource.length) {
+    CWVUserScript* allFramesScript =
+        [[CWVUserScript alloc] initWithSource:allFramesSource
+                             forMainFrameOnly:NO];
+    [configuration.userContentController addUserScript:allFramesScript];
+  }
+  if (mainFrameSource.length) {
+    CWVUserScript* mainFrameScript =
+        [[CWVUserScript alloc] initWithSource:mainFrameSource
+                             forMainFrameOnly:YES];
+    [configuration.userContentController addUserScript:mainFrameScript];
+  }
+  self.webView = [self createWebViewWithConfiguration:configuration];
+}
+
+- (void)removeAllUserScripts {
+  CWVWebViewConfiguration* configuration = self.webView.configuration;
+  [self removeWebView];
+  [configuration.userContentController removeAllUserScripts];
+  self.webView = [self createWebViewWithConfiguration:configuration];
+}
+
 - (void)resetTranslateSettings {
   CWVWebViewConfiguration* configuration =
       [CWVWebViewConfiguration defaultConfiguration];
@@ -969,6 +1077,16 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
       wasPersistent ? [CWVWebViewConfiguration nonPersistentConfiguration]
                     : [CWVWebViewConfiguration defaultConfiguration];
   self.webView = [self createWebViewWithConfiguration:newConfiguration];
+}
+
+- (void)startFindInPageSession {
+  // Using native FiP through is only available for 16.0, otherwise fallback
+  // to iGA JS FiP.
+  if (@available(iOS 16.0, *)) {
+    if ([_webView.findInPageController canFindInPage]) {
+      [_webView.findInPageController startFindInPage];
+    }
+  }
 }
 
 - (CWVWebView*)createWebViewWithConfiguration:
@@ -1051,8 +1169,10 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
 }
 
 - (BOOL)textFieldShouldReturn:(UITextField*)field {
-  NSURL* URL = [NSURL URLWithString:field.text];
-  if (URL.scheme.length == 0) {
+  CWVOmniboxInput* input = [[CWVOmniboxInput alloc] initWithText:field.text
+                                   shouldUseHTTPSAsDefaultScheme:NO];
+  NSURL* URL = input.URL;
+  if (input.type != CWVOmniboxInputTypeURL) {
     NSString* enteredText = field.text;
     enteredText =
         [enteredText stringByAddingPercentEncodingWithAllowedCharacters:
@@ -1079,10 +1199,19 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
 
 - (UIAlertController*)actionSheetWithTitle:(nullable NSString*)title
                                    message:(nullable NSString*)message {
-  UIAlertController* alertController = [UIAlertController
-      alertControllerWithTitle:title
-                       message:message
-                preferredStyle:UIAlertControllerStyleActionSheet];
+  return [self alertControllerWithTitle:title
+                                message:message
+                         preferredStyle:UIAlertControllerStyleActionSheet];
+}
+
+- (UIAlertController*)alertControllerWithTitle:(nullable NSString*)title
+                                       message:(nullable NSString*)message
+                                preferredStyle:
+                                    (UIAlertControllerStyle)preferredStyle {
+  UIAlertController* alertController =
+      [UIAlertController alertControllerWithTitle:title
+                                          message:message
+                                   preferredStyle:preferredStyle];
   alertController.popoverPresentationController.sourceView = _menuButton;
   alertController.popoverPresentationController.sourceRect =
       CGRectMake(CGRectGetWidth(_menuButton.bounds) / 2,
@@ -1137,7 +1266,7 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
     requestMediaCapturePermissionForType:(CWVMediaCaptureType)type
                          decisionHandler:
                              (void (^)(CWVPermissionDecision decision))
-                                 decisionHandler API_AVAILABLE(ios(15.0)) {
+                                 decisionHandler {
   NSString* mediaCaptureType;
   switch (type) {
     case CWVMediaCaptureTypeCamera:
@@ -1158,13 +1287,6 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
                                           message:nil
                                    preferredStyle:UIAlertControllerStyleAlert];
 
-  [alertController
-      addAction:[UIAlertAction
-                    actionWithTitle:@"Show Default Prompt"
-                              style:UIAlertActionStyleDefault
-                            handler:^(UIAlertAction* action) {
-                              decisionHandler(CWVPermissionDecisionPrompt);
-                            }]];
   [alertController
       addAction:[UIAlertAction
                     actionWithTitle:@"Grant"
@@ -1196,33 +1318,33 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
     [[UIPasteboard generalPasteboard] setItems:@[ item ]];
   };
 
-  UIContextMenuConfiguration* configuration = [UIContextMenuConfiguration
-      configurationWithIdentifier:nil
-      previewProvider:^{
-        UIViewController* controller = [[UIViewController alloc] init];
-        CGRect frame = CGRectMake(10, 200, 200, 21);
-        UILabel* label = [[UILabel alloc] initWithFrame:frame];
-        label.text = @"iOS13 Preview Page";
-        [controller.view addSubview:label];
-        return controller;
-      }
-      actionProvider:^(id _) {
-        NSArray* actions = @[
-          [UIAction actionWithTitle:@"Copy Link"
-                              image:nil
-                         identifier:nil
-                            handler:copyHandler],
-          [UIAction actionWithTitle:@"Cancel"
-                              image:nil
-                         identifier:nil
-                            handler:^(id ignore){
-                            }]
-        ];
-        NSString* menuTitle =
-            [NSString stringWithFormat:@"iOS13 Context Menu: %@",
-                                       element.hyperlink.absoluteString];
-        return [UIMenu menuWithTitle:menuTitle children:actions];
-      }];
+  UIContextMenuConfiguration* configuration =
+      [UIContextMenuConfiguration configurationWithIdentifier:nil
+          previewProvider:^{
+            UIViewController* controller = [[UIViewController alloc] init];
+            CGRect frame = CGRectMake(10, 200, 200, 21);
+            UILabel* label = [[UILabel alloc] initWithFrame:frame];
+            label.text = @"iOS13 Preview Page";
+            [controller.view addSubview:label];
+            return controller;
+          }
+          actionProvider:^(id _) {
+            NSArray* actions = @[
+              [UIAction actionWithTitle:@"Copy Link"
+                                  image:nil
+                             identifier:nil
+                                handler:copyHandler],
+              [UIAction actionWithTitle:@"Cancel"
+                                  image:nil
+                             identifier:nil
+                                handler:^(id ignore){
+                                }]
+            ];
+            NSString* menuTitle =
+                [NSString stringWithFormat:@"iOS13 Context Menu: %@",
+                                           element.hyperlink.absoluteString];
+            return [UIMenu menuWithTitle:menuTitle children:actions];
+          }];
 
   completionHandler(configuration);
 }
@@ -1361,7 +1483,7 @@ NSString* const kWebViewShellJavaScriptDialogTextFieldAccessibilityIdentifier =
 
 - (void)webViewDidFinishNavigation:(CWVWebView*)webView {
   NSLog(@"%@", NSStringFromSelector(_cmd));
-  // TODO(crbug.com/679895): Add some visual indication that the page load has
+  // TODO(crbug.com/41294395): Add some visual indication that the page load has
   // finished.
   [self updateToolbar];
 }

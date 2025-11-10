@@ -5,9 +5,10 @@
 #include "chromecast/device/bluetooth/le/le_scan_manager_impl.h"
 
 #include <algorithm>
+#include <deque>
 #include <utility>
+#include <vector>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/task/single_thread_task_runner.h"
@@ -118,7 +119,7 @@ void LeScanManagerImpl::RequestScan(RequestScanCallback cb) {
 }
 
 void LeScanManagerImpl::GetScanResults(GetScanResultsCallback cb,
-                                       absl::optional<ScanFilter> scan_filter) {
+                                       std::optional<ScanFilter> scan_filter) {
   MAKE_SURE_IO_THREAD(GetScanResults, BindToCurrentSequence(std::move(cb)),
                       std::move(scan_filter));
   std::move(cb).Run(GetScanResultsInternal(std::move(scan_filter)));
@@ -202,7 +203,7 @@ void LeScanManagerImpl::OnScanResult(
 
     // Remove scan_result.addr to avoid duplicate addresses in
     // recent_scan_result_addr_list_.
-    base::Erase(scan_result_addr_list_, scan_result.addr);
+    std::erase(scan_result_addr_list_, scan_result.addr);
   }
 
   previous_scan_results.push_front(scan_result);
@@ -225,7 +226,7 @@ void LeScanManagerImpl::OnScanResult(
 
 // Returns a list of all scan results. The results are sorted by RSSI.
 std::vector<LeScanResult> LeScanManagerImpl::GetScanResultsInternal(
-    absl::optional<ScanFilter> scan_filter) {
+    std::optional<ScanFilter> scan_filter) {
   DCHECK(io_task_runner_->BelongsToCurrentThread());
   std::vector<LeScanResult> results;
   for (const auto& pair : addr_to_scan_results_) {

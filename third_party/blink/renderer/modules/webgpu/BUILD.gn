@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//third_party/blink/renderer/modules/modules.gni")
+import("//ui/gl/features.gni")
 
 blink_modules_sources("webgpu") {
   sources = [
@@ -53,6 +54,8 @@ blink_modules_sources("webgpu") {
     "gpu_internal_error.cc",
     "gpu_internal_error.h",
     "gpu_map_mode.h",
+    "gpu_memory_heap_info.cc",
+    "gpu_memory_heap_info.h",
     "gpu_out_of_memory_error.cc",
     "gpu_out_of_memory_error.h",
     "gpu_pipeline_error.cc",
@@ -80,6 +83,8 @@ blink_modules_sources("webgpu") {
     "gpu_shader_module.cc",
     "gpu_shader_module.h",
     "gpu_shader_stage.h",
+    "gpu_subgroup_matrix_config.cc",
+    "gpu_subgroup_matrix_config.h",
     "gpu_supported_features.cc",
     "gpu_supported_features.h",
     "gpu_supported_limits.cc",
@@ -97,6 +102,8 @@ blink_modules_sources("webgpu") {
     "string_utils.h",
     "texture_utils.cc",
     "texture_utils.h",
+    "wgsl_language_features.cc",
+    "wgsl_language_features.h",
   ]
   deps = [
     "//gpu/command_buffer/client:webgpu_interface",
@@ -104,8 +111,15 @@ blink_modules_sources("webgpu") {
     "//skia",
     "//skia:skcms",
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
-    "//third_party/dawn/include/dawn:headers",
   ]
+
+  if (use_dawn) {
+    deps += [ "//third_party/dawn/src/dawn/wire" ]
+  } else {
+    # If Dawn is not used, use the proc table. This gives the WebGPU implementation
+    # something to link to, though WebGPU won't be supported.
+    deps += [ "//third_party/dawn/src/dawn:proc" ]
+  }
 }
 
 source_set("unit_tests") {

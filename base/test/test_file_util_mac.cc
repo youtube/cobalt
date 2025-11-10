@@ -4,9 +4,9 @@
 
 #include "base/test/test_file_util.h"
 
-#include <sys/mman.h>
 #include <errno.h>
 #include <stdint.h>
+#include <sys/mman.h>
 
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
@@ -20,15 +20,15 @@ bool EvictFileFromSystemCache(const FilePath& file) {
   // default) + MAP_SHARED, then do an msync to invalidate the memory.  The next
   // open should then have to load the file from disk.
 
-  int64_t length;
-  if (!GetFileSize(file, &length)) {
+  std::optional<int64_t> length = GetFileSize(file);
+  if (!length.has_value()) {
     DLOG(ERROR) << "failed to get size of " << file.value();
     return false;
   }
 
   // When a file is empty, we do not need to evict it from cache.
   // In fact, an attempt to map it to memory will result in error.
-  if (length == 0) {
+  if (length.value() == 0) {
     DLOG(WARNING) << "file size is zero, will not attempt to map to memory";
     return true;
   }
@@ -41,8 +41,7 @@ bool EvictFileFromSystemCache(const FilePath& file) {
 
   if (msync(const_cast<uint8_t*>(mapped_file.data()), mapped_file.length(),
             MS_INVALIDATE) != 0) {
-    DLOG(WARNING) << "failed to invalidate memory map of " << file.value()
-                  << ", errno: " << errno;
+    DPLOG(WARNING) << "failed to invalidate memory map of " << file.value();
     return false;
   }
 

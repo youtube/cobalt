@@ -50,15 +50,14 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationAXTreeWrapper
 
   AutomationTreeManagerOwner* owner() { return owner_; }
 
-  // Called by AutomationInternalCustomBindings::OnAccessibilityEvents on
+  // Called by AutomationInternalCustomBindings::DispatchAccessibilityEvents on
   // the AutomationAXTreeWrapper instance for the correct tree corresponding
   // to this event. Unserializes the tree update and calls back to
   // AutomationTreeManagerOwner to fire any automation events needed.
   bool OnAccessibilityEvents(const AXTreeID& tree_id,
                              const std::vector<AXTreeUpdate>& updates,
                              const std::vector<AXEvent>& events,
-                             gfx::Point mouse_location,
-                             bool is_active_profile);
+                             gfx::Point mouse_location);
 
   // Returns true if this is the desktop tree.
   bool IsDesktopTree() const;
@@ -100,13 +99,13 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationAXTreeWrapper
   // Updates or gets this wrapper with the latest state of listeners in js.
   void EventListenerAdded(
       const std::tuple<ax::mojom::Event, AXEventGenerator::Event>& event_type,
-      ui::AXNode* node);
+      AXNode* node);
   void EventListenerRemoved(
       const std::tuple<ax::mojom::Event, AXEventGenerator::Event>& event_type,
-      ui::AXNode* node);
+      AXNode* node);
   bool HasEventListener(
       const std::tuple<ax::mojom::Event, AXEventGenerator::Event>& event_type,
-      ui::AXNode* node);
+      AXNode* node);
   size_t EventListenerCount() const;
 
   // Indicates whether this tree is ignored due to a hosting ancestor tree/node
@@ -114,8 +113,6 @@ class COMPONENT_EXPORT(AX_PLATFORM) AutomationAXTreeWrapper
   bool IsTreeIgnored();
 
   // AXTreeManager overrides.
-  AXNode* GetNodeFromTree(const AXTreeID& tree_id,
-                          const AXNodeID node_id) const override;
   AXTreeID GetParentTreeID() const override;
   AXNode* GetParentNodeFromParentTree() const override;
 

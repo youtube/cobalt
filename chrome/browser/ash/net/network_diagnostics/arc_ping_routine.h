@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/mojom/net.mojom.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/net/network_diagnostics/network_diagnostics_routine.h"
+#include "chromeos/ash/experiences/arc/mojom/net.mojom.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -26,7 +26,8 @@ class ArcPingRoutine : public NetworkDiagnosticsRoutine {
   using RunArcHttpCallback = chromeos::network_diagnostics::mojom::
       NetworkDiagnosticsRoutines::RunArcPingCallback;
 
-  ArcPingRoutine();
+  explicit ArcPingRoutine(
+      chromeos::network_diagnostics::mojom::RoutineCallSource source);
   ArcPingRoutine(const ArcPingRoutine&) = delete;
   ArcPingRoutine& operator=(const ArcPingRoutine&) = delete;
   ~ArcPingRoutine() override;
@@ -95,11 +96,11 @@ class ArcPingRoutine : public NetworkDiagnosticsRoutine {
   std::string default_network_gateway_;
   int guids_remaining_ = 0;
   int gateways_remaining_ = 0;
-  raw_ptr<arc::mojom::NetInstance, ExperimentalAsh> net_instance_ = nullptr;
+  raw_ptr<arc::mojom::NetInstance, DanglingUntriaged> net_instance_ = nullptr;
   base::WeakPtrFactory<ArcPingRoutine> weak_ptr_factory_{this};
 };
 
 }  // namespace network_diagnostics
 }  // namespace ash
 
-#endif  //  CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_ARC_PING_ROUTINE_H_
+#endif  // CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_ARC_PING_ROUTINE_H_

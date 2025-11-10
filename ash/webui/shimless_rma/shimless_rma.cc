@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/shimless_rma/shimless_rma.h"
 
 #include <memory>
@@ -11,12 +16,14 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/network_config_service.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/grit/ash_shimless_rma_resources.h"
 #include "ash/webui/grit/ash_shimless_rma_resources_map.h"
 #include "ash/webui/shimless_rma/backend/shimless_rma_delegate.h"
 #include "ash/webui/shimless_rma/url_constants.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
+#include "build/branding_buildflags.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -24,19 +31,19 @@
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/chromeos/devicetype_utils.h"
 #include "ui/chromeos/strings/network/network_element_localized_strings_provider.h"
-#include "ui/resources/grit/webui_resources.h"
+#include "ui/webui/resources/grit/webui_resources.h"
 
 namespace ash {
 
 namespace {
 
-// TODO(crbug/1051793): Replace with webui::SetUpWebUIDataSource() once it no
-// longer requires a dependency on //chrome/browser.
+// TODO(crbug.com/40673941): Replace with webui::SetUpWebUIDataSource() once it
+// no longer requires a dependency on //chrome/browser.
 void SetUpWebUIDataSource(content::WebUIDataSource* source,
                           base::span<const webui::ResourcePath> resources,
                           int default_resource) {
   source->AddResourcePaths(resources);
-  source->SetDefaultResource(default_resource);
+  source->AddResourcePath("", default_resource);
   source->AddResourcePath("test_loader.html", IDR_WEBUI_TEST_LOADER_HTML);
   source->AddResourcePath("test_loader.js", IDR_WEBUI_JS_TEST_LOADER_JS);
   source->AddResourcePath("test_loader_util.js",
@@ -81,6 +88,8 @@ void AddShimlessRmaStrings(content::WebUIDataSource* html_source) {
       {"retryButtonLabel", IDS_SHIMLESS_RMA_RETRY_BUTTON},
       {"tryAgainButtonLabel", IDS_SHIMLESS_RMA_TRY_AGAIN_BUTTON},
       {"doneButtonLabel", IDS_SHIMLESS_RMA_DONE_BUTTON},
+      {"installButtonLabel", IDS_SHIMLESS_RMA_INSTALL_BUTTON},
+      {"acceptButtonLabel", IDS_SHIMLESS_RMA_ACCEPT_BUTTON},
       // Exit dialog
       {"exitDialogTitleText", IDS_SHIMLESS_RMA_EXIT_DIALOG_TITLE},
       {"exitDialogCancelButtonLabel",
@@ -92,6 +101,8 @@ void AddShimlessRmaStrings(content::WebUIDataSource* html_source) {
        IDS_SHIMLESS_RMA_VALIDATED_COMPONENTS_SUCCESS},
       {"validatedComponentsFailText",
        IDS_SHIMLESS_RMA_VALIDATED_COMPONENTS_FAIL},
+      {"validatedComponentsSkipText",
+       IDS_SHIMLESS_RMA_VALIDATED_COMPONENTS_SKIP},
       {"getStartedButtonLabel", IDS_SHIMLESS_RMA_GET_STARTED_BUTTON_LABEL},
       {"unqualifiedComponentsTitle",
        IDS_SHIMLESS_RMA_UNQUALIFIED_COMPONENTS_TITLE},
@@ -243,7 +254,6 @@ void AddShimlessRmaStrings(content::WebUIDataSource* html_source) {
        IDS_SHIMLESS_RMA_POWERWASH_DIALOG_REBOOT_DESCRIPTION},
       {"powerwashDialogPowerwashButton",
        IDS_SHIMLESS_RMA_POWERWASH_DIALOG_POWERWASH_BUTTON},
-
       // Manual disable wp page
       {"manuallyDisableWpTitleText",
        IDS_SHIMLESS_RMA_MANUALLY_DISABLE_WP_TITLE},
@@ -270,9 +280,9 @@ void AddShimlessRmaStrings(content::WebUIDataSource* html_source) {
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_SERIAL_NUMBER_LABEL},
       {"confirmDeviceInfoRegionLabel",
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_REGION_LABEL},
-      {"confirmDeviceInfoWhiteLabelLabel",
+      {"confirmDeviceInfoCustomLabelLabel",
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_WHITE_LABEL_LABEL},
-      {"confirmDeviceInfoEmptyWhiteLabelLabel",
+      {"confirmDeviceInfoEmptyCustomLabelLabel",
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_EMPTY_WHITE_LABEL_LABEL},
       {"confirmDeviceInfoDramPartNumberLabel",
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DRAM_PART_NUMBER_LABEL},
@@ -282,6 +292,42 @@ void AddShimlessRmaStrings(content::WebUIDataSource* html_source) {
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_REVERT_BUTTON_LABEL},
       {"confirmDeviceInfoSkuWarning",
        IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_SKU_WARNING},
+// Project Simon strings should not be displayed until the feature has been
+// launched, so we use a BUILDFLAG to enable the internal-only strings when
+// in a chrome-branded build, and enable the public strings when we're in a
+// public build.
+// The launch bug for this feature is http://launch/4259546.
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      {"confirmDeviceInfoDeviceNotCompliant",
+       IDR_ASH_SHIMLESS_RMA_PROJECT_SIMON_STRINGS_DEVICE_NOT_COMPLIANT_TXT},
+      {"confirmDeviceInfoDeviceCompliant",
+       IDR_ASH_SHIMLESS_RMA_PROJECT_SIMON_STRINGS_DEVICE_COMPLIANT_TXT},
+      {"confirmDeviceInfoDeviceComplianceWarning",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_COMPLIANCE_WARNING},
+      {"confirmDeviceInfoDeviceQuestionIsBranded",
+       IDR_ASH_SHIMLESS_RMA_PROJECT_SIMON_STRINGS_QUESTION_IS_BRANDED_TXT},
+      {"confirmDeviceInfoDeviceQuestionDoesMeetRequirements",
+       IDR_ASH_SHIMLESS_RMA_PROJECT_SIMON_STRINGS_QUESTION_DOES_MEET_REQUIREMENTS_TXT},
+#else
+      {"confirmDeviceInfoDeviceNotCompliant",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_NOT_COMPLIANT},
+      {"confirmDeviceInfoDeviceCompliant",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_COMPLIANT},
+      {"confirmDeviceInfoDeviceComplianceWarning",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_COMPLIANCE_WARNING},
+      {"confirmDeviceInfoDeviceQuestionIsBranded",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_QUESTION_IS_BRANDED},
+      {"confirmDeviceInfoDeviceQuestionDoesMeetRequirements",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_QUESTION_DOES_MEET_REQUIREMENTS},
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING);
+      {"confirmDeviceInfoDeviceQuestionDoesMeetRequirementsTooltip",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_DEVICE_QUESTION_DOES_MEET_REQUIREMENTS_TOOLTIP},
+      {"confirmDeviceInfoDeviceAnswerDefault",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_ANSWER_DEFAULT},
+      {"confirmDeviceInfoDeviceAnswerNo",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_ANSWER_NO},
+      {"confirmDeviceInfoDeviceAnswerYes",
+       IDS_SHIMLESS_RMA_CONFIRM_DEVICE_INFO_ANSWER_YES},
       // Firmware reimaging page
       {"firmwareUpdateInstallImageTitleText",
        IDS_SHIMLESS_RMA_FIRMWARE_UPDATE_INSTALL_IMAGE_TITLE},
@@ -344,6 +390,25 @@ void AddShimlessRmaStrings(content::WebUIDataSource* html_source) {
       {"repairStartAltText", IDS_SHIMLESS_RMA_REPAIR_START_ALT_TEXT},
       {"successAltText", IDS_SHIMLESS_RMA_SUCCESS_ALT_TEXT},
       {"updateOsAltText", IDS_SHIMLESS_RMA_UPDATE_OS_ALT_TEXT},
+      // 3p diagnostics
+      {"3pFindInstallalbeDialogTitle",
+       IDS_SHIMLESS_RMA_3P_FIND_INSTALLABLE_DIALOG_TITLE},
+      {"3pFindInstallalbeDialogMessage",
+       IDS_SHIMLESS_RMA_3P_FIND_INSTALLABLE_DIALOG_MESSAGE},
+      {"3pReviewPermissionDialogTitle",
+       IDS_SHIMLESS_RMA_3P_REVIEW_PERMISSION_DIALOG_TITLE},
+      {"3pReviewPermissionDialogMessagePrefix",
+       IDS_SHIMLESS_RMA_3P_REVIEW_PERMISSION_DIALOG_MESSAGE_PREFIX},
+      {"3pFailedToInstallDialogTitle",
+       IDS_SHIMLESS_RMA_3P_FAILED_TO_INSTALL_DIALOG_TITLE},
+      {"3pCheckWithOemDialogMessage",
+       IDS_SHIMLESS_RMA_3P_CHECK_WITH_OEM_DIALOG_MESSAGE},
+      {"3pNotInstalledDialogTitle",
+       IDS_SHIMLESS_RMA_3P_NOT_INSTALLED_DIALOG_TITLE},
+      {"3pFailedToLoadDialogTitle",
+       IDS_SHIMLESS_RMA_3P_FAILED_TO_LOAD_DIALOG_TITLE},
+      {"3pFailedToLoadDialogMessage",
+       IDS_SHIMLESS_RMA_3P_FAILED_TO_LOAD_DIALOG_MESSAGE},
   };
 
   html_source->AddLocalizedStrings(kLocalizedStrings);
@@ -372,8 +437,14 @@ void AddFeatureFlags(content::WebUIDataSource* html_source) {
   html_source->AddBoolean(
       "osUpdateEnabled",
       base::FeatureList::IsEnabled(features::kShimlessRMAOsUpdate));
-  html_source->AddBoolean("diagnosticPageEnabled",
-                          features::IsShimlessRMADiagnosticPageEnabled());
+  html_source->AddBoolean("3pDiagnosticsEnabled",
+                          features::IsShimlessRMA3pDiagnosticsEnabled());
+  html_source->AddBoolean(
+      "hardwareValidationSkipEnabled",
+      features::IsShimlessRMAHardwareValidationSkipEnabled());
+  html_source->AddBoolean(
+      "dynamicDeviceInfoInputsEnabled",
+      features::IsShimlessRMADynamicDeviceInfoInputsEnabled());
 }
 
 }  // namespace
@@ -407,6 +478,17 @@ bool HasLaunchRmaSwitchAndIsAllowed() {
 
 }  // namespace shimless_rma
 
+ShimlessRMADialogUIConfig::ShimlessRMADialogUIConfig(
+    CreateWebUIControllerFunc create_controller_func)
+    : ChromeOSWebUIConfig(content::kChromeUIScheme,
+                          ash::kChromeUIShimlessRMAHost,
+                          create_controller_func) {}
+
+bool ShimlessRMADialogUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  return shimless_rma::HasLaunchRmaSwitchAndIsAllowed();
+}
+
 ShimlessRMADialogUI::ShimlessRMADialogUI(
     content::WebUI* web_ui,
     std::unique_ptr<shimless_rma::ShimlessRmaDelegate> shimless_rma_delegate)
@@ -419,13 +501,11 @@ ShimlessRMADialogUI::ShimlessRMADialogUI(
           kChromeUIShimlessRMAHost);
   html_source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources chrome://test chrome://webui-test "
-      "'self';");
-  html_source->DisableTrustedTypesCSP();
+      "script-src chrome://resources chrome://webui-test 'self';");
+  ash::EnableTrustedTypesCSP(html_source);
 
-  const auto resources =
-      base::make_span(kAshShimlessRmaResources, kAshShimlessRmaResourcesSize);
-  SetUpWebUIDataSource(html_source, resources, IDR_ASH_SHIMLESS_RMA_INDEX_HTML);
+  SetUpWebUIDataSource(html_source, kAshShimlessRmaResources,
+                       IDR_ASH_SHIMLESS_RMA_INDEX_HTML);
 
   AddShimlessRmaStrings(html_source);
   AddDevicePlaceholderStrings(html_source);

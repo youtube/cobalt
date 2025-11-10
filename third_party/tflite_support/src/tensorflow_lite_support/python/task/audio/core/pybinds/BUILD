@@ -1,7 +1,6 @@
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "pybind_extension")
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//tensorflow_lite_support:internal",
     ],
@@ -13,7 +12,11 @@ pybind_extension(
     srcs = [
         "_pywrap_audio_buffer.cc",
     ],
+    enable_stub_generation = True,
     module_name = "_pywrap_audio_buffer",
+    pytype_srcs = [
+        "_pywrap_audio_buffer.pyi",
+    ],
     deps = [
         "//tensorflow_lite_support/cc/task/audio/core:audio_buffer",
         "//tensorflow_lite_support/cc/task/audio/utils:audio_utils",

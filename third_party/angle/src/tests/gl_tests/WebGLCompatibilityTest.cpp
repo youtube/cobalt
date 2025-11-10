@@ -110,7 +110,7 @@ void main()
 })";
 
         ANGLE_GL_PROGRAM(samplingProgram, kVS, kFS);
-        glUseProgram(samplingProgram.get());
+        glUseProgram(samplingProgram);
 
         // Need RGBA8 renderbuffers for enough precision on the readback
         if (IsGLExtensionRequestable("GL_OES_rgb8_rgba8"))
@@ -122,15 +122,15 @@ void main()
         ASSERT_GL_NO_ERROR();
 
         GLRenderbuffer rbo;
-        glBindRenderbuffer(GL_RENDERBUFFER, rbo.get());
+        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 1, 1);
 
         GLFramebuffer fbo;
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo.get());
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo.get());
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
 
         GLTexture texture;
-        glBindTexture(GL_TEXTURE_2D, texture.get());
+        glBindTexture(GL_TEXTURE_2D, texture);
 
         if (internalFormat == format)
         {
@@ -163,16 +163,16 @@ void main()
         }
         ASSERT_GL_NO_ERROR();
 
-        glUniform1i(glGetUniformLocation(samplingProgram.get(), "tex"), 0);
-        glUniform4fv(glGetUniformLocation(samplingProgram.get(), "subtractor"), 1, floatData);
+        glUniform1i(glGetUniformLocation(samplingProgram, "tex"), 0);
+        glUniform4fv(glGetUniformLocation(samplingProgram, "subtractor"), 1, floatData);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        drawQuad(samplingProgram.get(), "position", 0.5f, 1.0f, true);
+        drawQuad(samplingProgram, "position", 0.5f, 1.0f, true);
         EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        drawQuad(samplingProgram.get(), "position", 0.5f, 1.0f, true);
+        drawQuad(samplingProgram, "position", 0.5f, 1.0f, true);
 
         if (linearSamplingEnabled)
         {
@@ -183,8 +183,7 @@ void main()
             EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
         }
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(),
-                               0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
         if (!renderingEnabled)
         {
@@ -204,12 +203,12 @@ void main()
 
         ANGLE_GL_PROGRAM(renderingProgram, essl1_shaders::vs::Simple(),
                          essl1_shaders::fs::UniformColor());
-        glUseProgram(renderingProgram.get());
+        glUseProgram(renderingProgram);
 
-        glUniform4fv(glGetUniformLocation(renderingProgram.get(), essl1_shaders::ColorUniform()), 1,
+        glUniform4fv(glGetUniformLocation(renderingProgram, essl1_shaders::ColorUniform()), 1,
                      floatData);
 
-        drawQuad(renderingProgram.get(), essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        drawQuad(renderingProgram, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
 
         EXPECT_PIXEL_COLOR32F_NEAR(
             0, 0, GLColor32F(floatData[0], floatData[1], floatData[2], floatData[3]), 1.0f);
@@ -338,13 +337,13 @@ TEST_P(WebGLCompatibilityTest, EntryPoints)
 TEST_P(WebGLCompatibilityTest, DepthStencilBindingPoint)
 {
     GLRenderbuffer renderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer.get());
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 32, 32);
 
     GLFramebuffer framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
-                              renderbuffer.get());
+                              renderbuffer);
 
     EXPECT_GL_NO_ERROR();
 }
@@ -368,14 +367,14 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionUintIndices)
     EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_element_index_uint"));
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 
     GLuint data[] = {0, 1, 2, 1, 3, 2};
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW);
 
     ANGLE_GL_PROGRAM(program, "void main() { gl_Position = vec4(0, 0, 0, 1); }",
                      "void main() { gl_FragColor = vec4(0, 1, 0, 1); }");
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
@@ -474,7 +473,7 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionTextureFilterAnisotropic)
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
     ASSERT_GL_NO_ERROR();
 
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1.0f);
@@ -610,8 +609,8 @@ TEST_P(WebGLCompatibilityTest, EnablePixelBufferObjectExtensions)
     // These extensions become core in in ES3/WebGL2.
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
 
-    // http://anglebug.com/5268
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
+    // http://anglebug.com/40644771
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
 
     GLBuffer buffer;
     glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer);
@@ -1030,14 +1029,6 @@ TEST_P(WebGLCompatibilityTest, EnableTextureRectangle)
         glTexImage2D(GL_TEXTURE_RECTANGLE_ANGLE, 0, GL_RGBA, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE,
                      nullptr);
         EXPECT_GL_NO_ERROR();
-
-        glDisableExtensionANGLE("GL_ANGLE_texture_rectangle");
-        EXPECT_GL_NO_ERROR();
-
-        EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_texture_rectangle"));
-
-        glBindTexture(GL_TEXTURE_RECTANGLE_ANGLE, texture);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
     }
 }
 
@@ -1324,9 +1315,9 @@ void main()
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
 
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     const auto &vertices = GetQuadVertices();
     glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 4, vertices.data());
@@ -1356,14 +1347,14 @@ void main()
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
 
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     const auto &vertices = GetQuadVertices();
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
                  GL_STATIC_DRAW);
 
@@ -1397,7 +1388,7 @@ void main()
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     const auto &vertices = GetQuadVertices();
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4, vertices.data());
@@ -1455,17 +1446,17 @@ void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch
 {
     // Run the test in an FBO to make sure we have some stencil bits.
     GLRenderbuffer renderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer.get());
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 32, 32);
 
     GLFramebuffer framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
-                              renderbuffer.get());
+                              renderbuffer);
 
     ANGLE_GL_PROGRAM(program, "void main() { gl_Position = vec4(0, 0, 0, 1); }",
                      "void main() { gl_FragColor = vec4(0, 1, 0, 1); }");
-    glUseProgram(program.get());
+    glUseProgram(program);
     ASSERT_GL_NO_ERROR();
 
     // Having ref and mask the same for front and back is valid.
@@ -1526,7 +1517,7 @@ TEST_P(WebGLCompatibilityTest, StencilTestDisabledAllowsDifferentStencilMaskAndR
 TEST_P(WebGLCompatibilityTest, ForbidsGLFixed)
 {
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
@@ -1540,7 +1531,7 @@ TEST_P(WebGLCompatibilityTest, ForbidsGLFixed)
 TEST_P(WebGLCompatibilityTest, MaxStride)
 {
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 1024, nullptr, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 255, nullptr);
@@ -1561,46 +1552,49 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
 
-    const uint8_t *zeroOffset = nullptr;
-
     // Test touching the last element is valid.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
+    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(12));
     glDrawArrays(GL_POINTS, 0, 4);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last element + 1 is invalid.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
+    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(13));
     glDrawArrays(GL_POINTS, 0, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test touching the last element is valid, using a stride.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
+    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2,
+                          reinterpret_cast<const void *>(9));
     glDrawArrays(GL_POINTS, 0, 4);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last element + 1 is invalid, using a stride.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
+    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2,
+                          reinterpret_cast<const void *>(10));
     glDrawArrays(GL_POINTS, 0, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test any offset is valid if no vertices are drawn.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(32));
     glDrawArrays(GL_POINTS, 0, 0);
     ASSERT_GL_NO_ERROR();
 
     // Test a case of overflow that could give a max vertex that's negative
     constexpr GLint kIntMax = std::numeric_limits<GLint>::max();
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 0);
+    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, nullptr);
     glDrawArrays(GL_POINTS, kIntMax, kIntMax);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
@@ -1618,7 +1612,7 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     glEnableVertexAttribArray(glGetAttribLocation(program, "a_Position"));
 
@@ -1664,7 +1658,7 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glEnableVertexAttribArray(0);
@@ -1685,14 +1679,14 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
-    GLint wLocation   = glGetAttribLocation(program.get(), "a_w");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
+    GLint wLocation   = glGetAttribLocation(program, "a_w");
     ASSERT_NE(-1, posLocation);
     ASSERT_NE(-1, wLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
@@ -1702,35 +1696,39 @@ void main()
     glEnableVertexAttribArray(wLocation);
     glVertexAttribDivisor(wLocation, 1);
 
-    const uint8_t *zeroOffset = nullptr;
-
     // Test touching the last element is valid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(12));
     glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last element + 1 is invalid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(13));
     glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test touching the last element is valid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2,
+                          reinterpret_cast<const void *>(9));
     glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last element + 1 is invalid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2,
+                          reinterpret_cast<const void *>(10));
     glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test any offset is valid if no vertices are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(32));
     glDrawArraysInstanced(GL_POINTS, 0, 0, 1);
     ASSERT_GL_NO_ERROR();
 
     // Test any offset is valid if no primitives are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(32));
     glDrawArraysInstanced(GL_POINTS, 0, 1, 0);
     ASSERT_GL_NO_ERROR();
 }
@@ -1751,14 +1749,14 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
-    GLint wLocation   = glGetAttribLocation(program.get(), "a_w");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
+    GLint wLocation   = glGetAttribLocation(program, "a_w");
     ASSERT_NE(-1, posLocation);
     ASSERT_NE(-1, wLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
@@ -1768,35 +1766,39 @@ void main()
     glEnableVertexAttribArray(wLocation);
     glVertexAttribDivisorANGLE(wLocation, 1);
 
-    const uint8_t *zeroOffset = nullptr;
-
     // Test touching the last element is valid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(12));
     glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
     ASSERT_GL_NO_ERROR() << "touching the last element.";
 
     // Test touching the last element + 1 is invalid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(13));
     glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "touching the last element + 1.";
 
     // Test touching the last element is valid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2,
+                          reinterpret_cast<const void *>(9));
     glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
     ASSERT_GL_NO_ERROR() << "touching the last element using a stride.";
 
     // Test touching the last element + 1 is invalid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2,
+                          reinterpret_cast<const void *>(10));
     glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "touching the last element + 1 using a stride.";
 
     // Test any offset is valid if no vertices are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(32));
     glDrawArraysInstancedANGLE(GL_POINTS, 0, 0, 1);
     ASSERT_GL_NO_ERROR() << "any offset with no vertices.";
 
     // Test any offset is valid if no primitives are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0,
+                          reinterpret_cast<const void *>(32));
     glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 0);
     ASSERT_GL_NO_ERROR() << "any offset with primitives.";
 }
@@ -1812,45 +1814,45 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
     glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, nullptr);
 
-    const uint8_t *zeroOffset   = nullptr;
     const uint8_t zeroIndices[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(zeroIndices), zeroIndices, GL_STATIC_DRAW);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last index is valid
-    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, zeroOffset + 4);
+    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(4));
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last + 1 element is invalid
-    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, zeroOffset + 5);
+    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(5));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test any offset if valid if count is zero
-    glDrawElements(GL_POINTS, 0, GL_UNSIGNED_BYTE, zeroOffset + 42);
+    glDrawElements(GL_POINTS, 0, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(42));
     ASSERT_GL_NO_ERROR();
 
     // Test touching the first index is valid
-    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, zeroOffset + 4);
+    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(4));
     ASSERT_GL_NO_ERROR();
 
     // Test touching the first - 1 index is invalid
     // The error ha been specified to be INVALID_VALUE instead of INVALID_OPERATION because it was
     // the historic behavior of WebGL implementations
-    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, zeroOffset - 1);
+    glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE,
+                   reinterpret_cast<const void *>(static_cast<ptrdiff_t>(0) - 1));
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
 }
 
@@ -1865,39 +1867,38 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, 8, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
     glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, nullptr);
 
-    const uint8_t *zeroOffset   = nullptr;
     const uint8_t testIndices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 255};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(testIndices), testIndices, GL_STATIC_DRAW);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the end of the vertex buffer is valid
-    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, zeroOffset + 7);
+    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(7));
     ASSERT_GL_NO_ERROR();
 
     // Test touching just after the end of the vertex buffer is invalid
-    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, zeroOffset + 8);
+    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(8));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test touching the whole vertex buffer is valid
-    glDrawElements(GL_POINTS, 8, GL_UNSIGNED_BYTE, zeroOffset + 0);
+    glDrawElements(GL_POINTS, 8, GL_UNSIGNED_BYTE, nullptr);
     ASSERT_GL_NO_ERROR();
 
     // Test an index that would be negative
-    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, zeroOffset + 9);
+    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(9));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
@@ -2055,7 +2056,7 @@ TEST_P(WebGLCompatibilityTest, DrawBuffersIndexedGetIndexedParameter)
     ANGLE_SKIP_TEST_IF(!IsGLExtensionRequestable("GL_OES_draw_buffers_indexed"));
 
     GLint value;
-    GLboolean data[4];
+    GLint data[4];
 
     glGetIntegeri_v(GL_BLEND_EQUATION_RGB, 0, &value);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
@@ -2069,8 +2070,8 @@ TEST_P(WebGLCompatibilityTest, DrawBuffersIndexedGetIndexedParameter)
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
     glGetIntegeri_v(GL_BLEND_DST_ALPHA, 0, &value);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
-    glGetBooleani_v(GL_COLOR_WRITEMASK, 0, data);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glGetIntegeri_v(GL_COLOR_WRITEMASK, 0, data);
+    EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
     glRequestExtensionANGLE("GL_OES_draw_buffers_indexed");
     EXPECT_GL_NO_ERROR();
@@ -2103,7 +2104,7 @@ TEST_P(WebGLCompatibilityTest, DrawBuffersIndexedGetIndexedParameter)
     glGetIntegeri_v(GL_BLEND_DST_ALPHA, 0, &value);
     EXPECT_GL_NO_ERROR();
     EXPECT_EQ(GL_ZERO, value);
-    glGetBooleani_v(GL_COLOR_WRITEMASK, 0, data);
+    glGetIntegeri_v(GL_COLOR_WRITEMASK, 0, data);
     EXPECT_GL_NO_ERROR();
     EXPECT_EQ(true, data[0]);
     EXPECT_EQ(false, data[1]);
@@ -2240,48 +2241,93 @@ oo = 1.0;
     EXPECT_EQ(0u, program);
 }
 
-// Tests bindAttribLocations for reserved prefixes and length limits
+// Tests bindAttribLocation for reserved prefixes and length limits
 TEST_P(WebGLCompatibilityTest, BindAttribLocationLimitation)
 {
-    constexpr int maxLocStringLength = 256;
-    const std::string tooLongString(maxLocStringLength + 1, '_');
+    // A program must exist for binding attribute locations
+    ANGLE_GL_PROGRAM(p, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
-    glBindAttribLocation(0, 0, "_webgl_var");
-
+    glBindAttribLocation(p, 0, "gl_attr");
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
-    glBindAttribLocation(0, 0, static_cast<const GLchar *>(tooLongString.c_str()));
+    glBindAttribLocation(p, 0, "webgl_attr");
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
+    glBindAttribLocation(p, 0, "_webgl_attr");
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    const int maxStringLength = getClientMajorVersion() < 3 ? 256 : 1024;
+    const std::string tooLongString(maxStringLength + 1, '_');
+
+    glBindAttribLocation(p, 0, static_cast<const GLchar *>(tooLongString.c_str()));
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
 }
 
-// Tests getAttribLocation for reserved prefixes
-TEST_P(WebGLCompatibilityTest, GetAttribLocationNameLimitation)
+// Tests getAttribLocation for reserved prefixes and length limits
+TEST_P(WebGLCompatibilityTest, GetAttribLocationLimitation)
 {
-    GLint attrLocation;
+    // A program must exist for querying attribute locations
+    ANGLE_GL_PROGRAM(p, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
-    attrLocation = glGetAttribLocation(0, "gl_attr");
-    EXPECT_GL_NO_ERROR();
-    EXPECT_EQ(-1, attrLocation);
+    GLint location = -2;
 
-    attrLocation = glGetAttribLocation(0, "webgl_attr");
+    location = glGetAttribLocation(p, "gl_attr");
     EXPECT_GL_NO_ERROR();
-    EXPECT_EQ(-1, attrLocation);
+    EXPECT_EQ(-1, location);
 
-    attrLocation = glGetAttribLocation(0, "_webgl_attr");
+    location = glGetAttribLocation(p, "webgl_attr");
     EXPECT_GL_NO_ERROR();
-    EXPECT_EQ(-1, attrLocation);
+    EXPECT_EQ(-1, location);
+
+    location = glGetAttribLocation(p, "_webgl_attr");
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(-1, location);
+
+    const int maxStringLength = getClientMajorVersion() < 3 ? 256 : 1024;
+    const std::string tooLongString(maxStringLength + 1, '_');
+
+    location = glGetAttribLocation(p, static_cast<const GLchar *>(tooLongString.c_str()));
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+    EXPECT_EQ(-1, location);
 }
 
-// Tests getAttribLocation for length limits
-TEST_P(WebGLCompatibilityTest, GetAttribLocationLengthLimitation)
+// Tests bindUniformLocation for reserved prefixes
+TEST_P(WebGLCompatibilityTest, BindUniformLocationLimitation)
 {
-    constexpr int maxLocStringLength = 256;
-    const std::string tooLongString(maxLocStringLength + 1, '_');
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_CHROMIUM_bind_uniform_location"));
 
-    glGetAttribLocation(0, static_cast<const GLchar *>(tooLongString.c_str()));
+    // A program must exist for binding uniform locations
+    ANGLE_GL_PROGRAM(p, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
-    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+    glBindUniformLocationCHROMIUM(p, 0, "gl_var");
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glBindUniformLocationCHROMIUM(p, 0, "webgl_var");
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glBindUniformLocationCHROMIUM(p, 0, "_webgl_var");
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+}
+
+// Tests getUniformLocation for reserved prefixes
+TEST_P(WebGLCompatibilityTest, GetUniformLocationLimitation)
+{
+    // A program must exist for querying uniform locations
+    ANGLE_GL_PROGRAM(p, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+
+    GLint location = -2;
+
+    location = glGetUniformLocation(p, "gl_var");
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(-1, location);
+
+    location = glGetUniformLocation(p, "webgl_var");
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(-1, location);
+
+    location = glGetUniformLocation(p, "_webgl_var");
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(-1, location);
 }
 
 // Test that having no attributes with a zero divisor is valid in WebGL2
@@ -2296,13 +2342,13 @@ void main()
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
 
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
@@ -2320,7 +2366,7 @@ TEST_P(WebGLCompatibilityTest, NPOT)
 
     // Create a texture and set an NPOT mip 0, should always be acceptable.
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 10, 10, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     ASSERT_GL_NO_ERROR();
 
@@ -2393,7 +2439,7 @@ void main() {
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    drawQuad(program.get(), "pos", 0.0f, 1.0f, true);
+    drawQuad(program, "pos", 0.0f, 1.0f, true);
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() * 1 / 4, getWindowHeight() * 1 / 4, GLColor::red);
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() * 1 / 4, getWindowHeight() * 3 / 4, GLColor::red);
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() * 3 / 4, getWindowHeight() * 1 / 4, GLColor::red);
@@ -2422,46 +2468,46 @@ void main() {
 })";
 
     GLTexture texture;
-    FillTexture2D(texture.get(), 1, 1, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(texture, 1, 1, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 
     ASSERT_GL_NO_ERROR();
 
     GLFramebuffer framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
 
-    GLint uniformLoc = glGetUniformLocation(program.get(), "u_texture");
+    GLint uniformLoc = glGetUniformLocation(program, "u_texture");
     ASSERT_NE(-1, uniformLoc);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
     glUniform1i(uniformLoc, 0);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     ASSERT_GL_NO_ERROR();
 
     // Drawing with a texture that is also bound to the current framebuffer should fail
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-    drawQuad(program.get(), "a_position", 0.5f, 1.0f, true);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    drawQuad(program, "a_position", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Ensure that the texture contents did not change after the previous render
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    drawQuad(program.get(), "a_position", 0.5f, 1.0f, true);
+    drawQuad(program, "a_position", 0.5f, 1.0f, true);
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
 
     // Drawing when texture is bound to an inactive uniform should succeed
     GLTexture texture2;
-    FillTexture2D(texture2.get(), 1, 1, GLColor::green, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(texture2, 1, 1, GLColor::green, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-    drawQuad(program.get(), "a_position", 0.5f, 1.0f, true);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    drawQuad(program, "a_position", 0.5f, 1.0f, true);
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
 }
@@ -2487,14 +2533,14 @@ void main() {
 
     ANGLE_GL_PROGRAM(unusedProgram, kUnusedTextureVS, kUnusedTextureFS);
 
-    glUseProgram(unusedProgram.get());
-    GLint uniformLoc = glGetUniformLocation(unusedProgram.get(), "u_texture");
+    glUseProgram(unusedProgram);
+    GLint uniformLoc = glGetUniformLocation(unusedProgram, "u_texture");
     ASSERT_NE(-1, uniformLoc);
     glUniform1i(uniformLoc, 0);
 
     GLTexture texture;
-    FillTexture2D(texture.get(), 1, 1, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    FillTexture2D(texture, 1, 1, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    glBindTexture(GL_TEXTURE_2D, texture);
     // Note that _texture_ is still bound to GL_TEXTURE_2D in this context at this point.
 
     EGLWindow *window          = getEGLWindow();
@@ -2529,15 +2575,15 @@ void main() {
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     ASSERT_GL_NO_ERROR();
 
     // Render to the texture in context2.
     GLFramebuffer framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     // Texture is still a valid name in context2.
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
     // There is no rendering feedback loop at this point.
 
@@ -2545,7 +2591,7 @@ void main() {
     glDisable(GL_DEPTH_TEST);
     ASSERT_GL_NO_ERROR();
 
-    drawQuad(program.get(), "a_position", 0.5f, 1.0f, true);
+    drawQuad(program, "a_position", 0.5f, 1.0f, true);
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 
@@ -2563,13 +2609,13 @@ TEST_P(WebGLCompatibilityTest, MaxDrawBuffersAttachmentPoints)
     }
 
     GLFramebuffer fbo[2];
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo[0].get());
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo[0]);
 
     // Test that is valid when we bind with a single attachment point.
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     ASSERT_GL_NO_ERROR();
 
     // Test that enabling the draw buffers extension will allow us to bind with a non-zero
@@ -2580,13 +2626,12 @@ TEST_P(WebGLCompatibilityTest, MaxDrawBuffersAttachmentPoints)
         EXPECT_GL_NO_ERROR();
         EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_draw_buffers"));
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo[1].get());
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo[1]);
 
         GLTexture texture2;
-        glBindTexture(GL_TEXTURE_2D, texture2.get());
+        glBindTexture(GL_TEXTURE_2D, texture2);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture2.get(),
-                               0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture2, 0);
         ASSERT_GL_NO_ERROR();
     }
 }
@@ -2603,14 +2648,14 @@ void main()
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
 
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     const auto &vertices = GetQuadVertices();
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
                  GL_STATIC_DRAW);
 
@@ -2619,20 +2664,18 @@ void main()
 
     GLBuffer indexBuffer;
     const GLubyte indices[] = {0, 0, 0, 0, 0, 0, 0, 0};
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     ASSERT_GL_NO_ERROR();
 
-    const char *zeroIndices = nullptr;
-
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, zeroIndices);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, nullptr);
     ASSERT_GL_NO_ERROR();
 
-    glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_SHORT, zeroIndices);
+    glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_SHORT, nullptr);
     ASSERT_GL_NO_ERROR();
 
-    glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_SHORT, zeroIndices + 1);
+    glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_SHORT, reinterpret_cast<const void *>(1));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
@@ -2640,26 +2683,24 @@ void main()
 // size
 TEST_P(WebGLCompatibilityTest, VertexAttribPointerOffsetRestriction)
 {
-    const char *zeroOffset = nullptr;
-
     // Base case, vector of two floats
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, zeroOffset);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
     ASSERT_GL_NO_ERROR();
 
     // Test setting a non-multiple offset
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, zeroOffset + 1);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<const void *>(1));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, zeroOffset + 2);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<const void *>(2));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, zeroOffset + 3);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<const void *>(3));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test setting a non-multiple stride
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 1, zeroOffset);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 1, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2, zeroOffset);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3, zeroOffset);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
@@ -2720,45 +2761,43 @@ void main() {
     ANGLE_SKIP_TEST_IF(maxDrawBuffers < 2);
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
+    glUseProgram(program);
     glViewport(0, 0, width, height);
 
     GLTexture tex0;
     GLTexture tex1;
     GLFramebuffer fbo;
-    FillTexture2D(tex0.get(), width, height, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    FillTexture2D(tex1.get(), width, height, GLColor::green, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(tex0, width, height, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(tex1, width, height, GLColor::green, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
     ASSERT_GL_NO_ERROR();
 
-    glBindTexture(GL_TEXTURE_2D, tex1.get());
-    GLint texLoc = glGetUniformLocation(program.get(), "tex");
+    glBindTexture(GL_TEXTURE_2D, tex1);
+    GLint texLoc = glGetUniformLocation(program, "tex");
     ASSERT_NE(-1, texLoc);
     glUniform1i(texLoc, 0);
     ASSERT_GL_NO_ERROR();
 
     // The sampling texture is bound to COLOR_ATTACHMENT1 during resource allocation
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex0.get(), 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex1.get(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex1, 0);
 
-    drawBuffersEXTFeedbackLoop(program.get(), {{GL_NONE, GL_COLOR_ATTACHMENT1}},
-                               GL_INVALID_OPERATION);
-    drawBuffersEXTFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}},
+    drawBuffersEXTFeedbackLoop(program, {{GL_NONE, GL_COLOR_ATTACHMENT1}}, GL_INVALID_OPERATION);
+    drawBuffersEXTFeedbackLoop(program, {{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}},
                                GL_INVALID_OPERATION);
     // A feedback loop is formed regardless of drawBuffers settings.
-    drawBuffersEXTFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_NONE}},
-                               GL_INVALID_OPERATION);
+    drawBuffersEXTFeedbackLoop(program, {{GL_COLOR_ATTACHMENT0, GL_NONE}}, GL_INVALID_OPERATION);
 }
 
 // Test tests that texture copying feedback loops are properly rejected in WebGL.
 // Based on the WebGL test conformance/textures/misc/texture-copying-feedback-loops.html
 TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
 {
-    // TODO(anglebug.com/5360): Failing on ARM-based Apple DTKs.
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsARM64() && IsDesktopOpenGL());
+    // TODO(anglebug.com/40096747): Failing on ARM-based Apple DTKs.
+    ANGLE_SKIP_TEST_IF(IsMac() && IsARM64() && IsDesktopOpenGL());
 
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2766,7 +2805,7 @@ TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     GLTexture texture2;
-    glBindTexture(GL_TEXTURE_2D, texture2.get());
+    glBindTexture(GL_TEXTURE_2D, texture2);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2774,8 +2813,8 @@ TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     GLFramebuffer framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 
     // framebuffer should be FRAMEBUFFER_COMPLETE.
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
@@ -2784,7 +2823,7 @@ TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
     // testing copyTexImage2D
 
     // copyTexImage2D to same texture but different level
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
     glCopyTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, 0, 0, 2, 2, 0);
     EXPECT_GL_NO_ERROR();
 
@@ -2793,14 +2832,14 @@ TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // copyTexImage2D to different texture
-    glBindTexture(GL_TEXTURE_2D, texture2.get());
+    glBindTexture(GL_TEXTURE_2D, texture2);
     glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, 2, 2, 0);
     EXPECT_GL_NO_ERROR();
 
     // testing copyTexSubImage2D
 
     // copyTexSubImage2D to same texture but different level
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 1, 0, 0, 0, 0, 1, 1);
     EXPECT_GL_NO_ERROR();
 
@@ -2809,7 +2848,7 @@ TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // copyTexSubImage2D to different texture
-    glBindTexture(GL_TEXTURE_2D, texture2.get());
+    glBindTexture(GL_TEXTURE_2D, texture2);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 1, 1);
     EXPECT_GL_NO_ERROR();
 }
@@ -2819,14 +2858,14 @@ TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
 // framebuffer to mip 0, it is being redefined.
 TEST_P(WebGL2CompatibilityTest, CopyMip1ToMip0)
 {
-    // http://anglebug.com/4804
+    // http://anglebug.com/42263391
     ANGLE_SKIP_TEST_IF(IsD3D11());
 
-    // http://anglebug.com/4805
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsIntel() && (IsWindows() || IsOSX()));
+    // http://anglebug.com/42263392
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsIntel() && (IsWindows() || IsMac()));
 
-    // TODO(anglebug.com/5360): Failing on ARM64-based Apple DTKs.
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsARM64() && IsDesktopOpenGL());
+    // TODO(anglebug.com/40096747): Failing on ARM64-based Apple DTKs.
+    ANGLE_SKIP_TEST_IF(IsMac() && IsARM64() && IsDesktopOpenGL());
 
     GLFramebuffer framebuffer;
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -2860,11 +2899,11 @@ TEST_P(WebGL2CompatibilityTest, CopyMip1ToMip0)
     EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT,
                      glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
-    // http://anglebug.com/4802
+    // http://anglebug.com/42263389
     ANGLE_SKIP_TEST_IF(IsOpenGL() && IsNVIDIA());
 
-    // http://anglebug.com/4803
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsAMD() && IsOSX());
+    // http://anglebug.com/42263390
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsAMD() && IsMac());
 
     // Bind framebuffer to mip 0 and make sure the copy was done.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
@@ -2879,7 +2918,7 @@ TEST_P(WebGL2CompatibilityTest, CopyMip1ToMip0)
 // framebuffer to mip 1, it is being redefined.
 TEST_P(WebGL2CompatibilityTest, CopyMip0ToMip1)
 {
-    // http://anglebug.com/4805
+    // http://anglebug.com/42263392
     ANGLE_SKIP_TEST_IF(IsOpenGL() && IsIntel() && IsWindows());
 
     ANGLE_SKIP_TEST_IF(IsOpenGL() && IsAMD() && IsWindows());
@@ -2917,11 +2956,6 @@ TEST_P(WebGL2CompatibilityTest, CopyMip0ToMip1)
     // Make sure mip 0 is untouched.
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
     EXPECT_PIXEL_COLOR_EQ(1, 1, GLColor::red);
-
-    // When reading back the framebuffer, the attached texture is not rebased, so the framebuffer
-    // still sees the 1x1 mip.  The copy is flushed to this mip, which is incorrect.
-    // http://anglebug.com/4792.
-    ANGLE_SKIP_TEST_IF(IsVulkan());
 
     // Bind framebuffer to mip 1 and make sure the copy was done.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 1);
@@ -3376,8 +3410,8 @@ TEST_P(WebGLCompatibilityTest, RGB32FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGBA32FTextures)
 {
-    // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    // http://anglebug.com/42263897
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     constexpr float data[] = {7000.0f, 100.0f, 33.0f, -1.0f};
 
@@ -3682,8 +3716,8 @@ TEST_P(WebGLCompatibilityTest, HalfFloatBlend)
 
 TEST_P(WebGLCompatibilityTest, R16FTextures)
 {
-    // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    // http://anglebug.com/42263897
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     constexpr float readPixelsData[] = {-5000.0f, 0.0f, 0.0f, 1.0f};
     const GLushort textureData[]     = {
@@ -3743,8 +3777,8 @@ TEST_P(WebGLCompatibilityTest, R16FTextures)
 
 TEST_P(WebGLCompatibilityTest, RG16FTextures)
 {
-    // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    // http://anglebug.com/42263897
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     constexpr float readPixelsData[] = {7108.0f, -10.0f, 0.0f, 1.0f};
     const GLushort textureData[]     = {
@@ -3804,8 +3838,8 @@ TEST_P(WebGLCompatibilityTest, RG16FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 {
-    // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    // http://anglebug.com/42263897
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     ANGLE_SKIP_TEST_IF(IsOzone() && IsIntel());
 
@@ -3867,8 +3901,8 @@ TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGBA16FTextures)
 {
-    // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    // http://anglebug.com/42263897
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     ANGLE_SKIP_TEST_IF(IsOzone() && IsIntel());
 
@@ -4077,32 +4111,32 @@ void main() {
     ASSERT_GE(maxDrawBuffers, 2);
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
+    glUseProgram(program);
     glViewport(0, 0, width, height);
 
     GLTexture tex0;
     GLTexture tex1;
     GLFramebuffer fbo;
-    FillTexture2D(tex0.get(), width, height, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    FillTexture2D(tex1.get(), width, height, GLColor::green, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(tex0, width, height, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(tex1, width, height, GLColor::green, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
     ASSERT_GL_NO_ERROR();
 
-    glBindTexture(GL_TEXTURE_2D, tex1.get());
-    GLint texLoc = glGetUniformLocation(program.get(), "tex");
+    glBindTexture(GL_TEXTURE_2D, tex1);
+    GLint texLoc = glGetUniformLocation(program, "tex");
     ASSERT_NE(-1, texLoc);
     glUniform1i(texLoc, 0);
 
     // The sampling texture is bound to COLOR_ATTACHMENT1 during resource allocation
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex0.get(), 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex1.get(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex1, 0);
     ASSERT_GL_NO_ERROR();
 
-    drawBuffersFeedbackLoop(program.get(), {{GL_NONE, GL_COLOR_ATTACHMENT1}}, GL_INVALID_OPERATION);
-    drawBuffersFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}},
+    drawBuffersFeedbackLoop(program, {{GL_NONE, GL_COLOR_ATTACHMENT1}}, GL_INVALID_OPERATION);
+    drawBuffersFeedbackLoop(program, {{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}},
                             GL_INVALID_OPERATION);
     // A feedback loop is formed regardless of drawBuffers settings.
-    drawBuffersFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_NONE}}, GL_INVALID_OPERATION);
+    drawBuffersFeedbackLoop(program, {{GL_COLOR_ATTACHMENT0, GL_NONE}}, GL_INVALID_OPERATION);
 }
 
 // This tests that texture base level for immutable textures is clamped to the valid range, unlike
@@ -4141,17 +4175,17 @@ void main() {
     ASSERT_GL_NO_ERROR();
 
     GLFramebuffer framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
 
-    GLint uniformLoc = glGetUniformLocation(program.get(), "tex");
+    GLint uniformLoc = glGetUniformLocation(program, "tex");
     ASSERT_NE(-1, uniformLoc);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
     glUniform1i(uniformLoc, 0);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
@@ -4159,15 +4193,15 @@ void main() {
 
     // Ensure that the texture can be used for rendering.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 
     // Ensure that the texture can't be used to create a feedback loop.
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
@@ -4198,75 +4232,75 @@ void main() {
     GLsizei height = 8;
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     glViewport(0, 0, width, height);
 
-    GLint texLoc = glGetUniformLocation(program.get(), "tex");
+    GLint texLoc = glGetUniformLocation(program, "tex");
     glUniform1i(texLoc, 0);
 
     // Create textures and allocate storage
     GLTexture tex0;
     GLTexture tex1;
     GLTexture tex2;
-    FillTexture2D(tex0.get(), width, height, GLColor::black, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    FillTexture2D(tex1.get(), width, height, 0x80, 0, GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT,
+    FillTexture2D(tex0, width, height, GLColor::black, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    FillTexture2D(tex1, width, height, 0x80, 0, GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT,
                   GL_UNSIGNED_INT);
-    FillTexture2D(tex2.get(), width, height, 0x40, 0, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL,
+    FillTexture2D(tex2, width, height, 0x40, 0, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL,
                   GL_UNSIGNED_INT_24_8);
     ASSERT_GL_NO_ERROR();
 
     GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex0.get(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex0, 0);
 
     // Test rendering and sampling feedback loop for depth buffer
-    glBindTexture(GL_TEXTURE_2D, tex1.get());
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex1.get(), 0);
+    glBindTexture(GL_TEXTURE_2D, tex1);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex1, 0);
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
     // The same image is used as depth buffer during rendering.
     glEnable(GL_DEPTH_TEST);
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Same image as depth buffer should fail";
 
     // The same image is used as depth buffer. But depth mask is false.
     // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glDepthMask(GL_FALSE);
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Depth writes disabled should still fail";
 
     // The same image is used as depth buffer. But depth test is not enabled during rendering.
     // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glDepthMask(GL_TRUE);
     glDisable(GL_DEPTH_TEST);
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Depth read disabled should still fail";
 
     // Test rendering and sampling feedback loop for stencil buffer
-    glBindTexture(GL_TEXTURE_2D, tex2.get());
+    glBindTexture(GL_TEXTURE_2D, tex2);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, tex2.get(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, tex2, 0);
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
     constexpr GLint stencilClearValue = 0x40;
     glClearBufferiv(GL_STENCIL, 0, &stencilClearValue);
 
     // The same image is used as stencil buffer during rendering.
     glEnable(GL_STENCIL_TEST);
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Same image as stencil buffer should fail";
 
     // The same image is used as stencil buffer. But stencil mask is zero.
     // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glStencilMask(0x0);
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Stencil mask zero should still fail";
 
     // The same image is used as stencil buffer. But stencil test is not enabled during rendering.
     // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glStencilMask(0xffff);
     glDisable(GL_STENCIL_TEST);
-    drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
+    drawQuad(program, "aPosition", 0.5f, 1.0f, true);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Stencil test disabled should still fail";
 }
 
@@ -4277,12 +4311,12 @@ TEST_P(WebGL2CompatibilityTest, NoTextureCopyingFeedbackLoopBetween3DLevels)
     GLTexture texture;
     GLFramebuffer framebuffer;
 
-    glBindTexture(GL_TEXTURE_3D, texture.get());
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindTexture(GL_TEXTURE_3D, texture);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
     glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, 2, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexImage3D(GL_TEXTURE_3D, 1, GL_RGBA8, 2, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.get(), 0, 0);
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture, 0, 0);
     ASSERT_GL_NO_ERROR();
 
     glCopyTexSubImage3D(GL_TEXTURE_3D, 1, 0, 0, 0, 0, 0, 2, 2);
@@ -4296,11 +4330,11 @@ TEST_P(WebGL2CompatibilityTest, NoTextureCopyingFeedbackLoopBetween3DLayers)
     GLTexture texture;
     GLFramebuffer framebuffer;
 
-    glBindTexture(GL_TEXTURE_3D, texture.get());
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindTexture(GL_TEXTURE_3D, texture);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
     glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, 2, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.get(), 0, 1);
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture, 0, 1);
     ASSERT_GL_NO_ERROR();
 
     glCopyTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, 0, 0, 2, 2);
@@ -4314,13 +4348,13 @@ TEST_P(WebGL2CompatibilityTest, TextureCopyingFeedbackLoop3D)
     GLTexture texture;
     GLFramebuffer framebuffer;
 
-    glBindTexture(GL_TEXTURE_3D, texture.get());
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindTexture(GL_TEXTURE_3D, texture);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
     glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, 4, 4, 4, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexImage3D(GL_TEXTURE_3D, 1, GL_RGBA8, 2, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexImage3D(GL_TEXTURE_3D, 2, GL_RGBA8, 1, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.get(), 1, 0);
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture, 1, 0);
     ASSERT_GL_NO_ERROR();
 
     glCopyTexSubImage3D(GL_TEXTURE_3D, 1, 0, 0, 0, 0, 0, 2, 2);
@@ -4341,10 +4375,10 @@ TEST_P(WebGL2CompatibilityTest, ClearBufferTypeCompatibity)
     GLTexture texture;
     GLFramebuffer framebuffer;
 
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     ASSERT_GL_NO_ERROR();
 
     // Unsigned integer buffer
@@ -4443,6 +4477,24 @@ TEST_P(WebGL2CompatibilityTest, ClearBufferDefaultFramebuffer)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
+// Test that clearing a non-existent drawbuffer of the default
+// framebuffer does not cause an assertion in WebGL validation
+TEST_P(WebGL2CompatibilityTest, ClearBuffer1OnDefaultFramebufferNoAssert)
+{
+    constexpr float clearFloat[]   = {0.0f, 0.0f, 0.0f, 0.0f};
+    constexpr int32_t clearInt[]   = {0, 0, 0, 0};
+    constexpr uint32_t clearUint[] = {0, 0, 0, 0};
+
+    glClearBufferfv(GL_COLOR, 1, clearFloat);
+    EXPECT_GL_NO_ERROR();
+
+    glClearBufferiv(GL_COLOR, 1, clearInt);
+    EXPECT_GL_NO_ERROR();
+
+    glClearBufferuiv(GL_COLOR, 1, clearUint);
+    EXPECT_GL_NO_ERROR();
+}
+
 // Verify that errors are generate when trying to blit from an image to itself
 TEST_P(WebGL2CompatibilityTest, BlitFramebufferSameImage)
 {
@@ -4533,7 +4585,7 @@ void main() {
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLuint floatLocation = glGetFragDataLocation(program, "floatOutput");
     GLuint uintLocation  = glGetFragDataLocation(program, "uintOutput");
@@ -4624,7 +4676,7 @@ void main() {
 })";
 
     ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     GLint floatLocation = glGetAttribLocation(program, "floatInput");
     GLint uintLocation  = glGetAttribLocation(program, "uintInput");
@@ -4982,7 +5034,7 @@ TEST_P(WebGLCompatibilityTest, EnableTextureFormatExtensions)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() != 2);
 
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
 
     // Verify valid format is allowed.
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -5012,7 +5064,7 @@ void WebGLCompatibilityTest::validateCompressedTexImageExtensionFormat(GLenum fo
     std::vector<GLubyte> data(blockSize, 0u);
 
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glBindTexture(GL_TEXTURE_2D, texture);
 
     // Verify texture format fails by default.
     glCompressedTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, blockSize, data.data());
@@ -5351,6 +5403,26 @@ void main()
 })";
 
     GLuint program = CompileProgram(essl1_shaders::vs::Simple(), kFSStructTooLarge);
+    EXPECT_EQ(0u, program);
+
+    // A second variation where the large array is on the variable itself not a member.
+    constexpr char kFSStructTooLarge2[] =
+        R"(precision mediump float;
+struct Light {
+mat2 array;
+};
+
+uniform Light light[67108865];
+
+void main()
+{
+    if (light[0].array[0][0] == 2.0)
+        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    else
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+
+    program = CompileProgram(essl1_shaders::vs::Simple(), kFSStructTooLarge2);
     EXPECT_EQ(0u, program);
 }
 
@@ -5702,6 +5774,33 @@ TEST_P(WebGL2CompatibilityTest, TransformFeedbackDoubleBinding)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
+// Writing to the contents of a currently active transform feedback buffer is invalid
+TEST_P(WebGL2CompatibilityTest, TransformFeedbackBufferModification)
+{
+    constexpr char kVS[] = R"(attribute float a; varying float b; void main() { b = a; })";
+    constexpr char kFS[] = R"(void main(){})";
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    static const char *varyings[] = {"b"};
+    glTransformFeedbackVaryings(program, 1, varyings, GL_SEPARATE_ATTRIBS);
+    glLinkProgram(program);
+    glUseProgram(program);
+    ASSERT_GL_NO_ERROR();
+
+    // Bind the transform feedback varyings to non-overlapping regions of the same buffer.
+    GLBuffer buffer;
+    glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, buffer, 0, 4);
+    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, 8, nullptr, GL_STATIC_DRAW);
+    glBeginTransformFeedback(GL_POINTS);
+    ASSERT_GL_NO_ERROR();
+
+    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, 8, nullptr, GL_STATIC_DRAW);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    constexpr uint8_t data[8] = {0};
+    glBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 8, data);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+}
+
 // Check the return type of a given parameter upon getting the active uniforms.
 TEST_P(WebGL2CompatibilityTest, UniformVariablesReturnTypes)
 {
@@ -5727,7 +5826,7 @@ TEST_P(WebGLCompatibilityTest, DrawWithNoProgram)
 // Ensures that rendering to different texture levels of a sampled texture is supported.
 TEST_P(WebGL2CompatibilityTest, RenderToLevelsOfSampledTexture)
 {
-    // TODO: Fix on Vulkan back-end. http://anglebug.com/4690
+    // TODO: Fix on Vulkan back-end. http://anglebug.com/40644733
     ANGLE_SKIP_TEST_IF(IsVulkan());
 
     constexpr GLsizei kTexSize   = 2;
@@ -6103,6 +6202,331 @@ TEST_P(WebGL2CompatibilityTest, TexImageSyncWithIncompleteFramebufferBug)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 8, 8, 0, GL_RED_EXT, GL_UNSIGNED_BYTE, nullptr);
 }
 
+// Test that "depth_unchanged" layout qualifier is rejected for WebGL contexts.
+TEST_P(WebGL2CompatibilityTest, FragDepthLayoutUnchanged)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_conservative_depth"));
+
+    constexpr char kFS[] = R"(#version 300 es
+#extension GL_EXT_conservative_depth: enable
+out highp vec4 color;
+layout (depth_unchanged) out highp float gl_FragDepth;
+void main() {
+    color = vec4(0.0, 0.0, 0.0, 1.0);
+    gl_FragDepth = 1.0;
+})";
+
+    GLProgram prg;
+    prg.makeRaster(essl3_shaders::vs::Simple(), kFS);
+    EXPECT_FALSE(prg.valid());
+}
+
+// Test that EXT_blend_func_extended does not allow omitting locations in WebGL 2.0 contexts.
+TEST_P(WebGL2CompatibilityTest, EXTBlendFuncExtendedNoLocations)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    constexpr char kFS[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+out highp vec4 color0;
+out highp vec4 color1;
+void main() {
+    color0 = vec4(1.0, 0.0, 0.0, 1.0);
+    color1 = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+
+    GLProgram prg;
+    prg.makeRaster(essl3_shaders::vs::Simple(), kFS);
+    EXPECT_FALSE(prg.valid());
+}
+
+// Test that fragment outputs may be omitted when enabling
+// SRC1 blend functions with all color channels masked out.
+TEST_P(WebGLCompatibilityTest, EXTBlendFuncExtendedMissingOutputsWithAllChannelsMaskedOut)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    glColorMask(false, false, false, false);
+
+    // Secondary output missing
+    {
+        constexpr char kFragColor[] = R"(
+            void main() {
+                gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            })";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
+        EXPECT_GL_NO_ERROR();
+    }
+
+    // Primary output missing
+    {
+        constexpr char kSecondaryFragColor[] = R"(#extension GL_EXT_blend_func_extended : enable
+            void main() {
+                gl_SecondaryFragColorEXT = vec4(0.0, 1.0, 0.0, 1.0);
+            })";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kSecondaryFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
+        EXPECT_GL_NO_ERROR();
+    }
+
+    // Both outputs missing
+    {
+        constexpr char kNone[] = "void main() {}";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kNone);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
+        EXPECT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 1.0 contexts.
+TEST_P(WebGLCompatibilityTest, EXTBlendFuncExtendedMissingOutputs)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kFragColor[] = R"(
+void main() {
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kSecondaryFragColor[] = R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_SecondaryFragColorEXT = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kSecondaryFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kFragColorAndSecondaryFragColor[] =
+            R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_FragColor             = vec4(1.0, 0.0, 0.0, 1.0);
+    gl_SecondaryFragColorEXT = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragColorAndSecondaryFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 1.0 contexts.
+TEST_P(WebGLCompatibilityTest, EXTBlendFuncExtendedMissingOutputsArrays)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kFragData[] = R"(
+void main() {
+    gl_FragData[0] = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragData);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kSecondaryFragData[] = R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_SecondaryFragDataEXT[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kSecondaryFragData);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kFragDataAndSecondaryFragData[] =
+            R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_FragData[0]             = vec4(1.0, 0.0, 0.0, 1.0);
+    gl_SecondaryFragDataEXT[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragDataAndSecondaryFragData);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 2.0 contexts.
+TEST_P(WebGL2CompatibilityTest, EXTBlendFuncExtendedMissingOutputs)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kColor0[] = R"(#version 300 es
+out mediump vec4 color0;
+void main() {
+    color0 = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kColor0);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kColor1[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 1) out mediump vec4 color1;
+void main() {
+    color1 = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kColor1);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kColor0AndColor1[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 0) out mediump vec4 color0;
+layout(location = 0, index = 1) out mediump vec4 color1;
+void main() {
+    color0 = vec4(1.0, 0.0, 0.0, 1.0);
+    color1 = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kColor0AndColor1);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 2.0 contexts.
+TEST_P(WebGL2CompatibilityTest, EXTBlendFuncExtendedMissingOutputsArrays)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kArrayColor0[] = R"(#version 300 es
+out mediump vec4 color0[1];
+void main() {
+    color0[0] = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kArrayColor0);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kArrayColor1[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 1) out mediump vec4 color1[1];
+void main() {
+    color1[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kArrayColor1);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kArrayColor0AndColor0[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 0) out mediump vec4 color0[1];
+layout(location = 0, index = 1) out mediump vec4 color1[1];
+void main() {
+    color0[0] = vec4(1.0, 0.0, 0.0, 1.0);
+    color1[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kArrayColor0AndColor0);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that vertex conversion correctly no-ops when the vertex format requires conversion but there
+// are no vertices to convert.
+TEST_P(WebGLCompatibilityTest, ConversionWithNoVertices)
+{
+    constexpr char kVS[] = R"(precision highp float;
+attribute vec3 attr1;
+void main(void) {
+   gl_Position = vec4(attr1, 1.0);
+})";
+
+    constexpr char kFS[] = R"(precision highp float;
+void main(void) {
+   gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+})";
+
+    GLBuffer buffer;
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    std::array<int8_t, 12> data = {
+        1,
+    };
+    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(data[0]), data.data(), GL_STATIC_DRAW);
+
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    glBindAttribLocation(program, 0, "attr1");
+    glLinkProgram(program);
+    ASSERT_TRUE(CheckLinkStatusAndReturnProgram(program, true));
+    glUseProgram(program);
+
+    // Set the offset of the attribute past the end of the buffer but use a format that requires
+    // conversion in Vulkan
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_BYTE, true, 128, reinterpret_cast<void *>(256));
+
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    // Either no error or invalid operation is okay.
+}
+
+// Tests that using an out of bounds draw offset with a dynamic array succeeds.
+TEST_P(WebGLCompatibilityTest, DynamicVertexArrayOffsetOutOfBounds)
+{
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    glUseProgram(program);
+
+    GLint posLoc = glGetAttribLocation(program, essl1_shaders::PositionAttrib());
+    ASSERT_NE(-1, posLoc);
+
+    glEnableVertexAttribArray(posLoc);
+    GLBuffer buf;
+    glBindBuffer(GL_ARRAY_BUFFER, buf);
+    glVertexAttribPointer(posLoc, 4, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<const void *>(500));
+    glBufferData(GL_ARRAY_BUFFER, 100, nullptr, GL_DYNAMIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // Either no error or invalid operation is okay.
+}
+
+// Covers situations where vertex conversion could read out of bounds.
+TEST_P(WebGL2CompatibilityTest, OutOfBoundsByteAttribute)
+{
+    ANGLE_GL_PROGRAM(testProgram, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    glUseProgram(testProgram);
+
+    GLBuffer buffer;
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, 2, nullptr, GL_STREAM_COPY);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_BYTE, false, 0xff, reinterpret_cast<const void *>(0xfe));
+
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 1, 10, 1000);
+}
+
 // Test for a mishandling of instanced vertex attributes with zero-sized buffers bound on Apple
 // OpenGL drivers.
 TEST_P(WebGL2CompatibilityTest, DrawWithZeroSizedBuffer)
@@ -6119,8 +6543,397 @@ TEST_P(WebGL2CompatibilityTest, DrawWithZeroSizedBuffer)
     glVertexAttribDivisor(posLocation, 1);
     glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 9,
                           reinterpret_cast<void *>(0x41424344));
+    ASSERT_GL_NO_ERROR();
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    // This should be caught as an invalid draw
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+}
+
+// Test that draw calls exceeding the vertex attribute range are caught in the presence of both
+// instanced and non-instanced attributes.
+TEST_P(WebGL2CompatibilityTest, DrawWithInstancedAndNonInstancedAttributes)
+{
+    if (IsGLExtensionRequestable("GL_ANGLE_base_vertex_base_instance"))
+    {
+        glRequestExtensionANGLE("GL_ANGLE_base_vertex_base_instance");
+    }
+
+    const bool hasBaseInstance = IsGLExtensionEnabled("GL_ANGLE_base_vertex_base_instance");
+
+    constexpr char kVS[] = R"(#version 300 es
+in vec4 attr1;
+in vec2 attr2;
+in vec4 attr3;
+in vec3 attr4;
+
+out vec4 v1;
+out vec2 v2;
+out vec4 v3;
+out vec3 v4;
+
+void main()
+{
+    v1 = attr1;
+    v2 = attr2;
+    v3 = attr3;
+    v4 = attr4;
+    gl_Position = vec4(0, 0, 0, 0);
+})";
+
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+
+in vec4 v1;
+in vec2 v2;
+in vec4 v3;
+in vec3 v4;
+
+out vec4 color;
+
+void main()
+{
+    color = v1 + v2.xyxy + v3 + v4.xyxz;
+})";
+
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    glUseProgram(program);
+
+    const GLint attrLocations[4] = {
+        glGetAttribLocation(program, "attr1"),
+        glGetAttribLocation(program, "attr2"),
+        glGetAttribLocation(program, "attr3"),
+        glGetAttribLocation(program, "attr4"),
+    };
+
+    GLBuffer buffers[4];
+
+    // Set up all the buffers as such:
+    //
+    // Buffer 1: 64 bytes + (offset) 124
+    // Buffer 2: 16 bytes + (offset) 212
+    // Buffer 3: 128 bytes + (offset) 76
+    // Buffer 4: 96 bytes + (offset) 52
+    constexpr GLsizei kBufferSizes[4] = {
+        64,
+        16,
+        128,
+        96,
+    };
+    constexpr GLsizei kBufferOffsets[4] = {
+        124,
+        212,
+        76,
+        52,
+    };
+    // Attribute component count corresponding to the shader
+    constexpr GLint kAttrComponents[4] = {
+        4,
+        2,
+        4,
+        3,
+    };
+    // Attribute types
+    constexpr GLenum kAttrTypes[4] = {
+        GL_SHORT,
+        GL_BYTE,
+        GL_FLOAT,
+        GL_UNSIGNED_SHORT,
+    };
+    // Attribute strides.
+    //
+    // - Buffer 1 has 64 bytes, each attribute is 8 bytes.  With a stride of 12, 5 vertices can be
+    //   drawn from this buffer.
+    // - Buffer 2 has 16 bytes, each attribute is 2 bytes.  With a stride of 0, 8 vertices can be
+    //   drawn from this buffer.
+    // - Buffer 3 has 128 bytes, each attribute is 16 bytes.  With a stride of 20, 6 vertices can be
+    //   drawn from this buffer.
+    // - Buffer 4 has 96 bytes, each attribute is 6 bytes.  With a stride of 8, 12 vertices can be
+    //   drawn from this buffer.
+    constexpr GLsizei kAttrStrides[4] = {
+        12,
+        0,
+        20,
+        8,
+    };
+
+    for (int i = 0; i < 4; ++i)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, buffers[i]);
+        glBufferData(GL_ARRAY_BUFFER, kBufferSizes[i] + kBufferOffsets[i], nullptr, GL_STATIC_DRAW);
+
+        glEnableVertexAttribArray(attrLocations[i]);
+        glVertexAttribPointer(attrLocations[i], kAttrComponents[i], kAttrTypes[i], GL_TRUE,
+                              kAttrStrides[i], reinterpret_cast<void *>(kBufferOffsets[i]));
+    }
+    ASSERT_GL_NO_ERROR();
+
+    // Without any attribute divisors, the maximum vertex attribute allowed is min(5, 8, 6, 12) with
+    // non-instanced draws.
+    glDrawArrays(GL_POINTS, 0, 4);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 0, 5);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 0, 6);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArrays(GL_POINTS, 1, 5);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArrays(GL_POINTS, 1, 4);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 4, 1);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 4, 2);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArrays(GL_POINTS, 5, 1);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArrays(GL_POINTS, 200, 1);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // Same with instanced draws.
+    glDrawArraysInstanced(GL_POINTS, 0, 4, 10);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 0, 5, 1);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 0, 6, 5);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArraysInstanced(GL_POINTS, 1, 5, 1);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArraysInstanced(GL_POINTS, 1, 4, 22);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 4, 1, 1240);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 4, 2, 1);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArraysInstanced(GL_POINTS, 5, 1, 6);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArraysInstanced(GL_POINTS, 200, 1, 100);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    // With a divisor on attribute 1, that attribute can reference up to vertex #5 (as first
+    // attribute), while the rest are limited to min(8, 6, 12) as their maximum vertex attribute.
+    glVertexAttribDivisor(attrLocations[0], 5);
+
+    glDrawArrays(GL_POINTS, 0, 5);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 0, 6);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 0, 7);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following passes because attribute 1 only accesses index 0 regardless of first
+    glDrawArrays(GL_POINTS, 4, 2);
+    EXPECT_GL_NO_ERROR();
+    // The following fails because attribute 3 accesses vertices [4, 7)
+    glDrawArrays(GL_POINTS, 4, 3);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArrays(GL_POINTS, 5, 1);
+    EXPECT_GL_NO_ERROR();
+
+    // With instanced rendering, the same limits as above hold.  Additionally, attribute 1 does no
+    // longer access only a single vertex, but it accesses instanceCount/5 (5 being the divisor)
+    // elements.
+    // The following passes because attribute 1 accesses vertices [0, 4)
+    glDrawArraysInstanced(GL_POINTS, 0, 5, 20);
+    EXPECT_GL_NO_ERROR();
+    // The following passes because attribute 1 accesses vertices [0, 5)
+    glDrawArraysInstanced(GL_POINTS, 0, 6, 25);
+    EXPECT_GL_NO_ERROR();
+    // The following fails because of the limit on non-instanced attributes
+    glDrawArraysInstanced(GL_POINTS, 0, 7, 1);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following fails because attribute 1 accesses vertices [0, 6)
+    glDrawArraysInstanced(GL_POINTS, 0, 4, 26);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following passes because attribute 1 accesses vertices [0, 2).  Recall that first vertex
+    // is ignored for instanced attributes.
+    glDrawArraysInstanced(GL_POINTS, 3, 3, 9);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 3, 3, 10);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 3, 3, 11);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 5, 1, 1);
+    EXPECT_GL_NO_ERROR();
+
+    if (hasBaseInstance)
+    {
+        // The following passes because attribute 1 accesses vertices [0, 3)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 15, 0);
+        EXPECT_GL_NO_ERROR();
+        // The following passes because attribute 1 accesses vertices [1, 4)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 15, 5);
+        EXPECT_GL_NO_ERROR();
+        // The following passes because attribute 1 accesses vertices [0, 4)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 17, 3);
+        EXPECT_GL_NO_ERROR();
+        // The following passes because attribute 1 accesses vertices [3, 5)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 10, 15);
+        EXPECT_GL_NO_ERROR();
+        // The following fails because attribute 1 accesses vertices [3, 6)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 11, 15);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+        // The following fails because attribute 1 accesses vertex 6
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 1, 25);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+
+    // With a divisor on attribute 3, that attribute can reference up to vertex #6 (as first
+    // attribute), while the rest are limited to min(8, 12) as their maximum vertex attribute.
+    glVertexAttribDivisor(attrLocations[2], 3);
+
+    glDrawArrays(GL_POINTS, 0, 7);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 0, 8);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 0, 9);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following passes because attribute 1 and 3 only access index 0 regardless of first and
+    // count
+    glDrawArrays(GL_POINTS, 4, 4);
+    EXPECT_GL_NO_ERROR();
+    // The following fails because attribute 2 accesses vertices [4, 9)
+    glDrawArrays(GL_POINTS, 4, 5);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glDrawArrays(GL_POINTS, 5, 1);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 6, 1);
+    EXPECT_GL_NO_ERROR();
+
+    // With instanced rendering, the same limits as above hold.  Additionally, attribute 1 accesses
+    // instanceCount/5 and attribute 3 accesses instanceCount/3 elements.
+    // The following passes because attribute 1 accesses vertices [0, 4), and attribute 3 accesses
+    // vertices [0, 6)
+    glDrawArraysInstanced(GL_POINTS, 0, 5, 18);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 0, 8, 18);
+    EXPECT_GL_NO_ERROR();
+    // The following fails because attribute 3 accesses vertices [0, 7)
+    glDrawArraysInstanced(GL_POINTS, 0, 5, 19);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following fails because of the limit on non-instanced attributes
+    glDrawArraysInstanced(GL_POINTS, 0, 9, 1);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following passes because attribute 1 accesses vertices [0, 3), and attribute 3 accesses
+    // vertices [0, 4)
+    glDrawArraysInstanced(GL_POINTS, 2, 4, 11);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 2, 4, 12);
+    EXPECT_GL_NO_ERROR();
+    // The following passes because attribute 3 accesses vertices [0, 5).  Attribute 1 still
+    // accesses within limits of [0, 3)
+    glDrawArraysInstanced(GL_POINTS, 2, 4, 13);
+    EXPECT_GL_NO_ERROR();
+    glDrawArraysInstanced(GL_POINTS, 5, 1, 1);
+    EXPECT_GL_NO_ERROR();
+
+    if (hasBaseInstance)
+    {
+        // The following passes because attribute 1 accesses vertices [0, 4), and attribute 3
+        // accesses vertices [0, 6)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 18, 0);
+        EXPECT_GL_NO_ERROR();
+        // The following fails because attribute 3 accesses vertices [0, 7)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 19, 0);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+        // The following fails because attribute 3 accesses vertices [1, 7)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 18, 1);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+        // The following passes because attribute 3 accesses vertices [3, 6)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 7, 11);
+        EXPECT_GL_NO_ERROR();
+        // The following fails because attribute 3 accesses vertices [3, 7)
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 2, 4, 8, 11);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+
+    // With a divisor on attribute 2, that attribute can reference up to vertex #8 (as first
+    // attribute), and with a divisor on attribute 4, it can reference up to vertex #12.  There is
+    // no particular limit on the maxmium vertex attribute when not instanced.
+    glVertexAttribDivisor(attrLocations[1], 3);
+    glVertexAttribDivisor(attrLocations[3], 1);
+
+    // The following passes because all attributes only access index 0
+    glDrawArrays(GL_POINTS, 0, 123);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 4, 500);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 5, 1);
+    EXPECT_GL_NO_ERROR();
+    glDrawArrays(GL_POINTS, 231, 1);
+    EXPECT_GL_NO_ERROR();
+
+    // With instanced rendering, the same limits as above hold.
+    //
+    // Attribute 1 accesses instanceCount/5 elements (note: buffer fits 5 vertices)
+    // Attribute 2 accesses instanceCount/3 elements (note: buffer fits 8 vertices)
+    // Attribute 3 accesses instanceCount/3 elements (note: buffer fits 6 vertices)
+    // Attribute 4 accesses instanceCount/1 elements (note: buffer fits 12 vertices)
+    //
+    // Only instances [0, 12) are valid.
+    glDrawArraysInstanced(GL_POINTS, 0, 123, 1);
+    EXPECT_GL_NO_ERROR();
+    // The following passes because attributes accessed are:
+    // [0, 3), [0, 4), [0, 4), [0, 12)
+    glDrawArraysInstanced(GL_POINTS, 0, 123, 12);
+    EXPECT_GL_NO_ERROR();
+    // The following fails because attributes accessed are:
+    // [0, 3), [0, 5), [0, 5), [0, 13)
+    //                              \-- overflow
+    glDrawArraysInstanced(GL_POINTS, 0, 123, 13);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following passes because attributes accessed are:
+    // [0, 2), [0, 3), [0, 3), [0, 9)
+    glDrawArraysInstanced(GL_POINTS, 3, 359, 9);
+    EXPECT_GL_NO_ERROR();
+    // The following fails because attributes accessed are:
+    // [0, 3), [0, 5), [0, 5), [0, 13)
+    //                              \-- overflow
+    glDrawArraysInstanced(GL_POINTS, 3, 359, 13);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    // The following passes because attributes accessed are:
+    // [0, 1), [0, 2), [0, 2), [0, 5)
+    glDrawArraysInstanced(GL_POINTS, 120, 359, 5);
+    EXPECT_GL_NO_ERROR();
+
+    if (hasBaseInstance)
+    {
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 120, 359, 12, 0);
+        EXPECT_GL_NO_ERROR();
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 120, 359, 11, 1);
+        EXPECT_GL_NO_ERROR();
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 120, 359, 1, 11);
+        EXPECT_GL_NO_ERROR();
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 120, 359, 2, 11);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+        glDrawArraysInstancedBaseInstanceANGLE(GL_POINTS, 120, 359, 1, 14);
+        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+}
+
+// Tests that indexing with primitive restart index produces error, even
+// if it's done after toggling GL_PRIMITIVE_RESTART_FIXED_INDEX.
+// If there is MAX_ELEMENT_INDEX, it is smaller or equal than primitive
+// restart index 2^32 - 1 for GLuint.
+TEST_P(WebGL2CompatibilityTest, PrimitiveRestartIndexAfterToggleIsError)
+{
+    constexpr char kVS[] = "void main() { gl_Position = vec4(0); }";
+    constexpr char kFS[] = "void main() { gl_FragColor = vec4(0, 1, 0, 1); }";
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    glUseProgram(program);
+    ASSERT_GL_NO_ERROR();
+    std::vector<GLuint> indices(1);
+    indices[0] = 0xFFFFFFFFu;
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), &indices[0],
+                 GL_STATIC_DRAW);
+    EXPECT_GL_NO_ERROR();
+    // Primitive restart works, no-op draw.
+    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+    glDrawElements(GL_POINTS, indices.size(), GL_UNSIGNED_INT, 0);
+    EXPECT_GL_NO_ERROR();
+    // This is being tested: ensure that any cached state keys on PRIMITIVE_RESTART_FIXED_INDEX.
+    glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+    glDrawElements(GL_POINTS, indices.size(), GL_UNSIGNED_INT, 0);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(WebGLCompatibilityTest);

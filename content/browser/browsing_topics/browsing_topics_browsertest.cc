@@ -25,6 +25,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/default_handlers.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
+#include "services/network/public/cpp/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
@@ -57,10 +58,21 @@ class FixedTopicsContentBrowserClient
     return true;
   }
 
+  int NumVersionsInTopicsEpochs(
+      content::RenderFrameHost* main_frame) const override {
+    return 1;
+  }
+
   StoragePartitionConfig GetStoragePartitionConfigForSite(
       BrowserContext* browser_context,
       const GURL& site) override {
-    if (site == GURL("https://b.test/")) {
+    // Use a different StoragePartition for URLs from b.test (to test the fix
+    // for crbug.com/40855090). Note that the port should be removed from site
+    // to simplify the comparison, because non-default ports are included in
+    // site URLs when kOriginKeyedProcessesByDefault is enabled.
+    GURL::Replacements replacements;
+    replacements.ClearPort();
+    if (site.ReplaceComponents(replacements) == GURL("https://b.test/")) {
       return StoragePartitionConfig::Create(browser_context,
                                             /*partition_domain=*/"b.test",
                                             /*partition_name=*/"test_partition",
@@ -76,7 +88,7 @@ class BrowsingTopicsBrowserTest : public ContentBrowserTest {
  public:
   BrowsingTopicsBrowserTest() {
     feature_list_.InitWithFeatures({features::kPrivacySandboxAdsAPIsOverride,
-                                    blink::features::kBrowsingTopics},
+                                    network::features::kBrowsingTopics},
                                    /*disabled_features=*/{});
   }
 
@@ -99,12 +111,8 @@ class BrowsingTopicsBrowserTest : public ContentBrowserTest {
               last_request_is_topics_request_ =
                   params->url_request.browsing_topics;
 
-              last_topics_header_.reset();
-              std::string topics_header;
-              if (params->url_request.headers.GetHeader("Sec-Browsing-Topics",
-                                                        &topics_header)) {
-                last_topics_header_ = topics_header;
-              }
+              last_topics_header_ =
+                  params->url_request.headers.GetHeader("Sec-Browsing-Topics");
 
               return false;
             }));
@@ -121,7 +129,7 @@ class BrowsingTopicsBrowserTest : public ContentBrowserTest {
     return last_request_is_topics_request_;
   }
 
-  const absl::optional<std::string>& last_topics_header() const {
+  const std::optional<std::string>& last_topics_header() const {
     return last_topics_header_;
   }
 
@@ -157,7 +165,7 @@ class BrowsingTopicsBrowserTest : public ContentBrowserTest {
   bool last_request_is_topics_request_ = false;
 
   std::unique_ptr<base::RunLoop> resource_request_url_waiter_;
-  absl::optional<std::string> last_topics_header_;
+  std::optional<std::string> last_topics_header_;
 
   std::unique_ptr<URLLoaderInterceptor> url_loader_monitor_;
 };
@@ -185,7 +193,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ("[]", InvokeTopicsAPI(web_contents()));
 }
 
-// TODO(crbug.com/1381167): migrate to WPT.
+// TODO(crbug.com/40245082): migrate to WPT.
 IN_PROC_BROWSER_TEST_F(BrowsingTopicsBrowserTest,
                        Fetch_TopicsHeaderNotVisibleInServiceWorker) {
   GURL main_frame_url = https_server_.GetURL(
@@ -234,8 +242,7 @@ IN_PROC_BROWSER_TEST_F(BrowsingTopicsBrowserTest, TopicsHeaderForWindowFetch) {
   EXPECT_TRUE(last_request_is_topics_request());
   EXPECT_TRUE(last_topics_header());
   EXPECT_EQ(last_topics_header().value(),
-            "1;version=\"chrome.1:1:2\";config_version=\"chrome.1\";model_"
-            "version=\"2\";taxonomy_version=\"1\"");
+            "(1);v=chrome.1:1:2, ();p=P00000000000");
 }
 
 IN_PROC_BROWSER_TEST_F(BrowsingTopicsBrowserTest,

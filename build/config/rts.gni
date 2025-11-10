@@ -1,5 +1,7 @@
 declare_args() {
-  # For more info about RTS, please see
-  # //docs/testing/regression-test-selection.md
+  # Regression Test Selection (RTS) will use a ML model
+  # to predict what test cases can be excluded from a
+  # given test suite based on historical data when using
+  # a .filter file.
   use_rts = false
 }

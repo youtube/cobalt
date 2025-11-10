@@ -14,7 +14,7 @@ V8ObjectBuilder::V8ObjectBuilder(ScriptState* script_state)
 
 V8ObjectBuilder& V8ObjectBuilder::Add(const StringView& name,
                                       const V8ObjectBuilder& value) {
-  AddInternal(name, value.V8Value());
+  AddInternal(name, value.V8Object());
   return *this;
 }
 
@@ -36,6 +36,23 @@ V8ObjectBuilder& V8ObjectBuilder::AddNumber(const StringView& name,
   return *this;
 }
 
+V8ObjectBuilder& V8ObjectBuilder::AddNumberOrNull(const StringView& name,
+                                                  std::optional<double> value) {
+  if (value.has_value()) {
+    AddInternal(name, v8::Number::New(script_state_->GetIsolate(), *value));
+  } else {
+    AddInternal(name, v8::Null(script_state_->GetIsolate()));
+  }
+  return *this;
+}
+
+V8ObjectBuilder& V8ObjectBuilder::AddInteger(const StringView& name,
+                                             uint64_t value) {
+  AddInternal(name,
+              ToV8Traits<IDLUnsignedLongLong>::ToV8(script_state_, value));
+  return *this;
+}
+
 V8ObjectBuilder& V8ObjectBuilder::AddString(const StringView& name,
                                             const StringView& value) {
   AddInternal(name, V8String(script_state_->GetIsolate(), value));
@@ -52,8 +69,14 @@ V8ObjectBuilder& V8ObjectBuilder::AddStringOrNull(const StringView& name,
   return *this;
 }
 
-ScriptValue V8ObjectBuilder::GetScriptValue() const {
-  return ScriptValue(script_state_->GetIsolate(), object_);
+V8ObjectBuilder& V8ObjectBuilder::AddV8Value(const StringView& name,
+                                             v8::Local<v8::Value> value) {
+  AddInternal(name, value);
+  return *this;
+}
+
+ScriptObject V8ObjectBuilder::ToScriptObject() const {
+  return ScriptObject(script_state_->GetIsolate(), object_);
 }
 
 void V8ObjectBuilder::AddInternal(const StringView& name,

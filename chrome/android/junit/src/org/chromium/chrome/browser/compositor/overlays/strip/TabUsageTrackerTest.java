@@ -6,18 +6,18 @@ package org.chromium.chrome.browser.compositor.overlays.strip;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.metrics.UmaRecorderHolder;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.TabUsageTracker;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
@@ -39,12 +39,10 @@ import java.util.concurrent.TimeoutException;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TabUsageTrackerTest {
-    @Mock
-    TabModelSelector mTabModelSelector;
-    @Mock
-    ActivityLifecycleDispatcher mDispatcher;
-    @Mock
-    TabModel mTabModel;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock TabModelSelector mTabModelSelector;
+    @Mock ActivityLifecycleDispatcher mDispatcher;
+    @Mock TabModel mTabModel;
 
     private static final int INITIAL_TAB_COUNT = 0;
     private static final String NUMBER_OF_TABS_USED = "Android.ActivityStop.NumberOfTabsUsed";
@@ -55,7 +53,6 @@ public class TabUsageTrackerTest {
 
     @Before
     public void setUp() throws TimeoutException {
-        MockitoAnnotations.initMocks(this);
         List<TabModel> tabModels = new ArrayList<>();
         tabModels.add(mTabModel);
 
@@ -65,11 +62,6 @@ public class TabUsageTrackerTest {
         Mockito.when(mTabModelSelector.isTabStateInitialized()).thenReturn(true);
 
         mTabUsageTracker = new TabUsageTracker(mDispatcher, mTabModelSelector);
-    }
-
-    @After
-    public void tearDown() {
-        UmaRecorderHolder.resetForTesting();
     }
 
     @Test
@@ -106,7 +98,7 @@ public class TabUsageTrackerTest {
         Tab selectedTab = getMockedTab(3);
         // Start with 5 existing tabs and 1 selected tab.
         Mockito.when(mTabModelSelector.getTotalTabCount()).thenReturn(5);
-        Mockito.when(mTabModel.getTabAt(Mockito.anyInt())).thenReturn(selectedTab);
+        Mockito.when(mTabModelSelector.getCurrentTab()).thenReturn(selectedTab);
         mTabUsageTracker.onResumeWithNative();
 
         // Act: Create 1 tab, select 1 tab and call onStop.

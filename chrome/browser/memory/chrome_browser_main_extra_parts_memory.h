@@ -7,21 +7,16 @@
 
 #include <memory>
 
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 namespace ash {
 namespace memory {
 class SystemMemoryPressureEvaluator;
 }
 }  // namespace ash
 #endif
-
-namespace memory {
-class MemoryAblationStudy;
-class EnterpriseMemoryLimitPrefObserver;
-}  // namespace memory
 
 // Wrapper that owns and initialize the browser memory-related extra parts.
 class ChromeBrowserMainExtraPartsMemory : public ChromeBrowserMainExtraParts {
@@ -37,23 +32,13 @@ class ChromeBrowserMainExtraPartsMemory : public ChromeBrowserMainExtraParts {
 
  private:
   // ChromeBrowserMainExtraParts overrides.
+  void PostCreateThreads() override;
   void PostBrowserStart() override;
   void PostMainMessageLoopRun() override;
 
-  // Tracks changes to the MemoryLimitMbEnabled enterprise policy, and
-  // starts/stops the EnterpriseMemoryLimitEvaluator accordingly.
-  //
-  // Only supported on some platforms, see
-  // EnterpriseMemoryLimitPrefObserver::PlatformIsSupported for the list of
-  // supported platforms.
-  std::unique_ptr<memory::EnterpriseMemoryLimitPrefObserver>
-      memory_limit_pref_observer_;
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<ash::memory::SystemMemoryPressureEvaluator> cros_evaluator_;
 #endif
-
-  std::unique_ptr<memory::MemoryAblationStudy> memory_ablation_study_;
 };
 
 #endif  // CHROME_BROWSER_MEMORY_CHROME_BROWSER_MAIN_EXTRA_PARTS_MEMORY_H_

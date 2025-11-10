@@ -4,8 +4,8 @@
 
 #include "chrome/browser/apps/app_service/webapk/webapk_manager.h"
 
-#include "ash/components/arc/mojom/app.mojom.h"
-#include "ash/components/arc/session/connection_holder.h"
+#include <optional>
+
 #include "base/check.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
@@ -22,11 +22,12 @@
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom.h"
+#include "chromeos/ash/experiences/arc/session/connection_holder.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 constexpr char kGeneratedWebApkPackagePrefix[] = "org.chromium.webapk.";
@@ -90,7 +91,10 @@ void WebApkManager::StartOrStopObserving() {
 
   if (arc_enabled && policy_enabled) {
     auto* cache = &proxy_->AppRegistryCache();
-    Observe(cache);
+    if (!app_registry_cache_observer_.IsObservingSource(cache)) {
+      app_registry_cache_observer_.Reset();
+      app_registry_cache_observer_.Observe(cache);
+    }
 
     if (cache->IsAppTypeInitialized(AppType::kWeb)) {
       Synchronize();
@@ -98,7 +102,7 @@ void WebApkManager::StartOrStopObserving() {
     return;
   }
 
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
   initialized_ = false;
 
   if (!policy_enabled) {
@@ -185,7 +189,7 @@ void WebApkManager::OnAppTypeInitialized(AppType type) {
 }
 
 void WebApkManager::OnAppRegistryCacheWillBeDestroyed(AppRegistryCache* cache) {
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void WebApkManager::OnPackageListInitialRefreshed() {
@@ -234,7 +238,7 @@ void WebApkManager::OnPackageRemoved(const std::string& package_name,
   // 2. The WebAPK was uninstalled through Android settings. In this case, the
   //    Chrome OS-side app will still be installed and eligible for a WebAPK.
 
-  // TODO(crbug.com/1200199): Remove the web app as well, if it is still
+  // TODO(crbug.com/40178176): Remove the web app as well, if it is still
   // installed and eligible, and WebAPKs are not disabled by policy.
   webapk_prefs::RemoveWebApkByPackageName(profile_, package_name);
 }
@@ -301,7 +305,7 @@ void WebApkManager::UninstallInternal(const std::string& app_id) {
     return;
   }
 
-  absl::optional<std::string> package_name =
+  std::optional<std::string> package_name =
       webapk_prefs::GetWebApkPackageName(profile_, app_id);
   // Ignore cases where we try to uninstall a package which doesn't exist, as
   // it's possible that the uninstall request was queued multiple times.

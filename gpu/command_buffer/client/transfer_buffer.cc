@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // A class to Manage a growing transfer buffer.
 
 #include "gpu/command_buffer/client/transfer_buffer.h"
@@ -119,14 +124,13 @@ void TransferBuffer::AllocateRingBuffer(unsigned int size) {
   for (;size >= min_buffer_size_; size /= 2) {
     int32_t id = -1;
     scoped_refptr<gpu::Buffer> buffer =
-        helper_->command_buffer()->CreateTransferBuffer(size, &id);
+        helper_->command_buffer()->CreateTransferBuffer(size, &id, alignment_);
     if (id != -1) {
       last_allocated_size_ = size;
       DCHECK(buffer.get());
       buffer_ = buffer;
-      ring_buffer_ = std::make_unique<RingBuffer>(
-          alignment_, result_size_, buffer_->size() - result_size_, helper_,
-          static_cast<char*>(buffer_->memory()) + result_size_);
+      ring_buffer_ = std::make_unique<RingBuffer>(buffer_, alignment_,
+                                                  result_size_, helper_);
       buffer_id_ = id;
       result_buffer_ = buffer_->memory();
       result_shm_offset_ = 0;
@@ -329,11 +333,11 @@ void ScopedTransferBufferPtr::Shrink(unsigned int new_size) {
   size_ = new_size;
 }
 
-bool ScopedTransferBufferPtr::BelongsToBuffer(char* memory) const {
+bool ScopedTransferBufferPtr::BelongsToBuffer(uint8_t* memory) const {
   if (!buffer_)
     return false;
-  char* start = reinterpret_cast<char*>(buffer_);
-  char* end = start + size_;
+  uint8_t* start = static_cast<uint8_t*>(buffer_.get());
+  uint8_t* end = start + size_;
   return memory >= start && memory <= end;
 }
 

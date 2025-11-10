@@ -28,7 +28,7 @@ MockCertProvisioningWorkerFactory::ExpectCreateReturnMock(
   auto mock_worker = std::make_unique<MockCertProvisioningWorker>();
   MockCertProvisioningWorker* pointer = mock_worker.get();
 
-  EXPECT_CALL(*this, Create(cert_scope, _, _, cert_profile, _, _, _, _))
+  EXPECT_CALL(*this, Create(_, cert_scope, _, _, cert_profile, _, _, _, _))
       .Times(1)
       .WillOnce(Return(testing::ByMove(std::move(mock_worker))));
 
@@ -65,18 +65,28 @@ MockCertProvisioningWorker::~MockCertProvisioningWorker() = default;
 void MockCertProvisioningWorker::SetExpectations(
     testing::Cardinality do_step_times,
     bool is_waiting,
+    const std::string& process_id,
     const CertProfile& cert_profile,
     std::string failure_message) {
   testing::Mock::VerifyAndClearExpectations(this);
 
+  process_id_ = process_id;
   cert_profile_ = cert_profile;
   failure_message_ = std::move(failure_message);
 
   EXPECT_CALL(*this, DoStep).Times(do_step_times);
   EXPECT_CALL(*this, IsWaiting).WillRepeatedly(Return(is_waiting));
+  EXPECT_CALL(*this, GetProcessId).WillRepeatedly(ReturnRef(process_id_));
   EXPECT_CALL(*this, GetCertProfile).WillRepeatedly(ReturnRef(cert_profile_));
-  EXPECT_CALL(*this, GetFailureMessage)
-      .WillRepeatedly(ReturnRef(failure_message_));
+  EXPECT_CALL(*this, GetFailureMessageWithPii)
+      .WillRepeatedly(Return(failure_message_));
+}
+
+void MockCertProvisioningWorker::ResetExpected() {
+  testing::InSequence seq;
+  EXPECT_CALL(*this, IsWorkerMarkedForReset).WillOnce(Return(false));
+  EXPECT_CALL(*this, MarkWorkerForReset);
+  EXPECT_CALL(*this, IsWorkerMarkedForReset).WillRepeatedly(Return(true));
 }
 
 }  // namespace cert_provisioning

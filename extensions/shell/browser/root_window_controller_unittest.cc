@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 #include "extensions/shell/browser/root_window_controller.h"
-#include "base/memory/raw_ptr.h"
 
+#include <algorithm>
 #include <list>
 #include <memory>
 
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/native_app_window.h"
@@ -50,9 +50,9 @@ class FakeDesktopDelegate : public RootWindowController::DesktopDelegate {
   void CloseRootWindowController(
       RootWindowController* root_window_controller) override {
     auto it =
-        base::ranges::find(root_window_controllers_, root_window_controller,
-                           &std::unique_ptr<RootWindowController>::get);
-    DCHECK(it != root_window_controllers_.end());
+        std::ranges::find(root_window_controllers_, root_window_controller,
+                          &std::unique_ptr<RootWindowController>::get);
+    CHECK(it != root_window_controllers_.end());
     root_window_controllers_.erase(it);
   }
 
@@ -148,7 +148,13 @@ TEST_F(RootWindowControllerTest, Basic) {
 }
 
 // Tests the window layout.
-TEST_F(RootWindowControllerTest, FillLayout) {
+// TODO(crbug.com/40946388): Flakily times out in Debug
+#if defined(NDEBUG)
+#define MAYBE_FillLayout FillLayout
+#else
+#define MAYBE_FillLayout DISABLED_FillLayout
+#endif
+TEST_F(RootWindowControllerTest, MAYBE_FillLayout) {
   RootWindowController* root_window_controller =
       desktop_delegate()->CreateRootWindowController();
 

@@ -34,7 +34,9 @@
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "components/account_id/account_id.h"
+#include "components/session_manager/core/session.h"
 #include "components/session_manager/core/session_manager.h"
+#include "components/signin/public/identity_manager/account_managed_status_finder.h"
 #include "components/user_manager/fake_user_manager.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -46,7 +48,8 @@
 namespace ash {
 namespace {
 
-// Use consumer.example.com to keep policy code out of the tests.
+// Note that consumer.example.com is registered as a "known consumer domain"
+// below; this is to keep policy code out of these tests.
 constexpr char kUserId1[] = "user1@consumer.example.com";
 constexpr char kUserId2[] = "user2@consumer.example.com";
 constexpr char kUserId3[] = "user3@consumer.example.com";
@@ -55,9 +58,16 @@ constexpr char kUserId3[] = "user3@consumer.example.com";
 
 class CrashRestoreSimpleTest : public InProcessBrowserTest {
  protected:
-  CrashRestoreSimpleTest() {}
+  CrashRestoreSimpleTest() {
+    // Recognize consumer.example.com as a known non-enterprise domain.
+    signin::AccountManagedStatusFinder::SetNonEnterpriseDomainForTesting(
+        "consumer.example.com");
+  }
 
-  ~CrashRestoreSimpleTest() override {}
+  ~CrashRestoreSimpleTest() override {
+    signin::AccountManagedStatusFinder::SetNonEnterpriseDomainForTesting(
+        nullptr);
+  }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitchASCII(switches::kLoginUser,
@@ -114,7 +124,7 @@ class UserSessionRestoreObserver : public UserSessionStateObserver {
   UserSessionRestoreObserver& operator=(const UserSessionRestoreObserver&) =
       delete;
 
-  ~UserSessionRestoreObserver() override {}
+  ~UserSessionRestoreObserver() override = default;
 
   void PendingUserSessionsRestoreFinished() override {
     user_sessions_restored_ = true;
@@ -146,8 +156,8 @@ class UserSessionRestoreObserver : public UserSessionStateObserver {
 
 class CrashRestoreComplexTest : public CrashRestoreSimpleTest {
  protected:
-  CrashRestoreComplexTest() {}
-  ~CrashRestoreComplexTest() override {}
+  CrashRestoreComplexTest() = default;
+  ~CrashRestoreComplexTest() override = default;
 
   bool SetUpUserDataDirectory() override {
     RegisterUsers();
@@ -260,9 +270,9 @@ IN_PROC_BROWSER_TEST_F(CrashRestoreComplexTest, RestoreSessionForThreeUsers) {
   EXPECT_EQ(session_manager::SessionState::ACTIVE,
             session_manager->session_state());
   EXPECT_EQ(3u, session_manager->sessions().size());
-  EXPECT_EQ(session_manager->sessions()[0].user_account_id, account_id1_);
-  EXPECT_EQ(session_manager->sessions()[1].user_account_id, account_id2_);
-  EXPECT_EQ(session_manager->sessions()[2].user_account_id, account_id3_);
+  EXPECT_EQ(session_manager->sessions()[0]->account_id(), account_id1_);
+  EXPECT_EQ(session_manager->sessions()[1]->account_id(), account_id2_);
+  EXPECT_EQ(session_manager->sessions()[2]->account_id(), account_id3_);
 }
 
 // Tests crash restore flow for child user.
@@ -283,14 +293,15 @@ class CrashRestoreChildUserTest : public MixinBasedInProcessBrowserTest {
     MixinBasedInProcessBrowserTest::SetUpInProcessBrowserTestFixture();
   }
 
-  LoggedInUserMixin logged_in_user_mixin_{
-      &mixin_host_, LoggedInUserMixin::LogInType::kChild,
-      embedded_test_server(), this, /*should_launch_browser=*/false};
+  LoggedInUserMixin logged_in_user_mixin_{&mixin_host_, /*test_base=*/this,
+                                          embedded_test_server(),
+                                          LoggedInUserMixin::LogInType::kChild};
 };
 
 IN_PROC_BROWSER_TEST_F(CrashRestoreChildUserTest, PRE_SessionRestore) {
   // Verify that child user can log in.
-  logged_in_user_mixin_.LogInUser();
+  logged_in_user_mixin_.LogInUser(
+      {ash::LoggedInUserMixin::LoginDetails::kNoBrowserLaunch});
 }
 
 IN_PROC_BROWSER_TEST_F(CrashRestoreChildUserTest, SessionRestore) {

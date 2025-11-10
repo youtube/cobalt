@@ -7,13 +7,11 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/raw_ref.h"
 #include "base/time/time.h"
+#include "chrome/browser/download/bubble/download_bubble_display_info.h"
 #include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
 #include "chrome/browser/download/bubble/download_bubble_utils.h"
-#include "chrome/browser/download/bubble/download_display.h"
-#include "chrome/browser/download/bubble/download_icon_state.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
@@ -22,6 +20,7 @@
 #include "chrome/browser/download/offline_item_model_manager_factory.h"
 #include "chrome/browser/offline_items_collection/offline_content_aggregator_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/download/download_display.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -45,7 +44,8 @@ using ::testing::ReturnRef;
 using ::testing::ReturnRefOfCopy;
 using ::testing::StrictMock;
 using StrictMockDownloadItem = StrictMock<download::MockDownloadItem>;
-using DownloadIconState = download::DownloadIconState;
+using DownloadIconActive = DownloadDisplay::IconActive;
+using DownloadIconState = DownloadDisplay::IconState;
 using DownloadState = download::DownloadItem::DownloadState;
 using DownloadUIModelPtr = DownloadUIModel::DownloadUIModelPtr;
 using OfflineItemList =
@@ -58,15 +58,12 @@ class FakeDownloadDisplay : public DownloadDisplay {
   FakeDownloadDisplay(const FakeDownloadDisplay&) = delete;
   FakeDownloadDisplay& operator=(const FakeDownloadDisplay&) = delete;
 
-  void SetController(DownloadDisplayController* controller) {
-    controller_ = controller;
-  }
-
   void ResetState() {
     shown_ = false;
     detail_shown_ = false;
-    icon_state_ = DownloadIconState::kComplete;
-    is_active_ = false;
+    state_ = DownloadIconState::kComplete;
+    active_ = DownloadIconActive::kInactive;
+    announcement_count_ = 0;
   }
 
   void Show() override { shown_ = true; }
@@ -76,36 +73,59 @@ class FakeDownloadDisplay : public DownloadDisplay {
     detail_shown_ = false;
   }
 
-  bool IsShowing() override { return shown_; }
+  bool IsShowing() const override { return shown_; }
 
   void Enable() override { enabled_ = true; }
 
   void Disable() override { enabled_ = false; }
 
-  void UpdateDownloadIcon(bool show_animation) override {
-    icon_state_ = controller_->GetIconInfo().icon_state;
-    is_active_ = controller_->GetIconInfo().is_active;
+  void UpdateDownloadIcon(const IconUpdateInfo& updates) override {
+    if (updates.new_state) {
+      state_ = *updates.new_state;
+    }
+    if (updates.new_active) {
+      active_ = *updates.new_active;
+    }
+    if (updates.new_progress) {
+      progress_info_ = *updates.new_progress;
+    }
   }
 
   void ShowDetails() override { detail_shown_ = true; }
   void HideDetails() override { detail_shown_ = false; }
-  bool IsShowingDetails() override { return detail_shown_; }
-  bool IsFullscreenWithParentViewHidden() override { return is_fullscreen_; }
+  bool IsShowingDetails() const override { return detail_shown_; }
+  void AnnounceAccessibleAlertNow(const std::u16string& alert_text) override {
+    ++announcement_count_;
+  }
+  bool IsFullscreenWithParentViewHidden() const override {
+    return is_fullscreen_;
+  }
+  bool ShouldShowExclusiveAccessBubble() const override {
+    return IsFullscreenWithParentViewHidden() &&
+           should_show_exclusive_access_bubble_;
+  }
 
-  DownloadIconState GetDownloadIconState() { return icon_state_; }
-  bool IsActive() { return is_active_; }
+  DownloadIconState GetIconState() const override { return state_; }
+  DownloadIconActive GetIconActive() const { return active_; }
+  ProgressInfo GetIconProgress() const { return progress_info_; }
   void SetIsFullscreen(bool is_fullscreen) { is_fullscreen_ = is_fullscreen; }
+  void SetShouldShowExclusiveAccessBubble(bool show) {
+    should_show_exclusive_access_bubble_ = show;
+  }
+  int GetAnnouncementCount() const { return announcement_count_; }
+  void OpenSecuritySubpage(
+      const offline_items_collection::ContentId&) override {}
 
  private:
   bool shown_ = false;
   bool enabled_ = false;
-  DownloadIconState icon_state_ = DownloadIconState::kComplete;
-  bool is_active_ = false;
+  DownloadIconState state_ = DownloadIconState::kComplete;
+  DownloadIconActive active_ = DownloadIconActive::kInactive;
+  ProgressInfo progress_info_;
   bool detail_shown_ = false;
   bool is_fullscreen_ = false;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION DownloadDisplayController* controller_ = nullptr;
+  bool should_show_exclusive_access_bubble_ = true;
+  int announcement_count_;
 };
 
 // TODO(chlily): Pull this and the very similar class in
@@ -133,9 +153,8 @@ class MockDownloadBubbleUpdateService : public DownloadBubbleUpdateService {
 
   ~MockDownloadBubbleUpdateService() override = default;
 
-  void UpdateInfoForModel(
-      const DownloadUIModel& model,
-      DownloadDisplayController::AllDownloadUIModelsInfo& info) {
+  void UpdateInfoForModel(const DownloadUIModel& model,
+                          DownloadBubbleDisplayInfo& info) {
     ++info.all_models_size;
     info.last_completed_time =
         std::max(info.last_completed_time, model.GetEndTime());
@@ -155,9 +174,9 @@ class MockDownloadBubbleUpdateService : public DownloadBubbleUpdateService {
     }
   }
 
-  const DownloadDisplayController::AllDownloadUIModelsInfo& GetAllModelsInfo()
-      override {
-    info_ = DownloadDisplayController::AllDownloadUIModelsInfo{};
+  const DownloadBubbleDisplayInfo& GetDisplayInfo(
+      const webapps::AppId* web_app_id) override {
+    info_ = DownloadBubbleDisplayInfo{};
     int download_item_index = 0, offline_item_index = 0;
     // Compose a list of models from the items stored in the test fixture.
     for (ModelType type : model_types_) {
@@ -181,7 +200,23 @@ class MockDownloadBubbleUpdateService : public DownloadBubbleUpdateService {
     return info_;
   }
 
-  void AddModel(ModelType type) { model_types_.push_back(type); }
+  std::vector<std::u16string> TakeAccessibleAlertsForAnnouncement(
+      const webapps::AppId* web_app_id) override {
+    std::vector<std::u16string> alerts;
+    alerts.swap(accessible_alerts_);
+    return alerts;
+  }
+
+  void AddModel(ModelType type) {
+    model_types_.push_back(type);
+    AddAlert();
+  }
+
+  void AddAlert() {
+    // Add an arbitrary accessible alert. These tests do not care about the
+    // alert content.
+    accessible_alerts_.push_back(u"alert");
+  }
 
   void RemoveLastDownload() {
     for (auto reverse_it = model_types_.rbegin();
@@ -195,19 +230,19 @@ class MockDownloadBubbleUpdateService : public DownloadBubbleUpdateService {
 
   bool IsInitialized() const override { return true; }
 
-  MOCK_METHOD(DownloadDisplayController::ProgressInfo,
+  MOCK_METHOD(DownloadDisplay::ProgressInfo,
               GetProgressInfo,
-              (),
+              (const webapps::AppId*),
               (const override));
 
  private:
   raw_ptr<Profile> profile_;
-  DownloadDisplayController::AllDownloadUIModelsInfo info_;
+  DownloadBubbleDisplayInfo info_;
   std::vector<ModelType> model_types_;
-  const raw_ref<const std::vector<std::unique_ptr<StrictMockDownloadItem>>,
-                ExperimentalAsh>
+  const raw_ref<const std::vector<std::unique_ptr<StrictMockDownloadItem>>>
       download_items_;
-  const raw_ref<const OfflineItemList, ExperimentalAsh> offline_items_;
+  const raw_ref<const OfflineItemList> offline_items_;
+  std::vector<std::u16string> accessible_alerts_;
 };
 
 class MockDownloadCoreService : public DownloadCoreService {
@@ -219,8 +254,10 @@ class MockDownloadCoreService : public DownloadCoreService {
               GetExtensionEventRouter,
               ());
   MOCK_METHOD(bool, HasCreatedDownloadManager, ());
-  MOCK_METHOD(int, NonMaliciousDownloadCount, (), (const));
-  MOCK_METHOD(void, CancelDownloads, ());
+  MOCK_METHOD(int, BlockingShutdownCount, (), (const));
+  MOCK_METHOD(void,
+              CancelDownloads,
+              (DownloadCoreService::CancelDownloadsTrigger));
   MOCK_METHOD(void,
               SetDownloadManagerDelegateForTesting,
               (std::unique_ptr<ChromeDownloadManagerDelegate> delegate));
@@ -261,6 +298,9 @@ class DownloadDisplayControllerTest : public testing::Test {
     mock_update_service_ =
         std::make_unique<StrictMock<MockDownloadBubbleUpdateService>>(
             profile_, items_, offline_items_);
+    // Will be called when the DownloadDisplayController is constructed.
+    EXPECT_CALL(*mock_update_service_, GetProgressInfo(_))
+        .WillRepeatedly(Return(DownloadDisplay::ProgressInfo()));
     display_ = std::make_unique<FakeDownloadDisplay>();
     window_ = std::make_unique<TestBrowserWindow>();
     Browser::CreateParams params(profile_, true);
@@ -271,7 +311,6 @@ class DownloadDisplayControllerTest : public testing::Test {
         browser_.get(), mock_update_service_.get());
     controller_ = std::make_unique<DownloadDisplayController>(
         display_.get(), browser_.get(), bubble_controller_.get());
-    display_->SetController(controller_.get());
   }
 
   void TearDown() override {
@@ -311,14 +350,14 @@ class DownloadDisplayControllerTest : public testing::Test {
     EXPECT_CALL(item(index), GetDangerType())
         .WillRepeatedly(Return(download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS));
     EXPECT_CALL(item(index), IsDangerous()).WillRepeatedly(Return(false));
+    EXPECT_CALL(item(index), IsInsecure()).WillRepeatedly(Return(false));
     int received_bytes =
         state == download::DownloadItem::IN_PROGRESS ? 50 : 100;
     EXPECT_CALL(item(index), GetReceivedBytes())
         .WillRepeatedly(Return(received_bytes));
     EXPECT_CALL(item(index), GetTotalBytes()).WillRepeatedly(Return(100));
     EXPECT_CALL(item(index), AllDataSaved())
-        .WillRepeatedly(Return(
-            state == download::DownloadItem::IN_PROGRESS ? false : true));
+        .WillRepeatedly(Return(state != download::DownloadItem::IN_PROGRESS));
     EXPECT_CALL(item(index), IsDone()).WillRepeatedly(Return(false));
     EXPECT_CALL(item(index), IsTransient()).WillRepeatedly(Return(false));
     EXPECT_CALL(item(index), GetTargetFilePath())
@@ -343,10 +382,10 @@ class DownloadDisplayControllerTest : public testing::Test {
                                                      nullptr);
     mock_update_service_->AddModel(
         MockDownloadBubbleUpdateService::ModelType::kDownloadItem);
-    DownloadDisplayController::ProgressInfo progress_info;
+    DownloadDisplay::ProgressInfo progress_info;
     progress_info.download_count = in_progress_count_;
     progress_info.progress_percentage = in_progress_count_ > 0 ? 50 : 0;
-    EXPECT_CALL(*mock_update_service_, GetProgressInfo())
+    EXPECT_CALL(*mock_update_service_, GetProgressInfo(_))
         .WillRepeatedly(Return(progress_info));
     controller().OnNewItem(/*show_animation=*/false);
   }
@@ -358,11 +397,11 @@ class DownloadDisplayControllerTest : public testing::Test {
     if (state == OfflineItemState::IN_PROGRESS) {
       ++in_progress_count_;
     }
-    DownloadDisplayController::ProgressInfo progress_info;
+    DownloadDisplay::ProgressInfo progress_info;
     progress_info.download_count = in_progress_count_;
     progress_info.progress_percentage = in_progress_count_ > 0 ? 50 : 0;
     progress_info.progress_certain = false;
-    EXPECT_CALL(*mock_update_service_, GetProgressInfo())
+    EXPECT_CALL(*mock_update_service_, GetProgressInfo(_))
         .WillRepeatedly(Return(progress_info));
     mock_update_service_->AddModel(
         MockDownloadBubbleUpdateService::ModelType::kOfflineItem);
@@ -371,6 +410,7 @@ class DownloadDisplayControllerTest : public testing::Test {
 
   void UpdateOfflineItem(int item_index, OfflineItemState state) {
     offline_items_[item_index].state = state;
+    mock_update_service_->AddAlert();
     controller().OnUpdatedItem(state == OfflineItemState::COMPLETE,
                                /*may_show_details=*/true);
   }
@@ -379,27 +419,31 @@ class DownloadDisplayControllerTest : public testing::Test {
                           DownloadState state,
                           download::DownloadDangerType danger_type =
                               download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-                          bool may_show_details = true) {
+                          bool may_show_details = true,
+                          bool is_insecure = false) {
     DCHECK_GT(items_.size(), static_cast<size_t>(item_index));
 
     // In-progress but dangerous downloads are considered complete.
-    // TODO(crbug.com/1433102): Don't duplicate this logic.
+    // TODO(crbug.com/40264271): Don't duplicate this logic.
     bool in_progress_dangerous =
         (state == DownloadState::IN_PROGRESS &&
          danger_type != download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS);
     EXPECT_CALL(item(item_index), GetState()).WillRepeatedly(Return(state));
     EXPECT_CALL(item(item_index), GetDangerType())
         .WillRepeatedly(Return(danger_type));
+    EXPECT_CALL(item(item_index), IsInsecure())
+        .WillRepeatedly(Return(is_insecure));
     if (state == DownloadState::COMPLETE) {
       EXPECT_CALL(item(item_index), IsDone()).WillRepeatedly(Return(true));
-      DownloadPrefs::FromBrowserContext(profile())->SetLastCompleteTime(
-          base::Time::Now());
+      EXPECT_CALL(item(item_index), GetEndTime())
+          .WillRepeatedly(Return(base::Time::Now()));
     } else {
       EXPECT_CALL(item(item_index), IsDone()).WillRepeatedly(Return(false));
     }
     if (state == DownloadState::COMPLETE || in_progress_dangerous) {
       in_progress_count_--;
     }
+    mock_update_service_->AddAlert();
     controller().OnUpdatedItem(
         state == DownloadState::COMPLETE || in_progress_dangerous,
         may_show_details);
@@ -434,24 +478,31 @@ class DownloadDisplayControllerTest : public testing::Test {
                     << detail_shown << ", but found "
                     << display().IsShowingDetails();
     }
-    if (icon_state != display().GetDownloadIconState()) {
+    if (icon_state != display().GetIconState()) {
       success = false;
       ADD_FAILURE() << "Display should have detailed icon state "
                     << static_cast<int>(icon_state) << ", but found "
-                    << static_cast<int>(display().GetDownloadIconState());
+                    << static_cast<int>(display().GetIconState());
     }
-    if (is_active != display().IsActive()) {
+    if (is_active !=
+        (display().GetIconActive() == DownloadIconActive::kActive)) {
       success = false;
       ADD_FAILURE() << "Display should have is_active set to " << is_active
-                    << ", but found " << display().IsActive();
+                    << ", but found "
+                    << (display().GetIconActive() ==
+                        DownloadIconActive::kActive);
     }
     return success;
+  }
+
+  // Simulates an update to make the download display update.
+  void TriggerIconUpdate() {
+    controller().OnUpdatedItem(/*is_done=*/true, /*may_show_details=*/true);
   }
 
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
- private:
   int in_progress_count_ = 0;
 
   std::unique_ptr<DownloadDisplayController> controller_;
@@ -476,10 +527,11 @@ TEST_F(DownloadDisplayControllerTest, GetProgressItemsInProgress) {
                    download::DownloadItem::COMPLETE);
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar4.pdf"),
                    download::DownloadItem::IN_PROGRESS);
-  DownloadDisplayController::ProgressInfo progress = controller().GetProgress();
+  TriggerIconUpdate();
 
-  EXPECT_EQ(progress.download_count, 2);
-  EXPECT_EQ(progress.progress_percentage, 50);
+  EXPECT_EQ(display().GetAnnouncementCount(), 3);
+  EXPECT_EQ(display().GetIconProgress().download_count, 2);
+  EXPECT_EQ(display().GetIconProgress().progress_percentage, 50);
 }
 
 TEST_F(DownloadDisplayControllerTest, OfflineItemsUncertainProgress) {
@@ -491,11 +543,12 @@ TEST_F(DownloadDisplayControllerTest, OfflineItemsUncertainProgress) {
                    download::DownloadItem::IN_PROGRESS);
   // This offline item has uncertain progress
   InitOfflineItem(OfflineItemState::IN_PROGRESS);
-  DownloadDisplayController::ProgressInfo progress = controller().GetProgress();
+  TriggerIconUpdate();
 
-  EXPECT_EQ(progress.download_count, 3);
-  EXPECT_EQ(progress.progress_percentage, 50);
-  EXPECT_FALSE(progress.progress_certain);
+  EXPECT_EQ(display().GetAnnouncementCount(), 4);
+  EXPECT_EQ(display().GetIconProgress().download_count, 3);
+  EXPECT_EQ(display().GetIconProgress().progress_percentage, 50);
+  EXPECT_FALSE(display().GetIconProgress().progress_certain);
 }
 
 TEST_F(DownloadDisplayControllerTest, GetProgressItemsAllComplete) {
@@ -503,10 +556,11 @@ TEST_F(DownloadDisplayControllerTest, GetProgressItemsAllComplete) {
                    download::DownloadItem::COMPLETE);
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar2.pdf"),
                    download::DownloadItem::COMPLETE);
-  DownloadDisplayController::ProgressInfo progress = controller().GetProgress();
+  TriggerIconUpdate();
 
-  EXPECT_EQ(progress.download_count, 0);
-  EXPECT_EQ(progress.progress_percentage, 0);
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
+  EXPECT_EQ(display().GetIconProgress().download_count, 0);
+  EXPECT_EQ(display().GetIconProgress().progress_percentage, 0);
 }
 
 TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState) {
@@ -582,6 +636,8 @@ TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 7);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -639,6 +695,8 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/true));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 8);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -653,6 +711,8 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 1);
 }
 
 TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_DeepScanning) {
@@ -691,6 +751,8 @@ TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_DeepScanning) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/true));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 4);
 }
 
 TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_EmptyFilePath) {
@@ -709,10 +771,15 @@ TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_EmptyFilePath) {
   EXPECT_CALL(item(0), GetTargetFilePath())
       .WillRepeatedly(
           ReturnRefOfCopy(base::FilePath(FILE_PATH_LITERAL("bar.pdf"))));
+  // Add an alert manually because updating the EXPECT_CALL doesn't by itself
+  // add an alert, even though in production such an update would.
+  mock_update_service_->AddAlert();
   controller().OnNewItem(/*show_animation=*/false);
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kProgress,
                                  /*is_active=*/true));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -741,6 +808,32 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 3);
+}
+
+TEST_F(DownloadDisplayControllerTest,
+       UpdateToolbarButtonState_InsecureDownload) {
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
+                                 /*icon_state=*/DownloadIconState::kComplete,
+                                 /*is_active=*/false));
+
+  InitDownloadItem(FILE_PATH_LITERAL("/foo/bar.pdf"),
+                   download::DownloadItem::IN_PROGRESS);
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
+                                 /*icon_state=*/DownloadIconState::kProgress,
+                                 /*is_active=*/true));
+
+  UpdateDownloadItem(/*item_index=*/0, DownloadState::IN_PROGRESS,
+                     download::DOWNLOAD_DANGER_TYPE_DANGEROUS_HOST,
+                     /*may_show_details=*/true, /*is_insecure=*/true);
+  // Insecure downloads should be considered completed and
+  // should display details if there are no other in-progress downloads.
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
+                                 /*icon_state=*/DownloadIconState::kComplete,
+                                 /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_OnRemovedItem) {
@@ -767,6 +860,8 @@ TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_OnRemovedItem) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kProgress,
                                  /*is_active=*/true));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -788,6 +883,8 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 3);
 }
 
 TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_OnResume) {
@@ -798,11 +895,16 @@ TEST_F(DownloadDisplayControllerTest, UpdateToolbarButtonState_OnResume) {
                                  /*is_active=*/true));
 
   EXPECT_CALL(item(0), IsPaused()).WillRepeatedly(Return(true));
+  // Add an alert manually because updating the EXPECT_CALL doesn't by itself
+  // add an alert, even though in production such an update would.
+  mock_update_service_->AddAlert();
   controller().OnResume();
   // is_active state should be updated after OnResume is called.
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kProgress,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -820,49 +922,15 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/true));
-}
 
-TEST_F(DownloadDisplayControllerTest, InitialState_OldLastDownload) {
-  InitDownloadItem(FILE_PATH_LITERAL("/foo/bar.pdf"),
-                   download::DownloadItem::COMPLETE);
-  base::Time current_time = base::Time::Now();
-  // Set the last complete time to more than 1 hour ago.
-  DownloadPrefs::FromBrowserContext(profile())->SetLastCompleteTime(
-      current_time - base::Minutes(61));
-
-  DownloadDisplayController controller(&display(), browser(),
-                                       &bubble_controller());
-  EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
-                                 /*icon_state=*/DownloadIconState::kComplete,
-                                 /*is_active=*/false));
-}
-
-TEST_F(DownloadDisplayControllerTest, InitialState_NewLastDownload) {
-  InitDownloadItem(FILE_PATH_LITERAL("/foo/bar.pdf"),
-                   download::DownloadItem::COMPLETE);
-  base::Time current_time = base::Time::Now();
-  // Set the last complete time to less than 1 hour ago.
-  DownloadPrefs::FromBrowserContext(profile())->SetLastCompleteTime(
-      current_time - base::Minutes(59));
-
-  DownloadDisplayController controller(&display(), browser(),
-                                       &bubble_controller());
-  // The initial state should not display details.
-  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
-                                 /*icon_state=*/DownloadIconState::kComplete,
-                                 /*is_active=*/false));
-
-  // The display should stop showing once the last download is more than 1 day
-  // ago.
-  task_environment_.FastForwardBy(base::Minutes(1));
-  EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
-                                 /*icon_state=*/DownloadIconState::kComplete,
-                                 /*is_active=*/false));
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest, InitialState_InProgressDownload) {
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar.pdf"),
                    download::DownloadItem::IN_PROGRESS);
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 1);
 
   // Simulate a new window opened.
   display().ResetState();
@@ -871,23 +939,8 @@ TEST_F(DownloadDisplayControllerTest, InitialState_InProgressDownload) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kProgress,
                                  /*is_active=*/true));
-}
 
-TEST_F(DownloadDisplayControllerTest,
-       InitialState_NewLastDownloadWithEmptyItem) {
-  base::Time current_time = base::Time::Now();
-  // Set the last complete time to less than 1 hour ago.
-  DownloadPrefs::FromBrowserContext(profile())->SetLastCompleteTime(
-      current_time - base::Minutes(59));
-
-  DownloadDisplayController controller(&display(), browser(),
-                                       &bubble_controller());
-  // Although the last complete time is set, the download display is not shown
-  // because the download item list is empty. This can happen if the download
-  // history is deleted by the user.
-  EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
-                                 /*icon_state=*/DownloadIconState::kComplete,
-                                 /*is_active=*/false));
+  EXPECT_EQ(display().GetAnnouncementCount(), 0);
 }
 
 TEST_F(DownloadDisplayControllerTest, InitialState_NoLastDownload) {
@@ -896,6 +949,8 @@ TEST_F(DownloadDisplayControllerTest, InitialState_NoLastDownload) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/false, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 0);
 }
 
 TEST_F(DownloadDisplayControllerTest, OnButtonPressed_IconStateComplete) {
@@ -911,6 +966,8 @@ TEST_F(DownloadDisplayControllerTest, OnButtonPressed_IconStateComplete) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest, OnButtonPressed_IconStateInProgress) {
@@ -926,6 +983,8 @@ TEST_F(DownloadDisplayControllerTest, OnButtonPressed_IconStateInProgress) {
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kProgress,
                                  /*is_active=*/true));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 1);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -944,6 +1003,10 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kProgress,
                                  /*is_active=*/true));
+
+  // Nothing is announced for a fullscreen transition. There is only 1
+  // announcement from InitDownloadItem.
+  EXPECT_EQ(display().GetAnnouncementCount(), 1);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -984,6 +1047,45 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
+}
+
+// Test the path where the exclusive access bubble should not be shown (e.g. in
+// kiosk mode or in immersive fullscreen).
+TEST_F(DownloadDisplayControllerTest,
+       Fullscreen_ShouldNotShowExclusiveAccessBubble) {
+  display().SetIsFullscreen(true);
+  display().SetShouldShowExclusiveAccessBubble(false);
+  InitDownloadItem(FILE_PATH_LITERAL("/foo/bar.pdf"),
+                   download::DownloadItem::IN_PROGRESS);
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
+                                 /*icon_state=*/DownloadIconState::kProgress,
+                                 /*is_active=*/true));
+
+  UpdateDownloadItem(/*item_index=*/0, DownloadState::COMPLETE,
+                     download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS);
+  // While the bubble does not pop up, and the toolbar not shown, the icon
+  // state is still updated. So |is_active| should be true for one minute
+  // after completed download.
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
+                                 /*icon_state=*/DownloadIconState::kComplete,
+                                 /*is_active=*/true));
+
+  task_environment_.FastForwardBy(base::Minutes(1));
+  // The display is still showing but the state has changed to inactive.
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
+                                 /*icon_state=*/DownloadIconState::kComplete,
+                                 /*is_active=*/false));
+
+  display().SetIsFullscreen(false);
+  controller().OnFullscreenStateChanged();
+  // On exiting full screen, the details were not shown.
+  EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/false,
+                                 /*icon_state=*/DownloadIconState::kComplete,
+                                 /*is_active=*/false));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 TEST_F(DownloadDisplayControllerTest,
@@ -999,6 +1101,8 @@ TEST_F(DownloadDisplayControllerTest,
   EXPECT_TRUE(VerifyDisplayState(/*shown=*/true, /*detail_shown=*/true,
                                  /*icon_state=*/DownloadIconState::kComplete,
                                  /*is_active=*/true));
+
+  EXPECT_EQ(display().GetAnnouncementCount(), 2);
 }
 
 }  // namespace

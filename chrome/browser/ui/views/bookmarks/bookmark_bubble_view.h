@@ -5,9 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_BOOKMARKS_BOOKMARK_BUBBLE_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_BOOKMARKS_BOOKMARK_BUBBLE_VIEW_H_
 
-#include <memory>
-
-#include "chrome/browser/ui/sync/bubble_sync_promo_delegate.h"
+#include "ui/base/interaction/element_identifier.h"
 
 class GURL;
 class Browser;
@@ -29,7 +27,13 @@ namespace views {
 class BubbleDialogDelegate;
 class Button;
 class View;
-}
+}  // namespace views
+
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkBubbleOkButtonId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkFolderFieldId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkNameFieldId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkSecondaryButtonId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkBubbleFrameViewId);
 
 // BookmarkBubbleView provides a dialog for unstarring and editing the bookmark
 // it is created with. The dialog is created using the static ShowBubble method.
@@ -41,7 +45,6 @@ class BookmarkBubbleView {
   static void ShowBubble(views::View* anchor_view,
                          content::WebContents* web_contents,
                          views::Button* highlighted_button,
-                         std::unique_ptr<BubbleSyncPromoDelegate> delegate,
                          Browser* browser,
                          const GURL& url,
                          bool already_bookmarked);

@@ -27,7 +27,8 @@ source_set("headless") {
   deps = [
     "//base",
     "//build:chromecast_buildflags",
-    "//build:chromeos_buildflags",
+    "//components/headless/display_util",
+    "//components/headless/screen_info",
     "//gpu/vulkan:buildflags",
     "//skia",
     "//ui/base",
@@ -40,7 +41,6 @@ source_set("headless") {
     "//ui/ozone:ozone_base",
     "//ui/ozone/common",
     "//ui/platform_window",
-    "//ui/platform_window/stub",
   ]
 
   if (is_fuchsia) {

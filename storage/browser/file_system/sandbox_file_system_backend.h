@@ -49,6 +49,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) SandboxFileSystemBackend
       FileSystemType type,
       base::File::Error* error_code) override;
   std::unique_ptr<FileSystemOperation> CreateFileSystemOperation(
+      OperationType type,
       const FileSystemURL& url,
       FileSystemContext* context,
       base::File::Error* error_code) const override;
@@ -80,7 +81,8 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) SandboxFileSystemBackend
   CreateStorageKeyEnumerator();
 
  private:
-  raw_ptr<SandboxFileSystemBackendDelegate> delegate_;  // Not owned.
+  raw_ptr<SandboxFileSystemBackendDelegate, DanglingUntriaged>
+      delegate_;  // Not owned.
 };
 
 }  // namespace storage

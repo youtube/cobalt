@@ -5,6 +5,10 @@
 # This header file defines the "sysroot" variable which is the absolute path
 # of the sysroot. If no sysroot applies, the variable will be an empty string.
 
+if (is_cobalt) {
+  import("//build/toolchain/toolchain.gni")
+}
+
 declare_args() {
   # The path of the sysroot that is applied when compiling using the target
   # toolchain.
@@ -19,15 +23,23 @@ declare_args() {
 
   # Controls default is_linux sysroot. If set to true, and sysroot
   # is empty, default sysroot is calculated.
-  use_sysroot = current_cpu == "x86" || current_cpu == "x64" ||
-                current_cpu == "arm" || current_cpu == "arm64" ||
-                current_cpu == "mipsel" || current_cpu == "mips64el"
+  use_sysroot =
+      current_cpu == "x86" || current_cpu == "x64" || current_cpu == "arm" ||
+      current_cpu == "arm64" || current_cpu == "mipsel" ||
+      current_cpu == "mips64el" || (current_cpu == "riscv64" && is_android)
 }
 
 if (is_cobalt_hermetic_build) {
   # We want to avoid adding the sysroot and bringing in unneeded
   # dependencies in cobalt.
   use_sysroot = use_sysroot && current_toolchain != default_toolchain
+}
+# TODO: b/371241293 - is_cobalt_hermetic_build is not forwarded to the
+# default_system_allocator_toolchain toolchain, so we use use_custom_libc
+# instead, as that is set in args.gn instead of using a default value.
+if (use_custom_libc) {
+  use_sysroot =
+      use_sysroot && current_toolchain != default_system_allocator_toolchain
 }
 
 if (sysroot == "") {
@@ -47,11 +59,11 @@ if (sysroot == "") {
     } else if (current_cpu == "x86") {
       sysroot = "$target_sysroot_dir/debian_bullseye_i386-sysroot"
     } else if (current_cpu == "mipsel") {
-      sysroot = "$target_sysroot_dir/debian_bullseye_mips-sysroot"
+      sysroot = "$target_sysroot_dir/debian_bullseye_mipsel-sysroot"
     } else if (current_cpu == "mips64el") {
       sysroot = "$target_sysroot_dir/debian_bullseye_mips64el-sysroot"
     } else if (current_cpu == "arm") {
-      sysroot = "$target_sysroot_dir/debian_bullseye_arm-sysroot"
+      sysroot = "$target_sysroot_dir/debian_bullseye_armhf-sysroot"
     } else if (current_cpu == "arm64") {
       sysroot = "$target_sysroot_dir/debian_bullseye_arm64-sysroot"
     } else {
@@ -66,9 +78,7 @@ if (sysroot == "") {
         _script_arch = "amd64"
       }
       assert(
-          exec_script("//build/dir_exists.py",
-                      [ rebase_path(sysroot) ],
-                      "string") == "True",
+          path_exists(sysroot),
           "Missing sysroot ($sysroot). To fix, run: build/linux/sysroot_scripts/install-sysroot.py --arch=$_script_arch")
     }
   } else if (is_mac) {
@@ -78,8 +88,7 @@ if (sysroot == "") {
     import("//build/config/ios/ios_sdk.gni")
     sysroot = ios_sdk_path
   } else if (is_fuchsia) {
-    if (current_cpu == "arm64" || current_cpu == "x64") {
-      sysroot = "//third_party/fuchsia-sdk/sdk/arch/$current_cpu/sysroot"
-    }
+    import("//build/config/fuchsia/gn_configs.gni")
+    sysroot = "${fuchsia_arch_root}/sysroot"
   }
 }

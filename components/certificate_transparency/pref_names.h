@@ -18,10 +18,6 @@ COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY)
 void RegisterPrefs(PrefRegistrySimple* registry);
 
 // The set of hosts (as URLBlocklist-syntax filters) for which Certificate
-// Transparency is required to be present.
-COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) extern const char kCTRequiredHosts[];
-
-// The set of hosts (as URLBlocklist-syntax filters) for which Certificate
 // Transparency information is allowed to be absent, even if it would
 // otherwise be required (e.g. as part of security policy).
 COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) extern const char kCTExcludedHosts[];
@@ -39,17 +35,6 @@ COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) extern const char kCTExcludedHosts[];
 //    attributes in the Subject, and those attributes are identical in
 //    ordering, number of values, and byte-for-byte equality of values.
 COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY) extern const char kCTExcludedSPKIs[];
-
-// The set of subjectPublicKeyInfo hashes in the form of
-// <hash-name>"/"<base64-hash-value>. If a certificate matches this SPKI, then
-// Certificate Transparency information is allowed to be absent if:
-// 1) The SPKI listed is a known as a publicly trusted root
-//    (see //net/data/ssl/root_stores)
-// 2) The SPKI listed is not actively trusted in the current version of the
-//    ChromiumOS or Android root stores.
-//    (see '"legacy": true' in root_stores.json)
-COMPONENT_EXPORT(CERTIFICATE_TRANSPARENCY)
-extern const char kCTExcludedLegacySPKIs[];
 
 }  // namespace prefs
 }  // namespace certificate_transparency

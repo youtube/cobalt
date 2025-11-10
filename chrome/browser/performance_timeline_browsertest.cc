@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/background_script_executor.h"
+#include "extensions/browser/script_executor.h"
 
 namespace {
 
@@ -30,8 +33,7 @@ class PerformanceTimelineBrowserTest : public extensions::ExtensionBrowserTest {
             });
           })();
         )",
-        extension->GetResourceURL(extension->url(), "content_script.js")
-            .spec());
+        extension->GetResourceURL("content_script.js").spec());
     EXPECT_EQ(content::EvalJs(web_contents(), script_code).error, "");
   }
 
@@ -56,11 +58,13 @@ IN_PROC_BROWSER_TEST_F(PerformanceTimelineBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url));
 
   // fetch resource from extension.
-  bool result = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      web_contents(), "document.querySelector('#fetchResourceButton').click();",
-      &result));
-  EXPECT_TRUE(result);
+  content::DOMMessageQueue message_queue;
+  EXPECT_TRUE(content::ExecJs(
+      web_contents(),
+      "document.querySelector('#fetchResourceButton').click();"));
+  std::string ack;
+  EXPECT_TRUE(message_queue.WaitForMessage(&ack));
+  EXPECT_EQ("true", ack);
 
   // There should be 0 resource entry emitted.
   EXPECT_EQ(content::EvalJs(web_contents(), "getResourceTimingEntryCount();")

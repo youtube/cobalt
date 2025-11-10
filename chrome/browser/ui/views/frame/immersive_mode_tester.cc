@@ -34,12 +34,23 @@ void ImmersiveModeTester::VerifyTabIndexAfterReveal(int expected_index) {
   EXPECT_EQ(expected_index, browser_->tab_strip_model()->active_index());
 }
 
+void ImmersiveModeTester::WaitForFullscreenToEnter() {
+  if (!GetBrowserView()->immersive_mode_controller()->IsEnabled() ||
+      !GetBrowserView()->IsFullscreen()) {
+    fullscreen_entering_loop_ = std::make_unique<base::RunLoop>();
+    fullscreen_entering_loop_->Run();
+  }
+  ASSERT_TRUE(GetBrowserView()->immersive_mode_controller()->IsEnabled());
+  ASSERT_TRUE(GetBrowserView()->IsFullscreen());
+}
+
 void ImmersiveModeTester::WaitForFullscreenToExit() {
   if (GetBrowserView()->immersive_mode_controller()->IsEnabled()) {
-    fullscreen_loop_ = std::make_unique<base::RunLoop>();
-    fullscreen_loop_->Run();
+    fullscreen_exiting_loop_ = std::make_unique<base::RunLoop>();
+    fullscreen_exiting_loop_->Run();
   }
   ASSERT_FALSE(GetBrowserView()->immersive_mode_controller()->IsEnabled());
+  ASSERT_FALSE(GetBrowserView()->IsFullscreen());
 }
 
 void ImmersiveModeTester::OnImmersiveRevealStarted() {
@@ -55,8 +66,9 @@ void ImmersiveModeTester::OnImmersiveRevealEnded() {
   reveal_started_ = false;
   reveal_ended_ = true;
   EXPECT_FALSE(GetBrowserView()->immersive_mode_controller()->IsRevealed());
-  if (reveal_loop_ && reveal_loop_->running())
+  if (reveal_loop_ && reveal_loop_->running()) {
     reveal_loop_->Quit();
+  }
 }
 
 void ImmersiveModeTester::OnImmersiveModeControllerDestroyed() {
@@ -64,7 +76,14 @@ void ImmersiveModeTester::OnImmersiveModeControllerDestroyed() {
   scoped_observation_.Reset();
 }
 
+void ImmersiveModeTester::OnImmersiveFullscreenEntered() {
+  if (fullscreen_entering_loop_) {
+    fullscreen_entering_loop_->Quit();
+  }
+}
+
 void ImmersiveModeTester::OnImmersiveFullscreenExited() {
-  if (fullscreen_loop_ && fullscreen_loop_->running())
-    fullscreen_loop_->Quit();
+  if (fullscreen_exiting_loop_) {
+    fullscreen_exiting_loop_->Quit();
+  }
 }

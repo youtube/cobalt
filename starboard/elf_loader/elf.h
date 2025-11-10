@@ -23,7 +23,9 @@
 #error "Only C++ files can include this header."
 #endif
 
-#include "starboard/types.h"
+#include <cstdint>
+
+#include "starboard/configuration.h"
 
 namespace elf_loader {
 

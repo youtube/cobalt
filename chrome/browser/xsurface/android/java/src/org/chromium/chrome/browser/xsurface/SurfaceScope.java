@@ -4,7 +4,8 @@
 
 package org.chromium.chrome.browser.xsurface;
 
-import androidx.annotation.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implemented internally.
@@ -14,29 +15,17 @@ import androidx.annotation.Nullable;
  * "Scope") but each call to provideFoo will return a new renderer, so that a
  * single surface can support multiple rendered views.
  */
+@NullMarked
 public interface SurfaceScope {
-    @Nullable
-    default HybridListRenderer provideListRenderer() {
+    default @Nullable HybridListRenderer provideListRenderer() {
         return null;
     }
 
-    @Nullable
-    default SurfaceRenderer provideSurfaceRenderer() {
+    default @Nullable SurfaceRenderer provideSurfaceRenderer() {
         return null;
     }
 
     default void replaceDataStoreEntry(String key, byte[] data) {}
+
     default void removeDataStoreEntry(String key) {}
-
-    // Functionality moving to FeedSurfaceScope
-    @Deprecated
-    default FeedLaunchReliabilityLogger getFeedLaunchReliabilityLogger() {
-        return new FeedLaunchReliabilityLogger() {};
-    }
-
-    // Functionality moving to FeedSurfaceScope
-    @Deprecated
-    default FeedUserInteractionReliabilityLogger getFeedUserInteractionReliabilityLogger() {
-        return new FeedUserInteractionReliabilityLogger() {};
-    }
 }

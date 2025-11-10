@@ -4,8 +4,10 @@
 
 package org.chromium.native_test;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import android.os.IBinder;
+
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * This class provides a way to run the native main method.
@@ -16,16 +18,15 @@ import org.chromium.base.annotations.NativeMethods;
 @JNINamespace("testing::android")
 public final class MainRunner {
     // Prevents instantiation.
-    private MainRunner() {
-    }
+    private MainRunner() {}
 
     // Maps the file descriptors and executes the main method with the passed in command line.
-    public static int runMain(String[] commandLine) {
-        return MainRunnerJni.get().runMain(commandLine);
+    public static int runMain(String[] commandLine, IBinder binderBox) {
+        return MainRunnerJni.get().runMain(commandLine, binderBox);
     }
 
     @NativeMethods
     interface Natives {
-        int runMain(String[] commandLine);
+        int runMain(String[] commandLine, IBinder binderBox);
     }
 }

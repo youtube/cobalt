@@ -6,16 +6,18 @@
 
 #include <stddef.h>
 
+#include <array>
+
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/services/storage/public/cpp/quota_error_or.h"
 #include "storage/browser/file_system/external_mount_points.h"
 #include "storage/browser/file_system/file_system_backend.h"
@@ -102,8 +104,7 @@ class FileSystemContextTest : public testing::Test {
     EXPECT_EQ(expect_filesystem_id, url.filesystem_id());
   }
 
-  inline static absl::optional<FileSystemURL> last_resolved_url_ =
-      absl::nullopt;
+  inline static std::optional<FileSystemURL> last_resolved_url_ = std::nullopt;
 
  private:
   base::ScopedTempDir data_dir_;
@@ -128,7 +129,7 @@ class FileSystemContextTest : public testing::Test {
 
 // It is not valid to pass nullptr ExternalMountPoints to FileSystemContext on
 // ChromeOS.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 TEST_F(FileSystemContextTest, NullExternalMountPoints) {
   scoped_refptr<FileSystemContext> file_system_context =
       CreateFileSystemContextForTest(/*external_mount_points=*/nullptr);
@@ -217,19 +218,18 @@ TEST_F(FileSystemContextTest, ResolveURLOnOpenFileSystem_CustomBucket) {
   base::test::TestFuture<storage::QuotaErrorOr<storage::BucketInfo>>
       bucket_future;
   proxy()->CreateBucketForTesting(
-      storage_key, "custom_bucket", blink::mojom::StorageType::kTemporary,
+      storage_key, "custom_bucket",
       base::SequencedTaskRunner::GetCurrentDefault(),
       bucket_future.GetCallback());
-  auto bucket = bucket_future.Take();
-  ASSERT_TRUE(bucket.has_value());
+  ASSERT_OK_AND_ASSIGN(auto bucket, bucket_future.Take());
   ASSERT_FALSE(last_resolved_url_.has_value());
 
   file_system_context->ResolveURLOnOpenFileSystemForTesting(
-      storage_key, bucket->ToBucketLocator(), kFileSystemTypeTest,
+      storage_key, bucket.ToBucketLocator(), kFileSystemTypeTest,
       OpenFileSystemMode::OPEN_FILE_SYSTEM_CREATE_IF_NONEXISTENT,
       std::move(open_callback));
   ASSERT_TRUE(last_resolved_url_.has_value());
-  ASSERT_EQ(last_resolved_url_.value().bucket(), bucket->ToBucketLocator());
+  ASSERT_EQ(last_resolved_url_.value().bucket(), bucket.ToBucketLocator());
 }
 
 TEST_F(FileSystemContextTest, CrackFileSystemURL) {
@@ -256,8 +256,7 @@ TEST_F(FileSystemContextTest, CrackFileSystemURL) {
   // Register a system external mount point with the same name/id as the
   // registered isolated mount point.
   ASSERT_TRUE(ExternalMountPoints::GetSystemInstance()->RegisterFileSystem(
-      kIsolatedFileSystemID, kFileSystemTypeRestrictedLocal,
-      FileSystemMountOption(),
+      kIsolatedFileSystemID, kFileSystemTypeLocal, FileSystemMountOption(),
       base::FilePath(DRIVE FPL("/test/system/isolated"))));
   // Add a mount points with the same name as a system mount point to
   // FileSystemContext's external mount points.
@@ -280,7 +279,7 @@ TEST_F(FileSystemContextTest, CrackFileSystemURL) {
     std::string expect_filesystem_id;
   };
 
-  const TestCase kTestCases[] = {
+  const auto kTestCases = std::to_array<TestCase>({
       // Following should not be handled by the url crackers:
       {
           "pers_mount", "persistent", true /* is_valid */,
@@ -300,7 +299,7 @@ TEST_F(FileSystemContextTest, CrackFileSystemURL) {
       {"system", "external", true /* is_valid */, kFileSystemTypeExternal,
        kFileSystemTypeLocal, DRIVE FPL("/test/sys/root/file"), "system"},
       {kIsolatedFileSystemID, "external", true /* is_valid */,
-       kFileSystemTypeExternal, kFileSystemTypeRestrictedLocal,
+       kFileSystemTypeExternal, kFileSystemTypeLocal,
        DRIVE FPL("/test/system/isolated/root/file"), kIsolatedFileSystemID},
       // Should be cracked by FileSystemContext's ExternalMountPoints.
       {"ext", "external", true /* is_valid */, kFileSystemTypeExternal,
@@ -314,7 +313,7 @@ TEST_F(FileSystemContextTest, CrackFileSystemURL) {
       {"invalid", "external", false /* is_valid */,
        // The rest of values will be ignored.
        kFileSystemTypeUnknown, kFileSystemTypeUnknown, FPL(""), std::string()},
-  };
+  });
 
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     const base::FilePath virtual_path =

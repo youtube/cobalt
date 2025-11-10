@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,7 +34,8 @@ class SettingsSignalsCollector : public BaseSignalsCollector {
   // the required parameters for this signal. `response` will be passed along
   // and the signal values will be set on it when available. `done_closure` will
   // be invoked when signal collection is complete.
-  void GetSettingsSignal(const SignalsAggregationRequest& request,
+  void GetSettingsSignal(UserPermission permission,
+                         const SignalsAggregationRequest& request,
                          SignalsAggregationResponse& response,
                          base::OnceClosure done_closure);
 

@@ -5,13 +5,13 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_COMMON_LOGGING_LOG_BUFFER_H_
 #define COMPONENTS_AUTOFILL_CORE_COMMON_LOGGING_LOG_BUFFER_H_
 
+#include <concepts>
 #include <string>
-#include <type_traits>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/types/strong_alias.h"
 #include "base/values.h"
 #include "components/autofill/core/common/logging/log_macros.h"
@@ -76,7 +76,7 @@ struct Tag {
 struct CTag {
   CTag() = default;
   // |opt_name| is not used, and only exists for readability.
-  explicit CTag(base::StringPiece opt_name) {}
+  explicit CTag(std::string_view opt_name) {}
 };
 
 // Attribute of an HTML Tag (e.g. class="foo" would be represented by
@@ -85,6 +85,10 @@ struct Attrib {
   std::string name;
   std::string value;
 };
+
+// Sets a html data attribute specificifying that the parent tab contains PII.
+// Used so that it can be potentially stripped.
+struct SetParentTagContainsPII {};
 
 // An <br> HTML tag, note that this does not need to be closed.
 struct Br {};
@@ -111,7 +115,7 @@ class LogBuffer {
   LogBuffer& operator=(const LogBuffer& other) = delete;
 
   // Returns the contents of the buffer if any and empties it.
-  absl::optional<base::Value::Dict> RetrieveResult();
+  std::optional<base::Value::Dict> RetrieveResult();
 
   // Returns whether an active WebUI is listening. If false, the buffer may
   // not do any logging.
@@ -121,7 +125,7 @@ class LogBuffer {
   friend LogBuffer& operator<<(LogBuffer& buf, Tag&& tag);
   friend LogBuffer& operator<<(LogBuffer& buf, CTag&& tag);
   friend LogBuffer& operator<<(LogBuffer& buf, Attrib&& attrib);
-  friend LogBuffer& operator<<(LogBuffer& buf, base::StringPiece text);
+  friend LogBuffer& operator<<(LogBuffer& buf, std::string_view text);
   friend LogBuffer& operator<<(LogBuffer& buf, LogBuffer&& buffer);
 
   // The stack of values being constructed. Each item is a dictionary with the
@@ -140,8 +144,8 @@ class LogBuffer {
 };
 
 // Enable streaming numbers of all types.
-template <typename T,
-          typename = std::enable_if_t<std::is_arithmetic<T>::value, T>>
+template <typename T>
+  requires(std::integral<T> || std::floating_point<T>)
 LogBuffer& operator<<(LogBuffer& buf, T number) {
   return buf << base::NumberToString(number);
 }
@@ -154,9 +158,9 @@ LogBuffer& operator<<(LogBuffer& buf, Attrib&& attrib);
 
 LogBuffer& operator<<(LogBuffer& buf, Br&& tag);
 
-LogBuffer& operator<<(LogBuffer& buf, base::StringPiece text);
+LogBuffer& operator<<(LogBuffer& buf, std::string_view text);
 
-LogBuffer& operator<<(LogBuffer& buf, base::StringPiece16 text);
+LogBuffer& operator<<(LogBuffer& buf, std::u16string_view text);
 
 // Sometimes you may want to fill a buffer that you then stream as a whole
 // to LOG_AF_INTERNALS, which commits the data to chrome://autofill-internals:
@@ -206,6 +210,9 @@ class LogTableRowBuffer {
   friend LogTableRowBuffer&& operator<<(LogTableRowBuffer&& buf, T&& value);
   friend LogTableRowBuffer&& operator<<(LogTableRowBuffer&& buf,
                                         Attrib&& attrib);
+  friend LogTableRowBuffer&& operator<<(
+      LogTableRowBuffer&& buf,
+      SetParentTagContainsPII&& parent_tag_contains_pii);
 
   raw_ptr<LogBuffer> parent_ = nullptr;
 };
@@ -221,18 +228,15 @@ LogTableRowBuffer&& operator<<(LogTableRowBuffer&& buf, T&& value) {
 LogTableRowBuffer&& operator<<(LogTableRowBuffer&& buf, Attrib&& attrib);
 
 // Highlights the first |needle| in |haystack| by wrapping it in <b> tags.
-LogBuffer HighlightValue(base::StringPiece haystack, base::StringPiece needle);
-LogBuffer HighlightValue(base::StringPiece16 haystack,
-                         base::StringPiece16 needle);
+LogBuffer HighlightValue(std::string_view haystack, std::string_view needle);
+LogBuffer HighlightValue(std::u16string_view haystack,
+                         std::u16string_view needle);
 
 namespace internal {
 
 // Traits for LOG_AF() macro for `LogBuffer*`.
-template <typename T>
-struct LoggerTraits<
-    T,
-    typename std::enable_if_t<
-        std::is_convertible_v<decltype(std::declval<T>()), const LogBuffer*>>> {
+template <std::convertible_to<const LogBuffer*> T>
+struct LoggerTraits<T> {
   static bool active(const LogBuffer* log_buffer) {
     return log_buffer && log_buffer->active();
   }
@@ -241,11 +245,8 @@ struct LoggerTraits<
 };
 
 // Traits for LOG_AF() macro for `LogBuffer&`.
-template <typename T>
-struct LoggerTraits<
-    T,
-    typename std::enable_if_t<
-        std::is_convertible_v<decltype(std::declval<T>()), const LogBuffer&>>> {
+template <std::convertible_to<const LogBuffer&> T>
+struct LoggerTraits<T> {
   static bool active(const LogBuffer& log_buffer) {
     return log_buffer.active();
   }

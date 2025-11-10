@@ -15,10 +15,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/values.h"
-#include "components/bookmarks/browser/base_bookmark_model_observer.h"
-#include "components/bookmarks/browser/bookmark_node.h"
+#include "chrome/browser/bookmarks/bookmark_model_factory.h"
+#include "chrome/browser/bookmarks/managed_bookmark_service_factory.h"
+#include "chrome/browser/extensions/api/bookmarks_core/bookmarks_function.h"
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "extensions/browser/event_router.h"
+#include "extensions/browser/event_router_factory.h"
 #include "extensions/browser/extension_function.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 
@@ -30,8 +32,10 @@ class FilePath;
 
 namespace bookmarks {
 class BookmarkModel;
+class BookmarkNode;
+class BookmarkPermanentNode;
 class ManagedBookmarkService;
-}
+}  // namespace bookmarks
 
 namespace content {
 class BrowserContext;
@@ -39,11 +43,9 @@ class BrowserContext;
 
 namespace extensions {
 
-namespace api {
-namespace bookmarks {
+namespace api::bookmarks {
 struct CreateDetails;
-}
-}
+}  // namespace api::bookmarks
 
 // Observes BookmarkModel and then routes the notifications as events to
 // the extension system.
@@ -55,35 +57,30 @@ class BookmarkEventRouter : public bookmarks::BookmarkModelObserver {
   ~BookmarkEventRouter() override;
 
   // bookmarks::BookmarkModelObserver:
-  void BookmarkModelLoaded(bookmarks::BookmarkModel* model,
-                           bool ids_reassigned) override;
-  void BookmarkModelBeingDeleted(bookmarks::BookmarkModel* model) override;
-  void BookmarkNodeMoved(bookmarks::BookmarkModel* model,
-                         const bookmarks::BookmarkNode* old_parent,
+  void BookmarkModelLoaded(bool ids_reassigned) override;
+  void BookmarkModelBeingDeleted() override;
+  void BookmarkNodeMoved(const bookmarks::BookmarkNode* old_parent,
                          size_t old_index,
                          const bookmarks::BookmarkNode* new_parent,
                          size_t new_index) override;
-  void BookmarkNodeAdded(bookmarks::BookmarkModel* model,
-                         const bookmarks::BookmarkNode* parent,
+  void BookmarkNodeAdded(const bookmarks::BookmarkNode* parent,
                          size_t index,
                          bool added_by_user) override;
-  void BookmarkNodeRemoved(bookmarks::BookmarkModel* model,
-                           const bookmarks::BookmarkNode* parent,
+  void BookmarkNodeRemoved(const bookmarks::BookmarkNode* parent,
                            size_t old_index,
                            const bookmarks::BookmarkNode* node,
-                           const std::set<GURL>& removed_urls) override;
-  void BookmarkAllUserNodesRemoved(bookmarks::BookmarkModel* model,
-                                   const std::set<GURL>& removed_urls) override;
-  void BookmarkNodeChanged(bookmarks::BookmarkModel* model,
-                           const bookmarks::BookmarkNode* node) override;
-  void BookmarkNodeFaviconChanged(bookmarks::BookmarkModel* model,
-                                  const bookmarks::BookmarkNode* node) override;
+                           const std::set<GURL>& removed_urls,
+                           const base::Location& location) override;
+  void BookmarkAllUserNodesRemoved(const std::set<GURL>& removed_urls,
+                                   const base::Location& location) override;
+  void BookmarkNodeChanged(const bookmarks::BookmarkNode* node) override;
+  void BookmarkNodeFaviconChanged(const bookmarks::BookmarkNode* node) override;
   void BookmarkNodeChildrenReordered(
-      bookmarks::BookmarkModel* model,
       const bookmarks::BookmarkNode* node) override;
-  void ExtensiveBookmarkChangesBeginning(
-      bookmarks::BookmarkModel* model) override;
-  void ExtensiveBookmarkChangesEnded(bookmarks::BookmarkModel* model) override;
+  void BookmarkPermanentNodeVisibilityChanged(
+      const bookmarks::BookmarkPermanentNode* node) override;
+  void ExtensiveBookmarkChangesBeginning() override;
+  void ExtensiveBookmarkChangesEnded() override;
 
  private:
   // Helper to actually dispatch an event to extension listeners.
@@ -117,69 +114,21 @@ class BookmarksAPI : public BrowserContextKeyedAPI,
   raw_ptr<content::BrowserContext> browser_context_;
 
   // BrowserContextKeyedAPI implementation.
-  static const char* service_name() {
-    return "BookmarksAPI";
-  }
+  static const char* service_name() { return "BookmarksAPI"; }
   static const bool kServiceIsNULLWhileTesting = true;
 
   // Created lazily upon OnListenerAdded.
   std::unique_ptr<BookmarkEventRouter> bookmark_event_router_;
 };
 
-class BookmarksFunction : public ExtensionFunction,
-                          public bookmarks::BaseBookmarkModelObserver {
- public:
-  // ExtensionFunction:
-  ResponseAction Run() override;
-
- protected:
-  ~BookmarksFunction() override {}
-
-  // Run semantic equivalent called when the bookmarks are ready.
-  // Overrides can return nullptr to further delay responding (a.k.a.
-  // RespondLater()).
-  virtual ResponseValue RunOnReady() = 0;
-
-  // Helper to get the BookmarkModel.
-  bookmarks::BookmarkModel* GetBookmarkModel();
-
-  // Helper to get the ManagedBookmarkService.
-  bookmarks::ManagedBookmarkService* GetManagedBookmarkService();
-
-  // Helper to get the bookmark node from a given string id.
-  // If the given id can't be parsed or doesn't refer to a valid node, sets
-  // |error| and returns nullptr.
-  const bookmarks::BookmarkNode* GetBookmarkNodeFromId(
-      const std::string& id_string,
-      std::string* error);
-
-  // Helper to create a bookmark node from a CreateDetails object. If a node
-  // can't be created based on the given details, sets |error| and returns
-  // nullptr.
-  const bookmarks::BookmarkNode* CreateBookmarkNode(
-      bookmarks::BookmarkModel* model,
-      const api::bookmarks::CreateDetails& details,
-      std::string* error);
-
-  // Helper that checks if bookmark editing is enabled.
-  bool EditBookmarksEnabled();
-
-  // Helper that checks if |node| can be modified. Returns false if |node|
-  // is nullptr, or a managed node, or the root node. In these cases the node
-  // can't be edited, can't have new child nodes appended, and its direct
-  // children can't be moved or reordered.
-  bool CanBeModified(const bookmarks::BookmarkNode* node, std::string* error);
-
-  Profile* GetProfile();
-
- private:
-  // bookmarks::BaseBookmarkModelObserver:
-  void BookmarkModelChanged() override;
-  void BookmarkModelLoaded(bookmarks::BookmarkModel* model,
-                           bool ids_reassigned) override;
-
-  // ExtensionFunction:
-  void OnResponded() override;
+template <>
+struct BrowserContextFactoryDependencies<BookmarksAPI> {
+  static void DeclareFactoryDependencies(
+      BrowserContextKeyedAPIFactory<BookmarksAPI>* factory) {
+    factory->DependsOn(BookmarkModelFactory::GetInstance());
+    factory->DependsOn(EventRouterFactory::GetInstance());
+    factory->DependsOn(ManagedBookmarkServiceFactory::GetInstance());
+  }
 };
 
 class BookmarksGetFunction : public BookmarksFunction {
@@ -187,7 +136,7 @@ class BookmarksGetFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.get", BOOKMARKS_GET)
 
  protected:
-  ~BookmarksGetFunction() override {}
+  ~BookmarksGetFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -198,7 +147,7 @@ class BookmarksGetChildrenFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.getChildren", BOOKMARKS_GETCHILDREN)
 
  protected:
-  ~BookmarksGetChildrenFunction() override {}
+  ~BookmarksGetChildrenFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -209,7 +158,7 @@ class BookmarksGetRecentFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.getRecent", BOOKMARKS_GETRECENT)
 
  protected:
-  ~BookmarksGetRecentFunction() override {}
+  ~BookmarksGetRecentFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -220,7 +169,7 @@ class BookmarksGetTreeFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.getTree", BOOKMARKS_GETTREE)
 
  protected:
-  ~BookmarksGetTreeFunction() override {}
+  ~BookmarksGetTreeFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -231,7 +180,7 @@ class BookmarksGetSubTreeFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.getSubTree", BOOKMARKS_GETSUBTREE)
 
  protected:
-  ~BookmarksGetSubTreeFunction() override {}
+  ~BookmarksGetSubTreeFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -242,7 +191,7 @@ class BookmarksSearchFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.search", BOOKMARKS_SEARCH)
 
  protected:
-  ~BookmarksSearchFunction() override {}
+  ~BookmarksSearchFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -250,7 +199,7 @@ class BookmarksSearchFunction : public BookmarksFunction {
 
 class BookmarksRemoveFunctionBase : public BookmarksFunction {
  protected:
-  ~BookmarksRemoveFunctionBase() override {}
+  ~BookmarksRemoveFunctionBase() override = default;
 
   virtual bool is_recursive() const = 0;
 
@@ -263,7 +212,7 @@ class BookmarksRemoveFunction : public BookmarksRemoveFunctionBase {
   DECLARE_EXTENSION_FUNCTION("bookmarks.remove", BOOKMARKS_REMOVE)
 
  protected:
-  ~BookmarksRemoveFunction() override {}
+  ~BookmarksRemoveFunction() override = default;
 
   // BookmarksRemoveFunctionBase:
   bool is_recursive() const override;
@@ -274,7 +223,7 @@ class BookmarksRemoveTreeFunction : public BookmarksRemoveFunctionBase {
   DECLARE_EXTENSION_FUNCTION("bookmarks.removeTree", BOOKMARKS_REMOVETREE)
 
  protected:
-  ~BookmarksRemoveTreeFunction() override {}
+  ~BookmarksRemoveTreeFunction() override = default;
 
   // BookmarksRemoveFunctionBase:
   bool is_recursive() const override;
@@ -285,10 +234,19 @@ class BookmarksCreateFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.create", BOOKMARKS_CREATE)
 
  protected:
-  ~BookmarksCreateFunction() override {}
+  ~BookmarksCreateFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
+
+ private:
+  // Helper to create a bookmark node from a CreateDetails object. If a node
+  // can't be created based on the given details, sets `error` and returns
+  // nullptr.
+  const bookmarks::BookmarkNode* CreateBookmarkNode(
+      bookmarks::BookmarkModel* model,
+      const api::bookmarks::CreateDetails& details,
+      std::string* error);
 };
 
 class BookmarksMoveFunction : public BookmarksFunction {
@@ -296,7 +254,7 @@ class BookmarksMoveFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.move", BOOKMARKS_MOVE)
 
  protected:
-  ~BookmarksMoveFunction() override {}
+  ~BookmarksMoveFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;
@@ -307,7 +265,7 @@ class BookmarksUpdateFunction : public BookmarksFunction {
   DECLARE_EXTENSION_FUNCTION("bookmarks.update", BOOKMARKS_UPDATE)
 
  protected:
-  ~BookmarksUpdateFunction() override {}
+  ~BookmarksUpdateFunction() override = default;
 
   // BookmarksFunction:
   ResponseValue RunOnReady() override;

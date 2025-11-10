@@ -20,6 +20,8 @@
 #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
 #include "perfetto/ext/tracing/core/tracing_service.h"
 
+#include "protos/perfetto/common/tracing_service_state.gen.h"
+
 // This translation unit contains the definitions for the destructor of pure
 // virtual interfaces for the current build target. The alternative would be
 // introducing a one-liner .cc file for each pure virtual interface, which is
@@ -32,12 +34,12 @@ Producer::~Producer() = default;
 TracingService::~TracingService() = default;
 ConsumerEndpoint::~ConsumerEndpoint() = default;
 ProducerEndpoint::~ProducerEndpoint() = default;
+RelayEndpoint::~RelayEndpoint() = default;
 SharedMemory::~SharedMemory() = default;
 SharedMemory::Factory::~Factory() = default;
 SharedMemoryArbiter::~SharedMemoryArbiter() = default;
 
 // TODO(primiano): make pure virtual after various 3way patches.
-void ConsumerEndpoint::CloneSession(TracingSessionID) {}
-void Consumer::OnSessionCloned(bool, const std::string&) {}
+void Consumer::OnSessionCloned(const OnSessionClonedArgs&) {}
 
 }  // namespace perfetto

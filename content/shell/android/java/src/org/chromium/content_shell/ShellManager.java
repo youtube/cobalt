@@ -9,32 +9,33 @@ import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.FrameLayout;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
-/**
- * Container and generator of ShellViews.
- */
+/** Container and generator of ShellViews. */
 @JNINamespace("content")
+@NullMarked
 public class ShellManager extends FrameLayout {
 
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
-    private Shell mActiveShell;
-
-    private String mStartupUrl = DEFAULT_SHELL_URL;
+    private @Nullable Shell mActiveShell;
 
     // The target for all content rendering.
-    private ContentViewRenderView mContentViewRenderView;
+    private @Nullable ContentViewRenderView mContentViewRenderView;
 
-    /**
-     * Constructor for inflating via XML.
-     */
+    /** Constructor for inflating via XML. */
     public ShellManager(final Context context, AttributeSet attrs) {
         super(context, attrs);
         ShellManagerJni.get().init(this);
@@ -43,8 +44,8 @@ public class ShellManager extends FrameLayout {
     /**
      * @param window The window used to generate all shells.
      */
+    @Initializer
     public void setWindow(WindowAndroid window) {
-        assert window != null;
         mWindow = window;
         mContentViewRenderView = new ContentViewRenderView(getContext());
         mContentViewRenderView.onNativeLibraryLoaded(window);
@@ -57,24 +58,15 @@ public class ShellManager extends FrameLayout {
         return mWindow;
     }
 
-    /**
-     * Get the ContentViewRenderView.
-     */
-    public ContentViewRenderView getContentViewRenderView() {
+    /** Get the ContentViewRenderView. */
+    public @Nullable ContentViewRenderView getContentViewRenderView() {
         return mContentViewRenderView;
-    }
-
-    /**
-     * Sets the startup URL for new shell windows.
-     */
-    public void setStartupUrl(String url) {
-        mStartupUrl = url;
     }
 
     /**
      * @return The currently visible shell view or null if one is not showing.
      */
-    public Shell getActiveShell() {
+    public @Nullable Shell getActiveShell() {
         return mActiveShell;
     }
 
@@ -108,15 +100,19 @@ public class ShellManager extends FrameLayout {
         return shellView;
     }
 
+    @RequiresNonNull("mContentViewRenderView")
     private void showShell(Shell shellView) {
         shellView.setContentViewRenderView(mContentViewRenderView);
-        addView(shellView, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        addView(
+                shellView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
             mContentViewRenderView.setCurrentWebContents(webContents);
-            webContents.onShow();
+            webContents.updateWebContentsVisibility(Visibility.VISIBLE);
         }
     }
 
@@ -148,6 +144,7 @@ public class ShellManager extends FrameLayout {
     @NativeMethods
     interface Natives {
         void init(Object shellManagerInstance);
+
         void launchShell(String url);
     }
 }

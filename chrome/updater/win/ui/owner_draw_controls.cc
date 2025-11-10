@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/updater/win/ui/owner_draw_controls.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <vector>
 
-#include "base/check.h"
 #include "base/check_op.h"
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/updater/util/util.h"
 #include "chrome/updater/win/ui/l10n_util.h"
 #include "chrome/updater/win/ui/resources/updater_installer_strings.h"
 #include "chrome/updater/win/ui/ui_util.h"
@@ -158,7 +164,9 @@ void CaptionButton::set_tool_tip_text(const CString& tool_tip_text) {
 }
 
 CloseButton::CloseButton() {
-  set_tool_tip_text(GetLocalizedString(IDS_CLOSE_BUTTON_BASE).c_str());
+  set_tool_tip_text(GetLocalizedString(IDS_CLOSE_BUTTON_BASE,
+                                       base::UTF8ToWide(GetTagLanguage()))
+                        .c_str());
 }
 
 HRGN CloseButton::GetButtonRgn(int rgn_width, int rgn_height) {
@@ -185,7 +193,9 @@ HRGN CloseButton::GetButtonRgn(int rgn_width, int rgn_height) {
 }
 
 MinimizeButton::MinimizeButton() {
-  set_tool_tip_text(GetLocalizedString(IDS_MINIMIZE_BUTTON_BASE).c_str());
+  set_tool_tip_text(GetLocalizedString(IDS_MINIMIZE_BUTTON_BASE,
+                                       base::UTF8ToWide(GetTagLanguage()))
+                        .c_str());
 }
 
 HRGN MinimizeButton::GetButtonRgn(int rgn_width, int rgn_height) {
@@ -197,8 +207,7 @@ HRGN MinimizeButton::GetButtonRgn(int rgn_width, int rgn_height) {
 }
 
 MaximizeButton::MaximizeButton() {
-  // TODO(crbug.com/1314812) Maximize button is not utilized. Adding a
-  // placeholder for IDS_MAXIMIZE_BUTTON_BASE.
+  // Maximize button is not used.
   set_tool_tip_text(L"");
 }
 

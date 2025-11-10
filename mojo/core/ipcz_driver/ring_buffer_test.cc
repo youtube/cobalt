@@ -4,33 +4,33 @@
 
 #include "mojo/core/ipcz_driver/ring_buffer.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "base/memory/unsafe_shared_memory_region.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "mojo/core/ipcz_driver/shared_buffer.h"
 #include "mojo/core/ipcz_driver/shared_buffer_mapping.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo::core::ipcz_driver {
 namespace {
 
 using RingBufferTest = testing::Test;
 
-base::StringPiece AsString(base::span<const uint8_t> bytes) {
-  return base::StringPiece(reinterpret_cast<const char*>(bytes.data()),
-                           bytes.size());
+std::string_view AsString(base::span<const uint8_t> bytes) {
+  return std::string_view(reinterpret_cast<const char*>(bytes.data()),
+                          bytes.size());
 }
 
-base::span<const uint8_t> AsBytes(base::StringPiece s) {
-  return base::as_bytes(base::make_span(s)).first(s.length());
+base::span<const uint8_t> AsBytes(std::string_view s) {
+  return base::as_byte_span(s).first(s.length());
 }
 
 // Wraps a RingBuffer with more convient string-based I/O for tests to use.
@@ -42,36 +42,36 @@ class TestRingBuffer {
 
   RingBuffer& buffer() { return buffer_; }
 
-  size_t Write(base::StringPiece s) { return buffer_.Write(AsBytes(s)); }
+  size_t Write(std::string_view s) { return buffer_.Write(AsBytes(s)); }
 
-  bool WriteAll(base::StringPiece s) { return buffer_.WriteAll(AsBytes(s)); }
+  bool WriteAll(std::string_view s) { return buffer_.WriteAll(AsBytes(s)); }
 
   std::string Read(size_t n) {
     std::vector<uint8_t> data(n);
-    auto bytes = base::make_span(data);
+    auto bytes = base::span(data);
     const size_t size = buffer_.Read(bytes);
     return std::string(AsString(bytes.first(size)));
   }
 
-  absl::optional<std::string> ReadAll(size_t n) {
+  std::optional<std::string> ReadAll(size_t n) {
     std::vector<uint8_t> data(n);
-    if (!buffer_.ReadAll(base::make_span(data))) {
-      return absl::nullopt;
+    if (!buffer_.ReadAll(base::span(data))) {
+      return std::nullopt;
     }
     return std::string(data.begin(), data.end());
   }
 
   std::string Peek(size_t n) {
     std::vector<uint8_t> data(n);
-    auto bytes = base::make_span(data);
+    auto bytes = base::span(data);
     const size_t size = buffer_.Peek(bytes);
     return std::string(AsString(bytes.first(size)));
   }
 
-  absl::optional<std::string> PeekAll(size_t n) {
+  std::optional<std::string> PeekAll(size_t n) {
     std::vector<uint8_t> data(n);
-    if (!buffer_.PeekAll(base::make_span(data))) {
-      return absl::nullopt;
+    if (!buffer_.PeekAll(base::span(data))) {
+      return std::nullopt;
     }
     return std::string(data.begin(), data.end());
   }
@@ -103,7 +103,7 @@ TEST_F(RingBufferTest, EmptyReads) {
 }
 
 TEST_F(RingBufferTest, FullWrites) {
-  uint8_t data[256] = {0};
+  uint8_t data[256] = {};
   TestRingBuffer ring(256);
   ASSERT_TRUE(ring.buffer().WriteAll(data));
   EXPECT_EQ(256u, ring.buffer().data_size());
@@ -194,7 +194,7 @@ TEST_F(RingBufferTest, DirectWriter) {
     EXPECT_EQ(0u, ring.buffer().data_size());
     EXPECT_EQ(8u, ring.buffer().available_capacity());
 
-    base::ranges::copy(AsBytes("abc"), writer.bytes().begin());
+    std::ranges::copy(AsBytes("abc"), writer.bytes().begin());
     EXPECT_TRUE(std::move(writer).Commit(3));
     EXPECT_EQ(3u, ring.buffer().data_size());
     EXPECT_EQ(5u, ring.buffer().available_capacity());
@@ -210,7 +210,7 @@ TEST_F(RingBufferTest, DirectWriter) {
     EXPECT_EQ(7u, ring.buffer().available_capacity());
     EXPECT_EQ(5u, writer.bytes().size());
 
-    base::ranges::copy(AsBytes("defgh"), writer.bytes().begin());
+    std::ranges::copy(AsBytes("defgh"), writer.bytes().begin());
     EXPECT_TRUE(std::move(writer).Commit(5));
   }
 
@@ -224,7 +224,7 @@ TEST_F(RingBufferTest, DirectWriter) {
     EXPECT_EQ(5u, ring.buffer().available_capacity());
     EXPECT_EQ(5u, writer.bytes().size());
 
-    base::ranges::copy(AsBytes("12345"), writer.bytes().begin());
+    std::ranges::copy(AsBytes("12345"), writer.bytes().begin());
     EXPECT_TRUE(std::move(writer).Commit(5));
   }
 
@@ -287,8 +287,8 @@ TEST_F(RingBufferTest, BasicRead) {
 
 TEST_F(RingBufferTest, ExtendDataRange) {
   TestRingBuffer ring(8);
-  base::ranges::copy(AsBytes("abcdefgh"),
-                     ring.buffer().mapping().bytes().begin());
+  std::ranges::copy(AsBytes("abcdefgh"),
+                    ring.buffer().mapping().bytes().begin());
   EXPECT_EQ(0u, ring.buffer().data_size());
   EXPECT_EQ(8u, ring.buffer().available_capacity());
 

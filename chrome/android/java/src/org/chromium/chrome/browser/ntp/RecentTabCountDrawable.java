@@ -17,6 +17,8 @@ import android.text.TextPaint;
 
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.build.annotations.EnsuresNonNull;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.ui.UiUtils;
 
@@ -25,8 +27,9 @@ import java.util.Locale;
 /**
  * Class for drawing a tab count icon on the Recent Tabs Page for bulk tab closures.
  *
- * Loosely based on {@link TabSwitcherDrawable} and modified to handle an SVG asset.
+ * <p>Loosely based on {@link TabSwitcherDrawable} and modified to handle an SVG asset.
  */
+@NullMarked
 public class RecentTabCountDrawable extends DrawableWrapper {
     // Avoid allocations during draw by pre-allocating a rect.
     private final Rect mTextBounds = new Rect();
@@ -40,16 +43,20 @@ public class RecentTabCountDrawable extends DrawableWrapper {
      * @param context The context for getting resources.
      */
     public RecentTabCountDrawable(Context context) {
-        super(UiUtils.getTintedDrawable(context, R.drawable.ic_recent_tabs_bulk_20dp,
-                R.color.default_icon_color_tint_list));
+        super(
+                UiUtils.getTintedDrawable(
+                        context,
+                        R.drawable.ic_recent_tabs_bulk_20dp,
+                        R.color.default_icon_color_tint_list));
 
         mTextPaint = new TextPaint();
-        setTint(AppCompatResources.getColorStateList(
-                context, R.color.default_icon_color_tint_list));
+        setTint(
+                AppCompatResources.getColorStateList(
+                        context, R.color.default_icon_color_tint_list));
 
         mTextPaint.setAntiAlias(true);
         mTextPaint.setTextAlign(Align.CENTER);
-        mTextPaint.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+        mTextPaint.setTypeface(Typeface.create("google-sans-medium", Typeface.BOLD));
         mTextPaint.setColor(getColorForState());
         mTextPaint.setTextSize(
                 context.getResources().getDimension(R.dimen.recent_tabs_count_text_size));
@@ -65,6 +72,7 @@ public class RecentTabCountDrawable extends DrawableWrapper {
         invalidateSelf();
     }
 
+    @EnsuresNonNull("mTint")
     public void setTint(ColorStateList tint) {
         if (mTint == tint) return;
         mTint = tint;
@@ -91,8 +99,11 @@ public class RecentTabCountDrawable extends DrawableWrapper {
             // Constants are based on X/Y position in the icon from the redlines the UX designer
             // provided.
             final int textX = bounds.left + Math.round(0.583f * bounds.width());
-            final int textY = bounds.top + Math.round(14.0f / 24.0f * bounds.height())
-                    + (mTextBounds.bottom - mTextBounds.top) / 2 - mTextBounds.bottom;
+            final int textY =
+                    bounds.top
+                            + Math.round(14.0f / 24.0f * bounds.height())
+                            + (mTextBounds.bottom - mTextBounds.top) / 2
+                            - mTextBounds.bottom;
 
             canvas.drawText(textString, textX, textY, mTextPaint);
         }

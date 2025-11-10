@@ -17,16 +17,15 @@
 namespace cc {
 
 // Test class for FrameSorter
-class FrameSorterTest : public testing::Test {
+class FrameSorterTest : public testing::Test, FrameSorterObserver {
  public:
-  FrameSorterTest()
-      : frame_sorter_(base::BindRepeating(&FrameSorterTest::FlushFrame,
-                                          base::Unretained(this))) {
+  FrameSorterTest() {
+    frame_sorter_.AddObserver(this);
     IncreaseSourceId();
   }
   ~FrameSorterTest() override = default;
 
-  const viz::BeginFrameArgs GetNextFrameArgs() {
+  viz::BeginFrameArgs GetNextFrameArgs() {
     uint64_t sequence_number = next_frame_sequence_number_++;
     return viz::BeginFrameArgs::Create(
         BEGINFRAME_FROM_HERE, next_frame_source_id_, sequence_number,
@@ -121,7 +120,8 @@ class FrameSorterTest : public testing::Test {
   }
 
  private:
-  void FlushFrame(const viz::BeginFrameArgs& args, const FrameInfo& frame) {
+  void AddSortedFrame(const viz::BeginFrameArgs& args,
+                      const FrameInfo& frame) override {
     sorted_frames_.emplace_back(args, frame.IsDroppedAffectingSmoothness());
   }
 
@@ -131,7 +131,7 @@ class FrameSorterTest : public testing::Test {
   uint64_t next_frame_source_id_ = 0;
   uint64_t next_frame_sequence_number_ =
       viz::BeginFrameArgs::kStartingFrameNumber;
-  std::vector<const viz::BeginFrameArgs> args_ = {};
+  std::vector<viz::BeginFrameArgs> args_ = {};
   int current_frame_id_ = -1;
 };
 

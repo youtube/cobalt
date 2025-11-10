@@ -4,11 +4,11 @@
 
 #include "chromeos/ash/services/secure_channel/background_eid_generator.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/time/clock.h"
@@ -62,7 +62,7 @@ BackgroundEidGenerator::BackgroundEidGenerator(
 
 std::vector<DataWithTimestamp> BackgroundEidGenerator::GenerateNearestEids(
     const std::vector<cryptauth::BeaconSeed>& beacon_seeds) const {
-  int64_t now_timestamp_ms = clock_->Now().ToJavaTime();
+  int64_t now_timestamp_ms = clock_->Now().InMillisecondsSinceUnixEpoch();
   std::vector<DataWithTimestamp> eids;
 
   for (int i = -kEidLookAhead; i <= kEidLookAhead; ++i) {
@@ -108,7 +108,7 @@ std::string BackgroundEidGenerator::IdentifyRemoteDeviceByAdvertisement(
   std::string service_data_without_flags = advertisement_service_data;
   service_data_without_flags.resize(RawEidGenerator::kNumBytesInEidValue);
 
-  const auto remote_device_it = base::ranges::find_if(
+  const auto remote_device_it = std::ranges::find_if(
       remote_devices,
       [this, &service_data_without_flags](const auto& remote_device) {
         std::vector<DataWithTimestamp> eids = GenerateNearestEids(
@@ -119,9 +119,7 @@ std::string BackgroundEidGenerator::IdentifyRemoteDeviceByAdvertisement(
         ss << "BackgroundEidGenerator::IdentifyRemoteDeviceByAdvertisement: "
            << (success ? "Identified " : "Failed to identify ")
            << "the following remote device from advertisement service data 0x"
-           << base::HexEncode(service_data_without_flags.data(),
-                              service_data_without_flags.size())
-           << ": "
+           << base::HexEncode(service_data_without_flags) << ": "
            << "\n  device_name: " << remote_device.name()
            << "\n  device_id: " << remote_device.GetDeviceId()
            << "\n  beacon seeds: ";

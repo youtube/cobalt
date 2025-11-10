@@ -13,18 +13,19 @@
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/media/router/discovery/mdns/dns_sd_delegate.h"
 #include "components/media_router/common/mojom/media_router.mojom.h"
-#include "components/media_router/common/providers/cast/channel/cast_socket.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_address.h"
 #include "net/base/url_util.h"
 
 namespace media_router {
 
-SinkIconType GetCastSinkIconType(uint8_t capabilities) {
-  if (capabilities & cast_channel::CastDeviceCapability::VIDEO_OUT)
+SinkIconType GetCastSinkIconType(
+    cast_channel::CastDeviceCapabilitySet capabilities) {
+  if (capabilities.Has(cast_channel::CastDeviceCapability::kVideoOut)) {
     return SinkIconType::CAST;
+  }
 
-  return capabilities & cast_channel::CastDeviceCapability::MULTIZONE_GROUP
+  return capabilities.Has(cast_channel::CastDeviceCapability::kMultizoneGroup)
              ? SinkIconType::CAST_AUDIO_GROUP
              : SinkIconType::CAST_AUDIO;
 }
@@ -32,19 +33,22 @@ SinkIconType GetCastSinkIconType(uint8_t capabilities) {
 CreateCastMediaSinkResult CreateCastMediaSink(const DnsSdService& service,
                                               MediaSinkInternal* cast_sink) {
   DCHECK(cast_sink);
-  if (service.service_name.find(kCastServiceType) == std::string::npos)
+  if (service.service_name.find(kCastServiceType) == std::string::npos) {
     return CreateCastMediaSinkResult::kNotCastDevice;
+  }
 
   net::IPAddress ip_address;
-  if (!ip_address.AssignFromIPLiteral(service.ip_address))
+  if (!ip_address.AssignFromIPLiteral(service.ip_address)) {
     return CreateCastMediaSinkResult::kMissingOrInvalidIPAddress;
+  }
 
   std::map<std::string, std::string> service_data;
   for (const auto& item : service.service_data) {
     // |item| format should be "id=xxxxxx", etc.
     size_t split_idx = item.find('=');
-    if (split_idx == std::string::npos)
+    if (split_idx == std::string::npos) {
       continue;
+    }
 
     std::string key = item.substr(0, split_idx);
     std::string val =
@@ -53,21 +57,26 @@ CreateCastMediaSinkResult CreateCastMediaSink(const DnsSdService& service,
   }
 
   std::string unique_id = service_data["id"];
-  if (unique_id.empty())
+  if (unique_id.empty()) {
     return CreateCastMediaSinkResult::kMissingID;
+  }
   std::string friendly_name = service_data["fn"];
-  if (friendly_name.empty())
+  if (friendly_name.empty()) {
     return CreateCastMediaSinkResult::kMissingFriendlyName;
+  }
 
   CastSinkExtraData extra_data;
   extra_data.ip_endpoint =
       net::IPEndPoint(ip_address, service.service_host_port.port());
   extra_data.model_name = service_data["md"];
-  extra_data.capabilities = cast_channel::CastDeviceCapability::NONE;
 
-  unsigned capacities;
-  if (base::StringToUint(service_data["ca"], &capacities))
-    extra_data.capabilities = capacities;
+  {
+    uint64_t capabilities = 0;
+    if (base::StringToUint64(service_data["ca"], &capabilities)) {
+      extra_data.capabilities =
+          cast_channel::CastDeviceCapabilitySet::FromEnumBitmask(capabilities);
+    }
+  }
 
   std::string processed_uuid = MediaSinkInternal::ProcessDeviceUUID(unique_id);
   std::string sink_id = base::StringPrintf("cast:%s", processed_uuid.c_str());
@@ -85,8 +94,9 @@ std::vector<MediaSinkInternal> GetFixedIPSinksFromCommandLine() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   std::string ips_string =
       command_line->GetSwitchValueASCII(kFixedCastDeviceIps);
-  if (ips_string.empty())
+  if (ips_string.empty()) {
     return std::vector<MediaSinkInternal>();
+  }
 
   std::vector<MediaSinkInternal> sinks;
   std::vector<std::string> ips = base::SplitString(
@@ -94,15 +104,18 @@ std::vector<MediaSinkInternal> GetFixedIPSinksFromCommandLine() {
   for (const auto& ip : ips) {
     std::string host;
     int port = -1;
-    if (!net::ParseHostAndPort(ip, &host, &port))
+    if (!net::ParseHostAndPort(ip, &host, &port)) {
       continue;
+    }
 
     net::IPAddress ip_address;
-    if (!ip_address.AssignFromIPLiteral(host))
+    if (!ip_address.AssignFromIPLiteral(host)) {
       continue;
+    }
 
-    if (port == -1)
+    if (port == -1) {
       port = kCastControlPort;
+    }
 
     std::string instance_name;
     base::ReplaceChars(host, ".", "_", &instance_name);

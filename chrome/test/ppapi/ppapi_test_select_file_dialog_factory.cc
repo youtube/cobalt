@@ -5,6 +5,7 @@
 #include "chrome/test/ppapi/ppapi_test_select_file_dialog_factory.h"
 
 #include "base/functional/bind.h"
+#include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
@@ -33,7 +34,6 @@ class PPAPITestSelectFileDialog : public ui::SelectFileDialog {
                       int file_type_index,
                       const base::FilePath::StringType& default_extension,
                       gfx::NativeWindow owning_window,
-                      void* params,
                       const GURL* caller) override {
     switch (mode_) {
       case PPAPITestSelectFileDialogFactory::RESPOND_WITH_FILE_LIST:
@@ -60,8 +60,7 @@ class PPAPITestSelectFileDialog : public ui::SelectFileDialog {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(
-            &PPAPITestSelectFileDialog::RespondToFileSelectionRequest, this,
-            params));
+            &PPAPITestSelectFileDialog::RespondToFileSelectionRequest, this));
   }
   bool HasMultipleFileTypeChoicesImpl() override { return false; }
 
@@ -69,17 +68,16 @@ class PPAPITestSelectFileDialog : public ui::SelectFileDialog {
   bool IsRunning(gfx::NativeWindow owning_window) const override {
     return false;
   }
-  void ListenerDestroyed() override {}
+  void ListenerDestroyed() override { listener_ = nullptr; }
 
  private:
-  void RespondToFileSelectionRequest(void* params) {
+  void RespondToFileSelectionRequest() {
     if (selected_file_info_.size() == 0)
-      listener_->FileSelectionCanceled(params);
+      listener_->FileSelectionCanceled();
     else if (selected_file_info_.size() == 1)
-      listener_->FileSelectedWithExtraInfo(selected_file_info_.front(), 0,
-                                           params);
+      listener_->FileSelected(selected_file_info_.front(), 0);
     else
-      listener_->MultiFilesSelectedWithExtraInfo(selected_file_info_, params);
+      listener_->MultiFilesSelected(selected_file_info_);
   }
 
   PPAPITestSelectFileDialogFactory::SelectedFileInfoList selected_file_info_;
@@ -92,8 +90,10 @@ PPAPITestSelectFileDialogFactory::PPAPITestSelectFileDialogFactory(
     Mode mode,
     const SelectedFileInfoList& selected_file_info)
     : selected_file_info_(selected_file_info), mode_(mode) {
-  // Only safe because this class is 'final'
-  ui::SelectFileDialog::SetFactory(this);
+  // Can't possibly be safe, esp. when PPAPITestSelectFileDialogFactory is
+  // stack-allocated as in tests, unless a complete process tear-down occurs
+  // before another one of these is constructed or any other factory is set.
+  ui::SelectFileDialog::SetFactory(base::WrapUnique(this));
 }
 
 // SelectFileDialogFactory

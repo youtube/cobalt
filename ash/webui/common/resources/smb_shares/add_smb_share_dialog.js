@@ -9,16 +9,17 @@
  * destroyed when finished, and re-created when shown again.
  */
 
-import '//resources/cr_elements/cr_button/cr_button.js';
-import '//resources/cr_elements/cr_checkbox/cr_checkbox.js';
-import '//resources/cr_elements/cr_dialog/cr_dialog.js';
-import '//resources/cr_elements/cr_input/cr_input.js';
-import '//resources/cr_elements/cr_searchable_drop_down/cr_searchable_drop_down.js';
-import '//resources/cr_elements/icons.html.js';
-import '//resources/cr_elements/cr_shared_style.css.js';
-import '//resources/cr_elements/cr_shared_vars.css.js';
-import '//resources/cr_elements/md_select.css.js';
+import '//resources/ash/common/cr_elements/cr_button/cr_button.js';
+import '//resources/ash/common/cr_elements/cr_checkbox/cr_checkbox.js';
+import '//resources/ash/common/cr_elements/cr_dialog/cr_dialog.js';
+import '//resources/ash/common/cr_elements/cr_input/cr_input.js';
+import '//resources/ash/common/cr_elements/cr_searchable_drop_down/cr_searchable_drop_down.js';
+import '//resources/ash/common/cr_elements/icons.html.js';
+import '//resources/ash/common/cr_elements/cr_shared_style.css.js';
+import '//resources/ash/common/cr_elements/cr_shared_vars.css.js';
+import '//resources/ash/common/cr_elements/md_select.css.js';
 import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
+import '//resources/cros_components/checkbox/checkbox.js';
 
 import {I18nBehavior} from '//resources/ash/common/i18n_behavior.js';
 import {loadTimeData} from '//resources/ash/common/load_time_data.m.js';
@@ -103,14 +104,6 @@ Polymer({
     },
 
     /** @private */
-    isActiveDirectory_: {
-      type: Boolean,
-      value() {
-        return loadTimeData.getBoolean('isActiveDirectoryUser');
-      },
-    },
-
-    /** @private */
     isKerberosEnabled_: {
       type: Boolean,
       value() {
@@ -136,9 +129,8 @@ Polymer({
           return SmbAuthMethod.CREDENTIALS;
         }
 
-        // SSO only supported on ChromAD or Kerberos.
-        if (loadTimeData.getBoolean('isActiveDirectoryUser') ||
-            loadTimeData.getBoolean('isKerberosEnabled')) {
+        // SSO only supported if Kerberos is enabled by policy.
+        if (loadTimeData.getBoolean('isKerberosEnabled')) {
           return SmbAuthMethod.KERBEROS;
         }
 
@@ -169,10 +161,6 @@ Polymer({
   /** @override */
   created() {
     this.browserProxy_ = SmbBrowserProxyImpl.getInstance();
-
-    const jellyEnabled = loadTimeData.getBoolean('isJellyEnabled');
-    const theme = jellyEnabled ? 'refresh23' : 'legacy';
-    document.documentElement.setAttribute('theme', theme);
   },
 
   /** @override */
@@ -192,13 +180,16 @@ Polymer({
   /** @private */
   onAddButtonTap_() {
     this.resetErrorState_();
+    const saveCredentialsCheckbox = this.$$(
+        this.isCrosComponentsEnabled_() ? '#saveCredentialsCheckboxJelly' :
+                                          '#saveCredentialsCheckbox');
     this.inProgress_ = true;
     this.browserProxy_
         .smbMount(
             this.mountUrl_, this.mountName_.trim(), this.username_,
             this.password_, this.authenticationMethod_,
             this.shouldOpenFileManagerAfterMount,
-            this.$.saveCredentialsCheckbox.checked)
+            saveCredentialsCheckbox.checked)
         .then(result => {
           this.onAddShare_(result);
         });
@@ -262,8 +253,8 @@ Polymer({
       return false;
     }
 
-    // SSO only supported on ChromAD or Kerberos.
-    return this.isActiveDirectory_ || this.isKerberosEnabled_;
+    // SSO only supported if Kerberos is enabled by policy.
+    return this.isKerberosEnabled_;
   },
 
   /**
@@ -275,6 +266,9 @@ Polymer({
 
     // Success case. Close dialog.
     if (result === SmbMountResult.SUCCESS) {
+      this.dispatchEvent(new CustomEvent(
+          'smb-successfully-mounted-once', {bubbles: true, composed: true}));
+
       this.$.dialog.close();
       return;
     }
@@ -396,5 +390,9 @@ Polymer({
       return false;
     }
     return SMB_SHARE_URL_REGEX.test(this.mountUrl_);
+  },
+
+  isCrosComponentsEnabled_() {
+    return !!loadTimeData.getBoolean('isCrosComponentsEnabled');
   },
 });

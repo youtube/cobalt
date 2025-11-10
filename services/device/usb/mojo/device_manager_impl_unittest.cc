@@ -16,7 +16,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
-#include "build/chromeos_buildflags.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/device/public/mojom/usb_enumeration_options.mojom.h"
@@ -57,7 +56,7 @@ class USBDeviceManagerImplTest : public testing::Test {
   ~USBDeviceManagerImplTest() override = default;
 
  protected:
-  raw_ptr<MockUsbService> mock_usb_service_;
+  raw_ptr<MockUsbService, DanglingUntriaged> mock_usb_service_;
   std::unique_ptr<DeviceManagerImpl> device_manager_instance_;
   base::test::SingleThreadTaskEnvironment task_environment_;
 };

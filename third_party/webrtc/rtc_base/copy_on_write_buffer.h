@@ -27,7 +27,7 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/type_traits.h"
 
-namespace rtc {
+namespace webrtc {
 
 class RTC_EXPORT CopyOnWriteBuffer {
  public:
@@ -36,7 +36,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
   // Share the data with an existing buffer.
   CopyOnWriteBuffer(const CopyOnWriteBuffer& buf);
   // Move contents from an existing buffer.
-  CopyOnWriteBuffer(CopyOnWriteBuffer&& buf);
+  CopyOnWriteBuffer(CopyOnWriteBuffer&& buf) noexcept;
 
   // Construct a buffer from a string, convenient for unittests.
   explicit CopyOnWriteBuffer(absl::string_view s);
@@ -83,6 +83,17 @@ class RTC_EXPORT CopyOnWriteBuffer {
   explicit CopyOnWriteBuffer(const VecT& v)
       : CopyOnWriteBuffer(v.data(), v.size()) {}
 
+  // Construct a buffer from a vector like type and a capacity argument
+  template <typename VecT,
+            typename ElemT = typename std::remove_pointer_t<
+                decltype(std::declval<VecT>().data())>,
+            typename std::enable_if_t<
+                !std::is_same<VecT, CopyOnWriteBuffer>::value &&
+                HasDataAndSize<VecT, ElemT>::value &&
+                internal::BufferCompat<uint8_t, ElemT>::value>* = nullptr>
+  explicit CopyOnWriteBuffer(const VecT& v, size_t capacity)
+      : CopyOnWriteBuffer(v.data(), v.size(), capacity) {}
+
   ~CopyOnWriteBuffer();
 
   // Get a pointer to the data. Just .data() will give you a (const) uint8_t*,
@@ -121,6 +132,8 @@ class RTC_EXPORT CopyOnWriteBuffer {
     return buffer_->data<T>() + offset_;
   }
 
+  bool empty() const { return size_ == 0; }
+
   size_t size() const {
     RTC_DCHECK(IsConsistent());
     return size_;
@@ -130,6 +143,9 @@ class RTC_EXPORT CopyOnWriteBuffer {
     RTC_DCHECK(IsConsistent());
     return buffer_ ? buffer_->capacity() - offset_ : 0;
   }
+
+  const uint8_t* begin() const { return data(); }
+  const uint8_t* end() const { return data() + size_; }
 
   CopyOnWriteBuffer& operator=(const CopyOnWriteBuffer& buf) {
     RTC_DCHECK(IsConsistent());
@@ -291,7 +307,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
     }
   }
 
-  // buffer_ is either null, or points to an rtc::Buffer with capacity > 0.
+  // buffer_ is either null, or points to an webrtc::Buffer with capacity > 0.
   scoped_refptr<RefCountedBuffer> buffer_;
   // This buffer may represent a slice of a original data.
   size_t offset_;  // Offset of a current slice in the original data in buffer_.
@@ -300,6 +316,14 @@ class RTC_EXPORT CopyOnWriteBuffer {
                    // Should be 0 if the buffer_ is empty.
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::CopyOnWriteBuffer;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_COPY_ON_WRITE_BUFFER_H_

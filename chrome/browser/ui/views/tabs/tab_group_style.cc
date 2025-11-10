@@ -23,21 +23,23 @@
 
 namespace {
 
-constexpr int kHeaderChipVerticalInset = 1;
-constexpr int kTitleAdjustmentForEmptyHeader = 2;
+constexpr int kHeaderChipVerticalInset = 2;
 constexpr int kTitleAdjustmentForNonEmptyHeader = -2;
-// The default size of an empty chip in the tab group header.
-constexpr int kEmptyChipSize = 14;
 // The width of the sync icon when a tab group is saved.
 constexpr int kSyncIconWidth = 16;
-// The size of the empty chips when the #tab-groups-save flag is on.
-constexpr int kSavedEmptyChipSize = 22;
-
-constexpr int kChromeRefreshHeaderChipVerticalInset = 2;
-constexpr int kChromeRefreshEmptyChipSize = 20;
-constexpr int kChromeRefreshSyncIconWidth = 16;
+// The width of the attention indicator icon for a shared tab group.
+constexpr int kAttentionIndicatorWidth = 8;
+// The size of the empty chip.
+constexpr int kEmptyChipSize = 20;
+constexpr int kCornerRadius = 6;
+constexpr int kTabGroupOverlapAdjustment = 2;
 
 }  // namespace
+
+// static
+int TabGroupStyle::GetTabGroupOverlapAdjustment() {
+  return kTabGroupOverlapAdjustment;
+}
 
 TabGroupStyle::TabGroupStyle(const TabGroupViews& tab_group_views)
     : tab_group_views_(tab_group_views) {}
@@ -45,92 +47,6 @@ TabGroupStyle::TabGroupStyle(const TabGroupViews& tab_group_views)
 TabGroupStyle::~TabGroupStyle() = default;
 
 bool TabGroupStyle::TabGroupUnderlineShouldBeHidden() const {
-  return false;
-}
-
-bool TabGroupStyle::TabGroupUnderlineShouldBeHidden(
-    const views::View* const leading_view,
-    const views::View* const trailing_view) const {
-  return false;
-}
-
-// The underline is a straight line with half-rounded endcaps without
-// ChromeRefresh flag. Since this geometry is nontrivial to represent using
-// primitives, it's instead represented using a fill path.
-SkPath TabGroupStyle::GetUnderlinePath(const gfx::Rect local_bounds) const {
-  SkPath path;
-
-  path.moveTo(0, TabGroupUnderline::kStrokeThickness);
-  path.arcTo(TabGroupUnderline::kStrokeThickness,
-             TabGroupUnderline::kStrokeThickness, 0, SkPath::kSmall_ArcSize,
-             SkPathDirection::kCW, TabGroupUnderline::kStrokeThickness, 0);
-  path.lineTo(local_bounds.width() - TabGroupUnderline::kStrokeThickness, 0);
-  path.arcTo(TabGroupUnderline::kStrokeThickness,
-             TabGroupUnderline::kStrokeThickness, 0, SkPath::kSmall_ArcSize,
-             SkPathDirection::kCW, local_bounds.width(),
-             TabGroupUnderline::kStrokeThickness);
-  path.close();
-
-  return path;
-}
-
-gfx::Rect TabGroupStyle::GetEmptyTitleChipBounds(
-    const TabGroupHeader* const header) const {
-  const int y = (GetLayoutConstant(TAB_HEIGHT) - GetEmptyChipSize()) / 2;
-  return gfx::Rect(TabGroupUnderline::GetStrokeInset(), y, GetEmptyChipSize(),
-                   GetEmptyChipSize());
-}
-
-std::unique_ptr<views::Background> TabGroupStyle::GetEmptyTitleChipBackground(
-    const SkColor color) const {
-  return views::CreateRoundedRectBackground(color, GetEmptyChipSize() / 2);
-}
-
-gfx::Insets TabGroupStyle::GetInsetsForHeaderChip() const {
-  return gfx::Insets::TLBR(kHeaderChipVerticalInset,
-                           GetChipCornerRadius() + kHeaderChipVerticalInset,
-                           kHeaderChipVerticalInset,
-                           GetChipCornerRadius() + kHeaderChipVerticalInset);
-}
-
-int TabGroupStyle::GetHighlightPathGeneratorCornerRadius(
-    const views::View* const title) const {
-  return title->GetVisible() ? GetChipCornerRadius() : GetEmptyChipSize() / 2;
-}
-
-int TabGroupStyle::GetTitleAdjustmentToTabGroupHeaderDesiredWidth(
-    const std::u16string title) const {
-  return title.empty() ? kTitleAdjustmentForEmptyHeader
-                       : kTitleAdjustmentForNonEmptyHeader;
-}
-
-float TabGroupStyle::GetEmptyChipSize() const {
-  return base::FeatureList::IsEnabled(features::kTabGroupsSave)
-             ? kSavedEmptyChipSize
-             : kEmptyChipSize;
-}
-
-float TabGroupStyle::GetSyncIconWidth() const {
-  return kSyncIconWidth;
-}
-
-float TabGroupStyle::GetSelectedTabOpacity() const {
-  return TabStyle::Get()->GetSelectedTabOpacity();
-}
-
-// static
-int TabGroupStyle::GetChipCornerRadius() {
-  return TabStyle::Get()->GetBottomCornerRadius() -
-         TabGroupUnderline::kStrokeThickness;
-}
-
-ChromeRefresh2023TabGroupStyle::ChromeRefresh2023TabGroupStyle(
-    const TabGroupViews& tab_group_views)
-    : TabGroupStyle(tab_group_views) {}
-
-ChromeRefresh2023TabGroupStyle::~ChromeRefresh2023TabGroupStyle() = default;
-
-bool ChromeRefresh2023TabGroupStyle::TabGroupUnderlineShouldBeHidden() const {
   const auto [leading_group_view, trailing_group_view] =
       tab_group_views_->GetLeadingTrailingGroupViews();
 
@@ -138,7 +54,7 @@ bool ChromeRefresh2023TabGroupStyle::TabGroupUnderlineShouldBeHidden() const {
                                          trailing_group_view);
 }
 
-bool ChromeRefresh2023TabGroupStyle::TabGroupUnderlineShouldBeHidden(
+bool TabGroupStyle::TabGroupUnderlineShouldBeHidden(
     const views::View* const leading_view,
     const views::View* const trailing_view) const {
   const TabGroupHeader* const leading_view_group_header =
@@ -154,9 +70,8 @@ bool ChromeRefresh2023TabGroupStyle::TabGroupUnderlineShouldBeHidden(
   return false;
 }
 
-// The path is a rounded rect with the Chrome Refresh flag.
-SkPath ChromeRefresh2023TabGroupStyle::GetUnderlinePath(
-    const gfx::Rect local_bounds) const {
+// The path is a rounded rect.
+SkPath TabGroupStyle::GetUnderlinePath(const gfx::Rect local_bounds) const {
   SkPath path;
   path.addRoundRect(gfx::RectToSkRect(local_bounds),
                     TabGroupUnderline::kStrokeThickness / 2,
@@ -164,42 +79,61 @@ SkPath ChromeRefresh2023TabGroupStyle::GetUnderlinePath(
   return path;
 }
 
-gfx::Rect ChromeRefresh2023TabGroupStyle::GetEmptyTitleChipBounds(
+gfx::Rect TabGroupStyle::GetEmptyTitleChipBounds(
     const TabGroupHeader* const header) const {
-  const int y = (GetLayoutConstant(TAB_HEIGHT) - GetEmptyChipSize()) / 2;
-  return gfx::Rect(TabGroupUnderline::GetStrokeInset(), y, GetEmptyChipSize(),
+  return gfx::Rect(GetTitleChipOffset(std::nullopt).x(),
+                   GetTitleChipOffset(std::nullopt).y(), GetEmptyChipSize(),
                    GetEmptyChipSize());
 }
 
-gfx::Insets ChromeRefresh2023TabGroupStyle::GetInsetsForHeaderChip() const {
-  return gfx::Insets::TLBR(
-      kChromeRefreshHeaderChipVerticalInset, GetChipCornerRadius(),
-      kChromeRefreshHeaderChipVerticalInset, GetChipCornerRadius());
+gfx::Point TabGroupStyle::GetTitleChipOffset(
+    std::optional<int> text_height) const {
+  const int total_space = GetLayoutConstant(TAB_STRIP_HEIGHT) -
+                          GetEmptyChipSize() -
+                          GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP);
+  return gfx::Point(TabStyle::Get()->GetTabOverlap() - 2, total_space / 2);
 }
 
-int ChromeRefresh2023TabGroupStyle::
-    GetTitleAdjustmentToTabGroupHeaderDesiredWidth(
-        const std::u16string title) const {
+std::unique_ptr<views::Background> TabGroupStyle::GetEmptyTitleChipBackground(
+    const SkColor color) const {
+  return views::CreateRoundedRectBackground(color, GetChipCornerRadius());
+}
+
+gfx::Insets TabGroupStyle::GetInsetsForHeaderChip() const {
+  return gfx::Insets::TLBR(kHeaderChipVerticalInset, GetChipCornerRadius(),
+                           kHeaderChipVerticalInset, GetChipCornerRadius());
+}
+
+int TabGroupStyle::GetHighlightPathGeneratorCornerRadius(
+    const views::View* const title) const {
+  return GetChipCornerRadius();
+}
+
+int TabGroupStyle::GetTitleAdjustmentToTabGroupHeaderDesiredWidth(
+    const std::u16string title) const {
   // Since the shape of the header in ChromeRefresh23 is a rounded rect this
   // value should be `kTitleAdjustmentForNonEmptyHeader`.
   return kTitleAdjustmentForNonEmptyHeader;
 }
 
-std::unique_ptr<views::Background>
-ChromeRefresh2023TabGroupStyle::GetEmptyTitleChipBackground(
-    const SkColor color) const {
-  return views::CreateRoundedRectBackground(color, GetChipCornerRadius());
+float TabGroupStyle::GetEmptyChipSize() const {
+  return kEmptyChipSize;
 }
 
-int ChromeRefresh2023TabGroupStyle::GetHighlightPathGeneratorCornerRadius(
-    const views::View* const title) const {
-  return GetChipCornerRadius();
+float TabGroupStyle::GetSyncIconWidth() const {
+  return kSyncIconWidth;
 }
 
-float ChromeRefresh2023TabGroupStyle::GetEmptyChipSize() const {
-  return kChromeRefreshEmptyChipSize;
+float TabGroupStyle::GetAttentionIndicatorWidth() const {
+  return kAttentionIndicatorWidth;
 }
 
-float ChromeRefresh2023TabGroupStyle::GetSyncIconWidth() const {
-  return kChromeRefreshSyncIconWidth;
+int TabGroupStyle::GetChipCornerRadius() const {
+  return kCornerRadius;
+}
+
+int TabGroupStyle::GetTabGroupViewOverlap() const {
+  // For refresh the tab has an overlap value is 18. In order to have a margin
+  // of 10 from the neighbor tabs this is required.
+  return TabStyle::Get()->GetTabOverlap() - GetTabGroupOverlapAdjustment();
 }

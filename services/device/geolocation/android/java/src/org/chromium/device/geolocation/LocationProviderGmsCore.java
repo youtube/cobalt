@@ -7,6 +7,7 @@ package org.chromium.device.geolocation;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.Location;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -16,6 +17,9 @@ import com.google.android.gms.location.LocationServices;
 
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.device.DeviceFeatureList;
 import org.chromium.gms.ChromiumPlayServicesAvailability;
 
 /**
@@ -23,6 +27,7 @@ import org.chromium.gms.ChromiumPlayServicesAvailability;
  *
  * https://developers.google.com/android/reference/com/google/android/gms/location/package-summary
  */
+@NullMarked
 public class LocationProviderGmsCore implements LocationProvider {
     private static final String TAG = "LocationProvider";
 
@@ -33,7 +38,7 @@ public class LocationProviderGmsCore implements LocationProvider {
     private final Context mContext;
     private final FusedLocationProviderClient mClient;
 
-    private LocationCallback mLocationCallback;
+    private @Nullable LocationCallback mLocationCallback;
 
     public static boolean isGooglePlayServicesAvailable(Context context) {
         return ChromiumPlayServicesAvailability.isGooglePlayServicesAvailable(context);
@@ -68,39 +73,56 @@ public class LocationProviderGmsCore implements LocationProvider {
         if (enableHighAccuracy) {
             // With enableHighAccuracy, request a faster update interval and configure the provider
             // for high accuracy mode.
-            locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+            locationRequest
+                    .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
                     .setInterval(UPDATE_INTERVAL_FAST_MS);
         } else {
             // Use balanced mode by default. In this mode, the API will prefer the network provider
             // but may use sensor data (for instance, GPS) if high accuracy is requested by another
             // app.
-            locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+            locationRequest
+                    .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
                     .setInterval(UPDATE_INTERVAL_MS);
         }
 
-        if (mLocationCallback != null) {
-            mClient.removeLocationUpdates(mLocationCallback);
+        if (DeviceFeatureList.sGmsCoreLocationRequestParamOverride.isEnabled()) {
+            locationRequest =
+                    new LocationRequest.Builder(locationRequest)
+                            .setIntervalMillis(
+                                    DeviceFeatureList.sGmsCoreLocationRequestUpdateInterval
+                                            .getValue())
+                            .setMaxUpdateAgeMillis(
+                                    DeviceFeatureList.sGmsCoreLocationRequestMaxLocationAge
+                                            .getValue())
+                            .build();
         }
 
-        mLocationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
-                LocationProviderAdapter.onNewLocationAvailable(locationResult.getLastLocation());
-            }
-        };
+        stop();
+
+        mLocationCallback =
+                new LocationCallback() {
+                    @Override
+                    public void onLocationResult(LocationResult locationResult) {
+                        if (locationResult == null) {
+                            return;
+                        }
+                        Location location = locationResult.getLastLocation();
+                        if (location != null) {
+                            LocationProviderAdapter.onNewLocationAvailable(location);
+                        }
+                    }
+                };
 
         try {
             // Request updates on UI Thread replicating LocationProviderAndroid's behaviour.
             mClient.requestLocationUpdates(
-                           locationRequest, mLocationCallback, ThreadUtils.getUiThreadLooper())
-                    .addOnFailureListener((e) -> {
-                        Log.e(TAG, "mClient.requestLocationUpdates() " + e);
-                        LocationProviderAdapter.newErrorAvailable(
-                                "Failed to request location updates: " + e.toString());
-                    });
+                            locationRequest, mLocationCallback, ThreadUtils.getUiThreadLooper())
+                    .addOnFailureListener(
+                            (e) -> {
+                                Log.e(TAG, "mClient.requestLocationUpdates() " + e);
+                                LocationProviderAdapter.newErrorAvailable(
+                                        "Failed to request location updates: " + e.toString());
+                            });
         } catch (IllegalStateException e) {
             // IllegalStateException is thrown "If this method is executed in a thread that has not
             // called Looper.prepare()".
@@ -121,8 +143,10 @@ public class LocationProviderGmsCore implements LocationProvider {
     public void stop() {
         ThreadUtils.assertOnUiThread();
 
-        mClient.removeLocationUpdates(mLocationCallback);
-        mLocationCallback = null;
+        if (mLocationCallback != null) {
+            mClient.removeLocationUpdates(mLocationCallback);
+            mLocationCallback = null;
+        }
     }
 
     @Override

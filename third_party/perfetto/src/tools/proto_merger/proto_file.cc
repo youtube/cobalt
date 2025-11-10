@@ -51,15 +51,6 @@ const char* const
         "sint64",    // TYPE_SINT64
 };
 
-const char* const
-    kLabelToName[google::protobuf::FieldDescriptor::MAX_LABEL + 1] = {
-        "ERROR",  // 0 is reserved for errors
-
-        "optional",  // LABEL_OPTIONAL
-        "required",  // LABEL_REQUIRED
-        "repeated",  // LABEL_REPEATED
-};
-
 std::optional<std::string> MinimizeType(const std::string& a,
                                         const std::string& b) {
   auto a_pieces = base::SplitString(a, ".");
@@ -81,20 +72,23 @@ std::string SimpleFieldTypeFromDescriptor(
   switch (desc.type()) {
     case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
       if (packageless_type) {
-        return base::StripPrefix(desc.message_type()->full_name(),
-                                 desc.message_type()->file()->package() + ".");
+        return base::StripPrefix(
+            std::string(desc.message_type()->full_name()),
+            std::string(desc.message_type()->file()->package()) + ".");
       } else {
-        return MinimizeType(desc.message_type()->full_name(),
-                            parent.full_name())
-            .value_or(desc.message_type()->name());
+        return MinimizeType(std::string(desc.message_type()->full_name()),
+                            std::string(parent.full_name()))
+            .value_or(std::string(desc.message_type()->name()));
       }
     case google::protobuf::FieldDescriptor::TYPE_ENUM:
       if (packageless_type) {
-        return base::StripPrefix(desc.enum_type()->full_name(),
-                                 desc.enum_type()->file()->package() + ".");
+        return base::StripPrefix(
+            std::string(desc.enum_type()->full_name()),
+            std::string(desc.enum_type()->file()->package()) + ".");
       } else {
-        return MinimizeType(desc.enum_type()->full_name(), parent.full_name())
-            .value_or(desc.enum_type()->name());
+        return MinimizeType(std::string(desc.enum_type()->full_name()),
+                            std::string(parent.full_name()))
+            .value_or(std::string(desc.enum_type()->name()));
       }
     default:
       return kTypeToName[desc.type()];
@@ -157,7 +151,7 @@ std::vector<ProtoFile::Option> OptionsFromMessage(
     for (int j = 0; j < count; j++) {
       std::string name;
       if (fields[i]->is_extension()) {
-        name = "(" + fields[i]->full_name() + ")";
+        name = "(" + std::string(fields[i]->full_name()) + ")";
       } else {
         name = fields[i]->name();
       }
@@ -198,12 +192,20 @@ ProtoFile::Field FieldFromDescriptor(
     const google::protobuf::Descriptor& parent,
     const google::protobuf::FieldDescriptor& desc) {
   auto field = InitFromDescriptor<ProtoFile::Field>(desc);
-  field.label = kLabelToName[desc.label()];
+  field.is_repeated = desc.is_repeated();
   field.packageless_type = FieldTypeFromDescriptor(parent, desc, true);
   field.type = FieldTypeFromDescriptor(parent, desc, false);
   field.name = desc.name();
   field.number = desc.number();
   field.options = OptionsFromMessage(*desc.file()->pool(), desc.options());
+
+  // Protobuf editions: packed fields are no longer an option, but have the same
+  // syntax as far as writing the merged .proto file is concerned.
+  if (desc.is_packed()) {
+    field.options.push_back(
+        ProtoFile::Option{"features.repeated_field_encoding", "PACKED"});
+  }
+
   return field;
 }
 

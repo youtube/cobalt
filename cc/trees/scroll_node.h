@@ -5,13 +5,16 @@
 #ifndef CC_TREES_SCROLL_NODE_H_
 #define CC_TREES_SCROLL_NODE_H_
 
+#include <optional>
+
 #include "cc/base/region.h"
 #include "cc/cc_export.h"
+#include "cc/input/main_thread_scrolling_reason.h"
 #include "cc/input/overscroll_behavior.h"
 #include "cc/input/scroll_snap_data.h"
 #include "cc/paint/element_id.h"
 #include "cc/paint/filter_operations.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "cc/trees/property_ids.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace base {
@@ -28,11 +31,12 @@ struct CC_EXPORT ScrollNode {
   ~ScrollNode();
 
   // The node index of this node in the scroll tree node vector.
-  int id;
+  int id = kInvalidPropertyNodeId;
   // The node index of the parent node in the scroll tree node vector.
-  int parent_id;
+  int parent_id = kInvalidPropertyNodeId;
 
-  uint32_t main_thread_scrolling_reasons;
+  uint32_t main_thread_repaint_reasons =
+      MainThreadScrollingReason::kNotScrollingOnMain;
 
   // Size of the container area that the contents scrolls in, not including
   // non-overlay scrollbars. Overlay scrollbars do not affect these bounds.
@@ -44,30 +48,25 @@ struct CC_EXPORT ScrollNode {
   // Size of the content that is scrolled within the container bounds.
   gfx::Size bounds;
 
-  // This is used for subtrees that should not be scrolled independently. For
-  // example, when there is a layer that is not scrollable itself but is inside
-  // a scrolling layer.
-  bool scrollable : 1;
-  bool max_scroll_offset_affected_by_page_scale : 1;
-  bool scrolls_inner_viewport : 1;
-  bool scrolls_outer_viewport : 1;
-  bool prevent_viewport_scrolling_from_inner : 1;
-  bool should_flatten : 1;
-  bool user_scrollable_horizontal : 1;
-  bool user_scrollable_vertical : 1;
-
-  // This offset is used when |scrollable| is false and there isn't a transform
-  // node already present that covers this offset. For layer tree mode only.
-  gfx::Vector2dF offset_to_transform_parent;
+  bool max_scroll_offset_affected_by_page_scale : 1 = false;
+  bool scrolls_inner_viewport : 1 = false;
+  bool scrolls_outer_viewport : 1 = false;
+  bool prevent_viewport_scrolling_from_inner : 1 = false;
+  bool user_scrollable_horizontal : 1 = false;
+  bool user_scrollable_vertical : 1 = false;
+  bool is_composited : 1 = false;
 
   ElementId element_id;
-  int transform_id;
 
-  OverscrollBehavior overscroll_behavior;
+  // The transform node containing the scroll offset.
+  int transform_id = kRootPropertyNodeId;
 
-  absl::optional<SnapContainerData> snap_container_data;
+  // The container area origin in the parent transform space of transform_id.
+  gfx::Point container_origin;
 
-  bool is_composited : 1;
+  OverscrollBehavior overscroll_behavior{OverscrollBehavior::Type::kAuto};
+
+  std::optional<SnapContainerData> snap_container_data;
 
 #if DCHECK_IS_ON()
   bool operator==(const ScrollNode& other) const;

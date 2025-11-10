@@ -6,13 +6,22 @@
 
 #include <cstring>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/test_tools/web_transport_resets_backend.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
+#include "quiche/web_transport/complete_buffer_visitor.h"
+#include "quiche/web_transport/web_transport.h"
+#include "quiche/web_transport/web_transport_headers.h"
 
 namespace quic {
 namespace test {
@@ -23,12 +32,13 @@ namespace {
 // sends a unidirectional stream of format "code message" to this endpoint, it
 // will close the session with the corresponding error code and error message.
 // For instance, sending "42 test error" will cause it to be closed with code 42
-// and message "test error".
+// and message "test error".  As a special case, sending "DRAIN" would result in
+// a DRAIN_WEBTRANSPORT_SESSION capsule being sent.
 class SessionCloseVisitor : public WebTransportVisitor {
  public:
   SessionCloseVisitor(WebTransportSession* session) : session_(session) {}
 
-  void OnSessionReady(const spdy::Http2HeaderBlock& /*headers*/) override {}
+  void OnSessionReady() override {}
   void OnSessionClosed(WebTransportSessionError /*error_code*/,
                        const std::string& /*error_message*/) override {}
 
@@ -41,6 +51,10 @@ class SessionCloseVisitor : public WebTransportVisitor {
     stream->SetVisitor(
         std::make_unique<WebTransportUnidirectionalEchoReadVisitor>(
             stream, [this](const std::string& data) {
+              if (data == "DRAIN") {
+                session_->NotifySessionDraining();
+                return;
+              }
               std::pair<absl::string_view, absl::string_view> parsed =
                   absl::StrSplit(data, absl::MaxSplits(' ', 1));
               WebTransportSessionError error_code = 0;
@@ -60,11 +74,45 @@ class SessionCloseVisitor : public WebTransportVisitor {
   WebTransportSession* session_;  // Not owned.
 };
 
+// SubprotocolStreamVisitor opens one stream that contains the selected
+// subprotocol.
+class SubprotocolStreamVisitor : public WebTransportVisitor {
+ public:
+  SubprotocolStreamVisitor(WebTransportSession* session) : session_(session) {}
+
+  void OnSessionReady() override {
+    OnCanCreateNewOutgoingUnidirectionalStream();
+  }
+  void OnSessionClosed(WebTransportSessionError /*error_code*/,
+                       const std::string& /*error_message*/) override {}
+  void OnIncomingBidirectionalStreamAvailable() override {}
+  void OnIncomingUnidirectionalStreamAvailable() override {}
+  void OnDatagramReceived(absl::string_view /*datagram*/) override {}
+  void OnCanCreateNewOutgoingBidirectionalStream() override {}
+  void OnCanCreateNewOutgoingUnidirectionalStream() override {
+    if (sent_) {
+      return;
+    }
+    webtransport::Stream* stream = session_->OpenOutgoingUnidirectionalStream();
+    if (stream == nullptr) {
+      return;
+    }
+    stream->SetVisitor(std::make_unique<webtransport::CompleteBufferVisitor>(
+        stream, session_->GetNegotiatedSubprotocol().value_or("[none]")));
+    stream->visitor()->OnCanWrite();
+    sent_ = true;
+  }
+
+ private:
+  WebTransportSession* session_;  // Not owned.
+  bool sent_ = false;
+};
+
 }  // namespace
 
 QuicSimpleServerBackend::WebTransportResponse
 QuicTestBackend::ProcessWebTransportRequest(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     WebTransportSession* session) {
   if (!SupportsWebTransport()) {
     return QuicSimpleServerBackend::ProcessWebTransportRequest(request_headers,
@@ -108,6 +156,38 @@ QuicTestBackend::ProcessWebTransportRequest(
     WebTransportResponse response;
     response.response_headers[":status"] = "200";
     response.visitor = std::make_unique<SessionCloseVisitor>(session);
+    return response;
+  }
+  if (path == "/selected-subprotocol") {
+    auto subprotocol_it =
+        request_headers.find(webtransport::kSubprotocolRequestHeader);
+    if (subprotocol_it == request_headers.end()) {
+      WebTransportResponse response;
+      response.response_headers[":status"] = "400";
+      return response;
+    }
+    absl::StatusOr<std::vector<std::string>> subprotocols =
+        webtransport::ParseSubprotocolRequestHeader(subprotocol_it->second);
+    if (!subprotocols.ok() || subprotocols->empty()) {
+      WebTransportResponse response;
+      response.response_headers[":status"] = "400";
+      return response;
+    }
+    size_t subprotocol_index = 0;
+    auto subprotocol_index_it = request_headers.find("subprotocol-index");
+    if (subprotocol_index_it != request_headers.end()) {
+      if (!absl::SimpleAtoi(subprotocol_index_it->second, &subprotocol_index) ||
+          subprotocol_index >= subprotocols->size()) {
+        WebTransportResponse response;
+        response.response_headers[":status"] = "400";
+        return response;
+      }
+    }
+    WebTransportResponse response;
+    response.response_headers[":status"] = "200";
+    response.response_headers[webtransport::kSubprotocolResponseHeader] =
+        (*subprotocols)[subprotocol_index];
+    response.visitor = std::make_unique<SubprotocolStreamVisitor>(session);
     return response;
   }
 

@@ -10,6 +10,7 @@
 
 #include "base/debug/crash_logging.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/public/renderer/content_renderer_client.h"
@@ -45,7 +46,6 @@ using blink::WebPluginParams;
 using blink::WebPrintParams;
 using blink::WebString;
 using blink::WebURL;
-using blink::WebVector;
 
 namespace content {
 
@@ -58,7 +58,7 @@ blink::WebTextInputType ConvertTextInputType(ui::TextInputType type) {
 
 struct PepperWebPluginImpl::InitData {
   scoped_refptr<PluginModule> module;
-  RenderFrameImpl* render_frame;
+  raw_ptr<RenderFrameImpl> render_frame;
   std::vector<std::string> arg_names;
   std::vector<std::string> arg_values;
   GURL url;
@@ -83,7 +83,7 @@ PepperWebPluginImpl::PepperWebPluginImpl(PluginModule* plugin_module,
   // Set subresource URL for crash reporting.
   static auto* const subresource_url = base::debug::AllocateCrashKeyString(
       "subresource_url", base::debug::CrashKeySize::Size256);
-  base::debug::SetCrashKeyString(subresource_url, init_data_->url.spec());
+  base::debug::SetCrashKeyString(subresource_url, init_data_->url.possibly_invalid_spec());
 }
 
 PepperWebPluginImpl::~PepperWebPluginImpl() {}
@@ -235,7 +235,7 @@ void PepperWebPluginImpl::DidReceiveResponse(
   instance_->HandleDocumentLoad(response);
 }
 
-void PepperWebPluginImpl::DidReceiveData(const char* data, size_t data_length) {
+void PepperWebPluginImpl::DidReceiveData(base::span<const char> data) {
   // Re-entrancy may cause JS to try to execute script on the plugin before it
   // is fully initialized. See: crbug.com/715747.
   if (!instance_)
@@ -243,7 +243,7 @@ void PepperWebPluginImpl::DidReceiveData(const char* data, size_t data_length) {
   blink::WebAssociatedURLLoaderClient* document_loader =
       instance_->document_loader();
   if (document_loader)
-    document_loader->DidReceiveData(data, data_length);
+    document_loader->DidReceiveData(data);
 }
 
 void PepperWebPluginImpl::DidFinishLoading() {
@@ -316,10 +316,6 @@ void PepperWebPluginImpl::PrintEnd() {
   // is fully initialized. See: crbug.com/715747.
   if (instance_)
     instance_->PrintEnd();
-}
-
-bool PepperWebPluginImpl::IsPlaceholder() {
-  return false;
 }
 
 void PepperWebPluginImpl::DidLoseMouseLock() {

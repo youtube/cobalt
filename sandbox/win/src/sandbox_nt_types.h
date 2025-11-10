@@ -5,10 +5,12 @@
 #ifndef SANDBOX_WIN_SRC_SANDBOX_NT_TYPES_H_
 #define SANDBOX_WIN_SRC_SANDBOX_NT_TYPES_H_
 
+#include "base/compiler_specific.h"
 #include "sandbox/win/src/nt_internals.h"
 
 namespace sandbox {
 
+// clang-format off
 struct NtExports {
   bool                                   Initialized;
   NtAllocateVirtualMemoryFunction        AllocateVirtualMemory;
@@ -18,10 +20,7 @@ struct NtExports {
   NtDuplicateObjectFunction              DuplicateObject;
   NtFreeVirtualMemoryFunction            FreeVirtualMemory;
   NtMapViewOfSectionFunction             MapViewOfSection;
-  NtOpenFileFunction                     OpenFile;
   NtOpenThreadFunction                   OpenThread;
-  NtOpenProcessFunction                  OpenProcess;
-  NtOpenProcessTokenFunction             OpenProcessToken;
   NtOpenProcessTokenExFunction           OpenProcessTokenEx;
   NtProtectVirtualMemoryFunction         ProtectVirtualMemory;
   NtQueryAttributesFileFunction          QueryAttributesFile;
@@ -31,7 +30,6 @@ struct NtExports {
   NtQuerySectionFunction                 QuerySection;
   NtQueryVirtualMemoryFunction           QueryVirtualMemory;
   NtSetInformationFileFunction           SetInformationFile;
-  NtSetInformationProcessFunction        SetInformationProcess;
   NtSignalAndWaitForSingleObjectFunction SignalAndWaitForSingleObject;
   NtUnmapViewOfSectionFunction           UnmapViewOfSection;
   NtWaitForSingleObjectFunction          WaitForSingleObject;
@@ -39,15 +37,15 @@ struct NtExports {
   RtlAnsiStringToUnicodeStringFunction   RtlAnsiStringToUnicodeString;
   RtlCompareUnicodeStringFunction        RtlCompareUnicodeString;
   RtlCreateHeapFunction                  RtlCreateHeap;
-  RtlCreateUserThreadFunction            RtlCreateUserThread;
   RtlDestroyHeapFunction                 RtlDestroyHeap;
   RtlFreeHeapFunction                    RtlFreeHeap;
   RtlNtStatusToDosErrorFunction          RtlNtStatusToDosError;
-  _strnicmpFunction                      _strnicmp;
-  strlenFunction                         strlen;
-  wcslenFunction                         wcslen;
-  memcpyFunction                         memcpy;
+  UNSAFE_BUFFER_USAGE _strnicmpFunction  _strnicmp;
+  UNSAFE_BUFFER_USAGE strlenFunction     strlen;
+  UNSAFE_BUFFER_USAGE wcslenFunction     wcslen;
+  UNSAFE_BUFFER_USAGE memcpyFunction     memcpy;
 };
+// clang-format on
 
 // This is the value used for the ntdll level allocator.
 enum AllocationType {

@@ -12,7 +12,7 @@ namespace search_provider_logos {
 // Receives updates when the search provider's logo is available.
 class LogoObserver {
  public:
-  virtual ~LogoObserver() {}
+  virtual ~LogoObserver() = default;
 
   // Called when the cached logo is available and possibly when a freshly
   // downloaded logo is available. |logo| will be NULL if no logo is available.
@@ -21,13 +21,6 @@ class LogoObserver {
   // If the fresh logo is the same as the cached logo, this will not be called
   // again.
   virtual void OnLogoAvailable(const Logo* logo, bool from_cache) = 0;
-
-  // Called when it has been determined from server that the cached logo (or
-  // null) is still valid. This is independent from OnLogoAvailable and is
-  // intended for users who need to take some action that can only happen when a
-  // logo won't later change.
-  // A no-op implementation is provided for users who don't care about this.
-  virtual void OnCachedLogoRevalidated() {}
 
   // Called when the LogoService will no longer send updates to this
   // LogoObserver. For example: after the cached logo is validated, after

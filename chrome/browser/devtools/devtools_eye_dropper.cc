@@ -183,7 +183,7 @@ void DevToolsEyeDropper::UpdateCursor() {
   // on the platform. Linux, Mac and Win have large cursors with two circles for
   // original spot and its magnified projection; Ash gets smaller (64 px)
   // magnified projection only with centered hotspot.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   const float kCursorSize = 63;
   const float kDiameter = 63;
   const float kHotspotOffset = 32;
@@ -314,19 +314,14 @@ void DevToolsEyeDropper::OnFrameCaptured(
     DLOG(ERROR) << "Shared memory mapping failed.";
     return;
   }
-  if (mapping.size() <
+
+  base::span<const uint8_t> pixels(mapping);
+
+  if (pixels.size() <
       media::VideoFrame::AllocationSize(info->pixel_format, info->coded_size)) {
     DLOG(ERROR) << "Shared memory size was less than expected.";
     return;
   }
-  if (!info->color_space) {
-    DLOG(ERROR) << "Missing mandatory color space info.";
-    return;
-  }
-
-  // The SkBitmap's pixels will be marked as immutable, but the installPixels()
-  // API requires a non-const pointer. So, cast away the const.
-  void* const pixels = const_cast<void*>(mapping.memory());
 
   // Call installPixels() with a |releaseProc| that: 1) notifies the capturer
   // that this consumer has finished with the frame, and 2) releases the shared
@@ -339,13 +334,23 @@ void DevToolsEyeDropper::OnFrameCaptured(
     mojo::PendingRemote<viz::mojom::FrameSinkVideoConsumerFrameCallbacks>
         releaser;
   };
+
+  auto image_info = SkImageInfo::MakeN32(
+      content_rect.width(), content_rect.height(), kPremul_SkAlphaType,
+      info->color_space.ToSkColorSpace());
+  const size_t row_bytes =
+      media::VideoFrame::RowBytes(media::VideoFrame::Plane::kARGB,
+                                  info->pixel_format, info->coded_size.width());
+  // installPixels() takes an unsafe unbounded pointer, ensure it's pointing to
+  // enough memory.
+  CHECK_GE(pixels.size(), image_info.computeByteSize(row_bytes));
+
   frame_.installPixels(
-      SkImageInfo::MakeN32(content_rect.width(), content_rect.height(),
-                           kPremul_SkAlphaType,
-                           info->color_space->ToSkColorSpace()),
-      pixels,
-      media::VideoFrame::RowBytes(media::VideoFrame::kARGBPlane,
-                                  info->pixel_format, info->coded_size.width()),
+      image_info,
+      // The SkBitmap's pixels will be marked as immutable, but the
+      // installPixels() API requires a non-const pointer. So, cast away the
+      // const.
+      const_cast<uint8_t*>(pixels.data()), row_bytes,
       [](void* addr, void* context) {
         delete static_cast<FramePinner*>(context);
       },
@@ -355,7 +360,8 @@ void DevToolsEyeDropper::OnFrameCaptured(
   UpdateCursor();
 }
 
-void DevToolsEyeDropper::OnNewCropVersion(uint32_t crop_version) {}
+void DevToolsEyeDropper::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {}
 
 void DevToolsEyeDropper::OnFrameWithEmptyRegionCapture() {}
 

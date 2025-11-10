@@ -47,39 +47,61 @@ class ASH_EXPORT VcEffectsDelegate {
   // Returns the number of hosted effects.
   int GetNumEffects();
 
-  // Retrieves the `VcHostedEffect` given its `effect_id`.
+  // Gets the `VcHostedEffect` given its `effect_id`.
   const VcHostedEffect* GetEffectById(VcEffectId effect_id);
 
-  // Retrieves a std::vector<> of hosted effects of the passed-in `type`.
-  std::vector<VcHostedEffect*> GetEffects(VcEffectType type);
+  // Gets all `VcHostedEffect`'s of `type` regardless of their dependencies.
+  std::vector<VcHostedEffect*> GetAllEffects(VcEffectType type);
+
+  // Gets the `VcHostedEffect`'s of `type`. Only effects whose dependencies are
+  // satisfied will be returned.
+  std::vector<VcHostedEffect*> GetAvailableEffects(VcEffectType type);
+
+  // Records the state of all effects.
+  void RecordInitialStates();
 
   // Invoked when the UI controls are being constructed, to get the actual
   // effect state. `effect_id` specifies the effect whose state is requested,
   // and can be ignored if only one effect is being hosted. If no state can be
-  // determined for `effect_id`, this function should return `absl::nullopt`.
-  virtual absl::optional<int> GetEffectState(VcEffectId effect_id) = 0;
+  // determined for `effect_id`, this function should return `std::nullopt`.
+  virtual std::optional<int> GetEffectState(VcEffectId effect_id) = 0;
 
   // Invoked anytime the user makes an adjustment to an effect state. For
   // delegates that host more than a single effect, `effect_id` is the unique ID
   // of the activated effect. If only one effect is hosted, `effect_id` is
-  // ignored and `absl::nullopt` should be passed. Similarly, `state` should be
-  // `absl::nullopt` in cases (like toggle effects) where no specific state is
+  // ignored and `std::nullopt` should be passed. Similarly, `state` should be
+  // `std::nullopt` in cases (like toggle effects) where no specific state is
   // being set, an integer value otherwise.
   virtual void OnEffectControlActivated(VcEffectId effect_id,
-                                        absl::optional<int> state) = 0;
+                                        std::optional<int> state) = 0;
 
   // This function will only be used for set-value effects, not for togglable
   // effects. Invoked when the user chooses a new value for the set-value effect
   // to record metrics. Note that for togglable effects, we are already
   // recording metrics in `ToggleEffectsView`, so no need further metrics
   // collection needed for them.
-  virtual void RecordMetricsForSetValueEffect(VcEffectId effect_id,
-                                              int state_value) const {}
+  virtual void RecordMetricsForSetValueEffectOnClick(VcEffectId effect_id,
+                                                     int state_value) const {}
+
+  // This function will only be used for set-value effects, not for togglable
+  // effects. Invoked when the tray becomes visible.
+  virtual void RecordMetricsForSetValueEffectOnStartup(VcEffectId effect_id,
+                                                       int state_value) const {}
+
+  void set_on_effect_will_be_removed_callback(
+      base::RepeatingCallback<void(VcEffectsDelegate*)> callback) {
+    on_effect_will_be_removed_callback_ = std::move(callback);
+  }
 
  private:
   // Stores the collection of effects that are hosted by this delegate. The keys
   // are the unique ids of the effects.
   std::map<VcEffectId, std::unique_ptr<VcHostedEffect>> effects_;
+
+  // Called when a `VcEffectId` is about to be removed. Used to clear
+  // dependencies.
+  base::RepeatingCallback<void(VcEffectsDelegate*)>
+      on_effect_will_be_removed_callback_;
 };
 
 }  // namespace ash

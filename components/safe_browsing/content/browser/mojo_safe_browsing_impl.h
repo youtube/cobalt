@@ -16,10 +16,6 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 
-namespace content {
-class ResourceContext;
-}
-
 namespace safe_browsing {
 
 // This class implements the Mojo interface for renderers to perform
@@ -36,7 +32,6 @@ class MojoSafeBrowsingImpl : public mojom::SafeBrowsing,
 
   static void MaybeCreate(
       int render_process_id,
-      base::WeakPtr<content::ResourceContext> resource_context,
       const base::RepeatingCallback<scoped_refptr<UrlCheckerDelegate>()>&
           delegate_getter,
       mojo::PendingReceiver<mojom::SafeBrowsing> receiver);
@@ -51,13 +46,12 @@ class MojoSafeBrowsingImpl : public mojom::SafeBrowsing,
 
   // mojom::SafeBrowsing implementation.
   void CreateCheckerAndCheck(
-      int32_t render_frame_id,
+      const std::optional<blink::LocalFrameToken>& frame_token,
       mojo::PendingReceiver<mojom::SafeBrowsingUrlChecker> receiver,
       const GURL& url,
       const std::string& method,
       const net::HttpRequestHeaders& headers,
       int32_t load_flags,
-      network::mojom::RequestDestination request_destination,
       bool has_user_gesture,
       bool originated_from_service_worker,
       CreateCheckerAndCheckCallback callback) override;

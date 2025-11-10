@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<grit current_release="1" latest_public_release="0" output_all_resource_defines="false">
+<grit current_release="1" latest_public_release="0">
   <outputs>
     <output filename="grit/chromeos_projector_app_bundle_resources.h" type="rc_header">
       <emit emit_type="prepend"/>
@@ -11,7 +11,6 @@
   <release seq="1">
     <includes>
       <include name="IDR_PROJECTOR_APP_APP_BIN_JS" file="app_bin.js" type="BINDATA" compress="brotli" />
-      <include name="IDR_PROJECTOR_APP_PROJECTOR_CROS_STYLESHEET_CSS" file="projector_cros_stylesheet.css" type="BINDATA" compress="brotli"/>
     </includes>
   </release>
 </grit>

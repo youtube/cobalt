@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//testing/test.gni")
 
 source_set("lib") {
@@ -15,6 +14,8 @@ source_set("lib") {
     "device_factory_impl.h",
     "device_media_to_mojo_adapter.cc",
     "device_media_to_mojo_adapter.h",
+    "devices_changed_notifier.cc",
+    "devices_changed_notifier.h",
     "gpu_memory_buffer_virtual_device_mojo_adapter.cc",
     "gpu_memory_buffer_virtual_device_mojo_adapter.h",
     "push_video_stream_subscription_impl.cc",
@@ -47,20 +48,22 @@ source_set("lib") {
     "//services/video_capture/public/cpp",
     "//services/video_capture/public/mojom",
     "//services/video_capture/public/mojom:constants",
+    "//services/video_effects/buildflags",
+    "//services/video_effects/public/mojom:mojom",
     "//services/viz/public/cpp/gpu",
   ]
 
   deps = [
-    "//build:chromeos_buildflags",
     "//media/capture:capture_lib",
     "//media/capture:capture_switches",
+    "//services/video_effects/buildflags",
   ]
 
   if (is_chromeos) {
     deps += [ "//chromeos/crosapi/mojom" ]
   }
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [
       "ash/video_capture_device_ash.cc",
       "ash/video_capture_device_ash.h",
@@ -78,21 +81,6 @@ source_set("lib") {
 
     public_deps += [ "//media/capture/video/chromeos/mojom:cros_camera" ]
   }
-
-  if (is_chromeos_lacros) {
-    sources += [
-      "lacros/device_factory_adapter_lacros.cc",
-      "lacros/device_factory_adapter_lacros.h",
-      "lacros/device_proxy_lacros.cc",
-      "lacros/device_proxy_lacros.h",
-      "lacros/video_buffer_adapters.cc",
-      "lacros/video_buffer_adapters.h",
-      "lacros/video_frame_handler_proxy_lacros.cc",
-      "lacros/video_frame_handler_proxy_lacros.h",
-    ]
-
-    deps += [ "//chromeos/lacros" ]
-  }
 }
 
 source_set("tests") {
@@ -101,18 +89,19 @@ source_set("tests") {
   sources = [
     "broadcasting_receiver_unittest.cc",
     "device_media_to_mojo_adapter_unittest.cc",
+    "devices_changed_notifier_unittest.cc",
     "gpu_memory_buffer_virtual_device_mojo_adapter_unittest.cc",
     "test/fake_device_descriptor_test.cc",
     "test/fake_device_descriptor_test.h",
-    "test/fake_device_test.cc",
-    "test/fake_device_test.h",
-    "test/fake_device_unittest.cc",
-    "test/mock_device_shared_access_unittest.cc",
-    "test/mock_device_test.cc",
-    "test/mock_device_test.h",
-    "test/mock_device_unittest.cc",
+    "test/fake_video_capture_device_test.cc",
+    "test/fake_video_capture_device_test.h",
+    "test/fake_video_capture_device_unittest.cc",
     "test/mock_devices_changed_observer.cc",
     "test/mock_devices_changed_observer.h",
+    "test/mock_video_capture_device_shared_access_unittest.cc",
+    "test/mock_video_capture_device_test.cc",
+    "test/mock_video_capture_device_test.h",
+    "test/mock_video_capture_device_unittest.cc",
     "test/service_lifecycle_unittest.cc",
     "test/video_capture_service_test.cc",
     "test/video_capture_service_test.h",
@@ -124,7 +113,6 @@ source_set("tests") {
   deps = [
     ":lib",
     "//base/test:test_support",
-    "//build:chromeos_buildflags",
     "//media/capture:test_support",
     "//media/capture/mojom:video_capture",
     "//services/video_capture/public/cpp:mocks",

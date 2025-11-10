@@ -25,7 +25,7 @@ The multi-threaded version incurs a latency cost, but allows for input and anima
 In general, the browser uses the single-threaded version as its main thread is cheap and light, whereas the renderer uses the multi-threaded version as its main thread (Blink) can be quite busy on some pages.
 
 Both single and multi-threaded versions drive themselves using the [cc::Scheduler](#scheduling), which determines when to submit frames.
-The one exception (a third mode that is only used in one place) is Blink layout tests and sim tests, which do not (always) use a scheduler and tell cc when to composite synchronously, via LayerTreeHost::Composite.
+The one exception (a third mode that is only used in one place) is Blink web tests and sim tests, which do not (always) use a scheduler and tell cc when to composite synchronously, via LayerTreeHost::CompositeForTest.
 This is for historical reasons, and also to have more control during testing.
 
 ## Content Data Flow Overview
@@ -269,11 +269,12 @@ Chrome never mixes software compositing with hardware raster, but the other thre
 
 The compositing mode affects the choice of RasterBufferProvider that cc provides, which manages the raster process and resource management on the raster worker threads:
 
-* BitmapRasterBufferProvider: rasters software bitmaps for software compositing
+* ZeroCopyRasterBufferProvider: rasters software bitmaps (a) for software 
+  compositing into shared memory that is read directly by the software compositor 
+  and (b) for gpu compositing directly into a GpuMemoryBuffer (e.g. IOSurface), 
+  which is memory that can be mapped by CPU and used by the GPU
 
 * OneCopyRasterBufferProvider: rasters software bitmaps for gpu compositing into shared memory, which are then uploaded to gpu memory in the gpu process
-
-* ZeroCopyRasterBufferProvider: rasters software bitmaps for gpu compositing directly into a GpuMemoryBuffer (e.g. IOSurface), which is memory that can be mapped by CPU and used by the GPU
 
 * GpuRasterBufferProvider: rasters gpu textures for gpu compositing over a command buffer via paint commands (for gpu raster)
 
@@ -376,7 +377,7 @@ Chrome has different notions of invalidation throughout the system.
 Finally, damage is another word for “draw invalidation”.
 It’s the part of the screen that needs to be redrawn.
 
-There’s two types of damage: invalidation damage and expose damage.
+There are two types of damage: invalidation damage and expose damage.
 Invalidation damage is due to raster invalidation, where a part of a texture has changed and the screen needs to be updated.
 Expose damage is when a layer goes away, gets added for the first time, or gets reordered.
 There’s no raster invalidation in these cases, but the screen still needs to be updated.

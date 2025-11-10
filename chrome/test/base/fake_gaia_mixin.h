@@ -8,11 +8,12 @@
 #include <initializer_list>
 #include <memory>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "google_apis/gaia/fake_gaia.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace base {
 class CommandLine;
@@ -29,12 +30,12 @@ class CommandLine;
 //   };
 class FakeGaiaMixin : public InProcessBrowserTestMixin {
  public:
-  using UiPath = std::initializer_list<base::StringPiece>;
+  using UiPath = std::initializer_list<std::string_view>;
 
   // Default fake user email and password, may be used by tests.
   static const char kFakeUserEmail[];
   static const char kFakeUserPassword[];
-  static const char kFakeUserGaiaId[];
+  static const GaiaId::Literal kFakeUserGaiaId;
   static const char kFakeAuthCode[];
   static const char kFakeRefreshToken[];
   static const char kEmptyUserServices[];
@@ -56,9 +57,9 @@ class FakeGaiaMixin : public InProcessBrowserTestMixin {
   // For your convenience, the e-mail addresses for users that have been set up
   // in this way are provided below.
   static const char kEnterpriseUser1[];
-  static const char kEnterpriseUser1GaiaId[];
+  static const GaiaId::Literal kEnterpriseUser1GaiaId;
   static const char kEnterpriseUser2[];
-  static const char kEnterpriseUser2GaiaId[];
+  static const GaiaId::Literal kEnterpriseUser2GaiaId;
 
   static const char kTestUserinfoToken1[];
   static const char kTestRefreshToken1[];
@@ -81,10 +82,12 @@ class FakeGaiaMixin : public InProcessBrowserTestMixin {
   // - Issues a special all-scope access token associated with the test refresh
   //   token;
   void SetupFakeGaiaForLogin(const std::string& user_email,
-                             const std::string& gaia_id,
+                             const GaiaId& gaia_id,
                              const std::string& refresh_token);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // Set up fake gaia for the login code with default values.
+  void SetupFakeGaiaForLoginWithDefaults();
+
   // Sets up fake gaia to serve access tokens for a child user.
   // *   Maps `user_email` to `gaia_id`. If `gaia_id` is empty, `user_email`
   //     will be mapped to kDefaultGaiaId in FakeGaia.
@@ -94,26 +97,24 @@ class FakeGaiaMixin : public InProcessBrowserTestMixin {
   //     SetupFakeGaiaForLogin()).
   // *   Initializes fake merge session as needed.
   void SetupFakeGaiaForChildUser(const std::string& user_email,
-                                 const std::string& gaia_id,
+                                 const GaiaId& gaia_id,
                                  const std::string& refresh_token,
                                  bool issue_any_scope_token);
+
+#if BUILDFLAG(IS_CHROMEOS)
   void SetupFakeGaiaForLoginManager();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-  bool initialize_fake_merge_session() {
-    return initialize_fake_merge_session_;
-  }
-  void set_initialize_fake_merge_session(bool value) {
-    initialize_fake_merge_session_ = value;
+  bool initialize_configuration() { return initialize_configuration_; }
+  void set_initialize_configuration(bool value) {
+    initialize_configuration_ = value;
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   bool initialize_child_id_token() { return initialize_child_id_token_; }
 
   void set_initialize_child_id_token(bool value) {
     initialize_child_id_token_ = value;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   FakeGaia* fake_gaia() { return fake_gaia_.get(); }
   net::EmbeddedTestServer* gaia_server() { return &gaia_server_; }
@@ -131,10 +132,8 @@ class FakeGaiaMixin : public InProcessBrowserTestMixin {
   net::EmbeddedTestServer gaia_server_{net::EmbeddedTestServer::TYPE_HTTPS};
 
   std::unique_ptr<FakeGaia> fake_gaia_;
-  bool initialize_fake_merge_session_ = true;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  bool initialize_configuration_ = true;
   bool initialize_child_id_token_ = false;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 };
 
 #endif  // CHROME_TEST_BASE_FAKE_GAIA_MIXIN_H_

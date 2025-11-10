@@ -11,11 +11,11 @@ import android.widget.CompoundButton.OnCheckedChangeListener;
 
 import org.chromium.base.ObserverList;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.settings.SettingsLauncherImpl;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.site_settings.CookieControlsServiceBridge;
 import org.chromium.chrome.browser.site_settings.CookieControlsServiceBridge.CookieControlsServiceObserver;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
+import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.site_settings.SingleCategorySettings;
 import org.chromium.components.browser_ui.site_settings.SiteSettingsCategory;
 import org.chromium.components.content_settings.CookieControlsEnforcement;
@@ -29,9 +29,7 @@ import org.chromium.components.content_settings.CookieControlsEnforcement;
  */
 public class IncognitoCookieControlsManager
         implements CookieControlsServiceObserver, OnCheckedChangeListener, View.OnClickListener {
-    /**
-     * Interface for a class that wants to receive updates from this manager.
-     */
+    /** Interface for a class that wants to receive updates from this manager. */
     public interface Observer {
         /**
          * Notifies that this manager has received an update.
@@ -54,14 +52,20 @@ public class IncognitoCookieControlsManager
     private @CookieControlsEnforcement int mSnapshotEnforcement =
             CookieControlsEnforcement.NO_ENFORCEMENT;
 
-    /**
-     * Initializes the IncognitoCookieControlsManager explicitly.
-     */
-    public void initialize() {
+    /** Initializes the IncognitoCookieControlsManager explicitly. */
+    public void initialize(Profile profile) {
         if (mIsInitialized) return;
 
-        mServiceBridge = new CookieControlsServiceBridge(this);
+        mServiceBridge = new CookieControlsServiceBridge(profile, this);
         mIsInitialized = true;
+    }
+
+    /** Cleans up this class and any dependencies. */
+    public void destroy() {
+        if (mServiceBridge != null) {
+            mServiceBridge.destroy();
+            mServiceBridge = null;
+        }
     }
 
     /**
@@ -78,9 +82,7 @@ public class IncognitoCookieControlsManager
         mObservers.removeObserver(observer);
     }
 
-    /**
-     * Tells the bridge to update itself if necessary.
-     */
+    /** Tells the bridge to update itself if necessary. */
     public void updateIfNecessary() {
         if (mIsInitialized) mServiceBridge.updateServiceIfNecessary();
     }
@@ -97,7 +99,7 @@ public class IncognitoCookieControlsManager
     }
 
     @Override
-    public void sendCookieControlsUIChanges(
+    public void sendCookieControlsUiChanges(
             boolean checked, @CookieControlsEnforcement int enforcement) {
         mChecked = checked;
         mEnforcement = enforcement;
@@ -108,9 +110,7 @@ public class IncognitoCookieControlsManager
 
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        boolean isCookieToggle = ChromeFeatureList.isEnabled(ChromeFeatureList.INCOGNITO_NTP_REVAMP)
-                ? buttonView.getId() == R.id.revamped_cookie_controls_card_toggle
-                : buttonView.getId() == R.id.cookie_controls_card_toggle;
+        boolean isCookieToggle = buttonView.getId() == R.id.cookie_controls_card_toggle;
         if (isChecked != mChecked && isCookieToggle) {
             mServiceBridge.handleCookieControlsToggleChanged(isChecked);
         }
@@ -120,10 +120,13 @@ public class IncognitoCookieControlsManager
     public void onClick(View v) {
         if (v.getId() == R.id.cookie_controls_card_managed_icon) {
             Bundle fragmentArguments = new Bundle();
-            fragmentArguments.putString(SingleCategorySettings.EXTRA_CATEGORY,
-                    SiteSettingsCategory.preferenceKey(SiteSettingsCategory.Type.COOKIES));
-            SettingsLauncher settingsLauncher = new SettingsLauncherImpl();
-            settingsLauncher.launchSettingsActivity(
+            fragmentArguments.putString(
+                    SingleCategorySettings.EXTRA_CATEGORY,
+                    SiteSettingsCategory.preferenceKey(
+                            SiteSettingsCategory.Type.THIRD_PARTY_COOKIES));
+            SettingsNavigation settingsNavigation =
+                    SettingsNavigationFactory.createSettingsNavigation();
+            settingsNavigation.startSettings(
                     v.getContext(), SingleCategorySettings.class, fragmentArguments);
         }
     }

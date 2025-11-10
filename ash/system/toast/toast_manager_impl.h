@@ -24,13 +24,7 @@ class Window;
 
 namespace ash {
 
-namespace eche_app {
-class LaunchAppHelperTest;
-}
-
-namespace video_conference {
-class VideoConferenceIntegrationTest;
-}
+class ScopedToastPause;
 
 // Class managing toast requests.
 class ASH_EXPORT ToastManagerImpl : public ToastManager,
@@ -45,33 +39,29 @@ class ASH_EXPORT ToastManagerImpl : public ToastManager,
 
   ~ToastManagerImpl() override;
 
-  // ToastManager overrides:
+  // ToastManager:
   void Show(ToastData data) override;
-  void Cancel(const std::string& id) override;
-  bool MaybeToggleA11yHighlightOnActiveToastDismissButton(
-      const std::string& id) override;
-  bool MaybeActivateHighlightedDismissButtonOnActiveToast(
-      const std::string& id) override;
-  bool IsRunning(const std::string& id) const override;
+  void Cancel(std::string_view id) override;
+  bool RequestFocusOnActiveToastButton(std::string_view id) override;
+  bool IsToastShown(std::string_view id) const override;
+  bool IsToastButtonFocused(std::string_view id) const override;
+  std::unique_ptr<ScopedToastPause> CreateScopedPause() override;
 
-  // ToastOverlay::Delegate overrides:
-  void OnClosed() override;
+  // ToastOverlay::Delegate:
+  void CloseToast() override;
   void OnToastHoverStateChanged(bool is_hovering) override;
 
   // SessionObserver:
   void OnSessionStateChanged(session_manager::SessionState state) override;
 
-  const ToastData& GetCurrentToastDataForTesting() const;
+  ToastOverlay* GetCurrentOverlayForTesting(
+      aura::Window* root_window = Shell::GetRootWindowForNewWindows());
 
  private:
   class PausableTimer;
-  friend class AutoConnectNotifierTest;
-  friend class BluetoothNotificationControllerTest;
-  friend class DesksTestApi;
   friend class ToastManagerImplTest;
-  friend class ClipboardHistoryControllerRefreshTest;
-  friend class eche_app::LaunchAppHelperTest;
-  friend class video_conference::VideoConferenceIntegrationTest;
+  // Uses `CloseAllToastsWithoutAnimation()`.
+  friend class BatterySaverControllerTest;
 
   void ShowLatest();
 
@@ -89,9 +79,6 @@ class ASH_EXPORT ToastManagerImpl : public ToastManager,
   // Checks whether any values in `root_window_to_overlay_` are not empty.
   bool HasActiveToasts() const;
 
-  ToastOverlay* GetCurrentOverlayForTesting(
-      aura::Window* root_window = Shell::GetRootWindowForNewWindows());
-
   int serial_for_testing() const { return serial_; }
   void ResetSerialForTesting() { serial_ = 0; }
 
@@ -99,8 +86,9 @@ class ASH_EXPORT ToastManagerImpl : public ToastManager,
   void OnRootWindowAdded(aura::Window* root_window) override;
   void OnRootWindowWillShutdown(aura::Window* root_window) override;
 
-  // Data of the toast which is currently shown. Empty if no toast is visible.
-  absl::optional<ToastData> current_toast_data_;
+  // ToastManager:
+  void Pause() override;
+  void Resume() override;
 
   // Used to destroy the currently running toast if its duration is not
   // infinite. Also allows us to persist the toast on hover by pausing this
@@ -114,6 +102,15 @@ class ASH_EXPORT ToastManagerImpl : public ToastManager,
   // Tracks active toast overlays and their corresponding root windows.
   base::flat_map<aura::Window*, std::unique_ptr<ToastOverlay>>
       root_window_to_overlay_;
+
+  // Keeps track of the number of `ScopedToastPause`.
+  int pause_counter_ = 0;
+
+  // Data of the toast which is currently shown. Empty if no toast is visible.
+  // Destroying a `ToastData` can reentrantly access other fields, so ensure it
+  // is destroyed before other data fields to prevent use-after-dtor issues when
+  // destroying `this`.
+  std::optional<ToastData> current_toast_data_;
 
   ScopedSessionObserver scoped_session_observer_{this};
   base::WeakPtrFactory<ToastManagerImpl> weak_ptr_factory_{this};

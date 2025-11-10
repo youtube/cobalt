@@ -50,34 +50,11 @@ void CustomStateSet::Trace(Visitor* visitor) const {
 }
 
 void CustomStateSet::add(const String& value, ExceptionState& exception_state) {
-  // https://wicg.github.io/custom-state-pseudo-class/#dom-customstateset-add
-
-  // 1. If value does not match to <dashed-ident>, then throw a "SyntaxError"
-  // DOMException.
-  if (!value.StartsWith("--")) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kSyntaxError,
-        "The specified value '" + value + "' must start with '--'.");
-    return;
-  }
-  for (wtf_size_t i = 2; i < value.length(); ++i) {
-    if (IsNameCodePoint(value[i]))
-      continue;
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kSyntaxError,
-        "The specified value '" + value +
-            "' must match to <dashed-ident> production. '" + value[i] +
-            "' is invalid.");
-    return;
-  }
-
-  // 2. Invoke the default add operation, which the setlike<DOMString> would
-  // have if CustomStateSet interface had no add(value) operation, with value
-  // argument.
-  if (!list_.Contains(value))
+  if (!list_.Contains(value)) {
     list_.push_back(value);
-
+  }
   InvalidateStyle();
+  return;
 }
 
 uint32_t CustomStateSet::size() const {

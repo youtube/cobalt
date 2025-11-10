@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/extensions/external_policy_loader.h"
+
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/values.h"
 #include "base/version.h"
 #include "chrome/browser/extensions/extension_management.h"
-#include "chrome/browser/extensions/external_policy_loader.h"
 #include "chrome/browser/extensions/external_provider_impl.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -18,7 +20,7 @@
 #include "extensions/browser/external_provider_interface.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/manifest.h"
+#include "extensions/common/mojom/manifest.mojom-shared.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using content::BrowserThread;
@@ -31,7 +33,7 @@ class ExternalPolicyLoaderTest : public testing::Test {
   ExternalPolicyLoaderTest()
       : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP) {}
 
-  ~ExternalPolicyLoaderTest() override {}
+  ~ExternalPolicyLoaderTest() override = default;
 
  private:
   // Needed to satisfy BrowserThread::CurrentlyOn(BrowserThread::UI) checks in
@@ -42,8 +44,7 @@ class ExternalPolicyLoaderTest : public testing::Test {
 class MockExternalPolicyProviderVisitor
     : public ExternalProviderInterface::VisitorInterface {
  public:
-  MockExternalPolicyProviderVisitor() {
-  }
+  MockExternalPolicyProviderVisitor() = default;
 
   MockExternalPolicyProviderVisitor(const MockExternalPolicyProviderVisitor&) =
       delete;
@@ -74,13 +75,13 @@ class MockExternalPolicyProviderVisitor
   }
 
   bool OnExternalExtensionFileFound(
-      const extensions::ExternalInstallInfoFile& info) override {
+      const ExternalInstallInfoFile& info) override {
     ADD_FAILURE() << "There should be no external extensions from files.";
     return false;
   }
 
   bool OnExternalExtensionUpdateUrlFound(
-      const extensions::ExternalInstallInfoUpdateUrl& info,
+      const ExternalInstallInfoUpdateUrl& info,
       bool force_update) override {
     // Extension has the correct location.
     EXPECT_EQ(ManifestLocation::kExternalPolicyDownload,
@@ -123,11 +124,11 @@ class MockExternalPolicyProviderVisitor
 TEST_F(ExternalPolicyLoaderTest, PolicyIsParsed) {
   base::Value::Dict forced_extensions;
   std::set<std::string> expected_extensions;
-  extensions::ExternalPolicyLoader::AddExtension(
-      forced_extensions, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "http://www.example.com/crx?a=5;b=6");
+  ExternalPolicyLoader::AddExtension(forced_extensions,
+                                     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                                     "http://www.example.com/crx?a=5;b=6");
   expected_extensions.insert("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  extensions::ExternalPolicyLoader::AddExtension(
+  ExternalPolicyLoader::AddExtension(
       forced_extensions, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "https://clients2.google.com/service/update2/crx");
   expected_extensions.insert("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -140,9 +141,9 @@ TEST_F(ExternalPolicyLoaderTest, InvalidEntriesIgnored) {
   base::Value::Dict forced_extensions;
   std::set<std::string> expected_extensions;
 
-  extensions::ExternalPolicyLoader::AddExtension(
-      forced_extensions, "cccccccccccccccccccccccccccccccc",
-      "http://www.example.com/crx");
+  ExternalPolicyLoader::AddExtension(forced_extensions,
+                                     "cccccccccccccccccccccccccccccccc",
+                                     "http://www.example.com/crx");
   expected_extensions.insert("cccccccccccccccccccccccccccccccc");
 
   // Add invalid entries.
@@ -153,5 +154,4 @@ TEST_F(ExternalPolicyLoaderTest, InvalidEntriesIgnored) {
   MockExternalPolicyProviderVisitor mv;
   mv.Visit(forced_extensions, expected_extensions);
 }
-
 }  // namespace extensions

@@ -25,11 +25,24 @@ class MockApiPermissionDelegate
   MockApiPermissionDelegate& operator=(const MockApiPermissionDelegate&) =
       delete;
 
-  MOCK_METHOD1(GetApiPermissionStatus,
-               FederatedIdentityApiPermissionContextDelegate::PermissionStatus(
-                   const url::Origin&));
-  MOCK_METHOD1(RecordDismissAndEmbargo, void(const url::Origin&));
-  MOCK_METHOD1(RemoveEmbargoAndResetCounts, void(const url::Origin&));
+  MOCK_METHOD(FederatedIdentityApiPermissionContextDelegate::PermissionStatus,
+              GetApiPermissionStatus,
+              (const url::Origin&),
+              (override));
+  MOCK_METHOD(void, RecordDismissAndEmbargo, (const url::Origin&), (override));
+  MOCK_METHOD(void,
+              RemoveEmbargoAndResetCounts,
+              (const url::Origin&),
+              (override));
+  MOCK_METHOD(void, RecordIgnoreAndEmbargo, (const url::Origin&), (override));
+  MOCK_METHOD(bool,
+              HasThirdPartyCookiesAccess,
+              (RenderFrameHost&, const GURL&, const url::Origin&),
+              (const, override));
+  MOCK_METHOD(bool,
+              AreThirdPartyCookiesEnabledInSettings,
+              (),
+              (const, override));
 };
 
 }  // namespace content

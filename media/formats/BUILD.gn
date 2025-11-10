@@ -15,6 +15,7 @@ source_set("formats") {
     "//media/ffmpeg",
     "//media/filters",
     "//media/muxers",
+    "//media/muxers:unit_tests",
   ]
 
   sources = [
@@ -26,12 +27,14 @@ source_set("formats") {
     "common/opus_constants.h",
     "mp4/bitstream_converter.cc",
     "mp4/bitstream_converter.h",
+    "mp4/box_constants.h",
     "mp4/box_definitions.cc",
     "mp4/box_definitions.h",
     "mp4/box_reader.cc",
     "mp4/box_reader.h",
     "mp4/es_descriptor.cc",
     "mp4/es_descriptor.h",
+    "mp4/fourccs.cc",
     "mp4/fourccs.h",
     "mp4/mp4_stream_parser.cc",
     "mp4/mp4_stream_parser.h",
@@ -41,6 +44,8 @@ source_set("formats") {
     "mp4/sample_to_group_iterator.h",
     "mp4/track_run_iterator.cc",
     "mp4/track_run_iterator.h",
+    "mp4/writable_box_definitions.cc",
+    "mp4/writable_box_definitions.h",
     "mpeg/mpeg1_audio_stream_parser.cc",
     "mpeg/mpeg1_audio_stream_parser.h",
     "mpeg/mpeg_audio_stream_parser_base.cc",
@@ -81,6 +86,7 @@ source_set("formats") {
     "//build:chromecast_buildflags",
     "//media:media_buildflags",
     "//media/base",
+    "//media/parsers",
     "//third_party/libwebm",
   ]
 
@@ -93,10 +99,13 @@ source_set("formats") {
       "mp4/aac.h",
       "mp4/avc.cc",
       "mp4/avc.h",
+      "mp4/dolby_vision.cc",
+      "mp4/dolby_vision.h",
       "mp4/h264_annex_b_to_avc_bitstream_converter.cc",
       "mp4/h264_annex_b_to_avc_bitstream_converter.h",
+      "mp4/h26x_annex_b_to_bitstream_converter.cc",
+      "mp4/h26x_annex_b_to_bitstream_converter.h",
       "mp4/mp4_status.h",
-      "mpeg/adts_constants.cc",
       "mpeg/adts_constants.h",
       "mpeg/adts_stream_parser.cc",
       "mpeg/adts_stream_parser.h",
@@ -124,13 +133,6 @@ source_set("formats") {
     }
   }
 
-  if (proprietary_codecs && enable_platform_dolby_vision) {
-    sources += [
-      "mp4/dolby_vision.cc",
-      "mp4/dolby_vision.h",
-    ]
-  }
-
   if (enable_platform_dts_audio) {
     sources += [
       "dts/dts_stream_parser.cc",
@@ -148,8 +150,17 @@ source_set("formats") {
     sources += [
       "mp4/ac3.cc",
       "mp4/ac3.h",
+      "mp4/ac3_constants.cc",
+      "mp4/ac3_constants.h",
       "mp4/eac3.cc",
       "mp4/eac3.h",
+    ]
+  }
+
+  if (enable_platform_ac4_audio) {
+    sources += [
+      "mp4/ac4.cc",
+      "mp4/ac4.h",
     ]
   }
 
@@ -193,10 +204,8 @@ source_set("formats") {
     ]
   }
 
-  # TODO(https://crbug.com/1266991): These should be gated behind `enable_hls_demuxer`, once that's enabled by default.
+  # TODO(crbug.com/40057824): These should be gated behind `enable_hls_demuxer`, once that's enabled by default.
   sources += [
-    "hls/audio_rendition.cc",
-    "hls/audio_rendition.h",
     "hls/items.cc",
     "hls/items.h",
     "hls/media_playlist.cc",
@@ -211,12 +220,21 @@ source_set("formats") {
     "hls/playlist.h",
     "hls/playlist_common.cc",
     "hls/playlist_common.h",
-    "hls/rendition_selector.cc",
-    "hls/rendition_selector.h",
+    "hls/quirks.h",
+    "hls/rendition.cc",
+    "hls/rendition.h",
+    "hls/rendition_group.cc",
+    "hls/rendition_group.h",
+    "hls/rendition_manager.cc",
+    "hls/rendition_manager.h",
+    "hls/segment_stream.cc",
+    "hls/segment_stream.h",
     "hls/source_string.cc",
     "hls/source_string.h",
     "hls/tag_name.cc",
     "hls/tag_name.h",
+    "hls/tag_recorder.cc",
+    "hls/tag_recorder.h",
     "hls/tags.cc",
     "hls/tags.h",
     "hls/types.cc",
@@ -226,7 +244,10 @@ source_set("formats") {
     "hls/variant_stream.cc",
     "hls/variant_stream.h",
   ]
-  deps += [ "//third_party/re2" ]
+  deps += [
+    "//crypto:crypto",
+    "//third_party/re2",
+  ]
   public_deps = [
     "//third_party/abseil-cpp:absl",
 
@@ -300,8 +321,10 @@ source_set("unit_tests") {
       "mp4/aac_unittest.cc",
       "mp4/avc_unittest.cc",
       "mp4/box_reader_unittest.cc",
+      "mp4/dolby_vision_unittest.cc",
       "mp4/es_descriptor_unittest.cc",
       "mp4/h264_annex_b_to_avc_bitstream_converter_unittest.cc",
+      "mp4/h26x_annex_b_to_bitstream_converter_unittest.cc",
       "mp4/mp4_stream_parser_unittest.cc",
       "mp4/sample_to_group_iterator_unittest.cc",
       "mp4/track_run_iterator_unittest.cc",
@@ -325,6 +348,10 @@ source_set("unit_tests") {
       ]
     }
 
+    if (enable_platform_ac4_audio) {
+      sources += [ "mp4/ac4_unittest.cc" ]
+    }
+
     if (enable_mse_mpeg2ts_stream_parser) {
       sources += [
         "mp2t/es_adapter_video_unittest.cc",
@@ -334,10 +361,6 @@ source_set("unit_tests") {
         "mp2t/mp2t_stream_parser_unittest.cc",
         "mp2t/timestamp_unroller_unittest.cc",
       ]
-    }
-
-    if (enable_platform_dolby_vision) {
-      sources += [ "mp4/dolby_vision_unittest.cc" ]
     }
 
     if (enable_platform_hevc) {
@@ -350,19 +373,22 @@ source_set("unit_tests") {
     }
   }
 
-  # TODO(https://crbug.com/1266991): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
+  # TODO(crbug.com/40057824): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
   sources += [
     "hls/common_playlist_unittest.cc",
     "hls/items_unittest.cc",
     "hls/media_playlist_test_builder.cc",
     "hls/media_playlist_test_builder.h",
     "hls/media_playlist_unittest.cc",
+    "hls/media_segment_unittest.cc",
     "hls/multivariant_playlist_test_builder.cc",
     "hls/multivariant_playlist_test_builder.h",
     "hls/multivariant_playlist_unittest.cc",
     "hls/playlist_test_builder.h",
     "hls/playlist_unittest.cc",
-    "hls/rendition_selector_unittest.cc",
+    "hls/rendition_group_unittest.cc",
+    "hls/rendition_manager_unittest.cc",
+    "hls/segment_stream_unittest.cc",
     "hls/tags_unittest.cc",
     "hls/test_util.h",
     "hls/types_unittest.cc",
@@ -370,7 +396,7 @@ source_set("unit_tests") {
   ]
 }
 
-# TODO(https://crbug.com/1266991): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
+# TODO(crbug.com/40057824): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
 fuzzer_test("hls_items_fuzzer") {
   sources = [ "hls/items_fuzzer.cc" ]
   deps = [
@@ -379,7 +405,7 @@ fuzzer_test("hls_items_fuzzer") {
   ]
 }
 
-# TODO(https://crbug.com/1266991): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
+# TODO(crbug.com/40057824): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
 fuzzer_test("hls_attribute_list_fuzzer") {
   sources = [ "hls/attribute_list_fuzzer.cc" ]
   deps = [
@@ -388,7 +414,7 @@ fuzzer_test("hls_attribute_list_fuzzer") {
   ]
 }
 
-# TODO(https://crbug.com/1266991): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
+# TODO(crbug.com/40057824): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
 fuzzer_test("hls_media_playlist_fuzzer") {
   sources = [ "hls/media_playlist_fuzzer.cc" ]
   deps = [
@@ -398,7 +424,7 @@ fuzzer_test("hls_media_playlist_fuzzer") {
   ]
 }
 
-# TODO(https://crbug.com/1266991): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
+# TODO(crbug.com/40057824): This should be gated behind `enable_hls_demuxer`, once that's enabled by default.
 fuzzer_test("hls_multivariant_playlist_fuzzer") {
   sources = [ "hls/multivariant_playlist_fuzzer.cc" ]
   deps = [
@@ -428,4 +454,17 @@ if (enable_platform_dts_audio) {
       "//media",
     ]
   }
+}
+
+test("ac3_util_fuzzer") {
+  sources = [ "ac3/ac3_util_fuzzer.cc" ]
+  fuzztests = [
+    "Ac3UtilTest.ParseTotalAc3SampleCountNeverCrashes",
+    "Ac3UtilTest.ParseTotalEac3SampleCountNeverCrashes",
+  ]
+  deps = [
+    "//base",
+    "//media",
+    "//third_party/fuzztest:fuzztest_gtest_main",
+  ]
 }

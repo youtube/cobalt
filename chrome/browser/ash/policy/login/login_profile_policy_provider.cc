@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/policy/login/login_profile_policy_provider.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -18,7 +19,6 @@
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_types.h"
 #include "components/policy/policy_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace policy {
 
@@ -38,7 +38,7 @@ const char kActionShutdown[] = "Shutdown";
 const char kActionDoNothing[] = "DoNothing";
 
 // All policies in this list should have a pref mapping test case in
-// components/policy/test/data/policy_test_cases.json with location
+// components/policy/test/data/pref_mapping/[PolicyName].json with location
 // "signin_profile".
 const DevicePolicyToUserPolicyMapEntry kDevicePoliciesWithPolicyOptionsMap[] = {
     {key::kDeviceLoginScreenAutoSelectCertificateForUrls,
@@ -74,7 +74,18 @@ const DevicePolicyToUserPolicyMapEntry kDevicePoliciesWithPolicyOptionsMap[] = {
     {key::kDeviceLoginScreenPromptOnMultipleMatchingCertificates,
      key::kPromptOnMultipleMatchingCertificates},
     {key::kDeviceLoginScreenContextAwareAccessSignalsAllowlist,
-     key::kContextAwareAccessSignalsAllowlist},
+     key::kUserContextAwareAccessSignalsAllowlist},
+    {key::kDeviceLoginScreenTouchVirtualKeyboardEnabled,
+     key::kTouchVirtualKeyboardEnabled},
+    {key::kDeviceLoginScreenFaceGazeEnabled, key::kFaceGazeEnabled},
+
+    // The authentication URL blocklist and allowlist policies implement content
+    // control for authentication flows, including in the login screen and lock
+    // screen.  Since these use the SigninProfile and LockScreenProfile, content
+    // control is already possible there through the URLBlocklist/URLAllowlist
+    // user policies.
+    {key::kDeviceAuthenticationURLBlocklist, key::kURLBlocklist},
+    {key::kDeviceAuthenticationURLAllowlist, key::kURLAllowlist},
 
     // key::kDeviceLoginScreenLocales maps to the ash::kDeviceLoginScreenLocales
     // CrosSetting elsewhere. Also map it to the key::kForcedLanguages policy in
@@ -105,7 +116,7 @@ const DevicePolicyToUserPolicyMapEntry kRecommendedDevicePoliciesMap[] = {
      key::kVirtualKeyboardEnabled},
 };
 
-absl::optional<base::Value> GetAction(const std::string& action) {
+std::optional<base::Value> GetAction(const std::string& action) {
   if (action == kActionSuspend) {
     return base::Value(chromeos::PowerPolicyController::ACTION_SUSPEND);
   }
@@ -118,7 +129,7 @@ absl::optional<base::Value> GetAction(const std::string& action) {
   if (action == kActionDoNothing) {
     return base::Value(chromeos::PowerPolicyController::ACTION_DO_NOTHING);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // Applies |value| as the recommended value of |user_policy| in
@@ -172,7 +183,7 @@ LoginProfilePolicyProvider::LoginProfilePolicyProvider(
     : device_policy_service_(device_policy_service),
       waiting_for_device_policy_refresh_(false) {}
 
-LoginProfilePolicyProvider::~LoginProfilePolicyProvider() {}
+LoginProfilePolicyProvider::~LoginProfilePolicyProvider() = default;
 
 void LoginProfilePolicyProvider::Init(SchemaRegistry* registry) {
   ConfigurationPolicyProvider::Init(registry);
@@ -187,12 +198,13 @@ void LoginProfilePolicyProvider::Shutdown() {
   ConfigurationPolicyProvider::Shutdown();
 }
 
-void LoginProfilePolicyProvider::RefreshPolicies() {
+void LoginProfilePolicyProvider::RefreshPolicies(PolicyFetchReason reason) {
   waiting_for_device_policy_refresh_ = true;
   weak_factory_.InvalidateWeakPtrs();
   device_policy_service_->RefreshPolicies(
       base::BindOnce(&LoginProfilePolicyProvider::OnDevicePolicyRefreshDone,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr()),
+      reason);
 }
 
 void LoginProfilePolicyProvider::OnPolicyUpdated(const PolicyNamespace& ns,
@@ -224,6 +236,12 @@ void LoginProfilePolicyProvider::UpdateFromDevicePolicy() {
   PolicyBundle bundle;
   PolicyMap& user_policy_map = bundle.Get(chrome_namespaces);
 
+  // We generally do not want the dino game being played on the login screen,
+  // see crbug.com/375062959.
+  user_policy_map.Set(key::kAllowDinosaurEasterEgg,
+                      PolicyLevel::POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+                      POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+
   // The device policies which includes the policy options
   // |kDevicePoliciesWithPolicyOptionsMap| should be applied after
   // |kRecommendedDevicePoliciesMap|, because its overrides some deprecated ones
@@ -248,7 +266,7 @@ void LoginProfilePolicyProvider::UpdateFromDevicePolicy() {
         policy_dict.FindString(kLidCloseAction);
 
     if (lid_close_action) {
-      absl::optional<base::Value> action = GetAction(*lid_close_action);
+      std::optional<base::Value> action = GetAction(*lid_close_action);
       if (action) {
         ApplyValueAsMandatoryPolicy(*action, key::kLidCloseAction,
                                     &user_policy_map);

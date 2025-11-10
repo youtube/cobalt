@@ -58,7 +58,7 @@ COMPONENT_EXPORT(AX_PLATFORM) HWND GetHwndForProcess(base::ProcessId pid);
 
 // Returns HWND of window matching a given tree selector.
 COMPONENT_EXPORT(AX_PLATFORM)
-HWND GetHWNDBySelector(const ui::AXTreeSelector& selector);
+HWND GetHWNDBySelector(const AXTreeSelector& selector);
 
 COMPONENT_EXPORT(AX_PLATFORM)
 std::u16string RoleVariantToU16String(const base::win::ScopedVariant& role);
@@ -66,7 +66,7 @@ COMPONENT_EXPORT(AX_PLATFORM)
 std::string RoleVariantToString(const base::win::ScopedVariant& role);
 
 COMPONENT_EXPORT(AX_PLATFORM)
-absl::optional<std::string> GetIAccessible2Attribute(
+std::optional<std::string> GetIAccessible2Attribute(
     Microsoft::WRL::ComPtr<IAccessible2> element,
     std::string attribute);
 COMPONENT_EXPORT(AX_PLATFORM)
@@ -77,8 +77,7 @@ std::vector<Microsoft::WRL::ComPtr<IAccessible>> IAccessibleChildrenOf(
 
 // Returns IA2 Interfaces
 template <typename ServiceType>
-HRESULT IA2QueryInterface(IAccessible* accessible,
-                          ServiceType** out_accessible) {
+HRESULT IA2QueryInterface(IUnknown* accessible, ServiceType** out_accessible) {
   // IA2 Spec dictates that IServiceProvider should be used instead of
   // QueryInterface when retrieving IAccessible2.
   Microsoft::WRL::ComPtr<IServiceProvider> service_provider;
@@ -141,10 +140,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) MSAAChildren final {
       operator++();
       return tmp;
     }
-    bool operator==(const Iterator& rhs) const {
-      return children_ == rhs.children_ && index_ == rhs.index_;
-    }
-    bool operator!=(const Iterator& rhs) const { return !operator==(rhs); }
+    friend bool operator==(const Iterator&, const Iterator&) = default;
     const MSAAChild& operator*() { return children_->ChildAt(index_); }
 
    private:

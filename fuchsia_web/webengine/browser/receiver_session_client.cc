@@ -10,6 +10,7 @@
 #include "components/cast_streaming/browser/public/receiver_config.h"
 #include "components/cast_streaming/browser/public/receiver_session.h"
 #include "components/cast_streaming/common/public/mojom/demuxer_connector.mojom.h"
+#include "fuchsia_web/webengine/features.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/video_decoder_config.h"
 #include "ui/display/screen.h"
@@ -38,13 +39,16 @@ void ReceiverSessionClient::SetMojoEndpoints(
 
   // TODO: Add streaming session Constraints based on system capabilities
   // (see crbug.com/1013412) and DisplayDescription (see crbug.com/1087520).
-  // TODO(crbug.com/1218498): Only populate codecs corresponding to those called
-  // out by build flags.
+  // TODO(crbug.com/40185682): Only populate codecs corresponding to those
+  // called out by build flags.
   std::vector<media::VideoCodec> video_codecs;
   std::vector<media::AudioCodec> audio_codecs;
 
   // Codecs are set in order of preference for the receiver, i.e. H264 is
   // preferred above VP8 in the below code.
+  if (base::FeatureList::IsEnabled(features::kEnableCastMirroringVP9Decoding)) {
+    video_codecs.push_back(media::VideoCodec::kVP9);
+  }
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
   video_codecs.push_back(media::VideoCodec::kH264);
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
@@ -57,7 +61,7 @@ void ReceiverSessionClient::SetMojoEndpoints(
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
   }
 
-  // TODO(crbug.com/1370809): Set config.remoting to expose the device as a
+  // TODO(crbug.com/40241121): Set config.remoting to expose the device as a
   // valid remoting endpoint when |renderer_controller| is set.
   cast_streaming::ReceiverConfig config(std::move(video_codecs),
                                         std::move(audio_codecs));

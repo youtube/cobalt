@@ -6,9 +6,11 @@
 #define DBUS_MOCK_BUS_H_
 
 #include <stdint.h>
+#include <string>
 
 #include "base/task/sequenced_task_runner.h"
 #include "dbus/bus.h"
+#include "dbus/message.h"
 #include "dbus/object_path.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -21,10 +23,10 @@ class MockBus : public Bus {
  public:
   MockBus(const Bus::Options& options);
 
-  MOCK_METHOD2(GetObjectProxy, ObjectProxy*(const std::string& service_name,
+  MOCK_METHOD2(GetObjectProxy, ObjectProxy*(std::string_view service_name,
                                             const ObjectPath& object_path));
   MOCK_METHOD3(GetObjectProxyWithOptions,
-               ObjectProxy*(const std::string& service_name,
+               ObjectProxy*(std::string_view service_name,
                             const ObjectPath& object_path,
                             int options));
   MOCK_METHOD1(GetExportedObject, ExportedObject*(
@@ -42,9 +44,10 @@ class MockBus : public Bus {
                                               ServiceOwnershipOptions options));
   MOCK_METHOD1(ReleaseOwnership, bool(const std::string& service_name));
   MOCK_METHOD0(SetUpAsyncOperations, bool());
-  MOCK_METHOD3(SendWithReplyAndBlock, DBusMessage*(DBusMessage* request,
-                                                   int timeout_ms,
-                                                   DBusError* error));
+  MOCK_METHOD2(
+      SendWithReplyAndBlock,
+      base::expected<std::unique_ptr<Response>, Error>(DBusMessage* request,
+                                                       int timeout_ms));
   MOCK_METHOD3(SendWithReply, void(DBusMessage* request,
                                    DBusPendingCall** pending_call,
                                    int timeout_ms));
@@ -55,25 +58,25 @@ class MockBus : public Bus {
   MOCK_METHOD2(RemoveFilterFunction,
                void(DBusHandleMessageFunction filter_function,
                     void* user_data));
-  MOCK_METHOD2(AddMatch, void(const std::string& match_rule,
-                              DBusError* error));
-  MOCK_METHOD2(RemoveMatch, bool(const std::string& match_rule,
-                                 DBusError* error));
-  MOCK_METHOD4(TryRegisterObjectPath, bool(const ObjectPath& object_path,
-                                           const DBusObjectPathVTable* vtable,
-                                           void* user_data,
-                                           DBusError* error));
+  MOCK_METHOD2(AddMatch, void(const std::string& match_rule, Error* error));
+  MOCK_METHOD2(RemoveMatch, bool(const std::string& match_rule, Error* error));
+  MOCK_METHOD4(TryRegisterObjectPath,
+               bool(const ObjectPath& object_path,
+                    const DBusObjectPathVTable* vtable,
+                    void* user_data,
+                    Error* error));
   MOCK_METHOD4(TryRegisterFallback,
                bool(const ObjectPath& object_path,
                     const DBusObjectPathVTable* vtable,
                     void* user_data,
-                    DBusError* error));
+                    Error* error));
   MOCK_METHOD1(UnregisterObjectPath, void(const ObjectPath& object_path));
   MOCK_METHOD0(GetDBusTaskRunner, base::SequencedTaskRunner*());
   MOCK_METHOD0(GetOriginTaskRunner, base::SequencedTaskRunner*());
   MOCK_METHOD0(HasDBusThread, bool());
   MOCK_METHOD0(AssertOnOriginThread, void());
   MOCK_METHOD0(AssertOnDBusThread, void());
+  MOCK_METHOD0(GetConnectionName, std::string());
   MOCK_METHOD0(IsConnected, bool());
 
  protected:

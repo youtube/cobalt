@@ -9,10 +9,6 @@
 #import "base/strings/utf_string_conversions.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 #pragma mark - WebFramesManagerImpl
@@ -104,9 +100,10 @@ WebFrame* WebFramesManagerImpl::GetFrameWithId(const std::string& frame_id) {
   if (frame_id.empty()) {
     return nullptr;
   }
-  auto web_frames_it = web_frames_.find(frame_id);
+
+  auto web_frames_it = web_frames_.find(base::ToLowerASCII(frame_id));
   return web_frames_it == web_frames_.end() ? nullptr
                                             : web_frames_it->second.get();
 }
 
-}  // namespace
+}  // namespace web

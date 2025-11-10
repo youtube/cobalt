@@ -8,40 +8,42 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 #include "net/log/net_log_with_source.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
+#include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
 #include "net/websockets/websocket_basic_stream_adapters.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
 #include "net/websockets/websocket_stream.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
-struct LoadTimingInfo;
-class SSLInfo;
-class IOBuffer;
-class SSLCertRequestInfo;
-class IPEndPoint;
 class HttpNetworkSession;
-struct NetErrorDetails;
-class HttpStream;
+class HttpRequestHeaders;
 class HttpResponseHeaders;
-struct HttpRequestInfo;
 class HttpResponseInfo;
+class HttpStream;
+class IOBuffer;
+class IPEndPoint;
+class SSLInfo;
 class SpdySession;
-struct AlternativeService;
+class SpdyStream;
 class SpdyStreamRequest;
+struct AlternativeService;
+struct HttpRequestInfo;
+struct LoadTimingInfo;
+struct NetErrorDetails;
 struct WebSocketExtensionParams;
 
 class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
@@ -87,14 +89,14 @@ class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
       AlternativeService* alternative_service) const override;
   bool GetLoadTimingInfo(LoadTimingInfo* load_timing_info) const override;
   void GetSSLInfo(SSLInfo* ssl_info) override;
-  void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) override;
   int GetRemoteEndpoint(IPEndPoint* endpoint) override;
   void Drain(HttpNetworkSession* session) override;
   void SetPriority(RequestPriority priority) override;
   void PopulateNetErrorDetails(NetErrorDetails* details) override;
   std::unique_ptr<HttpStream> RenewStreamForAuth() override;
   const std::set<std::string>& GetDnsAliases() const override;
-  base::StringPiece GetAcceptChViaAlps() const override;
+  std::string_view GetAcceptChViaAlps() const override;
+  void SetHTTP11Required() override;
 
   // WebSocketHandshakeStreamBase methods.
 
@@ -111,7 +113,7 @@ class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
   // WebSocketSpdyStreamAdapter::Delegate methods.
   void OnHeadersSent() override;
   void OnHeadersReceived(
-      const spdy::Http2HeaderBlock& response_headers) override;
+      const quiche::HttpHeaderBlock& response_headers) override;
   void OnClose(int status) override;
 
   // Called by |spdy_stream_request_| when requested stream is ready.
@@ -127,7 +129,9 @@ class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
 
   void OnFailure(const std::string& message,
                  int net_error,
-                 absl::optional<int> response_code);
+                 std::optional<int> response_code);
+
+  void OnHandshakeConfirmed(CompletionOnceCallback callback, int rv);
 
   HandshakeResult result_ = HandshakeResult::HTTP2_INCOMPLETE;
 
@@ -136,12 +140,11 @@ class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
 
   // Owned by another object.
   // |connect_delegate| will live during the lifetime of this object.
-  const raw_ptr<WebSocketStream::ConnectDelegate, DanglingUntriaged>
-      connect_delegate_;
+  const raw_ptr<WebSocketStream::ConnectDelegate> connect_delegate_;
 
   raw_ptr<HttpResponseInfo> http_response_info_ = nullptr;
 
-  spdy::Http2HeaderBlock http2_request_headers_;
+  quiche::HttpHeaderBlock http2_request_headers_;
 
   // The sub-protocols we requested.
   std::vector<std::string> requested_sub_protocols_;
@@ -149,9 +152,9 @@ class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
   // The extensions we requested.
   std::vector<std::string> requested_extensions_;
 
-  const raw_ptr<WebSocketStreamRequestAPI, DanglingUntriaged> stream_request_;
+  const raw_ptr<WebSocketStreamRequestAPI> stream_request_;
 
-  raw_ptr<const HttpRequestInfo, DanglingUntriaged> request_info_ = nullptr;
+  raw_ptr<const HttpRequestInfo> request_info_ = nullptr;
 
   RequestPriority priority_;
 

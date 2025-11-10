@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/i18n/base_i18n_export.h"
 
 namespace base {
@@ -26,11 +27,7 @@ class BASE_I18N_EXPORT StreamingUtf8Validator {
   // processes characters it alternates between VALID_ENDPOINT and
   // VALID_MIDPOINT. If it encounters an invalid byte or UTF-8 sequence the
   // state changes permanently to INVALID.
-  enum State {
-    VALID_ENDPOINT,
-    VALID_MIDPOINT,
-    INVALID
-  };
+  enum State { VALID_ENDPOINT, VALID_MIDPOINT, INVALID };
 
   StreamingUtf8Validator() : state_(0u) {}
 
@@ -41,12 +38,12 @@ class BASE_I18N_EXPORT StreamingUtf8Validator {
 
   // Trivial destructor intentionally omitted.
 
-  // Validate |size| bytes starting at |data|. If the concatenation of all calls
+  // Validate bytes described by |data|. If the concatenation of all calls
   // to AddBytes() since this object was constructed or reset is a valid UTF-8
   // string, returns VALID_ENDPOINT. If it could be the prefix of a valid UTF-8
   // string, returns VALID_MIDPOINT. If an invalid byte or UTF-8 sequence was
   // present, returns INVALID.
-  State AddBytes(const char* data, size_t size);
+  State AddBytes(base::span<const uint8_t> data);
 
   // Return the object to a freshly-constructed state so that it can be re-used.
   void Reset();

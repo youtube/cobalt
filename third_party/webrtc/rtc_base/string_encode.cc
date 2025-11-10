@@ -17,7 +17,7 @@
 #include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 
-namespace rtc {
+namespace webrtc {
 
 /////////////////////////////////////////////////////////////////////////////
 // String Encoding Utilities
@@ -66,7 +66,7 @@ void hex_encode_with_delimiter(char* buffer,
   while (srcpos < srclen) {
     unsigned char ch = bsource[srcpos++];
     buffer[bufpos] = hex_encode((ch >> 4) & 0xF);
-    buffer[bufpos + 1] = hex_encode((ch)&0xF);
+    buffer[bufpos + 1] = hex_encode((ch) & 0xF);
     bufpos += 2;
 
     // Don't write a delimiter after the last byte.
@@ -187,88 +187,6 @@ std::vector<absl::string_view> split(absl::string_view source, char delimiter) {
   return fields;
 }
 
-std::string ToString(const bool b) {
-  return b ? "true" : "false";
-}
-
-std::string ToString(absl::string_view s) {
-  return std::string(s);
-}
-
-std::string ToString(const char* s) {
-  return std::string(s);
-}
-
-std::string ToString(const short s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%hd", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const unsigned short s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%hu", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const int s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%d", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const unsigned int s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%u", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const long int s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%ld", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const unsigned long int s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%lu", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const long long int s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%lld", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-std::string ToString(const unsigned long long int s) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%llu", s);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-
-std::string ToString(const double d) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%g", d);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-
-std::string ToString(const long double d) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%Lg", d);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-
-std::string ToString(const void* const p) {
-  char buf[32];
-  const int len = std::snprintf(&buf[0], arraysize(buf), "%p", p);
-  RTC_DCHECK_LE(len, arraysize(buf));
-  return std::string(&buf[0], len);
-}
-
 bool FromString(absl::string_view s, bool* b) {
   if (s == "false") {
     *b = false;
@@ -281,4 +199,4 @@ bool FromString(absl::string_view s, bool* b) {
   return false;
 }
 
-}  // namespace rtc
+}  // namespace webrtc

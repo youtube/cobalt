@@ -19,6 +19,10 @@ namespace content {
 class WebContents;
 }  // namespace content
 
+namespace tabs {
+enum class TabAlert;
+}  // namespace tabs
+
 struct LastMuteMetadata
     : public content::WebContentsUserData<LastMuteMetadata> {
   TabMutedReason reason = TabMutedReason::NONE;
@@ -30,18 +34,16 @@ struct LastMuteMetadata
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };
 
-namespace chrome {
-
 // Returns the alert states to be shown by the tab's alert indicator.
 // The returned list is in descending order of importance to user
 // privacy, i.e. if only one is to be shown, it should be the first.
 // TabAlertState::NONE will never be present in the list; an empty list
 // is returned instead.
-std::vector<TabAlertState> GetTabAlertStatesForContents(
+std::vector<tabs::TabAlert> GetTabAlertStatesForContents(
     content::WebContents* contents);
 
 // Returns a localized string describing the |alert_state|.
-std::u16string GetTabAlertStateText(const TabAlertState alert_state);
+std::u16string GetTabAlertStateText(const tabs::TabAlert alert_state);
 
 // Sets whether all audio output from |contents| is muted, along with the
 // |reason| it is to be muted/unmuted (via UI or extension API).  When |reason|
@@ -61,21 +63,5 @@ bool IsSiteMuted(const TabStripModel& tab_strip, const int index);
 // Returns true if the sites at the |indices| in |tab_strip| are all muted.
 bool AreAllSitesMuted(const TabStripModel& tab_strip,
                       const std::vector<int>& indices);
-
-// Returns the follow state of the site at |index| in |tab_strip|.
-TabWebFeedFollowState GetSiteFollowState(const TabStripModel& tab_strip,
-                                         const int index);
-
-// Returns the aggregated follow state of all the sites at the |indices| in
-// |tab_strip|. The aggregated follow state is computed as:
-// * kUnknown if at least one site is in kUnknown state.
-// * kFollowed if all sites are in kFollowed state.
-// * kNotFollowed if no site is in kUnknown state and at least one site is in
-//   kNotFollowed state.
-TabWebFeedFollowState GetAggregatedFollowStateOfAllSites(
-    const TabStripModel& tab_strip,
-    const std::vector<int>& indices);
-
-}  // namespace chrome
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_UTILS_H_

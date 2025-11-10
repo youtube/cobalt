@@ -9,31 +9,18 @@
 
 namespace blink {
 
-XRProjectionLayer::XRProjectionLayer(XRSession* session,
-                                     const XRProjectionLayerInit* init)
-    : XRCompositionLayer(session) {}
-
-uint16_t XRProjectionLayer::textureWidth() const {
-  return texture_width_;
-}
-
-uint16_t XRProjectionLayer::textureHeight() const {
-  return texture_height_;
-}
-
-uint16_t XRProjectionLayer::textureArrayLength() const {
-  return texture_array_length_;
-}
+XRProjectionLayer::XRProjectionLayer(XRGraphicsBinding* binding)
+    : XRCompositionLayer(binding) {}
 
 bool XRProjectionLayer::ignoreDepthValues() const {
   return ignore_depth_values_;
 }
 
-absl::optional<float> XRProjectionLayer::fixedFoveation() const {
+std::optional<float> XRProjectionLayer::fixedFoveation() const {
   return fixed_foveation_;
 }
 
-void XRProjectionLayer::setFixedFoveation(absl::optional<float> value) {
+void XRProjectionLayer::setFixedFoveation(std::optional<float> value) {
   fixed_foveation_ = value;
 }
 

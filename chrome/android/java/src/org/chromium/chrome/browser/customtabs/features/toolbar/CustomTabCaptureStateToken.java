@@ -8,15 +8,17 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.Nullable;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.toolbar.top.ToolbarSnapshotDifference;
 
 import java.util.Objects;
 
 /**
  * The idea of this class is to hold all of the properties that materially change the way the
- * toolbar looks. If two tokens are identical (no difference is found), then there should be
- * no reason to perform a bitmap capture.
+ * toolbar looks. If two tokens are identical (no difference is found), then there should be no
+ * reason to perform a bitmap capture.
  */
+@NullMarked
 class CustomTabCaptureStateToken {
     private final String mUrl;
     private final String mTitle;
@@ -24,8 +26,18 @@ class CustomTabCaptureStateToken {
     private final @DrawableRes int mSecurityIconRes;
     private @Nullable final Object mAnimationToken;
     private final int mViewWidth;
-    public CustomTabCaptureStateToken(String url, String title, @ColorInt int backgroundColor,
-            @DrawableRes int securityIconRes, boolean isInAnimation, int viewWidth) {
+    private final boolean mMinimizeButtonVisible;
+    private final boolean mMinimizeButtonHighlighted;
+
+    public CustomTabCaptureStateToken(
+            String url,
+            String title,
+            @ColorInt int backgroundColor,
+            @DrawableRes int securityIconRes,
+            boolean isInAnimation,
+            int viewWidth,
+            boolean minimizeButtonVisible,
+            boolean minimizeButtonHighlighted) {
         mUrl = url;
         mTitle = title;
         mBackgroundColor = backgroundColor;
@@ -35,6 +47,8 @@ class CustomTabCaptureStateToken {
         // are actually the same object.
         mAnimationToken = isInAnimation ? new Object() : null;
         mViewWidth = viewWidth;
+        mMinimizeButtonVisible = minimizeButtonVisible;
+        mMinimizeButtonHighlighted = minimizeButtonHighlighted;
     }
 
     /**
@@ -56,6 +70,9 @@ class CustomTabCaptureStateToken {
             return ToolbarSnapshotDifference.CCT_ANIMATION;
         } else if (mViewWidth != that.mViewWidth) {
             return ToolbarSnapshotDifference.LOCATION_BAR_WIDTH;
+        } else if (mMinimizeButtonVisible != that.mMinimizeButtonVisible
+                || mMinimizeButtonHighlighted != that.mMinimizeButtonHighlighted) {
+            return ToolbarSnapshotDifference.MINIMIZE_BUTTON;
         } else {
             return ToolbarSnapshotDifference.NONE;
         }

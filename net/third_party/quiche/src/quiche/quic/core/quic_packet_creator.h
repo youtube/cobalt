@@ -17,12 +17,12 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -31,18 +31,18 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 namespace test {
 class QuicPacketCreatorPeer;
 }
 
-class QUIC_EXPORT_PRIVATE QuicPacketCreator {
+class QUICHE_EXPORT QuicPacketCreator {
  public:
   // A delegate interface for further processing serialized packet.
-  class QUIC_EXPORT_PRIVATE DelegateInterface {
+  class QUICHE_EXPORT DelegateInterface {
    public:
     virtual ~DelegateInterface() {}
     // Get a buffer of kMaxOutgoingPacketSize bytes to serialize the next
@@ -60,9 +60,19 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     // Consults delegate whether a packet should be generated.
     virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                                       IsHandshake handshake) = 0;
-    // Called when there is data to be sent. Retrieves updated ACK frame from
-    // the delegate.
-    virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
+    // Called when there is data to be sent. Gives delegate a chance to bundle
+    // anything with to-be-sent data. |transmission_type| is the transmission
+    // type of the data being sent.
+    virtual void MaybeBundleOpportunistically(
+        TransmissionType transmission_type) = 0;
+
+    // When sending flow controlled data, this will be called after
+    // MaybeBundleOpportunistically(). If the returned flow control send window
+    // is smaller than data's write_length, write_length will be adjusted
+    // acccordingly.
+    // If the delegate has no notion of flow control, it should return
+    // std::numeric_limit<QuicByteCount>::max().
+    virtual QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) = 0;
 
     // Returns the packet fate for serialized packets which will be handed over
     // to delegate via OnSerializedPacket(). Called when a packet is about to be
@@ -74,7 +84,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Interface which gets callbacks from the QuicPacketCreator at interesting
   // points.  Implementations must not mutate the state of the creator
   // as a result of these callbacks.
-  class QUIC_EXPORT_PRIVATE DebugDelegate {
+  class QUICHE_EXPORT DebugDelegate {
    public:
     virtual ~DebugDelegate() {}
 
@@ -89,17 +99,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Set the peer address and connection IDs with which the serialized packet
   // will be sent to during the scope of this object. Upon exiting the scope,
   // the original peer address and connection IDs are restored.
-  class QUIC_EXPORT_PRIVATE ScopedPeerAddressContext {
+  class QUICHE_EXPORT ScopedPeerAddressContext {
    public:
     ScopedPeerAddressContext(QuicPacketCreator* creator,
                              QuicSocketAddress address,
-                             bool update_connection_id);
-
-    ScopedPeerAddressContext(QuicPacketCreator* creator,
-                             QuicSocketAddress address,
                              const QuicConnectionId& client_connection_id,
-                             const QuicConnectionId& server_connection_id,
-                             bool update_connection_id);
+                             const QuicConnectionId& server_connection_id);
     ~ScopedPeerAddressContext();
 
    private:
@@ -107,7 +112,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     QuicSocketAddress old_peer_address_;
     QuicConnectionId old_client_connection_id_;
     QuicConnectionId old_server_connection_id_;
-    bool update_connection_id_;
   };
 
   QuicPacketCreator(QuicConnectionId server_connection_id, QuicFramer* framer,
@@ -118,9 +122,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicPacketCreator& operator=(const QuicPacketCreator&) = delete;
 
   ~QuicPacketCreator();
-
-  // Makes the framer not serialize the protocol version in sent packets.
-  void StopSendingVersion();
 
   // SetDiversificationNonce sets the nonce that will be sent in each public
   // header of packets encrypted at the initial encryption level. Should only
@@ -261,6 +262,21 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       const quiche::QuicheCircularDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded);
 
+  // Create a CONNECTION_CLOSE packet with a large packet number.
+  // This packet can be pre-generated and other processes can send it later to
+  // close the connection.
+  // For example, on Android, the system server stores this packet and sends it
+  // to the server when the app is frozen, loses network access due to the
+  // firewall, or crashes. This will stop servers sending packets to the
+  // device and wasting the device battery.
+  // Note that the generated packet uses the packet number larger than the
+  // current largest acked packet number by (1 << 31) + 1 but the server will
+  // ignore this packet after the connection uses this packet number.
+  std::unique_ptr<SerializedPacket>
+  SerializeLargePacketNumberConnectionClosePacket(
+      QuicPacketNumber largest_acked_packet, QuicErrorCode error,
+      const std::string& error_details);
+
   // Add PATH_RESPONSE to current packet, flush before or afterwards if needed.
   bool AddPathResponseFrame(const QuicPathFrameBuffer& data_buffer);
 
@@ -311,6 +327,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // packet number of the last created packet, or 0 if no packets have been
   // created.
   QuicPacketNumber packet_number() const { return packet_.packet_number; }
+
+  // Sets the packet number of the last sent packet on this connection prior to
+  // the birth of this creator.
+  // Must be called before any packet is created by this creator.
+  void set_packet_number(QuicPacketNumber packet_number) {
+    QUICHE_DCHECK(!packet_.packet_number.IsInitialized());
+    packet_.packet_number = packet_number;
+  }
 
   QuicByteCount max_packet_length() const { return max_packet_length_; }
 
@@ -377,10 +401,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Generates an MTU discovery packet of specified size.
   void GenerateMtuDiscoveryPacket(QuicByteCount target_mtu);
-
-  // Called when there is data to be sent, Retrieves updated ACK frame from
-  // delegate_ and flushes it.
-  void MaybeBundleAckOpportunistically();
 
   // Called to flush ACK and STOP_WAITING frames, returns false if the flush
   // fails.
@@ -491,7 +511,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Used to 1) clear queued_frames_, 2) report unrecoverable error (if
   // serialization fails) upon exiting the scope.
-  class QUIC_EXPORT_PRIVATE ScopedSerializationFailureHandler {
+  class QUICHE_EXPORT ScopedSerializationFailureHandler {
    public:
     explicit ScopedSerializationFailureHandler(QuicPacketCreator* creator);
     ~ScopedSerializationFailureHandler();
@@ -501,9 +521,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   };
 
   // Attempts to build a data packet with chaos protection. If this packet isn't
-  // supposed to be protected or if serialization fails then absl::nullopt is
+  // supposed to be protected or if serialization fails then std::nullopt is
   // returned. Otherwise returns the serialized length.
-  absl::optional<size_t> MaybeBuildDataPacketWithChaosProtection(
+  std::optional<size_t> MaybeBuildDataPacketWithChaosProtection(
       const QuicPacketHeader& header, char* buffer);
 
   // Creates a stream frame which fits into the current open packet. If
@@ -616,22 +636,37 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // fail to add.
   bool AddPaddedFrameWithRetry(const QuicFrame& frame);
 
+  // Saves next_transmission_type_ before calling the delegate and restore it
+  // after.
+  void MaybeBundleOpportunistically();
+
+  // Generates crypto frames from any remaining available crypto data.
+  size_t GenerateRemainingCryptoFrames(EncryptionLevel level,
+                                       size_t write_length,
+                                       QuicStreamOffset offset,
+                                       size_t total_bytes_consumed);
+
+  // Attempts to perform multi-packet chaos protection. If this portion of the
+  // crypto stream isn't supposed to be protected or if anything fails then 0 is
+  // returned. Otherwise returns the amount of crypto data consumed.
+  size_t MultiPacketChaosProtect(EncryptionLevel level, size_t write_length,
+                                 QuicStreamOffset offset);
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;
   QuicFramer* framer_;
   QuicRandom* random_;
 
-  // Controls whether version should be included while serializing the packet.
-  // send_version_in_packet_ should never be read directly, use
-  // IncludeVersionInHeader() instead.
-  bool send_version_in_packet_;
   // If true, then |diversification_nonce_| will be included in the header of
   // all packets created at the initial encryption level.
   bool have_diversification_nonce_;
   DiversificationNonce diversification_nonce_;
   // Maximum length including headers and encryption (UDP payload length.)
   QuicByteCount max_packet_length_;
+  // Value of max_packet_length_ to be applied for the next packet, if not 0.
+  QuicByteCount next_max_packet_length_;
+
   size_t max_plaintext_size_;
   // Whether the server_connection_id is sent over the wire.
   QuicConnectionIdIncluded server_connection_id_included_;

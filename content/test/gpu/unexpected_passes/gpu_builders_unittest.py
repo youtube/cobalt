@@ -7,9 +7,10 @@
 
 import unittest
 
-from unexpected_passes import gpu_builders
 from unexpected_passes_common import constants
 from unexpected_passes_common import data_types
+
+from unexpected_passes import gpu_builders
 
 
 class BuilderRunsTestOfInterestUnittest(unittest.TestCase):
@@ -24,7 +25,7 @@ class BuilderRunsTestOfInterestUnittest(unittest.TestCase):
                 'args': [
                     'webgl_conformance',
                 ],
-                'isolate_name': 'telemetry_gpu_integration_test',
+                'test': 'telemetry_gpu_integration_test',
             },
         ],
     }
@@ -52,7 +53,7 @@ class BuilderRunsTestOfInterestUnittest(unittest.TestCase):
                 'args': [
                     'webgl_conformance',
                 ],
-                'isolate_name': 'not_telemetry',
+                'test': 'not_telemetry',
             },
         ],
     }
@@ -80,7 +81,7 @@ class BuilderRunsTestOfInterestUnittest(unittest.TestCase):
                 'args': [
                     'not_a_suite',
                 ],
-                'isolate_name': 'telemetry_gpu_integration_test',
+                'test': 'telemetry_gpu_integration_test',
             },
         ],
     }

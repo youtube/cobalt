@@ -6,7 +6,7 @@
 #define CHROMEOS_ASH_COMPONENTS_SETTINGS_SYSTEM_SETTINGS_PROVIDER_H_
 
 #include <memory>
-#include <string>
+#include <string_view>
 
 #include "base/component_export.h"
 #include "base/functional/callback.h"
@@ -33,9 +33,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_SETTINGS) SystemSettingsProvider
   ~SystemSettingsProvider() override;
 
   // CrosSettingsProvider implementation.
-  const base::Value* Get(const std::string& path) const override;
+  const base::Value* Get(std::string_view path) const override;
   TrustedStatus PrepareTrustedValues(base::OnceClosure* callback) override;
-  bool HandlesSetting(const std::string& path) const override;
+  bool HandlesSetting(std::string_view path) const override;
 
   // TimezoneSettings::Observer implementation.
   void TimezoneChanged(const icu::TimeZone& timezone) override;

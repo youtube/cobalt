@@ -11,19 +11,18 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/types/expected.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/api/printing/print_job_controller.h"
 #include "chrome/browser/extensions/api/printing/printing_api_utils.h"
-#include "chrome/browser/printing/printing_service.h"
+#include "chrome/browser/printing/pdf_blob_data_flattener.h"
+#include "chrome/browser/printing/print_job_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/services/printing/public/mojom/pdf_flattener.mojom.h"
-#include "chrome/services/printing/public/mojom/printing_service.mojom.h"
 #include "chromeos/crosapi/mojom/local_printer.mojom.h"
-#include "chromeos/printing/printer_configuration.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -31,12 +30,19 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/image_loader.h"
 #include "extensions/common/extension.h"
-#include "printing/backend/print_backend.h"
 #include "printing/metafile_skia.h"
 #include "printing/print_settings.h"
 #include "printing/printing_utils.h"
+#include "third_party/skia/include/codec/SkCodec.h"
+#include "third_party/skia/include/codec/SkPngDecoder.h"
+#include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkImage.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
+#include "third_party/skia/include/core/SkStream.h"
+#include "third_party/skia/include/docs/SkPDFDocument.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/skia_span_util.h"
 #include "ui/views/native_window_tracker.h"
 
 namespace extensions {
@@ -44,6 +50,7 @@ namespace extensions {
 namespace {
 
 constexpr char kPdfMimeType[] = "application/pdf";
+constexpr char kPngMimeType[] = "image/png";
 
 constexpr char kUnsupportedContentType[] = "Unsupported content type";
 constexpr char kInvalidTicket[] = "Invalid ticket";
@@ -55,11 +62,6 @@ constexpr char kInvalidData[] = "Invalid document";
 constexpr char kPrintingFailed[] = "Printing failed";
 
 constexpr int kIconSize = 64;
-
-// We want to have an ability to disable PDF flattening for unit tests as
-// printing::mojom::PdfFlattener requires real browser instance to be able to
-// handle requests.
-bool g_disable_pdf_flattening_for_testing = false;
 
 // There is no easy way to interact with UI dialogs, so we want to have an
 // ability to skip this stage for browser tests.
@@ -82,24 +84,18 @@ bool IsUserConfirmationRequired(content::BrowserContext* browser_context,
 PrintJobSubmitter::PrintJobSubmitter(
     gfx::NativeWindow native_window,
     content::BrowserContext* browser_context,
-    PrintJobController* print_job_controller,
-    mojo::Remote<printing::mojom::PdfFlattener>* pdf_flattener,
+    printing::PrintJobController* print_job_controller,
+    printing::PdfBlobDataFlattener* pdf_blob_data_flattener,
     scoped_refptr<const extensions::Extension> extension,
     api::printing::SubmitJobRequest request,
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    int local_printer_version,
-#endif
     crosapi::mojom::LocalPrinter* local_printer,
     SubmitJobCallback callback)
     : native_window_(native_window),
       browser_context_(browser_context),
       print_job_controller_(print_job_controller),
-      pdf_flattener_(pdf_flattener),
+      pdf_blob_data_flattener_(*pdf_blob_data_flattener),
       extension_(extension),
       request_(std::move(request)),
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-      local_printer_version_(local_printer_version),
-#endif
       local_printer_(local_printer),
       callback_(std::move(callback)) {
   DCHECK(extension);
@@ -107,21 +103,16 @@ PrintJobSubmitter::PrintJobSubmitter(
     native_window_tracker_ = views::NativeWindowTracker::Create(native_window);
 }
 
-PrintJobSubmitter::~PrintJobSubmitter() {
-  DCHECK(!callback_);
-  if (print_job_)
-    print_job_->RemoveObserver(*this);
-}
+PrintJobSubmitter::~PrintJobSubmitter() = default;
 
 // static
 void PrintJobSubmitter::Run(std::unique_ptr<PrintJobSubmitter> submitter) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(submitter->callback_);
   PrintJobSubmitter* ptr = submitter.get();
-  ptr->callback_ =
-      std::move(ptr->callback_)
-          .Then(base::BindOnce([](std::unique_ptr<PrintJobSubmitter>) {},
-                               std::move(submitter)));
+  ptr->callback_ = std::move(ptr->callback_)
+                       .Then(base::OnceClosure(
+                           base::DoNothingWithBoundArgs(std::move(submitter))));
   ptr->Start();
 }
 
@@ -138,7 +129,8 @@ void PrintJobSubmitter::Start() {
 }
 
 bool PrintJobSubmitter::CheckContentType() const {
-  return request_.job.content_type == kPdfMimeType;
+  return request_.job.content_type == kPdfMimeType ||
+         request_.job.content_type == kPngMimeType;
 }
 
 bool PrintJobSubmitter::CheckPrintTicket() {
@@ -151,12 +143,7 @@ bool PrintJobSubmitter::CheckPrintTicket() {
 }
 
 void PrintJobSubmitter::CheckPrinter() {
-  if (!local_printer_) {
-    LOG(ERROR)
-        << "Local printer not available (PrintJobSubmitter::CheckPrinter()";
-    CheckCapabilitiesCompatibility(nullptr);
-    return;
-  }
+  CHECK(local_printer_);
   local_printer_->GetCapability(
       request_.job.printer_id,
       base::BindOnce(&PrintJobSubmitter::CheckCapabilitiesCompatibility,
@@ -183,58 +170,28 @@ void PrintJobSubmitter::CheckCapabilitiesCompatibility(
 }
 
 void PrintJobSubmitter::ReadDocumentData() {
-  DCHECK(request_.document_blob_uuid);
-  BlobReader::Read(browser_context_, *request_.document_blob_uuid,
-                   base::BindOnce(&PrintJobSubmitter::OnDocumentDataRead,
-                                  weak_ptr_factory_.GetWeakPtr()));
-}
-
-void PrintJobSubmitter::OnDocumentDataRead(std::unique_ptr<std::string> data,
-                                           int64_t total_blob_length) {
-  if (!data || !printing::LooksLikePdf(*data)) {
-    FireErrorCallback(kInvalidData);
-    return;
-  }
-
-  base::MappedReadOnlyRegion memory =
-      base::ReadOnlySharedMemoryRegion::Create(data->length());
-  if (!memory.IsValid()) {
-    FireErrorCallback(kInvalidData);
-    return;
-  }
-  memcpy(memory.mapping.memory(), data->data(), data->length());
-
-  if (g_disable_pdf_flattening_for_testing) {
-    OnPdfFlattened(std::move(memory.region));
-    return;
-  }
-
-  if (!pdf_flattener_->is_bound()) {
-    GetPrintingService()->BindPdfFlattener(
-        pdf_flattener_->BindNewPipeAndPassReceiver());
-    pdf_flattener_->set_disconnect_handler(
-        base::BindOnce(&PrintJobSubmitter::OnPdfFlattenerDisconnected,
+  CHECK(request_.document_blob_uuid);
+  if (request_.job.content_type == kPdfMimeType) {
+    pdf_blob_data_flattener_->ReadAndFlattenPdf(
+        browser_context_->GetBlobRemote(*request_.document_blob_uuid),
+        base::BindOnce(&PrintJobSubmitter::OnPdfReadAndFlattened,
+                       weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    BlobReader::Read(
+        browser_context_->GetBlobRemote(*request_.document_blob_uuid),
+        base::BindOnce(&PrintJobSubmitter::OnImageDataRead,
                        weak_ptr_factory_.GetWeakPtr()));
   }
-  (*pdf_flattener_)
-      ->FlattenPdf(std::move(memory.region),
-                   base::BindOnce(&PrintJobSubmitter::OnPdfFlattened,
-                                  weak_ptr_factory_.GetWeakPtr()));
 }
 
-void PrintJobSubmitter::OnPdfFlattenerDisconnected() {
-  FireErrorCallback(kInvalidData);
-}
-
-void PrintJobSubmitter::OnPdfFlattened(
-    base::ReadOnlySharedMemoryRegion flattened_pdf) {
-  auto mapping = flattened_pdf.Map();
-  if (!mapping.IsValid()) {
+void PrintJobSubmitter::OnPdfReadAndFlattened(
+    std::unique_ptr<printing::FlattenPdfResult> result) {
+  if (!result) {
     FireErrorCallback(kInvalidData);
     return;
   }
 
-  flattened_pdf_mapping_ = std::move(mapping);
+  flatten_pdf_result_ = std::move(result);
 
   // Directly submit the job if the extension is allowed.
   if (!IsUserConfirmationRequired(browser_context_, extension_->id())) {
@@ -248,13 +205,49 @@ void PrintJobSubmitter::OnPdfFlattened(
                          weak_ptr_factory_.GetWeakPtr()));
 }
 
+// Handle PNG input by converting it to PDF, and then sending the resulting
+// PDF to the printer like we would if it had been submitted directly.
+void PrintJobSubmitter::OnImageDataRead(std::string data,
+                                        int64_t /*blob_total_size*/) {
+  // Note: `data` must outlive `image_data` and `codec`.
+  sk_sp<SkData> image_data =
+      gfx::MakeSkDataFromSpanWithoutCopy(base::as_byte_span(data));
+  std::unique_ptr<SkCodec> codec = SkPngDecoder::Decode(image_data, nullptr);
+  if (!codec) {
+    LOG(WARNING) << "Failed to decode PNG";
+    FireErrorCallback(kInvalidData);
+    return;
+  }
+
+  auto img_tuple = codec->getImage();
+  CHECK_EQ(std::get<1>(img_tuple), SkCodec::Result::kSuccess);
+  sk_sp<SkImage> image = std::get<0>(img_tuple);
+
+  SkDynamicMemoryWStream buffer;
+  SkPDF::Metadata metadata;
+  auto pdf_document = SkPDF::MakeDocument(&buffer, metadata);
+  CHECK(pdf_document);
+  SkCanvas* canvas = pdf_document->beginPage(image->width(), image->height());
+  canvas->drawImage(image, 0, 0);
+  pdf_document->endPage();
+  pdf_document->close();
+
+  // The generated PDF consists of a single image and does not contain forms,
+  // JavaScript, etc. So it is already flattened, and can be treated as such.
+  sk_sp<SkData> pdf_data = buffer.detachAsData();
+  auto metafile = std::make_unique<printing::MetafileSkia>();
+  CHECK(metafile->InitFromData(gfx::SkDataToSpan(pdf_data)));
+  OnPdfReadAndFlattened(
+      std::make_unique<printing::FlattenPdfResult>(std::move(metafile), 1));
+}
+
 void PrintJobSubmitter::ShowPrintJobConfirmationDialog(
     const gfx::Image& extension_icon) {
   // If the browser window was closed during API request handling, change
   // |native_window_| appropriately.
   if (native_window_tracker_ &&
       native_window_tracker_->WasNativeWindowDestroyed())
-    native_window_ = gfx::kNullNativeWindow;
+    native_window_ = gfx::NativeWindow();
 
   extensions::ShowPrintJobConfirmationDialog(
       native_window_, extension_->id(), base::UTF8ToUTF16(extension_->name()),
@@ -272,52 +265,54 @@ void PrintJobSubmitter::OnPrintJobConfirmationDialogClosed(bool accepted) {
                         ->enabled_extensions()
                         .Contains(extension_->id())) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback_), absl::nullopt, nullptr,
-                                  nullptr, absl::nullopt));
+        FROM_HERE,
+        base::BindOnce(std::move(callback_), base::unexpected(std::nullopt)));
     return;
   }
   StartPrintJob();
 }
 
 void PrintJobSubmitter::StartPrintJob() {
-  DCHECK(extension_);
-  DCHECK(settings_);
-  auto metafile = std::make_unique<printing::MetafileSkia>();
-  CHECK(metafile->InitFromData(
-      flattened_pdf_mapping_.GetMemoryAsSpan<const uint8_t>()));
-  CHECK(!print_job_);
-  print_job_ = print_job_controller_->StartPrintJob(
-      extension_->id(), std::move(metafile), std::move(settings_));
-  print_job_->AddObserver(*this);
+  CHECK(extension_);
+  CHECK(settings_);
+  CHECK(flatten_pdf_result_);
+
+  auto flatten_pdf_result = std::move(flatten_pdf_result_);
+  uint32_t page_count = flatten_pdf_result->page_count;
+  print_job_controller_->CreatePrintJob(
+      std::move(flatten_pdf_result->flattened_pdf), std::move(settings_),
+      page_count, crosapi::mojom::PrintJob::Source::kExtension,
+      extension_->id(),
+      base::BindOnce(&PrintJobSubmitter::OnPrintJobCreated,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
-void PrintJobSubmitter::OnDocDone(int job_id,
-                                  printing::PrintedDocument* document) {
+void PrintJobSubmitter::OnPrintJobCreated(
+    std::optional<printing::PrintJobCreatedInfo> info) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!info) {
+    FireErrorCallback(kPrintingFailed);
+    return;
+  }
   DCHECK(callback_);
-  std::move(callback_).Run(job_id, print_job_.get(), document, absl::nullopt);
-}
-
-void PrintJobSubmitter::OnFailed() {
-  FireErrorCallback(kPrintingFailed);
+  std::move(callback_).Run(std::move(*info));
 }
 
 void PrintJobSubmitter::FireErrorCallback(const std::string& error) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(callback_);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback_), absl::nullopt, nullptr,
-                                nullptr, error));
+      FROM_HERE, base::BindOnce(std::move(callback_), base::unexpected(error)));
 }
 
 // static
 base::AutoReset<bool> PrintJobSubmitter::DisablePdfFlatteningForTesting() {
-  return base::AutoReset<bool>(&g_disable_pdf_flattening_for_testing, true);
+  return printing::PdfBlobDataFlattener::DisablePdfFlatteningForTesting();
 }
 
 // static
-base::AutoReset<bool> PrintJobSubmitter::SkipConfirmationDialogForTesting() {
-  return base::AutoReset<bool>(&g_skip_confirmation_dialog_for_testing, true);
+void PrintJobSubmitter::SkipConfirmationDialogForTesting() {
+  g_skip_confirmation_dialog_for_testing = true;
 }
 
 }  // namespace extensions

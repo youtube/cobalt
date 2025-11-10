@@ -35,13 +35,12 @@
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_data_transfer_token.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
-#include "third_party/blink/renderer/core/clipboard/clipboard_mime_types.h"
 #include "third_party/blink/renderer/core/clipboard/system_clipboard.h"
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/image-encoders/image_encoder.h"
 #include "third_party/blink/renderer/platform/network/mime/mime_type_registry.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "ui/base/clipboard/clipboard_constants.h"
 
 namespace blink {
 
@@ -79,7 +78,7 @@ DataObjectItem* DataObjectItem::CreateFromFileWithFileSystemId(
 DataObjectItem* DataObjectItem::CreateFromURL(const String& url,
                                               const String& title) {
   DataObjectItem* item =
-      MakeGarbageCollected<DataObjectItem>(kStringKind, kMimeTypeTextURIList);
+      MakeGarbageCollected<DataObjectItem>(kStringKind, ui::kMimeTypeUriList);
   item->data_ = url;
   item->title_ = title;
   return item;
@@ -89,7 +88,7 @@ DataObjectItem* DataObjectItem::CreateFromURL(const String& url,
 DataObjectItem* DataObjectItem::CreateFromHTML(const String& html,
                                                const KURL& base_url) {
   DataObjectItem* item =
-      MakeGarbageCollected<DataObjectItem>(kStringKind, kMimeTypeTextHTML);
+      MakeGarbageCollected<DataObjectItem>(kStringKind, ui::kMimeTypeHtml);
   item->data_ = html;
   item->base_url_ = base_url;
   return item;
@@ -108,7 +107,6 @@ DataObjectItem* DataObjectItem::CreateFromFileSharedBuffer(
   item->shared_buffer_ = std::move(buffer);
   item->is_image_accessible_ = is_image_accessible;
   item->filename_extension_ = filename_extension;
-  // TODO(dcheng): Rename these fields to be more generically named.
   item->title_ = content_disposition;
   item->base_url_ = source_url;
   return item;
@@ -119,7 +117,7 @@ DataObjectItem* DataObjectItem::CreateFromClipboard(
     SystemClipboard* system_clipboard,
     const String& type,
     const ClipboardSequenceNumberToken& sequence_number) {
-  if (type == kMimeTypeImagePng) {
+  if (type == ui::kMimeTypePng) {
     return MakeGarbageCollected<DataObjectItem>(
         kFileKind, type, sequence_number, system_clipboard);
   }
@@ -163,7 +161,7 @@ File* DataObjectItem::GetAsFile() const {
     auto data = std::make_unique<BlobData>();
     data->SetContentType(type_);
     for (const auto& span : *shared_buffer_)
-      data->AppendBytes(span.data(), span.size());
+      data->AppendBytes(base::as_bytes(span));
     const uint64_t length = data->length();
     auto blob = BlobDataHandle::Create(std::move(data), length);
     return MakeGarbageCollected<File>(
@@ -173,13 +171,13 @@ File* DataObjectItem::GetAsFile() const {
   }
 
   DCHECK_EQ(source_, DataSource::kClipboardSource);
-  if (GetType() == kMimeTypeImagePng) {
+  if (GetType() == ui::kMimeTypePng) {
     mojo_base::BigBuffer png_data =
         system_clipboard_->ReadPng(mojom::blink::ClipboardBuffer::kStandard);
 
     auto data = std::make_unique<BlobData>();
-    data->SetContentType(kMimeTypeImagePng);
-    data->AppendBytes(png_data.data(), png_data.size());
+    data->SetContentType(ui::kMimeTypePng);
+    data->AppendBytes(png_data);
 
     const uint64_t length = data->length();
     auto blob = BlobDataHandle::Create(std::move(data), length);
@@ -200,16 +198,16 @@ String DataObjectItem::GetAsString() const {
 
   String data;
   // This is ugly but there's no real alternative.
-  if (type_ == kMimeTypeTextPlain) {
+  if (type_ == ui::kMimeTypePlainText) {
     data = system_clipboard_->ReadPlainText();
-  } else if (type_ == kMimeTypeTextRTF) {
+  } else if (type_ == ui::kMimeTypeRtf) {
     data = system_clipboard_->ReadRTF();
-  } else if (type_ == kMimeTypeTextHTML) {
+  } else if (type_ == ui::kMimeTypeHtml) {
     KURL ignored_source_url;
     unsigned ignored;
     data = system_clipboard_->ReadHTML(ignored_source_url, ignored, ignored);
   } else {
-    data = system_clipboard_->ReadCustomData(type_);
+    data = system_clipboard_->ReadDataTransferCustomData(type_);
   }
 
   return system_clipboard_->SequenceNumber() == sequence_number_ ? data
@@ -217,9 +215,6 @@ String DataObjectItem::GetAsString() const {
 }
 
 bool DataObjectItem::IsFilename() const {
-  // TODO(https://bugs.webkit.org/show_bug.cgi?id=81261): When we properly
-  // support File dragout, we'll need to make sure this works as expected for
-  // DragDataChromium.
   return kind_ == kFileKind && file_;
 }
 

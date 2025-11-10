@@ -6,6 +6,8 @@
 
 #include "base/check_op.h"
 #include "base/notreached.h"
+#include "content/browser/preloading/preloading_attempt_impl.h"
+#include "content/browser/preloading/preloading_data_impl.h"
 #include "content/browser/preloading/prerender/prerender_host.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -13,24 +15,6 @@
 #include "content/public/browser/web_contents_delegate.h"
 
 namespace content {
-
-// This is used as the delegate of WebContents created for a new tab where
-// prerendering runs.
-class PrerenderNewTabHandle::WebContentsDelegateImpl
-    : public WebContentsDelegate {
- public:
-  WebContentsDelegateImpl() = default;
-  ~WebContentsDelegateImpl() override = default;
-
-  PreloadingEligibility IsPrerender2Supported(
-      WebContents& web_contents) override {
-    // This should be checked in the initiator's WebContents.
-    NOTREACHED_NORETURN();
-  }
-
-  // TODO(crbug.com/1350676): Investigate if we have to override other
-  // functions on WebContentsDelegateImpl.
-};
 
 PrerenderNewTabHandle::PrerenderNewTabHandle(
     const PrerenderAttributes& attributes,
@@ -44,10 +28,10 @@ PrerenderNewTabHandle::PrerenderNewTabHandle(
       attributes_.initiator_frame_token.value());
 
   // Create a new WebContents for prerendering in a new tab.
-  // TODO(crbug.com/1350676): Pass the same creation parameters as
-  // WebContentsImpl::CreateNewWindow(). Also, set SessionStorageNamespace.
+  // TODO(crbug.com/40234240): Pass the same creation parameters as
+  // WebContentsImpl::CreateNewWindow().
   web_contents_create_params_.opener_render_process_id =
-      initiator_render_frame_host->GetProcess()->GetID();
+      initiator_render_frame_host->GetProcess()->GetDeprecatedID();
   web_contents_create_params_.opener_render_frame_id =
       initiator_render_frame_host->GetRoutingID();
   web_contents_create_params_.opener_suppressed = true;
@@ -56,16 +40,24 @@ PrerenderNewTabHandle::PrerenderNewTabHandle(
   // prerender activation.
   web_contents_create_params_.initially_hidden = true;
 
-  // TODO(crbug.com/1350676): Consider sharing a pre-created WebContents
+  // TODO(crbug.com/40234240): Consider sharing a pre-created WebContents
   // instance among multiple new-tab-prerenders as an optimization.
   web_contents_ = base::WrapUnique(static_cast<WebContentsImpl*>(
       WebContents::Create(web_contents_create_params_).release()));
 
   // The delegate is swapped with a proper one on activation.
-  web_contents_delegate_ = std::make_unique<WebContentsDelegateImpl>();
+  web_contents_delegate_ =
+      GetContentClient()->browser()->CreatePrerenderWebContentsDelegate();
+  web_contents_delegate_->PrerenderWebContentsCreated(web_contents_.get());
   web_contents_->SetDelegate(web_contents_delegate_.get());
 
+  // The prerendering WebContents is not visible until activation but should
+  // have a valid initial empty primary page. This condition is important as
+  // WebContentsObservers attached to the prerendering WebContents may assume
+  // there is the primary page and access it during prerendering.
   CHECK_EQ(web_contents_->GetVisibility(), Visibility::HIDDEN);
+  CHECK(web_contents_->GetPrimaryMainFrame());
+  CHECK(web_contents_->GetPrimaryMainFrame()->is_initial_empty_document());
 }
 
 PrerenderNewTabHandle::~PrerenderNewTabHandle() {
@@ -73,10 +65,40 @@ PrerenderNewTabHandle::~PrerenderNewTabHandle() {
     web_contents_->SetDelegate(nullptr);
 }
 
-int PrerenderNewTabHandle::StartPrerendering() {
-  // TODO(crbug.com/1350676): Pass a valid PreloadingAttempt.
+FrameTreeNodeId PrerenderNewTabHandle::StartPrerendering(
+    const PreloadingPredictor& creating_predictor,
+    const PreloadingPredictor& enacting_predictor,
+    PreloadingConfidence confidence) {
+  CHECK(web_contents_);
+  CHECK(attributes_.initiator_web_contents);
+
+  // Create new PreloadingAttempt and pass all the values corresponding to
+  // this prerendering attempt.
+  auto* preloading_data =
+      PreloadingDataImpl::GetOrCreateForWebContents(web_contents_.get());
+  PreloadingURLMatchCallback same_url_matcher =
+      PreloadingData::GetSameURLMatcher(attributes_.prerendering_url);
+  ukm::SourceId triggered_primary_page_source_id =
+      attributes_.initiator_web_contents->GetPrimaryMainFrame()
+          ->GetPageUkmSourceId();
+  auto* preloading_attempt =
+      static_cast<PreloadingAttemptImpl*>(preloading_data->AddPreloadingAttempt(
+          creating_predictor, enacting_predictor, PreloadingType::kPrerender,
+          std::move(same_url_matcher),
+          triggered_primary_page_source_id));
+  preloading_data->AddPreloadingPrediction(
+      enacting_predictor, confidence,
+      PreloadingData::GetSameURLMatcher(attributes_.prerendering_url),
+      triggered_primary_page_source_id);
+  preloading_data->CopyPredictorDomains(
+      *PreloadingDataImpl::GetOrCreateForWebContents(
+          attributes_.initiator_web_contents.get()),
+      {creating_predictor, enacting_predictor});
+  CHECK(eagerness().has_value());
+  preloading_attempt->SetSpeculationEagerness(eagerness().value());
+
   prerender_host_id_ = GetPrerenderHostRegistry().CreateAndStartHost(
-      attributes_, /*preloading_attempt=*/nullptr);
+      attributes_, preloading_attempt);
   return prerender_host_id_;
 }
 
@@ -113,7 +135,7 @@ PrerenderNewTabHandle::TakeWebContentsIfAvailable(
     return nullptr;
   }
 
-  // TODO(crbug.com/1350676): Consider supporting activation for non-empty
+  // TODO(crbug.com/40234240): Consider supporting activation for non-empty
   // `main_frame_name`.
   CHECK(web_contents_create_params_.main_frame_name.empty());
   if (web_contents_create_params_.main_frame_name !=
@@ -121,7 +143,7 @@ PrerenderNewTabHandle::TakeWebContentsIfAvailable(
     return nullptr;
   }
 
-  // TODO(crbug.com/1350676): Compare other parameters on CreateNewWindowParams
+  // TODO(crbug.com/40234240): Compare other parameters on CreateNewWindowParams
   // and WebContents::CreateParams. Also, we could have some guard to make sure
   // that parameters newly added to WebContents::CreateParams are accordingly
   // handled here with an approach similar to SameSizeAsDocumentLoader.
@@ -129,14 +151,6 @@ PrerenderNewTabHandle::TakeWebContentsIfAvailable(
   CHECK(web_contents_);
   web_contents_->SetDelegate(nullptr);
   return std::move(web_contents_);
-}
-
-PrerenderHost* PrerenderNewTabHandle::GetPrerenderHostForTesting() {
-  PrerenderHostRegistry& registry = GetPrerenderHostRegistry();
-  PrerenderHost* host = registry.FindNonReservedHostById(prerender_host_id_);
-  if (host)
-    return host;
-  return registry.FindReservedHostById(prerender_host_id_);
 }
 
 PrerenderHostRegistry& PrerenderNewTabHandle::GetPrerenderHostRegistry() {

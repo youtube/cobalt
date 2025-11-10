@@ -7,28 +7,21 @@ package org.chromium.chrome.browser.browserservices.trustedwebactivityui.control
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
-import org.chromium.chrome.browser.browserservices.intents.WebappExtras;
 import org.chromium.chrome.browser.customtabs.CloseButtonVisibilityManager;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
 import org.chromium.chrome.browser.customtabs.content.TabObserverRegistrar;
 import org.chromium.chrome.browser.customtabs.content.TabObserverRegistrar.CustomTabTabObserver;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarCoordinator;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.security_state.SecurityStateModel;
 
-import javax.inject.Inject;
-
 /**
- * Updates the browser controls state based on whether the browser is in TWA mode and the page's
- * security level.
+ * Updates the browser controls state based on whether the browser is in TWA mode, the page's
+ * security level, and desktop windowing state.
  */
-@ActivityScope
 public class TrustedWebActivityBrowserControlsVisibilityManager {
     static final @BrowserControlsState int DEFAULT_BROWSER_CONTROLS_STATE =
             BrowserControlsState.BOTH;
@@ -37,30 +30,31 @@ public class TrustedWebActivityBrowserControlsVisibilityManager {
     private final CustomTabActivityTabProvider mTabProvider;
     private final CustomTabToolbarCoordinator mToolbarCoordinator;
     private final CloseButtonVisibilityManager mCloseButtonVisibilityManager;
+    private final BrowserServicesIntentDataProvider mIntentDataProvider;
 
     private boolean mInAppMode;
-    private boolean mShowBrowserControlsInAppMode;
-    private boolean mShowBrowserControlsForChildTab;
+    private final boolean mShowBrowserControlsForChildTab;
 
     private @BrowserControlsState int mBrowserControlsState = DEFAULT_BROWSER_CONTROLS_STATE;
 
-    private final CustomTabTabObserver mTabObserver = new CustomTabTabObserver() {
-        @Override
-        public void onSSLStateUpdated(Tab tab) {
-            updateBrowserControlsState();
-            updateCloseButtonVisibility();
-        }
+    private final CustomTabTabObserver mTabObserver =
+            new CustomTabTabObserver() {
+                @Override
+                public void onSSLStateUpdated(Tab tab) {
+                    updateBrowserControlsState();
+                    updateCloseButtonVisibility();
+                }
 
-        @Override
-        public void onObservingDifferentTab(@Nullable Tab tab) {
-            updateBrowserControlsState();
-            updateCloseButtonVisibility();
-        }
-    };
+                @Override
+                public void onObservingDifferentTab(@Nullable Tab tab) {
+                    updateBrowserControlsState();
+                    updateCloseButtonVisibility();
+                }
+            };
 
-    @Inject
     public TrustedWebActivityBrowserControlsVisibilityManager(
-            TabObserverRegistrar tabObserverRegistrar, CustomTabActivityTabProvider tabProvider,
+            TabObserverRegistrar tabObserverRegistrar,
+            CustomTabActivityTabProvider tabProvider,
             CustomTabToolbarCoordinator toolbarCoordinator,
             CloseButtonVisibilityManager closeButtonVisibilityManager,
             BrowserServicesIntentDataProvider intentDataProvider) {
@@ -68,16 +62,12 @@ public class TrustedWebActivityBrowserControlsVisibilityManager {
         mTabProvider = tabProvider;
         mToolbarCoordinator = toolbarCoordinator;
         mCloseButtonVisibilityManager = closeButtonVisibilityManager;
+        mIntentDataProvider = intentDataProvider;
 
-        WebappExtras webappExtras = intentDataProvider.getWebappExtras();
-        mShowBrowserControlsForChildTab = (webappExtras != null);
-        mShowBrowserControlsInAppMode =
-                (webappExtras != null && webappExtras.displayMode == DisplayMode.MINIMAL_UI);
+        mShowBrowserControlsForChildTab = (mIntentDataProvider.getWebappExtras() != null);
     }
 
-    /**
-     * Should be called when the browser enters and exits TWA mode.
-     */
+    /** Should be called when the browser enters and exits TWA mode. */
     public void updateIsInAppMode(boolean inAppMode) {
         if (mInAppMode == inAppMode) return;
 
@@ -113,7 +103,7 @@ public class TrustedWebActivityBrowserControlsVisibilityManager {
         // transitions we avoid button flickering when toolbar is appearing/disappearing.
         boolean closeButtonVisibility =
                 shouldShowBrowserControlsAndCloseButton(mTabProvider.getTab())
-                || (mBrowserControlsState == BrowserControlsState.HIDDEN);
+                        || (mBrowserControlsState == BrowserControlsState.HIDDEN);
 
         mCloseButtonVisibilityManager.setVisibility(closeButtonVisibility);
     }
@@ -129,17 +119,13 @@ public class TrustedWebActivityBrowserControlsVisibilityManager {
             return BrowserControlsState.SHOWN;
         }
 
-        if (mInAppMode && mShowBrowserControlsInAppMode) {
-            return BrowserControlsState.BOTH;
-        }
-
-        return shouldShowBrowserControlsAndCloseButton(tab) ? BrowserControlsState.BOTH
-                                                            : BrowserControlsState.HIDDEN;
+        return shouldShowBrowserControlsAndCloseButton(tab)
+                ? BrowserControlsState.BOTH
+                : BrowserControlsState.HIDDEN;
     }
 
     private boolean isChildTab(@Nullable Tab tab) {
-        return tab != null
-                && CriticalPersistedTabData.from(tab).getParentId() != Tab.INVALID_TAB_ID;
+        return tab != null && tab.getParentId() != Tab.INVALID_TAB_ID;
     }
 
     @ConnectionSecurityLevel

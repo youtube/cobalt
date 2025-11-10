@@ -7,12 +7,12 @@
 #include "base/memory/ref_counted.h"
 #include "chrome/browser/complex_tasks/task_tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
 #include "components/sessions/content/content_serialized_navigation_builder.h"
-#include "components/supervised_user/core/common/buildflags.h"
+#include "components/sync/base/features.h"
 #include "components/sync_sessions/sync_sessions_client.h"
 #include "components/sync_sessions/synced_window_delegate.h"
 #include "components/sync_sessions/synced_window_delegates_getter.h"
-#include "components/translate/content/browser/content_record_page_language.h"
 #include "content/public/browser/favicon_status.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -23,13 +23,13 @@
 #include "chrome/browser/apps/app_service/web_contents_app_id_utils.h"
 #endif
 
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-#include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
-#endif
-
 using content::NavigationEntry;
 
 namespace {
+
+// The minimum time between two sync updates of `last_active_time` when the tab
+// hasn't changed.
+constexpr base::TimeDelta kSyncActiveTimeThreshold = base::Minutes(10);
 
 // Helper to access the correct NavigationEntry, accounting for pending entries.
 NavigationEntry* GetPossiblyPendingEntryAtIndex(
@@ -42,7 +42,7 @@ NavigationEntry* GetPossiblyPendingEntryAtIndex(
   NavigationEntry* entry = web_contents->GetController().GetEntryAtIndex(i);
   // Don't use the entry for sync if it doesn't exist or is the initial
   // NavigationEntry.
-  // TODO(https://crbug.com/1240138): Guarantee this won't be called when on the
+  // TODO(crbug.com/40194151): Guarantee this won't be called when on the
   // initial NavigationEntry instead of bailing out here.
   if (!entry || entry->IsInitialEntry()) {
     return nullptr;
@@ -52,10 +52,22 @@ NavigationEntry* GetPossiblyPendingEntryAtIndex(
 
 }  // namespace
 
-TabContentsSyncedTabDelegate::TabContentsSyncedTabDelegate()
-    : web_contents_(nullptr) {}
+void TabContentsSyncedTabDelegate::ResetCachedLastActiveTime() {
+  cached_last_active_time_.reset();
+}
 
-TabContentsSyncedTabDelegate::~TabContentsSyncedTabDelegate() = default;
+base::Time TabContentsSyncedTabDelegate::GetLastActiveTime() {
+  const base::Time last_active_time = web_contents_->GetLastActiveTime();
+  const base::TimeTicks last_active_time_ticks =
+      web_contents_->GetLastActiveTimeTicks();
+  if (cached_last_active_time_.has_value() &&
+      last_active_time_ticks - cached_last_active_time_.value().first <
+          kSyncActiveTimeThreshold) {
+    return cached_last_active_time_.value().second;
+  }
+  cached_last_active_time_ = {last_active_time_ticks, last_active_time};
+  return last_active_time;
+}
 
 bool TabContentsSyncedTabDelegate::IsBeingDestroyed() const {
   return web_contents_->IsBeingDestroyed();
@@ -87,14 +99,6 @@ GURL TabContentsSyncedTabDelegate::GetVirtualURLAtIndex(int i) const {
   return entry ? entry->GetVirtualURL() : GURL();
 }
 
-std::string TabContentsSyncedTabDelegate::GetPageLanguageAtIndex(int i) const {
-  DCHECK(web_contents_);
-  NavigationEntry* entry = GetPossiblyPendingEntryAtIndex(web_contents_, i);
-  // If we don't have an entry, return empty language.
-  return entry ? translate::GetPageLanguageFromNavigation(entry)
-               : std::string();
-}
-
 void TabContentsSyncedTabDelegate::GetSerializedNavigationAtIndex(
     int i,
     sessions::SerializedNavigationEntry* serialized_entry) const {
@@ -118,16 +122,20 @@ bool TabContentsSyncedTabDelegate::ProfileHasChildAccount() const {
 
 const std::vector<std::unique_ptr<const sessions::SerializedNavigationEntry>>*
 TabContentsSyncedTabDelegate::GetBlockedNavigations() const {
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
   SupervisedUserNavigationObserver* navigation_observer =
       SupervisedUserNavigationObserver::FromWebContents(web_contents_);
+#if BUILDFLAG(IS_ANDROID)
+  // TabHelpers::AttachTabHelpers() will not be called for a placeholder tab's
+  // WebContents that is temporarily created from a serialized state in
+  // SyncedTabDelegateAndroid::ReadPlaceholderTabSnapshotIfItShouldSync(). When
+  // this occurs, early-out and return a nullptr.
+  if (!navigation_observer) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   DCHECK(navigation_observer);
 
   return &navigation_observer->blocked_navigations();
-#else
-  NOTREACHED();
-  return nullptr;
-#endif
 }
 
 bool TabContentsSyncedTabDelegate::ShouldSync(
@@ -137,8 +145,17 @@ bool TabContentsSyncedTabDelegate::ShouldSync(
     return false;
   }
 
-  if (ProfileHasChildAccount() && !GetBlockedNavigations()->empty()) {
-    return true;
+  if (ProfileHasChildAccount()) {
+#if BUILDFLAG(IS_ANDROID)
+    auto* blocked_navigations = GetBlockedNavigations();
+    if (blocked_navigations && !blocked_navigations->empty()) {
+      return true;
+    }
+#else
+    if (!GetBlockedNavigations()->empty()) {
+      return true;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
   }
 
   if (IsInitialBlankNavigation()) {
@@ -155,12 +172,7 @@ bool TabContentsSyncedTabDelegate::ShouldSync(
 
   int entry_count = GetEntryCount();
   for (int i = 0; i < entry_count; ++i) {
-    const GURL& virtual_url = GetVirtualURLAtIndex(i);
-    if (!virtual_url.is_valid()) {
-      continue;
-    }
-
-    if (sessions_client->ShouldSyncURL(virtual_url)) {
+    if (sessions_client->ShouldSyncURL(GetVirtualURLAtIndex(i))) {
       return true;
     }
   }

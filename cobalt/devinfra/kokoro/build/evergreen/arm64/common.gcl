@@ -12,8 +12,8 @@ build = common.build {
       value = 'use_asan=false is_internal_build=true'
     },
     {
-      key = 'TARGET'
-      value = 'default'
+      key = 'GN_TARGET'
+      value = 'cobalt'
     },
     {
       key = 'TARGET_CPU'

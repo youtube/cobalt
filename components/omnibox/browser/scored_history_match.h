@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,14 +19,12 @@
 #include "components/omnibox/browser/history_match.h"
 #include "components/omnibox/browser/in_memory_url_index_types.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/metrics_proto/omnibox_event.pb.h"
+#include "third_party/metrics_proto/omnibox_scoring_signals.pb.h"
 
 // An HistoryMatch that has a score as well as metrics defining where in the
 // history item's URL and/or page title matches have occurred.
 struct ScoredHistoryMatch : public history::HistoryMatch {
-  using ScoringSignals =
-      ::metrics::OmniboxEventProto::Suggestion::ScoringSignals;
+  using ScoringSignals = ::metrics::OmniboxScoringSignals;
 
   // ScoreMaxRelevance maps from an intermediate-score to the maximum
   // final-relevance score given to a URL for this intermediate score.
@@ -40,9 +39,9 @@ struct ScoredHistoryMatch : public history::HistoryMatch {
 
   // Struct for URL matching signals.
   struct UrlMatchingSignals {
-    absl::optional<bool> host_match_at_word_boundary = absl::nullopt;
-    absl::optional<bool> has_non_scheme_www_match = absl::nullopt;
-    absl::optional<size_t> first_url_match_position = absl::nullopt;
+    std::optional<bool> host_match_at_word_boundary = std::nullopt;
+    std::optional<bool> has_non_scheme_www_match = std::nullopt;
+    std::optional<size_t> first_url_match_position = std::nullopt;
     size_t total_url_match_length = 0;
     size_t total_host_match_length = 0;
     size_t total_path_match_length = 0;
@@ -168,7 +167,7 @@ struct ScoredHistoryMatch : public history::HistoryMatch {
   // Signals used to score matches. These are propagated to the ACController
   // via ACMatch, and used by the ML Scorer as well as logged to
   // OmniboxEventProto in order to provide ML training data.
-  absl::optional<ScoringSignals> scoring_signals;
+  std::optional<ScoringSignals> scoring_signals;
 
  private:
   friend class ScoredHistoryMatchPublic;

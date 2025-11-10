@@ -4,11 +4,10 @@
 
 #import "ios/testing/hardware_keyboard_util.h"
 
-#import "base/test/ios/wait_util.h"
+#import <dlfcn.h>
+#import <objc/runtime.h>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "base/test/ios/wait_util.h"
 
 #pragma mark - Private API from IOKit to support CreateHIDKeyEvent
 
@@ -101,12 +100,14 @@ enum {
 static uint32_t keyCodeForFunctionKey(NSString* key) {
   // Compare the input string with the function-key names (i.e. "F1",...,"F24").
   for (int i = 1; i <= 12; ++i) {
-    if ([key isEqualToString:[NSString stringWithFormat:@"F%d", i]])
+    if ([key isEqualToString:[NSString stringWithFormat:@"F%d", i]]) {
       return kHIDUsage_KeyboardF1 + i - 1;
+    }
   }
   for (int i = 13; i <= 24; ++i) {
-    if ([key isEqualToString:[NSString stringWithFormat:@"F%d", i]])
+    if ([key isEqualToString:[NSString stringWithFormat:@"F%d", i]]) {
       return kHIDUsage_KeyboardF13 + i - 13;
+    }
   }
   return 0;
 }
@@ -119,14 +120,17 @@ static inline uint32_t hidUsageCodeForCharacter(NSString* key) {
   if (key.length == 1) {
     // Handle alphanumeric characters and basic symbols.
     int keyCode = [key characterAtIndex:0];
-    if (97 <= keyCode && keyCode <= 122)  // Handle a-z.
+    if (97 <= keyCode && keyCode <= 122) {  // Handle a-z.
       return keyCode - lowercaseAlphabeticOffset;
+    }
 
-    if (65 <= keyCode && keyCode <= 90)  // Handle A-Z.
+    if (65 <= keyCode && keyCode <= 90) {  // Handle A-Z.
       return keyCode - uppercaseAlphabeticOffset;
+    }
 
-    if (49 <= keyCode && keyCode <= 57)  // Handle 1-9.
+    if (49 <= keyCode && keyCode <= 57) {  // Handle 1-9.
       return keyCode - numericNonZeroOffset;
+    }
 
     // Handle all other cases.
     switch (keyCode) {
@@ -197,60 +201,102 @@ static inline uint32_t hidUsageCodeForCharacter(NSString* key) {
   }
 
   uint32_t keyCode = keyCodeForFunctionKey(key);
-  if (keyCode)
+  if (keyCode) {
     return keyCode;
+  }
 
-  if ([key isEqualToString:@"capsLock"] || [key isEqualToString:@"capsLockKey"])
+  if ([key isEqualToString:@"capsLock"] ||
+      [key isEqualToString:@"capsLockKey"]) {
     return kHIDUsage_KeyboardCapsLock;
-  if ([key isEqualToString:@"pageUp"])
+  }
+  if ([key isEqualToString:@"pageUp"]) {
     return kHIDUsage_KeyboardPageUp;
-  if ([key isEqualToString:@"pageDown"])
+  }
+  if ([key isEqualToString:@"pageDown"]) {
     return kHIDUsage_KeyboardPageDown;
-  if ([key isEqualToString:@"home"])
+  }
+  if ([key isEqualToString:@"home"]) {
     return kHIDUsage_KeyboardHome;
-  if ([key isEqualToString:@"insert"])
+  }
+  if ([key isEqualToString:@"insert"]) {
     return kHIDUsage_KeyboardInsert;
-  if ([key isEqualToString:@"end"])
+  }
+  if ([key isEqualToString:@"end"]) {
     return kHIDUsage_KeyboardEnd;
-  if ([key isEqualToString:@"escape"])
+  }
+  if ([key isEqualToString:@"escape"]) {
     return kHIDUsage_KeyboardEscape;
-  if ([key isEqualToString:@"return"] || [key isEqualToString:@"enter"])
+  }
+  if ([key isEqualToString:@"return"] || [key isEqualToString:@"enter"]) {
     return kHIDUsage_KeyboardReturnOrEnter;
-  if ([key isEqualToString:@"leftArrow"])
+  }
+  if ([key isEqualToString:@"leftArrow"]) {
     return kHIDUsage_KeyboardLeftArrow;
-  if ([key isEqualToString:@"rightArrow"])
+  }
+  if ([key isEqualToString:@"rightArrow"]) {
     return kHIDUsage_KeyboardRightArrow;
-  if ([key isEqualToString:@"upArrow"])
+  }
+  if ([key isEqualToString:@"upArrow"]) {
     return kHIDUsage_KeyboardUpArrow;
-  if ([key isEqualToString:@"downArrow"])
+  }
+  if ([key isEqualToString:@"downArrow"]) {
     return kHIDUsage_KeyboardDownArrow;
-  if ([key isEqualToString:@"delete"])
+  }
+  if ([key isEqualToString:@"delete"]) {
     return kHIDUsage_KeyboardDeleteOrBackspace;
-  if ([key isEqualToString:@"forwardDelete"])
+  }
+  if ([key isEqualToString:@"forwardDelete"]) {
     return kHIDUsage_KeyboardDeleteForward;
-  if ([key isEqualToString:@"leftCommand"] || [key isEqualToString:@"metaKey"])
+  }
+  if ([key isEqualToString:@"leftCommand"] ||
+      [key isEqualToString:@"metaKey"]) {
     return kHIDUsage_KeyboardLeftGUI;
-  if ([key isEqualToString:@"rightCommand"])
+  }
+  if ([key isEqualToString:@"rightCommand"]) {
     return kHIDUsage_KeyboardRightGUI;
-  if ([key isEqualToString:@"clear"])  // Num Lock / Clear
+  }
+  if ([key isEqualToString:@"clear"]) {  // Num Lock / Clear
     return kHIDUsage_KeypadNumLock;
-  if ([key isEqualToString:@"leftControl"] || [key isEqualToString:@"ctrlKey"])
+  }
+  if ([key isEqualToString:@"leftControl"] ||
+      [key isEqualToString:@"ctrlKey"]) {
     return kHIDUsage_KeyboardLeftControl;
-  if ([key isEqualToString:@"rightControl"])
+  }
+  if ([key isEqualToString:@"rightControl"]) {
     return kHIDUsage_KeyboardRightControl;
-  if ([key isEqualToString:@"leftShift"] || [key isEqualToString:@"shiftKey"])
+  }
+  if ([key isEqualToString:@"leftShift"] || [key isEqualToString:@"shiftKey"]) {
     return kHIDUsage_KeyboardLeftShift;
-  if ([key isEqualToString:@"rightShift"])
+  }
+  if ([key isEqualToString:@"rightShift"]) {
     return kHIDUsage_KeyboardRightShift;
-  if ([key isEqualToString:@"leftAlt"] || [key isEqualToString:@"altKey"])
+  }
+  if ([key isEqualToString:@"leftAlt"] || [key isEqualToString:@"altKey"]) {
     return kHIDUsage_KeyboardLeftAlt;
-  if ([key isEqualToString:@"rightAlt"])
+  }
+  if ([key isEqualToString:@"rightAlt"]) {
     return kHIDUsage_KeyboardRightAlt;
-  if ([key isEqualToString:@"numpadComma"])
+  }
+  if ([key isEqualToString:@"numpadComma"]) {
     return kHIDUsage_KeypadComma;
+  }
 
   return 0;
 }
+
+typedef NS_OPTIONS(NSInteger, BKSKeyModifierFlags) {
+  BKSKeyModifierShift = 1 << 17,
+  BKSKeyModifierControl = 1 << 18,
+  BKSKeyModifierAlternate = 1 << 19,
+  BKSKeyModifierCommand = 1 << 20,
+};
+
+@interface BKSHIDEventBaseAttributes : NSObject
+@end
+
+@interface BKSHIDEventDigitizerAttributes : BKSHIDEventBaseAttributes
+@property(nonatomic) BKSKeyModifierFlags activeModifiers;
+@end
 
 // These are privately defined in IOKit framework.
 enum { kHIDPage_KeyboardOrKeypad = 0x07, kHIDPage_VendorDefinedStart = 0xFF00 };
@@ -258,6 +304,73 @@ enum { kHIDPage_KeyboardOrKeypad = 0x07, kHIDPage_VendorDefinedStart = 0xFF00 };
 enum {
   kIOHIDEventOptionNone = 0,
 };
+
+// From
+// https://github.com/WebKit/WebKit/blob/32d692229b2aa815346811da6a8db51f260090fe/Source/WTF/wtf/cocoa/SoftLinking.h
+#define SOFT_LINK_PRIVATE_FRAMEWORK(framework)                              \
+  static void* framework##Library() {                                       \
+    static void* frameworkLibrary = ^{                                      \
+      void* result = dlopen("/System/Library/PrivateFrameworks/" #framework \
+                            ".framework/" #framework,                       \
+                            RTLD_NOW);                                      \
+      return result;                                                        \
+    }();                                                                    \
+    return frameworkLibrary;                                                \
+  }
+
+#ifdef __cplusplus
+#define WTF_EXTERN_C_BEGIN extern "C" {
+#define WTF_EXTERN_C_END }
+#else
+#define WTF_EXTERN_C_BEGIN
+#define WTF_EXTERN_C_END
+#endif
+
+#define SOFT_LINK(framework, functionName, resultType, parameterDeclarations, \
+                  parameterNames)                                             \
+  WTF_EXTERN_C_BEGIN                                                          \
+  resultType functionName parameterDeclarations;                              \
+  WTF_EXTERN_C_END                                                            \
+  static resultType init##functionName parameterDeclarations;                 \
+  static resultType(*softLink##functionName) parameterDeclarations =          \
+      init##functionName;                                                     \
+                                                                              \
+  static resultType init##functionName parameterDeclarations {                \
+    softLink##functionName = (resultType(*) parameterDeclarations)dlsym(      \
+        framework##Library(), #functionName);                                 \
+    return softLink##functionName parameterNames;                             \
+  }                                                                           \
+                                                                              \
+  inline __attribute__((__always_inline__))                                   \
+  resultType functionName parameterDeclarations {                             \
+    return softLink##functionName parameterNames;                             \
+  }
+
+// From
+// https://github.com/WebKit/WebKit/blob/32d692229b2aa815346811da6a8db51f260090fe/Tools/WebKitTestRunner/ios/HIDEventGenerator.mm
+SOFT_LINK_PRIVATE_FRAMEWORK(BackBoardServices)
+SOFT_LINK(BackBoardServices,
+          BKSHIDEventSetDigitizerInfo,
+          void,
+          (IOHIDEventRef digitizerEvent,
+           uint32_t contextID,
+           uint8_t systemGestureisPossible,
+           uint8_t isSystemGestureStateChangeEvent,
+           CFStringRef displayUUID,
+           CFTimeInterval initialTouchTimestamp,
+           float maxForce),
+          (digitizerEvent,
+           contextID,
+           systemGestureisPossible,
+           isSystemGestureStateChangeEvent,
+           displayUUID,
+           initialTouchTimestamp,
+           maxForce))
+SOFT_LINK(BackBoardServices,
+          BKSHIDEventGetDigitizerAttributes,
+          BKSHIDEventDigitizerAttributes*,
+          (IOHIDEventRef event),
+          (event))
 
 #pragma mark - Private API to fake keyboard events.
 
@@ -276,16 +389,26 @@ IOHIDEventRef CreateHIDKeyEvent(NSString* character,
 @interface PhysicalKeyboardEvent : UIEvent
 + (id)_eventWithInput:(id)arg1 inputFlags:(int)arg2;
 - (void)_setHIDEvent:(IOHIDEventRef)event keyboard:(void*)gsKeyboard;
+// >=iOS17 only.
+- (void)_setModifierFlags:(UIKeyModifierFlags)flags;
+// <=iOS16 only.
 @property(nonatomic) UIKeyModifierFlags _modifierFlags;
 @end
 
 // Private API in UIKit.
 @interface UIApplication ()
+- (void)_enqueueHIDEvent:(IOHIDEventRef)event;
 - (void)handleKeyUIEvent:(id)event;
 - (void)handleKeyHIDEvent:(id)event;
 @end
 
+@interface UIWindow ()
+- (uint32_t)_contextId;
+@end
+
 #pragma mark - Implementation
+
+using base::test::ios::kWaitForUIElementTimeout;
 
 namespace {
 
@@ -295,7 +418,7 @@ const double kKeyPressDelay = 0.02;
 // Utility to describe modifier flags. Useful in debugging.
 [[maybe_unused]] NSString* DescribeFlags(UIKeyModifierFlags flags);
 NSString* DescribeFlags(UIKeyModifierFlags flags) {
-  NSMutableString* s = [NSMutableString new];
+  NSMutableString* s = [[NSMutableString alloc] init];
   if (flags & UIKeyModifierAlphaShift) {
     [s appendString:@"CapsLock+"];
   }
@@ -318,17 +441,49 @@ NSString* DescribeFlags(UIKeyModifierFlags flags) {
   return s;
 }
 
+uint32_t GetContextId() {
+  for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
+    UIWindowScene* windowScene = (UIWindowScene*)scene;
+    for (UIWindow* window in windowScene.windows) {
+      if (window.isKeyWindow) {
+        return window._contextId;
+      }
+    }
+  }
+  return 0;
+}
+
 // Sends an individual keyboard press event.
 void SendKBEventWithModifiers(UIKeyModifierFlags flags, NSString* input) {
   // Fake up an event.
   PhysicalKeyboardEvent* keyboardEvent =
       [NSClassFromString(@"UIPhysicalKeyboardEvent") _eventWithInput:input
                                                           inputFlags:0];
-  keyboardEvent._modifierFlags = flags;
+  if (@available(iOS 17, *)) {
+    [keyboardEvent _setModifierFlags:flags];
+  } else {
+    keyboardEvent._modifierFlags = flags;
+  }
   IOHIDEventRef hidEvent =
       CreateHIDKeyEvent(input, keyboardEvent.timestamp, true);
   [keyboardEvent _setHIDEvent:hidEvent keyboard:0];
   [[UIApplication sharedApplication] handleKeyUIEvent:keyboardEvent];
+}
+
+// Simulate pressing a hardware keyboard key.
+void PressKey(NSString* key) {
+  IOHIDEventRef event = CreateHIDKeyEvent(key, mach_absolute_time(), true);
+  uint32_t contextId = GetContextId();
+  BKSHIDEventSetDigitizerInfo(event, contextId, false, false, NULL, 0, 0);
+  [[UIApplication sharedApplication] _enqueueHIDEvent:event];
+}
+
+// Simulate releasing a hardware keyboard key.
+void ReleaseKey(NSString* key) {
+  IOHIDEventRef event = CreateHIDKeyEvent(key, mach_absolute_time(), false);
+  uint32_t contextId = GetContextId();
+  BKSHIDEventSetDigitizerInfo(event, contextId, false, false, NULL, 0, 0);
+  [[UIApplication sharedApplication] _enqueueHIDEvent:event];
 }
 
 // Lifts the keypresses one by one.
@@ -343,27 +498,29 @@ void UnwindFakeKeyboardPressWithFlags(UIKeyModifierFlags flags,
     return;
   }
 
-  dispatch_after(
-      dispatch_time(DISPATCH_TIME_NOW, kKeyPressDelay * NSEC_PER_SEC),
-      dispatch_get_main_queue(), ^{
-        // First release all the non-modifier keys.
-        if (input.length > 0) {
-          NSString* remainingInput = [input substringFromIndex:1];
+  auto block = ^(NSTimer* timer) {
+    // First release all the non-modifier
+    // keys.
+    if (input.length > 0) {
+      NSString* remainingInput = [input substringFromIndex:1];
 
-          SendKBEventWithModifiers(flags, remainingInput);
-          UnwindFakeKeyboardPressWithFlags(flags, remainingInput, completion);
-          return;
-        }
+      SendKBEventWithModifiers(flags, remainingInput);
+      UnwindFakeKeyboardPressWithFlags(flags, remainingInput, completion);
+      return;
+    }
 
-        // Unwind the modifier keys.
-        for (int i = 16; i < 22; i++) {
-          UIKeyModifierFlags flag = 1 << i;
-          if (flags & flag) {
-            SendKBEventWithModifiers(flags & ~flag, input);
-            UnwindFakeKeyboardPressWithFlags(flags & ~flag, input, completion);
-          }
-        }
-      });
+    // Unwind the modifier keys.
+    for (int i = 16; i < 22; i++) {
+      UIKeyModifierFlags flag = 1 << i;
+      if (flags & flag) {
+        SendKBEventWithModifiers(flags & ~flag, input);
+        UnwindFakeKeyboardPressWithFlags(flags & ~flag, input, completion);
+      }
+    }
+  };
+  [NSTimer scheduledTimerWithTimeInterval:kKeyPressDelay
+                                  repeats:false
+                                    block:block];
 }
 
 // Programmatically simulates pressing the keys one by one, starting with
@@ -377,38 +534,39 @@ void SimulatePhysicalKeyboardEventInternal(UIKeyModifierFlags flags,
                                            UIKeyModifierFlags previousFlags,
                                            NSString* previousInput,
                                            void (^completion)()) {
-  dispatch_after(
-      dispatch_time(DISPATCH_TIME_NOW, kKeyPressDelay * NSEC_PER_SEC),
-      dispatch_get_main_queue(), ^{
-        // First dial in all the modifier keys.
-        for (int i = 15; i < 25; i++) {
-          UIKeyModifierFlags flag = 1 << i;
-          if (flags & flag) {
-            SendKBEventWithModifiers(previousFlags ^ flag, previousInput);
-            SimulatePhysicalKeyboardEventInternal(flags & ~flag, input,
-                                                  previousFlags ^ flag,
-                                                  previousInput, completion);
-            return;
-          }
-        }
+  auto block = ^(NSTimer* timer) {
+    // First dial in all the modifier keys.
+    for (int i = 15; i < 25; i++) {
+      UIKeyModifierFlags flag = 1 << i;
+      if (flags & flag) {
+        SendKBEventWithModifiers(previousFlags ^ flag, previousInput);
+        SimulatePhysicalKeyboardEventInternal(flags & ~flag, input,
+                                              previousFlags ^ flag,
+                                              previousInput, completion);
+        return;
+      }
+    }
 
-        // Now add the next input char.
-        if (input.length > 0) {
-          NSString* pressedKey = [input substringToIndex:1];
-          NSString* remainingInput = [input substringFromIndex:1];
-          NSString* alreadyPressedString =
-              [previousInput stringByAppendingString:pressedKey];
+    // Now add the next input char.
+    if (input.length > 0) {
+      NSString* pressedKey = [input substringToIndex:1];
+      NSString* remainingInput = [input substringFromIndex:1];
+      NSString* alreadyPressedString =
+          [previousInput stringByAppendingString:pressedKey];
 
-          SendKBEventWithModifiers(previousFlags, alreadyPressedString);
-          SimulatePhysicalKeyboardEventInternal(
-              flags, remainingInput, previousFlags, alreadyPressedString,
-              completion);
-        } else {
-          // Time to unwind the presses.
-          UnwindFakeKeyboardPressWithFlags(previousFlags, previousInput,
-                                           completion);
-        }
-      });
+      SendKBEventWithModifiers(previousFlags, alreadyPressedString);
+      SimulatePhysicalKeyboardEventInternal(flags, remainingInput,
+                                            previousFlags, alreadyPressedString,
+                                            completion);
+    } else {
+      // Time to unwind the presses.
+      UnwindFakeKeyboardPressWithFlags(previousFlags, previousInput,
+                                       completion);
+    }
+  };
+  [NSTimer scheduledTimerWithTimeInterval:kKeyPressDelay
+                                  repeats:false
+                                    block:block];
 }
 
 }  // namespace
@@ -418,6 +576,27 @@ void SimulatePhysicalKeyboardEventInternal(UIKeyModifierFlags flags,
 namespace chrome_test_util {
 
 void SimulatePhysicalKeyboardEvent(UIKeyModifierFlags flags, NSString* input) {
+  // No modifier keys pressed.
+  if (flags == 0) {
+    if (hidUsageCodeForCharacter(input)) {
+      // Input is a keyboard key.
+      PressKey(input);
+      ReleaseKey(input);
+      return;
+    }
+
+    // If there are no modifier keys and the input is not a keyboard key. Our
+    // intention is then to type the input.
+    for (NSUInteger i = 0; i < [input length]; i++) {
+      NSRange range = NSMakeRange(i, 1);
+      NSString* key = [input substringWithRange:range];
+      PressKey(key);
+      ReleaseKey(key);
+    }
+    return;
+  }
+
+  // Input with modifier keys.
   __block BOOL keyPressesFinished = NO;
 
   SimulatePhysicalKeyboardEventInternal(flags, input, 0, @"", ^{
@@ -425,7 +604,7 @@ void SimulatePhysicalKeyboardEvent(UIKeyModifierFlags flags, NSString* input) {
   });
 
   BOOL __unused result =
-      base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(1), ^{
+      base::test::ios::WaitUntilConditionOrTimeout(kWaitForUIElementTimeout, ^{
         return keyPressesFinished;
       });
 }

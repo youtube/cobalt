@@ -53,7 +53,8 @@ WebRequestEventDetails::WebRequestEventDetails(const WebRequestInfo& request,
       render_process_id_(content::ChildProcessHost::kInvalidUniqueID) {
   dict_.Set(keys::kMethodKey, request.method);
   dict_.Set(keys::kRequestIdKey, base::NumberToString(request.id));
-  dict_.Set(keys::kTimeStampKey, base::Time::Now().ToDoubleT() * 1000);
+  dict_.Set(keys::kTimeStampKey,
+            base::Time::Now().InMillisecondsFSinceUnixEpoch());
   dict_.Set(keys::kTypeKey,
             WebRequestResourceTypeToString(request.web_request_type));
   dict_.Set(keys::kUrlKey, request.url.spec());
@@ -79,9 +80,10 @@ WebRequestEventDetails::WebRequestEventDetails(const WebRequestInfo& request,
 WebRequestEventDetails::~WebRequestEventDetails() = default;
 
 void WebRequestEventDetails::SetRequestBody(WebRequestInfo* request) {
-  if (!(extra_info_spec_ & ExtraInfoSpec::REQUEST_BODY))
+  if (!(extra_info_spec_ & ExtraInfoSpec::REQUEST_BODY)) {
     return;
-  request_body_ = absl::nullopt;
+  }
+  request_body_ = std::nullopt;
   if (request->request_body_data) {
     request_body_ = std::move(request->request_body_data);
     request->request_body_data.reset();
@@ -90,8 +92,9 @@ void WebRequestEventDetails::SetRequestBody(WebRequestInfo* request) {
 
 void WebRequestEventDetails::SetRequestHeaders(
     const net::HttpRequestHeaders& request_headers) {
-  if (!(extra_info_spec_ & ExtraInfoSpec::REQUEST_HEADERS))
+  if (!(extra_info_spec_ & ExtraInfoSpec::REQUEST_HEADERS)) {
     return;
+  }
 
   request_headers_ = base::Value::List();
   for (net::HttpRequestHeaders::Iterator it(request_headers); it.GetNext();) {
@@ -103,10 +106,12 @@ void WebRequestEventDetails::SetRequestHeaders(
 void WebRequestEventDetails::SetAuthInfo(
     const net::AuthChallengeInfo& auth_info) {
   dict_.Set(keys::kIsProxyKey, auth_info.is_proxy);
-  if (!auth_info.scheme.empty())
+  if (!auth_info.scheme.empty()) {
     dict_.Set(keys::kSchemeKey, auth_info.scheme);
-  if (!auth_info.realm.empty())
+  }
+  if (!auth_info.realm.empty()) {
     dict_.Set(keys::kRealmKey, auth_info.realm);
+  }
   base::Value::Dict challenger;
   challenger.Set(keys::kHostKey, auth_info.challenger.host());
   challenger.Set(keys::kPortKey, auth_info.challenger.port());
@@ -145,8 +150,9 @@ void WebRequestEventDetails::SetResponseHeaders(
 
 void WebRequestEventDetails::SetResponseSource(const WebRequestInfo& request) {
   dict_.Set(keys::kFromCache, request.response_from_cache);
-  if (!request.response_ip.empty())
+  if (!request.response_ip.empty()) {
     dict_.Set(keys::kIpKey, request.response_ip);
+  }
 }
 
 base::Value::Dict WebRequestEventDetails::GetFilteredDict(

@@ -10,6 +10,10 @@
 
 #include "common_video/frame_rate_estimator.h"
 
+#include <optional>
+
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -22,21 +26,20 @@ void FrameRateEstimator::OnFrame(Timestamp time) {
   frame_times_.push_back(time);
 }
 
-absl::optional<double> FrameRateEstimator::GetAverageFps() const {
+std::optional<double> FrameRateEstimator::GetAverageFps() const {
   if (frame_times_.size() < 2) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   TimeDelta time_span = frame_times_.back() - frame_times_.front();
   if (time_span < TimeDelta::Micros(1)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   TimeDelta avg_frame_interval = time_span / (frame_times_.size() - 1);
 
-  return static_cast<double>(rtc::kNumMicrosecsPerSec) /
-         avg_frame_interval.us();
+  return static_cast<double>(kNumMicrosecsPerSec) / avg_frame_interval.us();
 }
 
-absl::optional<double> FrameRateEstimator::GetAverageFps(Timestamp now) {
+std::optional<double> FrameRateEstimator::GetAverageFps(Timestamp now) {
   CullOld(now);
   return GetAverageFps();
 }

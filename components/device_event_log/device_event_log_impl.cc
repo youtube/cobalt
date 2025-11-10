@@ -2,20 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/device_event_log/device_event_log_impl.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <list>
 #include <set>
+#include <string_view>
 
 #include "base/containers/adapters.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/json/json_writer.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/process/process_handle.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -28,7 +32,8 @@ namespace device_event_log {
 
 namespace {
 
-const char* const kLogLevelName[] = {"Error", "User", "Event", "Debug"};
+const auto kLogLevelName =
+    std::to_array<const char*>({"Error", "User", "Event", "Debug"});
 
 const char kLogTypeNetworkDesc[] = "Network";
 const char kLogTypePowerDesc[] = "Power";
@@ -43,6 +48,8 @@ const char kLogTypeSerialDesc[] = "Serial";
 const char kLogTypeCameraDesc[] = "Camera";
 const char kLogTypeGeolocationDesc[] = "Geolocation";
 const char kLogTypeExtensionsDesc[] = "Extensions";
+const char kLogTypeDisplayDesc[] = "Display";
+const char kLogTypeFirmwareDesc[] = "Firmware";
 
 enum class ShowTime {
   kNone,
@@ -78,14 +85,17 @@ std::string GetLogTypeString(LogType type) {
       return kLogTypeGeolocationDesc;
     case LOG_TYPE_EXTENSIONS:
       return kLogTypeExtensionsDesc;
+    case LOG_TYPE_DISPLAY:
+      return kLogTypeDisplayDesc;
+    case LOG_TYPE_FIRMWARE:
+      return kLogTypeFirmwareDesc;
     case LOG_TYPE_UNKNOWN:
       break;
   }
   NOTREACHED();
-  return "Unknown";
 }
 
-LogType GetLogTypeFromString(base::StringPiece desc) {
+LogType GetLogTypeFromString(std::string_view desc) {
   std::string desc_lc = base::ToLowerASCII(desc);
   for (int i = 0; i < LOG_TYPE_UNKNOWN; ++i) {
     auto type = static_cast<LogType>(i);
@@ -94,60 +104,25 @@ LogType GetLogTypeFromString(base::StringPiece desc) {
       return type;
   }
   NOTREACHED() << "Unrecogized LogType: " << desc;
-  return LOG_TYPE_UNKNOWN;
 }
 
 std::string DateAndTimeWithMicroseconds(const base::Time& time) {
-  base::Time::Exploded exploded;
-  time.LocalExplode(&exploded);
-  // base::Time::Exploded does not include microseconds, but sometimes we need
-  // microseconds, so append '.' + usecs to the end of the formatted string.
-  int usecs = static_cast<int>(fmod(time.ToDoubleT() * 1000000, 1000000));
-  return base::StringPrintf("%04d/%02d/%02d %02d:%02d:%02d.%06d", exploded.year,
-                            exploded.month, exploded.day_of_month,
-                            exploded.hour, exploded.minute, exploded.second,
-                            usecs);
+  return base::UnlocalizedTimeFormatWithPattern(time,
+                                                "yyyy/MM/dd HH:mm:ss.SSSSSS");
 }
 
 std::string TimeWithSeconds(const base::Time& time) {
-  base::Time::Exploded exploded;
-  time.LocalExplode(&exploded);
-  return base::StringPrintf("%02d:%02d:%02d", exploded.hour, exploded.minute,
-                            exploded.second);
+  return base::UnlocalizedTimeFormatWithPattern(time, "HH:mm:ss");
 }
 
 std::string TimeWithMillieconds(const base::Time& time) {
-  base::Time::Exploded exploded;
-  time.LocalExplode(&exploded);
-  return base::StringPrintf("%02d:%02d:%02d.%03d", exploded.hour,
-                            exploded.minute, exploded.second,
-                            exploded.millisecond);
+  return base::UnlocalizedTimeFormatWithPattern(time, "HH:mm:ss.SSS");
 }
 
 #if BUILDFLAG(IS_POSIX)
 std::string UnixTime(const base::Time& time) {
-  base::Time::Exploded utc_exploded, exploded;
-  time.UTCExplode(&utc_exploded);
-  time.LocalExplode(&exploded);
-  // Note: |timezone_hours| is only used to display the correct timezone UTC
-  // offset (which alas is not conveniently provided in Time::Exploded).
-  // Thus, we don't have to account for any date shift, it is already considered
-  // in |exploded| (i.e. exploded.day may not match utc_exploded.day).
-  int timezone_hours = exploded.hour - utc_exploded.hour;
-  if (timezone_hours >= 12)
-    timezone_hours = 24 - timezone_hours;
-  else if (timezone_hours <= -12)
-    timezone_hours = 24 + timezone_hours;
-  char sign = timezone_hours > 0 ? '+' : '-';
-  // See note in DateAndTimeWithMicroseconds.
-  int usecs = static_cast<int>(fmod(time.ToDoubleT() * 1000000, 1000000));
-  // This format is consistent with the date/time format in /var/log/messages
-  // and /var/log/net.log, e.g: 2020-01-23T01:23:45.678901-07:00.
-  // Note: %+02d does not respect the '0', resulting in e.g. +7:00.
-  return base::StringPrintf(
-      "%04d-%02d-%02dT%02d:%02d:%02d.%06d%c%02d:00", exploded.year,
-      exploded.month, exploded.day_of_month, exploded.hour, exploded.minute,
-      exploded.second, usecs, sign, std::abs(timezone_hours));
+  return base::UnlocalizedTimeFormatWithPattern(
+      time, "yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx");
 }
 #endif
 
@@ -166,7 +141,8 @@ std::string LogEntryToString(const DeviceEventLogImpl::LogEntry& log_entry,
   if (show_type)
     line += GetLogTypeString(log_entry.log_type) + ": ";
   if (show_level) {
-    const char* kLevelDesc[] = {"ERROR", "USER", "EVENT", "DEBUG"};
+    auto kLevelDesc =
+        std::to_array<const char*>({"ERROR", "USER", "EVENT", "DEBUG"});
     line += std::string(kLevelDesc[log_entry.log_level]);
 #if BUILDFLAG(IS_POSIX)
     if (show_time == ShowTime::kUnix) {
@@ -256,7 +232,7 @@ void GetFormat(const std::string& format_string,
   *show_level = false;
   *format_json = false;
   while (tokens.GetNext()) {
-    base::StringPiece tok = tokens.token_piece();
+    std::string_view tok = tokens.token_piece();
     if (tok == "time") {
       *show_time = ShowTime::kTimeWithMs;
     } else if (tok == "unixtime") {
@@ -282,7 +258,7 @@ void GetLogTypes(const std::string& types,
                  std::set<LogType>* exclude_types) {
   base::StringTokenizer tokens(types, ",");
   while (tokens.GetNext()) {
-    base::StringPiece tok = tokens.token_piece();
+    std::string_view tok = tokens.token_piece();
     if (base::StartsWith(tok, "non-")) {
       LogType type = GetLogTypeFromString(tok.substr(4));
       if (type != LOG_TYPE_UNKNOWN)
@@ -322,7 +298,7 @@ DeviceEventLogImpl::DeviceEventLogImpl(
   DCHECK(task_runner_);
 }
 
-DeviceEventLogImpl::~DeviceEventLogImpl() {}
+DeviceEventLogImpl::~DeviceEventLogImpl() = default;
 
 void DeviceEventLogImpl::AddEntry(const char* file,
                                   int file_line,
@@ -475,9 +451,8 @@ void DeviceEventLogImpl::ClearAll() {
 }
 
 void DeviceEventLogImpl::Clear(const base::Time& begin, const base::Time& end) {
-  entries_.erase(
-      base::ranges::lower_bound(entries_, begin, {}, &LogEntry::time),
-      base::ranges::upper_bound(entries_, end, {}, &LogEntry::time));
+  entries_.erase(std::ranges::lower_bound(entries_, begin, {}, &LogEntry::time),
+                 std::ranges::upper_bound(entries_, end, {}, &LogEntry::time));
 }
 
 int DeviceEventLogImpl::GetCountByLevelForTesting(LogLevel level) {

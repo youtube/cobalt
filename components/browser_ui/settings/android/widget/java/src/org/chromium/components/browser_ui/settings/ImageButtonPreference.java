@@ -11,15 +11,18 @@ import android.view.View;
 import androidx.annotation.DrawableRes;
 import androidx.preference.PreferenceViewHolder;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.widget.ChromeImageButton;
 
 /**
  * A preference with an ImageButton as widget. Clicks on the image button will trigger the
  * OnPreferenceClickListener. Clicks on the preference itself are ignored.
  */
+@NullMarked
 public class ImageButtonPreference extends ChromeBasePreference implements View.OnClickListener {
     private @DrawableRes int mImage;
-    private String mContentDescription;
+    private @Nullable String mContentDescription;
 
     public ImageButtonPreference(Context context) {
         super(context);
@@ -31,9 +34,7 @@ public class ImageButtonPreference extends ChromeBasePreference implements View.
         initialize();
     }
 
-    /**
-     * Set the image and content description for this preference.
-     */
+    /** Set the image and content description for this preference. */
     public void setImage(@DrawableRes int image, String contentDescription) {
         mImage = image;
         mContentDescription = contentDescription;

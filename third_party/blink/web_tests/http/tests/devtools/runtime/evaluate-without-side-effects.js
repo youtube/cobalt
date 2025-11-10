@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {SourcesTestRunner} from 'sources_test_runner';
+
+import * as UIModule from 'devtools/ui/legacy/legacy.js';
+import * as SDK from 'devtools/core/sdk/sdk.js';
+
 (async function() {
-  await TestRunner.loadLegacyModule('sources'); await TestRunner.loadTestModule('sources_test_runner');
   TestRunner.addResult("Test frontend's side-effect support check for compatibility.\n");
 
-  const executionContext = UI.context.flavor(SDK.ExecutionContext);
+  const executionContext = UIModule.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext);
   const expressionWithSideEffect = '(async function(){ await 1; })()';
   const expressionWithoutSideEffect = '1 + 1';
 
@@ -14,11 +19,6 @@
   await runtimeTestCase(expressionWithSideEffect, /* throwOnSideEffect */ false);
   await runtimeTestCase(expressionWithoutSideEffect, /* throwOnSideEffect */ true);
   await runtimeTestCase(expressionWithoutSideEffect, /* throwOnSideEffect */ false);
-
-  let supports = executionContext.runtimeModel.hasSideEffectSupport();
-  TestRunner.addResult(`Does the runtime support side effect checks? ${supports}`);
-  TestRunner.addResult(`\nClearing cached side effect support`);
-  executionContext.runtimeModel.hasSideEffectSupportInternal = null;
 
   // Debugger evaluateOnCallFrame test.
   await TestRunner.evaluateInPagePromise(`
@@ -36,9 +36,6 @@
   await debuggerTestCase(expressionWithSideEffect, /* throwOnSideEffect */ false);
   await debuggerTestCase(expressionWithoutSideEffect, /* throwOnSideEffect */ true);
   await debuggerTestCase(expressionWithoutSideEffect, /* throwOnSideEffect */ false);
-
-  supports = executionContext.runtimeModel.hasSideEffectSupport();
-  TestRunner.addResult(`Does the runtime support side effect checks? ${supports}`);
 
   SourcesTestRunner.completeDebuggerTest();
 

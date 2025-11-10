@@ -4,12 +4,15 @@
 
 package org.chromium.components.payments;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 /** Helper for origin security. */
 @JNINamespace("payments")
+@NullMarked
 public class OriginSecurityChecker {
     /**
      * Returns true for a valid URL from a secure origin, e.g., http://localhost,
@@ -37,6 +40,7 @@ public class OriginSecurityChecker {
     @NativeMethods
     interface Natives {
         boolean isOriginSecure(GURL url);
+
         boolean isSchemeCryptographic(GURL url);
     }
 }

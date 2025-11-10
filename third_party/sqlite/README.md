@@ -41,8 +41,8 @@ SQLite should be upgraded as soon as possible whenever a new version is
 available. This is because new versions often contain security and stability
 improvements, and frequent upgrades allow Chromium to have minimal cherry-pick
 diffs when requesting investigation for SQLite bugs discovered by Chromium
-Fuzzers. New versions may be viewed at https://www.sqlite.org/news.html, and
-bugs for these upgrades may look like [this example](https://crbug.com/1161048).
+Fuzzers. New versions may be viewed [here](https://www.sqlite.org/changes.html),
+and bugs for these upgrades may look like [this example](https://crbug.com/1161048).
 
 Historically, Chromium fuzzers often find issues within 2 weeks after upgrading
 to new SQLite versions. Avoid upgrading SQLite within 1-2 weeks of a Chromium
@@ -60,15 +60,9 @@ to thoroughly review.
 
 1. Create new release branch
 
-   Use the SQLite git commit hash for the release, found at
-   [sqlite/tags](https://github.com/sqlite/sqlite/tags), when creating
-   a new release branch. For example,
-   "[562fd18b9dc27216191c0a6477bba9b175f7f0d2](https://github.com/sqlite/sqlite/commit/562fd18b9dc27216191c0a6477bba9b175f7f0d2)"
-   corresponds to the 3.31.1 release. The commit is used instead of the tag
-   name because we do not mirror the SQLite tags along with the commits.
-
    Create the branch at
-   [Gerrit/branches](https://chromium-review.googlesource.com/admin/repos/chromium/deps/sqlite,branches).
+   [Gerrit/branches](https://chromium-review.googlesource.com/admin/repos/chromium/deps/sqlite,branches). The branch name should
+   look like `chromium-version-3.40.0` and the initial revision will look something like `refs/tags/upstream/version-3.40.0`.
 
    Note: To create a release branch, you must be listed as a member in the
    [sqlite-owners Gerrit group](https://chromium-review.googlesource.com/admin/groups/3cb0e9e73693fd6377da67b63a28b815ef5c94cc,members)
@@ -146,8 +140,8 @@ following:
     the sqlite_cherry_picker.py script is preferred. This script automates a
     few tasks such as:
 
-    * Identifying the correct Git commit hash to use if given the
-      Fossil commit hash.
+    * Identifying the correct Git commit hash to use if given the Fossil commit
+      hash.
     * Automatically calculating Fossil manifest hashes.
     * Skipping conflicted binary files.
     * Generating the amalgamations.
@@ -155,7 +149,7 @@ following:
     Cherry-pick the commit:
 
     ```sh
-    ../scripts/sqlite_cherry_picker.py <full git or fossil commit hash>
+    ../scripts/sqlite_cherry_picker.py <full git commit hash>
     ```
 
     If there is a conflict that the script cannot resolve then, like
@@ -214,19 +208,13 @@ exported by the linker and may be omitted.
 
 ```sh
 autoninja -C out/Default
-nm -B out/Default/libchromium_sqlite3.so | cut -c 18- | sort | grep '^T'
+nm -B out/Default/libthird_party_sqlite_chromium_sqlite3.so | cut -c 18- | sort | grep '^T'
 ```
 
 ### Running unit tests
 
 ```sh
 out/Default/sql_unittests
-```
-
-### Running web tests
-
-```sh
-third_party/blink/tools/run_web_tests.py -t Default storage/websql/
 ```
 
 ### Running SQLite's TCL test suite within the Chromium checkout.
@@ -272,3 +260,27 @@ rm -rf testdir
 git checkout amalgamation/sqlite3.c
 git checkout amalgamation_dev/sqlite3.c
 ```
+
+## Bisect SQLite
+
+When diagnosing the cause of an issue found in a fuzzer issue or while bringing
+up SQLite, you may want to bisect the SQLite repo.
+
+To find the SQLite commit that introduced an issue the `scripts/repro_tool.py`
+can be used in combination with `git bisect run`.
+
+For example, given a good commit of `9e45bccab2b8`, a bad commit of
+`c12b0d5b7135`, and a reproduction sql file `repro.sql`, running the following
+will pinpoint the commit that introduced the failure:
+
+```sh
+cd src
+git bisect start c12b0d5b7135 9e45bccab2b8
+git bisect run ../scripts/repro_tool.py repro.sql
+```
+
+The reproduction file can be omitted if it is a build error. `--should_build`
+can be passed to `repro_tool.py` if the issue is not a build error and we don't
+want to continue bisecting if a build does fail.
+
+See `scripts/repro_tool.py --help` for more information.

@@ -4,28 +4,29 @@
 
 package org.chromium.chrome.browser.password_check;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
-
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
- * Use {@link #getOrCreate()} to instantiate a {@link PasswordCheckImpl}
- * and {@link #destroy()} when the instance is no longer needed.
+ * Use {@link #getOrCreate()} to instantiate a {@link PasswordCheckImpl} and {@link #destroy()} when
+ * the instance is no longer needed.
  */
+@NullMarked
 public class PasswordCheckFactory {
-    private static PasswordCheck sPasswordCheck;
+    private static @Nullable PasswordCheck sPasswordCheck;
+
     private PasswordCheckFactory() {}
 
     /**
      * Creates a {@link PasswordCheckImpl} if none exists. Otherwise it returns the existing
      * instance.
-     * @param settingsLauncher The {@link SettingsLauncher} to open the check page.
+     *
      * @return A {@link PasswordCheckImpl} or null if the feature is disabled.
      */
-    public static @Nullable PasswordCheck getOrCreate(SettingsLauncher settingsLauncher) {
+    public static @Nullable PasswordCheck getOrCreate() {
         if (sPasswordCheck == null) {
-            sPasswordCheck = new PasswordCheckImpl(settingsLauncher);
+            sPasswordCheck = new PasswordCheckImpl();
         }
         return sPasswordCheck;
     }
@@ -43,17 +44,19 @@ public class PasswordCheckFactory {
         sPasswordCheck = null;
     }
 
-    @VisibleForTesting
     public static void setPasswordCheckForTesting(PasswordCheck passwordCheck) {
+        var oldValue = sPasswordCheck;
         sPasswordCheck = passwordCheck;
+        ResettersForTesting.register(() -> sPasswordCheck = oldValue);
     }
 
     /**
-     * Returns the underlying instance.
-     * Should only be used when there's a need to avoid creating a new instance.
+     * Returns the underlying instance. Should only be used when there's a need to avoid creating a
+     * new instance.
+     *
      * @return A {@link PasswordCheeck} instance as stored here.
      */
-    public static PasswordCheck getPasswordCheckInstance() {
+    public static @Nullable PasswordCheck getPasswordCheckInstance() {
         return sPasswordCheck;
     }
 }

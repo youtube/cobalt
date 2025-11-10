@@ -200,8 +200,6 @@ void CalendarViewController::ShowEventListView(
 }
 
 void CalendarViewController::CloseEventListView() {
-  selected_date_ = absl::nullopt;
-
   for (auto& observer : observers_)
     observer.CloseEventList();
 }
@@ -212,6 +210,7 @@ void CalendarViewController::OnEventListOpened() {
 
 void CalendarViewController::OnEventListClosed() {
   is_event_list_showing_ = false;
+  selected_date_ = std::nullopt;
 }
 
 void CalendarViewController::CalendarLoaded() {
@@ -258,8 +257,9 @@ void CalendarViewController::OnTodaysEventFetchComplete() {
   if (todays_date_cell_fetch_recorded_)
     return;
 
-  UmaHistogramMediumTimes("Ash.Calendar.TimeToSeeTodaysEventDots",
-                          base::TimeTicks::Now() - calendar_open_time_);
+  calendar_metrics::RecordTimeToSeeTodaysEventDots(
+      base::TimeTicks::Now() - calendar_open_time_,
+      /*multi_calendar_enabled=*/calendar_utils::IsMultiCalendarEnabled());
   todays_date_cell_fetch_recorded_ = true;
 }
 

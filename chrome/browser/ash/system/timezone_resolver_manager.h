@@ -5,18 +5,27 @@
 #ifndef CHROME_BROWSER_ASH_SYSTEM_TIMEZONE_RESOLVER_MANAGER_H_
 #define CHROME_BROWSER_ASH_SYSTEM_TIMEZONE_RESOLVER_MANAGER_H_
 
+#include "ash/public/cpp/session/session_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
+#include "chromeos/ash/components/geolocation/simple_geolocation_provider.h"
 #include "chromeos/ash/components/timezone/timezone_resolver.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "components/session_manager/core/session_manager_observer.h"
+
+namespace session_manager {
+class SessionManager;
+}  // namespace session_manager
 
 class PrefService;
 
-namespace ash {
-namespace system {
+namespace ash::system {
 
-class TimeZoneResolverManager : public TimeZoneResolver::Delegate {
+class TimeZoneResolverManager : public TimeZoneResolver::Delegate,
+                                public ash::SimpleGeolocationProvider::Observer,
+                                public session_manager::SessionManagerObserver {
  public:
   class Observer {
    public:
@@ -37,7 +46,8 @@ class TimeZoneResolverManager : public TimeZoneResolver::Delegate {
     METHODS_NUMBER = 4
   };
 
-  TimeZoneResolverManager();
+  TimeZoneResolverManager(SimpleGeolocationProvider* geolocation_provider,
+                          session_manager::SessionManager* session_manager);
 
   TimeZoneResolverManager(const TimeZoneResolverManager&) = delete;
   TimeZoneResolverManager& operator=(const TimeZoneResolverManager&) = delete;
@@ -50,10 +60,17 @@ class TimeZoneResolverManager : public TimeZoneResolver::Delegate {
   // TimeZoneResolver::Delegate:
   bool ShouldSendWiFiGeolocationData() const override;
   bool ShouldSendCellularGeolocationData() const override;
-  bool IsPreciseGeolocationAllowed() const override;
+
+  // session_manager::SessionManagerObserver:
+  void OnUserProfileLoaded(const AccountId& account_id) override;
 
   // Starts or stops TimezoneResolver according to current settings.
   void UpdateTimezoneResolver();
+
+  // This class should respect the system geolocation permission. When the
+  // permission is disabled, no requests should be dispatched and no responses
+  // processed.
+  void OnGeolocationPermissionChanged(bool enabled) override;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -62,9 +79,20 @@ class TimeZoneResolverManager : public TimeZoneResolver::Delegate {
   // system timezone (preferences might have changed since request was started).
   bool ShouldApplyResolvedTimezone();
 
-  // Returns true if TimeZoneResolver should be running and taking in account
-  // all configuration data.
+  // Returns true if `TimeZoneResolver` should be running, taking into account
+  // all relevant conditions, namely the system geolocation permission and time
+  // zone configuration data.
   bool TimeZoneResolverShouldBeRunning();
+
+  // Returns true if the time zone configuration data allows `TimeZoneResolver`
+  // to be running. The configuration data encompasses all time zone related
+  // policy, user and login-screen prefs.
+  // Unlike `TimeZoneResolverShouldBeRunning()`, this method disregards the
+  // system geolocation permission.
+  bool TimeZoneResolverAllowedByTimeZoneConfigData();
+
+  // Returns the instance of TimeZoneResolver.
+  ash::TimeZoneResolver* GetResolver();
 
   // Convert kResolveTimezoneByGeolocationMethod /
   // kResolveDeviceTimezoneByGeolocationMethod preference value to
@@ -99,9 +127,12 @@ class TimeZoneResolverManager : public TimeZoneResolver::Delegate {
 
   base::ObserverList<Observer>::Unchecked observers_;
 
+  // Points to the `SimpleGeolocationProvider::GetInstance()` throughout the
+  // object lifecycle. Overridden in unit tests.
+  raw_ptr<SimpleGeolocationProvider> geolocation_provider_ = nullptr;
+
   // This is non-null only after user logs in.
-  raw_ptr<PrefService, DanglingUntriaged | ExperimentalAsh>
-      primary_user_prefs_ = nullptr;
+  raw_ptr<PrefService, DanglingUntriaged> primary_user_prefs_ = nullptr;
 
   // This is used to subscribe to policy preference.
   PrefChangeRegistrar local_state_pref_change_registrar_;
@@ -113,10 +144,14 @@ class TimeZoneResolverManager : public TimeZoneResolver::Delegate {
   // Becomes true after UpdateTimezoneResolver() has been called at least once.
   bool initialized_ = false;
 
+  std::unique_ptr<ash::TimeZoneResolver> timezone_resolver_;
+
+  base::ScopedObservation<session_manager::SessionManager,
+                          session_manager::SessionManagerObserver>
+      session_observation_{this};
   base::WeakPtrFactory<TimeZoneResolverManager> weak_factory_{this};
 };
 
-}  // namespace system
-}  // namespace ash
+}  // namespace ash::system
 
 #endif  // CHROME_BROWSER_ASH_SYSTEM_TIMEZONE_RESOLVER_MANAGER_H_

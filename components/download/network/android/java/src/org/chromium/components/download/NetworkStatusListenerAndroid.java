@@ -9,11 +9,15 @@ import android.os.HandlerThread;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.download.BackgroundNetworkStatusListener.Observer;
 import org.chromium.net.ConnectionType;
 
@@ -23,10 +27,11 @@ import org.chromium.net.ConnectionType;
  * This object lives on main thread, so does the native object associated with it.
  */
 @JNINamespace("download")
+@NullMarked
 public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusListener.Observer {
     private static final String THREAD_NAME = "NetworkStatusListener";
     private long mNativePtr;
-    private static Helper sSingletonHelper;
+    private static @Nullable Helper sSingletonHelper;
 
     /**
      * Helper class to query network state on one background thread. Notice that multiple
@@ -36,14 +41,14 @@ public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusList
     static class Helper implements BackgroundNetworkStatusListener.Observer {
         // A thread handler that |mBackgroundNetworkStatusListener| lives on, which performs actual
         // network queries. Use a background thread to avoid jank on main thread.
-        private Handler mNetworkThreadHandler;
+        private final Handler mNetworkThreadHandler;
 
         // The object that performs actual network queries on a background thread.
         private BackgroundNetworkStatusListener mBackgroundNetworkStatusListener;
 
         private boolean mReady;
         private @ConnectionType int mConnectionType = ConnectionType.CONNECTION_UNKNOWN;
-        private ObserverList<BackgroundNetworkStatusListener.Observer> mObservers =
+        private final ObserverList<BackgroundNetworkStatusListener.Observer> mObservers =
                 new ObserverList<>();
 
         Helper() {
@@ -52,10 +57,13 @@ public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusList
             HandlerThread handlerThread = new HandlerThread(THREAD_NAME);
             handlerThread.start();
             mNetworkThreadHandler = new Handler(handlerThread.getLooper());
-            mNetworkThreadHandler.post(() -> {
-                ThreadUtils.assertOnBackgroundThread();
-                mBackgroundNetworkStatusListener = new BackgroundNetworkStatusListener(this);
-            });
+            mNetworkThreadHandler.post(this::initOnNetworkThread);
+        }
+
+        @Initializer
+        private void initOnNetworkThread() {
+            ThreadUtils.assertOnBackgroundThread();
+            mBackgroundNetworkStatusListener = new BackgroundNetworkStatusListener(this);
         }
 
         void start(BackgroundNetworkStatusListener.Observer observer) {
@@ -66,7 +74,10 @@ public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusList
         }
 
         void stop(BackgroundNetworkStatusListener.Observer observer) {
-            mNetworkThreadHandler.post(() -> { mBackgroundNetworkStatusListener.unRegister(); });
+            mNetworkThreadHandler.post(
+                    () -> {
+                        mBackgroundNetworkStatusListener.unRegister();
+                    });
             mObservers.removeObserver(observer);
         }
 
@@ -97,14 +108,12 @@ public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusList
             }
         }
 
-        @VisibleForTesting
         public Handler getHandlerForTesting() {
             return mNetworkThreadHandler;
         }
     }
 
-    @VisibleForTesting
-    static Helper getHelperForTesting() {
+    static @Nullable Helper getHelperForTesting() {
         return sSingletonHelper;
     }
 
@@ -145,8 +154,9 @@ public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusList
     public void onNetworkStatusReady(int connectionType) {
         ThreadUtils.assertOnUiThread();
         if (mNativePtr != 0) {
-            NetworkStatusListenerAndroidJni.get().onNetworkStatusReady(
-                    mNativePtr, NetworkStatusListenerAndroid.this, connectionType);
+            NetworkStatusListenerAndroidJni.get()
+                    .onNetworkStatusReady(
+                            mNativePtr, NetworkStatusListenerAndroid.this, connectionType);
         }
     }
 
@@ -154,16 +164,22 @@ public class NetworkStatusListenerAndroid implements BackgroundNetworkStatusList
     public void onConnectionTypeChanged(int newConnectionType) {
         ThreadUtils.assertOnUiThread();
         if (mNativePtr != 0) {
-            NetworkStatusListenerAndroidJni.get().notifyNetworkChange(
-                    mNativePtr, NetworkStatusListenerAndroid.this, newConnectionType);
+            NetworkStatusListenerAndroidJni.get()
+                    .notifyNetworkChange(
+                            mNativePtr, NetworkStatusListenerAndroid.this, newConnectionType);
         }
     }
 
     @NativeMethods
     interface Natives {
-        void onNetworkStatusReady(long nativeNetworkStatusListenerAndroid,
-                NetworkStatusListenerAndroid caller, int connectionType);
-        void notifyNetworkChange(long nativeNetworkStatusListenerAndroid,
-                NetworkStatusListenerAndroid caller, int connectionType);
+        void onNetworkStatusReady(
+                long nativeNetworkStatusListenerAndroid,
+                NetworkStatusListenerAndroid caller,
+                int connectionType);
+
+        void notifyNetworkChange(
+                long nativeNetworkStatusListenerAndroid,
+                NetworkStatusListenerAndroid caller,
+                int connectionType);
     }
 }

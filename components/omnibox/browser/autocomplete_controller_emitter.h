@@ -10,9 +10,8 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 
-#if !BUILDFLAG(IS_IOS)
-#include "content/public/browser/browser_context.h"
-#endif  // !BUILDFLAG(IS_IOS)
+class AutocompleteInput;
+class AutocompleteResult;
 
 // This KeyedService is meant to observe multiple AutocompleteController
 // instances and forward the notifications to its own observers.
@@ -21,11 +20,6 @@
 class AutocompleteControllerEmitter : public KeyedService,
                                       public AutocompleteController::Observer {
  public:
-#if !BUILDFLAG(IS_IOS)
-  static AutocompleteControllerEmitter* GetForBrowserContext(
-      content::BrowserContext* browser_context);
-#endif  // !BUILDFLAG(IS_IOS)
-
   AutocompleteControllerEmitter();
   ~AutocompleteControllerEmitter() override;
   AutocompleteControllerEmitter(const AutocompleteControllerEmitter&) = delete;
@@ -41,10 +35,8 @@ class AutocompleteControllerEmitter : public KeyedService,
                const AutocompleteInput& input) override;
   void OnResultChanged(AutocompleteController* controller,
                        bool default_match_changed) override;
-
-#if !BUILDFLAG(IS_IOS)
-  static void EnsureFactoryBuilt();
-#endif  // !BUILDFLAG(IS_IOS)
+  void OnMlScored(AutocompleteController* controller,
+                  const AutocompleteResult& result) override;
 
  private:
   base::ObserverList<AutocompleteController::Observer> observers_;

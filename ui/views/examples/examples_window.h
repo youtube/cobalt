@@ -5,12 +5,9 @@
 #ifndef UI_VIEWS_EXAMPLES_EXAMPLES_WINDOW_H_
 #define UI_VIEWS_EXAMPLES_EXAMPLES_WINDOW_H_
 
-#include <memory>
-#include <string>
-#include <vector>
+#include <string_view>
 
 #include "base/functional/callback_forward.h"
-#include "base/strings/stringprintf.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/views/examples/create_examples.h"
 #include "ui/views/examples/example_base.h"
@@ -21,7 +18,7 @@ class Widget;
 
 namespace examples {
 
-VIEWS_EXAMPLES_EXPORT extern const char kExamplesWidgetName[];
+inline constexpr char kExamplesWidgetName[] = "ExamplesWidget";
 
 VIEWS_EXAMPLES_EXPORT bool CheckCommandLineUsage();
 
@@ -34,16 +31,10 @@ VIEWS_EXAMPLES_EXPORT Widget* GetExamplesWidget();
 VIEWS_EXAMPLES_EXPORT void ShowExamplesWindow(
     base::OnceClosure on_close,
     ExampleVector examples = CreateExamples(),
-    gfx::NativeWindow window_context = nullptr);
+    gfx::NativeWindow window_context = gfx::NativeWindow());
 
-// Prints |string| in the status area, at the bottom of the window.
-VIEWS_EXAMPLES_EXPORT void LogStatus(const std::string& string);
-
-// Same as LogStatus(), but with a format string.
-template <typename... Args>
-void PrintStatus(const char* format, Args... args) {
-  LogStatus(base::StringPrintf(format, args...));
-}
+// Prints `status` in the status area, at the bottom of the window.
+VIEWS_EXAMPLES_EXPORT void PrintStatus(std::string_view status);
 
 }  // namespace examples
 }  // namespace views

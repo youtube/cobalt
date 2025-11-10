@@ -8,15 +8,41 @@
 #include <lib/fdio/directory.h>
 #include <stdio.h>
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/fuchsia/fuchsia_component_connect.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/process/process.h"
-#include "base/strings/string_piece.h"
 #include "base/threading/platform_thread.h"
 
 namespace base {
+
+namespace {
+
+inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
+    logging::LogSeverity severity) {
+  switch (severity) {
+    case logging::LOGGING_INFO:
+      return FUCHSIA_LOG_INFO;
+    case logging::LOGGING_WARNING:
+      return FUCHSIA_LOG_WARNING;
+    case logging::LOGGING_ERROR:
+      return FUCHSIA_LOG_ERROR;
+    case logging::LOGGING_FATAL:
+      // Don't use FX_LOG_FATAL, otherwise fx_logger_log() will abort().
+      return FUCHSIA_LOG_ERROR;
+  }
+  if (severity > -3) {
+    // LOGGING_VERBOSE levels 1 and 2.
+    return FUCHSIA_LOG_DEBUG;
+  }
+  // LOGGING_VERBOSE levels 3 and higher, or incorrect levels.
+  return FUCHSIA_LOG_TRACE;
+}
+
+}  // namespace
 
 ScopedFxLogger::ScopedFxLogger() = default;
 ScopedFxLogger::~ScopedFxLogger() = default;
@@ -26,7 +52,7 @@ ScopedFxLogger& ScopedFxLogger::operator=(ScopedFxLogger&& other) = default;
 
 // static
 ScopedFxLogger ScopedFxLogger::CreateForProcess(
-    std::vector<base::StringPiece> tags) {
+    std::vector<std::string_view> tags) {
   // CHECK()ing or LOG()ing inside this function is safe, since it is only
   // called to initialize logging, not during individual logging operations.
 
@@ -53,7 +79,7 @@ ScopedFxLogger ScopedFxLogger::CreateForProcess(
 // static
 ScopedFxLogger ScopedFxLogger::CreateFromLogSink(
     fidl::ClientEnd<fuchsia_logger::LogSink> log_sink_client_end,
-    std::vector<base::StringPiece> tags) {
+    std::vector<std::string_view> tags) {
   // CHECK()ing or LOG()ing inside this function is safe, since it is only
   // called to initialize logging, not during individual logging operations.
 
@@ -77,30 +103,35 @@ ScopedFxLogger ScopedFxLogger::CreateFromLogSink(
   return ScopedFxLogger(std::move(tags), std::move(local));
 }
 
-void ScopedFxLogger::LogMessage(base::StringPiece file,
+void ScopedFxLogger::LogMessage(std::string_view file,
                                 uint32_t line_number,
-                                base::StringPiece msg,
-                                FuchsiaLogSeverity severity) {
-  if (!socket_.is_valid())
+                                std::string_view msg,
+                                logging::LogSeverity severity) {
+  if (!socket_.is_valid()) {
     return;
+  }
+
+  auto fuchsia_severity = LogSeverityToFuchsiaLogSeverity(severity);
 
   // It is not safe to use e.g. CHECK() or LOG() macros here, since those
   // may result in reentrancy if this instance is used for routing process-
   // global logs to the system logger.
 
   fuchsia_syslog::LogBuffer buffer;
-  buffer.BeginRecord(severity, cpp17::string_view(file.data(), file.size()),
-                     line_number, cpp17::string_view(msg.data(), msg.size()),
-                     false, socket_.borrow(), 0, base::Process::Current().Pid(),
-                     base::PlatformThread::CurrentId());
+  buffer.BeginRecord(fuchsia_severity,
+                     std::string_view(file.data(), file.size()), line_number,
+                     std::string_view(msg.data(), msg.size()),
+                     socket_.borrow(), 0, base::Process::Current().Pid(),
+                     base::PlatformThread::CurrentId().raw());
   for (const auto& tag : tags_) {
     buffer.WriteKeyValue("tag", tag);
   }
-  if (!buffer.FlushRecord())
+  if (!buffer.FlushRecord()) {
     fprintf(stderr, "fuchsia_syslog.LogBuffer.FlushRecord() failed\n");
+  }
 }
 
-ScopedFxLogger::ScopedFxLogger(std::vector<base::StringPiece> tags,
+ScopedFxLogger::ScopedFxLogger(std::vector<std::string_view> tags,
                                zx::socket socket)
     : tags_(tags.begin(), tags.end()), socket_(std::move(socket)) {}
 

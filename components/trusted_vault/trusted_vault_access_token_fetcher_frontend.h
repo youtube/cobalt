@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/trusted_vault/trusted_vault_access_token_fetcher.h"
@@ -40,14 +41,16 @@ class TrustedVaultAccessTokenFetcherFrontend
 
   // Asynchronously fetches an access token for |account_id|. If |account_id|
   // doesn't represent current primary account, |callback| is called immediately
-  // with absl::nullopt. If primary account changes before access token fetched,
-  // |callback| is called with absl::nullopt.
+  // with std::nullopt. If primary account changes before access token fetched,
+  // |callback| is called with std::nullopt.
   void FetchAccessToken(const CoreAccountId& account_id,
                         TrustedVaultAccessTokenFetcher::TokenCallback callback);
 
   // signin::IdentityManager::Observer implementation.
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event) override;
+  void OnIdentityManagerShutdown(
+      signin::IdentityManager* identity_manager) override;
 
  private:
   // Updates |primary_account_| and runs |pending_requests_| in case
@@ -59,17 +62,20 @@ class TrustedVaultAccessTokenFetcherFrontend
   void StartAccessTokenFetch();
 
   // Handles access token fetch completion. Runs |pending_requests_| with
-  // |access_token_info| on success and with absl::nullopt otherwise.
+  // |access_token_info| on success and with std::nullopt otherwise.
   void OnAccessTokenFetchCompleted(GoogleServiceAuthError error,
                                    signin::AccessTokenInfo access_token_info);
 
   // Helper method to run and clear |pending_requests_|.
-  void FulfillPendingRequests(
+  void FulfillPendingRequestsAndMaybeDestroySelf(
       TrustedVaultAccessTokenFetcher::AccessTokenInfoOrError
           access_token_info_or_error);
 
   // Never null.
   const raw_ptr<signin::IdentityManager> identity_manager_;
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observation_{this};
 
   // Pending request for an access token. Non-null iff there is a request
   // ongoing.

@@ -12,10 +12,10 @@ namespace ash::cert_provisioning {
 namespace {
 
 TEST(CertProvisioningCommonTest, ParseProtocolVersion) {
-  EXPECT_EQ(ParseProtocolVersion(absl::nullopt), ProtocolVersion::kStatic);
+  EXPECT_EQ(ParseProtocolVersion(std::nullopt), ProtocolVersion::kStatic);
   EXPECT_EQ(ParseProtocolVersion(1), ProtocolVersion::kStatic);
   EXPECT_EQ(ParseProtocolVersion(2), ProtocolVersion::kDynamic);
-  EXPECT_EQ(ParseProtocolVersion(3), absl::nullopt);
+  EXPECT_EQ(ParseProtocolVersion(3), std::nullopt);
 }
 
 TEST(CertProvisioningCommonTest, ProtocolVersionStableValues) {
@@ -26,7 +26,7 @@ TEST(CertProvisioningCommonTest, ProtocolVersionStableValues) {
 struct MakeFromValueTestCase {
   std::string name;
   std::string input;
-  absl::optional<CertProfile> expected_output;
+  std::optional<CertProfile> expected_output;
 };
 
 class CertProfileMakeFromValueTest
@@ -37,7 +37,7 @@ class CertProfileMakeFromValueTest
 };
 
 TEST_P(CertProfileMakeFromValueTest, ParseAndCheck) {
-  absl::optional<CertProfile> cert_profile =
+  std::optional<CertProfile> cert_profile =
       CertProfile::MakeFromValue(base::test::ParseJsonDict(GetParam().input));
   EXPECT_EQ(cert_profile, GetParam().expected_output);
 }
@@ -46,46 +46,87 @@ const MakeFromValueTestCase kMakeFromValueTests[] = {
     {"MinimalDict",
      R"({
            "policy_version": "cert_profile_version_1",
-           "cert_profile_id": "cert_profile_1"
+           "cert_profile_id": "cert_profile_1",
+           "key_algorithm": "rsa"
          })",
      CertProfile(/*profile_id=*/"cert_profile_1",
                  /*name=*/std::string(),
                  /*policy_version=*/"cert_profile_version_1",
+                 /*key_type=*/KeyType::kRsa,
                  /*is_va_enabled=*/true,
                  /*renewal_period=*/base::Seconds(0),
                  /*protocol_version=*/ProtocolVersion::kStatic)},
     {"MissingPolicyVersion",
      R"({
-           "cert_profile_id": "cert_profile_1"
+           "cert_profile_id": "cert_profile_1",
+           "key_algorithm": "rsa"
          })",
-     absl::nullopt},
+     std::nullopt},
     {"MissingCertProfileId",
      R"({
-           "policy_version": "cert_profile_version_1"
+           "policy_version": "cert_profile_version_1",
+           "key_algorithm": "rsa"
          })",
-     absl::nullopt},
-    {"AllFields",
+     std::nullopt},
+    {"MissingKeyAlgorithm",
+     R"({
+           "policy_version": "cert_profile_version_1",
+           "cert_profile_id": "cert_profile_1"
+         })",
+     std::nullopt},
+    {"AllFieldsWithRsaKeyAlgorithm",
      R"({
            "policy_version": "cert_profile_version_1",
            "name": "test_name",
            "renewal_period_seconds": 10,
            "cert_profile_id": "cert_profile_1",
            "protocol_version": 2,
-           "enable_remote_attestation_check": false
+           "enable_remote_attestation_check": false,
+           "key_algorithm": "rsa",
          })",
      CertProfile(/*profile_id=*/"cert_profile_1",
                  /*name=*/"test_name",
                  /*policy_version=*/"cert_profile_version_1",
+                 /*key_type=*/KeyType::kRsa,
                  /*is_va_enabled=*/false,
                  /*renewal_period=*/base::Seconds(10),
                  /*protocol_version=*/ProtocolVersion::kDynamic)},
+    {"AllFieldsWithEcKeyAlgorithm",
+     R"({
+           "policy_version": "cert_profile_version_1",
+           "name": "test_name",
+           "renewal_period_seconds": 10,
+           "cert_profile_id": "cert_profile_1",
+           "protocol_version": 2,
+           "enable_remote_attestation_check": false,
+           "key_algorithm": "ec",
+         })",
+     CertProfile(/*profile_id=*/"cert_profile_1",
+                 /*name=*/"test_name",
+                 /*policy_version=*/"cert_profile_version_1",
+                 /*key_type=*/KeyType::kEc,
+                 /*is_va_enabled=*/false,
+                 /*renewal_period=*/base::Seconds(10),
+                 /*protocol_version=*/ProtocolVersion::kDynamic)},
+    {"UnsupportedKeyAlgorithm",
+     R"({
+           "policy_version": "cert_profile_version_1",
+           "name": "test_name",
+           "renewal_period_seconds": 10,
+           "cert_profile_id": "cert_profile_1",
+           "protocol_version": 2,
+           "enable_remote_attestation_check": false,
+           "key_algorithm": "unsupported",
+         })",
+     std::nullopt},
     {"BadProtocolVersion",
      R"({
            "policy_version": "cert_profile_version_1",
            "cert_profile_id": "cert_profile_1",
+           "key_algorithm": "rsa",
            "protocol_version": 3,
          })",
-     absl::nullopt}};
+     std::nullopt}};
 
 INSTANTIATE_TEST_SUITE_P(
     All,

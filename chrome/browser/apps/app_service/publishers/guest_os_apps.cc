@@ -7,15 +7,20 @@
 #include <utility>
 #include <vector>
 
-#include "ash/constants/ash_features.h"
 #include "base/check_is_test.h"
+#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_base.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
+#include "chrome/browser/apps/app_service/launch_utils.h"
+#include "chrome/browser/ash/crostini/crostini_features.h"
+#include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
+#include "storage/browser/file_system/file_system_context.h"
 
 namespace apps {
 
@@ -32,10 +37,16 @@ void GuestOSApps::InitializeForTesting() {
 void GuestOSApps::Initialize() {
   DCHECK(profile_);
   if (!CouldBeAllowed()) {
+    // Set the publisher unavailable to remove apps saved in the AppStorage
+    // file, and related launch requests.
+    proxy()->SetPublisherUnavailable(AppType());
     return;
   }
   registry_ = guest_os::GuestOsRegistryServiceFactory::GetForProfile(profile_);
   if (!registry_) {
+    // Set the publisher unavailable to remove apps saved in the AppStorage
+    // file, and related launch requests.
+    proxy()->SetPublisherUnavailable(AppType());
     return;
   }
   registry_observation_.Observe(registry_);
@@ -51,12 +62,45 @@ void GuestOSApps::Initialize() {
                         /*should_notify_initialized=*/true);
 }
 
+std::vector<guest_os::LaunchArg> GuestOSApps::ArgsFromIntent(
+    const apps::Intent* intent) {
+  std::vector<guest_os::LaunchArg> args;
+  if (!intent || intent->files.empty()) {
+    return args;
+  }
+  args.reserve(intent->files.size());
+  storage::FileSystemContext* file_system_context =
+      file_manager::util::GetFileManagerFileSystemContext(profile());
+  for (auto& file : intent->files) {
+    args.emplace_back(
+        file_system_context->CrackURLInFirstPartyContext(file->url));
+  }
+  return args;
+}
+
 void GuestOSApps::GetCompressedIconData(const std::string& app_id,
                                         int32_t size_in_dip,
                                         ui::ResourceScaleFactor scale_factor,
                                         LoadIconCallback callback) {
   GetGuestOSAppCompressedIconData(profile_, app_id, size_in_dip, scale_factor,
                                   std::move(callback));
+}
+
+void GuestOSApps::LaunchAppWithParams(AppLaunchParams&& params,
+                                      LaunchCallback callback) {
+  auto event_flags = apps::GetEventFlags(params.disposition,
+                                         /*prefer_container=*/false);
+  if (params.intent) {
+    LaunchAppWithIntent(params.app_id, event_flags, std::move(params.intent),
+                        params.launch_source,
+                        std::make_unique<WindowInfo>(params.display_id),
+                        std::move(callback));
+  } else {
+    Launch(params.app_id, event_flags, params.launch_source,
+           std::make_unique<WindowInfo>(params.display_id));
+    // TODO(crbug.com/40787924): Add launch return value.
+    std::move(callback).Run(LaunchResult());
+  }
 }
 
 void GuestOSApps::OnRegistryUpdated(
@@ -89,6 +133,22 @@ void GuestOSApps::OnRegistryUpdated(
   }
 }
 
+void GuestOSApps::OnAppLastLaunchTimeUpdated(
+    guest_os::VmType vm_type,
+    const std::string& app_id,
+    const base::Time& last_launch_time) {
+  if (vm_type != VmType()) {
+    return;
+  }
+
+  auto app = std::make_unique<App>(AppType(), app_id);
+  app->last_launch_time = last_launch_time;
+  std::vector<AppPtr> apps;
+  apps.push_back(std::move(app));
+  AppPublisher::Publish(std::move(apps), AppType(),
+                        /*should_notify_initialized=*/false);
+}
+
 AppPtr GuestOSApps::CreateApp(
     const guest_os::GuestOsRegistryService::Registration& registration,
     bool generate_new_icon_key) {
@@ -106,8 +166,11 @@ AppPtr GuestOSApps::CreateApp(
   }
 
   if (generate_new_icon_key) {
-    app->icon_key = std::move(
-        *icon_key_factory_.CreateIconKey(IconEffects::kCrOsStandardIcon));
+    IconEffects icon_effects = IconEffects::kCrOsStandardIcon;
+    if (crostini::CrostiniFeatures::Get()->IsMultiContainerAllowed(profile_)) {
+      icon_effects |= IconEffects::kGuestOsBadge;
+    }
+    app->icon_key = IconKey(icon_effects);
   }
 
   app->last_launch_time = registration.LastLaunchTime();
@@ -119,6 +182,7 @@ AppPtr GuestOSApps::CreateApp(
   app->show_in_shelf = show;
   app->show_in_management = false;
   app->allow_uninstall = false;
+  app->allow_close = true;
 
   // Add intent filters based on file extensions.
   app->handles_intents = true;
@@ -126,6 +190,18 @@ AppPtr GuestOSApps::CreateApp(
       guest_os::GuestOsMimeTypesServiceFactory::GetForProfile(profile());
   app->intent_filters =
       CreateIntentFilterForAppService(mime_types_service, registration);
+
+  app->SetExtraField("vm_name", registration.VmName());
+  app->SetExtraField("container_name", registration.ContainerName());
+  app->SetExtraField("desktop_file_id", registration.DesktopFileId());
+  app->SetExtraField("exec", registration.Exec());
+  app->SetExtraField("executable_file_name", registration.ExecutableFileName());
+  app->SetExtraField("no_display", registration.NoDisplay());
+  app->SetExtraField("terminal", registration.Terminal());
+  app->SetExtraField("scaled", registration.IsScaled());
+  app->SetExtraField("package_id", registration.PackageId());
+  app->SetExtraField("startup_wm_class", registration.StartupWmClass());
+  app->SetExtraField("startup_notify", registration.StartupNotify());
 
   // Allow subclasses of GuestOSApps to modify app.
   CreateAppOverrides(registration, app.get());
@@ -157,19 +233,17 @@ apps::IntentFilters CreateIntentFilterForAppService(
   // In this case, remove all mime types that begin with "text/" and replace
   // them with a single "text/*" mime type.
   if (base::Contains(mime_types, "text/plain")) {
-    mime_types.erase(std::remove_if(mime_types.begin(), mime_types.end(),
-                                    [](const std::string& s) {
-                                      return base::StartsWith(s, "text/");
-                                    }),
-                     mime_types.end());
+    std::erase_if(mime_types, [](const std::string& s) {
+      return base::StartsWith(s, "text/");
+    });
     mime_types.push_back("text/*");
   }
 
   apps::IntentFilters intent_filters;
   intent_filters.push_back(apps_util::CreateFileFilter(
       {apps_util::kIntentActionView}, mime_types, extension_types,
-      // TODO(crbug/1349974): Remove activity_name when default file handling
-      // preferences for Files App are migrated.
+      // TODO(crbug.com/40233967): Remove activity_name when default file
+      // handling preferences for Files App are migrated.
       /*activity_name=*/apps_util::kGuestOsActivityName));
 
   return intent_filters;

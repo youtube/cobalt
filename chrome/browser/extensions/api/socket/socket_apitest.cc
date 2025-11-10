@@ -7,11 +7,14 @@
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api/socket/socket_api.h"
+#include "extensions/browser/api/socket/write_quota_checker.h"
 #include "extensions/browser/api/sockets_udp/test_udp_echo_server.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
@@ -38,7 +41,9 @@ class SocketApiTest : public extensions::ExtensionApiTest {
 IN_PROC_BROWSER_TEST_F(SocketApiTest, SocketUDPExtension) {
   extensions::TestUdpEchoServer udp_echo_server;
   net::HostPortPair host_port_pair;
-  ASSERT_TRUE(udp_echo_server.Start(&host_port_pair));
+  ASSERT_TRUE(udp_echo_server.Start(
+      profile()->GetDefaultStoragePartition()->GetNetworkContext(),
+      &host_port_pair));
 
   int port = host_port_pair.port();
   ASSERT_GT(port, 0);
@@ -132,6 +137,65 @@ IN_PROC_BROWSER_TEST_F(SocketApiTest, MAYBE_SocketMulticast) {
   ASSERT_TRUE(LoadExtension(test_data_dir_.AppendASCII("socket/api")));
   EXPECT_TRUE(listener.WaitUntilSatisfied());
   listener.Reply(base::StringPrintf("multicast:%s:%d", kHostname, kPort));
+
+  EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
+}
+
+IN_PROC_BROWSER_TEST_F(SocketApiTest, TCPSocketWriteQuota) {
+  extensions::WriteQuotaChecker* write_quota_checker =
+      extensions::WriteQuotaChecker::Get(profile());
+  constexpr size_t kBytesLimit = 1;
+  extensions::WriteQuotaChecker::ScopedBytesLimitForTest scoped_quota(
+      write_quota_checker, kBytesLimit);
+
+  net::EmbeddedTestServer test_server(net::EmbeddedTestServer::TYPE_HTTP);
+  test_server.AddDefaultHandlers();
+  EXPECT_TRUE(test_server.Start());
+
+  net::HostPortPair host_port_pair = test_server.host_port_pair();
+  int port = host_port_pair.port();
+  ASSERT_GT(port, 0);
+
+  ResultCatcher catcher;
+  catcher.RestrictToBrowserContext(browser()->profile());
+
+  ExtensionTestMessageListener listener("info_please",
+                                        ReplyBehavior::kWillReply);
+
+  ASSERT_TRUE(LoadExtension(test_data_dir_.AppendASCII("socket/api")));
+  EXPECT_TRUE(listener.WaitUntilSatisfied());
+  listener.Reply(base::StringPrintf("tcp_write_quota:%s:%d",
+                                    host_port_pair.host().c_str(), port));
+
+  EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
+}
+
+IN_PROC_BROWSER_TEST_F(SocketApiTest, UDPSocketWriteQuota) {
+  extensions::WriteQuotaChecker* write_quota_checker =
+      extensions::WriteQuotaChecker::Get(profile());
+  constexpr size_t kBytesLimit = 1;
+  extensions::WriteQuotaChecker::ScopedBytesLimitForTest scoped_quota(
+      write_quota_checker, kBytesLimit);
+
+  extensions::TestUdpEchoServer udp_echo_server;
+  net::HostPortPair host_port_pair;
+  ASSERT_TRUE(udp_echo_server.Start(
+      profile()->GetDefaultStoragePartition()->GetNetworkContext(),
+      &host_port_pair));
+
+  int port = host_port_pair.port();
+  ASSERT_GT(port, 0);
+
+  ResultCatcher catcher;
+  catcher.RestrictToBrowserContext(browser()->profile());
+
+  ExtensionTestMessageListener listener("info_please",
+                                        ReplyBehavior::kWillReply);
+
+  ASSERT_TRUE(LoadExtension(test_data_dir_.AppendASCII("socket/api")));
+  EXPECT_TRUE(listener.WaitUntilSatisfied());
+  listener.Reply(base::StringPrintf("udp_sendTo_quota:%s:%d",
+                                    host_port_pair.host().c_str(), port));
 
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }

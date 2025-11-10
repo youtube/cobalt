@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
 #include "net/filter/mock_source_stream.h"
@@ -78,9 +82,7 @@ struct I18nTestParam {
   const int buffer_size;
   const int read_size;
   const net::MockSourceStream::Mode mode;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION const I18nTest* test;
+  raw_ptr<const I18nTest> test;
 };
 
 }  // namespace
@@ -91,7 +93,8 @@ class I18nSourceStreamTest : public ::testing::TestWithParam<I18nTestParam> {
 
   // Helpful function to initialize the test fixture.
   void Init() {
-    output_buffer_ = base::MakeRefCounted<net::IOBuffer>(output_buffer_size_);
+    output_buffer_ =
+        base::MakeRefCounted<net::IOBufferWithSize>(output_buffer_size_);
     std::unique_ptr<net::MockSourceStream> source(new net::MockSourceStream());
     source_ = source.get();
 
@@ -99,7 +102,7 @@ class I18nSourceStreamTest : public ::testing::TestWithParam<I18nTestParam> {
     replacements_["beta"] = "banana";
     replacements_["gamma"] = "carrot";
     stream_ = I18nSourceStream::Create(
-        std::move(source), net::SourceStream::TYPE_NONE, &replacements_);
+        std::move(source), net::SourceStreamType::kNone, &replacements_);
   }
 
   // If MockSourceStream::Mode is ASYNC, completes 1 read from |mock_stream| and

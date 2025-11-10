@@ -4,17 +4,14 @@
 
 package org.chromium.chrome.browser.notifications.chime;
 
-/**
- * Delegate Chime notification SDK functionalities.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Delegate Chime notification SDK functionalities. */
+@NullMarked
 public class ChimeDelegate {
-    /**
-     * Initializes Chime SDK.
-     */
+    /** Initializes Chime SDK. */
     public void initialize() {}
 
-    /**
-     * Starts a Chime session.
-     */
+    /** Starts a Chime session. */
     public void startSession() {}
 }

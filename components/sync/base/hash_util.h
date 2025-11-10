@@ -10,20 +10,14 @@
 namespace sync_pb {
 class AutofillOfferSpecifics;
 class AutofillWalletSpecifics;
+class AutofillValuableSpecifics;
 }  // namespace sync_pb
 
-// TODO(crbug.com/881289): Rename this file to model_type_util.h or something
+// TODO(crbug.com/41412176): Rename this file to data_type_util.h or something
 // else that better reflects GetUnhashedClientTagFromAutofillWalletSpecifics()
 // has nothing to do with hashes.
 
 namespace syncer {
-
-// A helper for generating the bookmark type's tag. This is required in more
-// than one place, so we define the algorithm here to make sure the
-// implementation is consistent.
-std::string GenerateSyncableBookmarkHash(
-    const std::string& originator_cache_guid,
-    const std::string& originator_client_item_id);
 
 // A helper for extracting client tag out of the specifics for wallet data (as
 // client tags don't get populated by the server). This is required in more than
@@ -37,6 +31,12 @@ std::string GetUnhashedClientTagFromAutofillWalletSpecifics(
 // populated by server.
 std::string GetUnhashedClientTagFromAutofillOfferSpecifics(
     const sync_pb::AutofillOfferSpecifics& specifics);
+
+// Helper function to extract client tag from the specifics. For valuable data,
+// every time it is synced, it will be a full sync and this client tag is not
+// populated by server.
+std::string GetUnhashedClientTagFromAutofillValuableSpecifics(
+    const sync_pb::AutofillValuableSpecifics& specifics);
 
 }  // namespace syncer
 

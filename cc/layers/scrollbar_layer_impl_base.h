@@ -32,15 +32,17 @@ class CC_EXPORT ScrollbarLayerImplBase : public LayerImpl {
   void SetScrollLayerLength(float scroll_layer_length);
   void SetVerticalAdjust(float vertical_adjust);
 
-  float current_pos() const;
-  float clip_layer_length() const;
-  float scroll_layer_length() const;
-  float vertical_adjust() const;
+  float current_pos() const { return current_pos_; }
+  float clip_layer_length() const { return clip_layer_length_; }
+  float scroll_layer_length() const { return scroll_layer_length_; }
+  float vertical_adjust() const { return vertical_adjust_; }
 
   bool is_overlay_scrollbar() const { return is_overlay_scrollbar_; }
   void set_is_overlay_scrollbar(bool is_overlay) {
     is_overlay_scrollbar_ = is_overlay;
   }
+  bool is_web_test() const { return is_web_test_; }
+  void set_is_web_test(bool is_web_test) { is_web_test_ = is_web_test; }
 
   ScrollbarOrientation orientation() const { return orientation_; }
   bool is_left_side_vertical_scrollbar() const {
@@ -50,20 +52,23 @@ class CC_EXPORT ScrollbarLayerImplBase : public LayerImpl {
   bool CanScrollOrientation() const;
 
   void PushPropertiesTo(LayerImpl* layer) override;
+  DamageReasonSet GetDamageReasons() const override;
+  void ResetChangeTracking() override;
 
   // Thumb quad rect in layer space.
   virtual gfx::Rect ComputeThumbQuadRect() const;
   virtual gfx::Rect ComputeHitTestableThumbQuadRect() const;
-  gfx::Rect ComputeExpandedThumbQuadRect() const;
+  virtual gfx::Rect ComputeHitTestableExpandedThumbQuadRect() const;
 
-  float thumb_thickness_scale_factor() {
+  float thumb_thickness_scale_factor() const {
     return thumb_thickness_scale_factor_;
   }
   void SetThumbThicknessScaleFactor(float thumb_thickness_scale_factor);
 
   virtual int ThumbThickness() const = 0;
 
-  void SetOverlayScrollbarLayerOpacityAnimated(float opacity);
+  void SetOverlayScrollbarLayerOpacityAnimated(float opacity,
+                                               bool fade_out_animation);
 
   virtual LayerTreeSettings::ScrollbarAnimator GetScrollbarAnimator() const;
 
@@ -77,9 +82,13 @@ class CC_EXPORT ScrollbarLayerImplBase : public LayerImpl {
   virtual bool JumpOnTrackClick() const;
   virtual ScrollbarPart IdentifyScrollbarPart(
       const gfx::PointF position_in_widget) const;
-  // Only PaintedOverlayScrollbar(Aura Overlay Scrollbar) need to know
-  // tickmarks's state.
-  virtual bool HasFindInPageTickmarks() const;
+  // Only Aura (NinePatchThumbScrollbar) and Fluent (PaintedScrollbar) overlay
+  // scrollbars need to know tickmarks's state to trigger the painting of the
+  // scrollbar's track.
+  bool has_find_in_page_tickmarks() const {
+    return has_find_in_page_tickmarks_;
+  }
+  void SetHasFindInPageTickmarks(bool has_find_in_page_tickmarks);
 
   // Mac overlay scrollbars are faded during paint but the compositor layer is
   // always fully opaque where as Aura scrollbars fade by animating the layer
@@ -88,6 +97,8 @@ class CC_EXPORT ScrollbarLayerImplBase : public LayerImpl {
   virtual float OverlayScrollbarOpacity() const;
 
   bool IsFluentScrollbarEnabled() const;
+  bool IsFluentOverlayScrollbarEnabled() const;
+  float GetIdleThicknessScale() const;
 
  protected:
   ScrollbarLayerImplBase(LayerTreeImpl* tree_impl,
@@ -109,7 +120,13 @@ class CC_EXPORT ScrollbarLayerImplBase : public LayerImpl {
       float thumb_thickness_scale_factor) const;
 
   ElementId scroll_element_id_;
-  bool is_overlay_scrollbar_;
+  bool is_overlay_scrollbar_ : 1;
+  bool is_web_test_ : 1 = false;
+
+  // Keep track of if LayerPropertyChanged is due to fade out animation or other
+  // reasons.
+  bool opacity_changed_for_fade_out_animation_ : 1 = false;
+  bool property_changed_for_other_reasons_ : 1 = false;
 
   float thumb_thickness_scale_factor_;
   float current_pos_;
@@ -121,8 +138,9 @@ class CC_EXPORT ScrollbarLayerImplBase : public LayerImpl {
   // Difference between the clip layer's height and the visible viewport
   // height (which may differ in the presence of top-controls hiding).
   float vertical_adjust_;
+  bool has_find_in_page_tickmarks_;
 
-  FRIEND_TEST_ALL_PREFIXES(ScrollbarLayerTest,
+  FRIEND_TEST_ALL_PREFIXES(CommitToActiveTreeScrollbarLayerTest,
                            ScrollElementIdPushedAcrossCommit);
 };
 

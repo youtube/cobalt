@@ -11,34 +11,29 @@
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/separator.h"
 
 namespace autofill {
 
-PopupSeparatorView::PopupSeparatorView() {
+PopupSeparatorView::PopupSeparatorView(int vertical_padding) {
   SetFocusBehavior(FocusBehavior::NEVER);
   SetUseDefaultFillLayout(true);
-  const int kVerticalPadding = ChromeLayoutProvider::Get()->GetDistanceMetric(
-      DISTANCE_CONTENT_LIST_VERTICAL_SINGLE);
   AddChildView(views::Builder<views::Separator>()
                    .SetBorder(views::CreateEmptyBorder(
-                       gfx::Insets::VH(kVerticalPadding, 0)))
+                       gfx::Insets::VH(vertical_padding, 0)))
                    .SetColorId(ui::kColorSeparator)
                    .Build());
-  SetBackground(
-      views::CreateThemedSolidBackground(ui::kColorDropdownBackground));
+  SetBackground(views::CreateSolidBackground(ui::kColorDropdownBackground));
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kSplitter);
 }
 
 PopupSeparatorView::~PopupSeparatorView() = default;
 
-void PopupSeparatorView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  // Separators are not selectable.
-  node_data->role = ax::mojom::Role::kSplitter;
-}
-
-BEGIN_METADATA(PopupSeparatorView, views::View)
+BEGIN_METADATA(PopupSeparatorView)
 END_METADATA
 
 }  // namespace autofill

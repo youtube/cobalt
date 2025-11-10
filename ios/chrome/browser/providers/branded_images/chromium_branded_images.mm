@@ -3,13 +3,10 @@
 // found in the LICENSE file.
 
 #import "base/notreached.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/grit/ios_theme_resources.h"
 #import "ios/public/provider/chrome/browser/branded_images/branded_images_api.h"
 #import "ui/base/resource/resource_bundle.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace ios {
 namespace provider {
@@ -39,7 +36,6 @@ UIImage* GetBrandedImage(BrandedImage branded_image) {
   }
 
   NOTREACHED();
-  return nil;
 }
 
 }  // namespace provider

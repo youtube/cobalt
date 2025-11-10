@@ -18,10 +18,12 @@ import android.view.View;
 import android.webkit.URLUtil;
 import android.widget.FrameLayout;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.Callback;
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuUtils;
 import org.chromium.content_public.browser.InvalidateTypes;
 import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.content_public.common.ResourceRequestBody;
@@ -32,6 +34,7 @@ import org.chromium.url.GURL;
  * This class also serves a secondary function of routing certain callbacks from the content layer
  * to specific listener interfaces.
  */
+@Lifetime.WebView
 class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     private static final String TAG = "AwWebContentsDelegateAdapter";
 
@@ -43,8 +46,12 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     private FrameLayout mCustomView;
     private boolean mDidSynthesizePageLoad;
 
-    public AwWebContentsDelegateAdapter(AwContents awContents, AwContentsClient contentsClient,
-            AwSettings settings, Context context, View containerView) {
+    public AwWebContentsDelegateAdapter(
+            AwContents awContents,
+            AwContentsClient contentsClient,
+            AwSettings settings,
+            Context context,
+            View containerView) {
         mAwContents = awContents;
         mContentsClient = contentsClient;
         mAwSettings = settings;
@@ -118,7 +125,8 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     public boolean takeFocus(boolean reverse) {
         int direction =
                 (reverse == (mContainerView.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL))
-                ? View.FOCUS_RIGHT : View.FOCUS_LEFT;
+                        ? View.FOCUS_RIGHT
+                        : View.FOCUS_LEFT;
         if (tryToMoveFocus(direction)) return true;
         direction = reverse ? View.FOCUS_BACKWARD : View.FOCUS_FORWARD;
         return tryToMoveFocus(direction);
@@ -130,11 +138,9 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public boolean addMessageToConsole(int level, String message, int lineNumber,
-            String sourceId) {
-        @AwConsoleMessage.MessageLevel
-        int messageLevel = AwConsoleMessage.MESSAGE_LEVEL_DEBUG;
-        switch(level) {
+    public boolean addMessageToConsole(int level, String message, int lineNumber, String sourceId) {
+        @AwConsoleMessage.MessageLevel int messageLevel = AwConsoleMessage.MESSAGE_LEVEL_DEBUG;
+        switch (level) {
             case LOG_LEVEL_TIP:
                 messageLevel = AwConsoleMessage.MESSAGE_LEVEL_TIP;
                 break;
@@ -151,8 +157,9 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
                 Log.w(TAG, "Unknown message level, defaulting to DEBUG");
                 break;
         }
-        boolean result = mContentsClient.onConsoleMessage(
-                new AwConsoleMessage(message, sourceId, lineNumber, messageLevel));
+        boolean result =
+                mContentsClient.onConsoleMessage(
+                        new AwConsoleMessage(message, sourceId, lineNumber, messageLevel));
         return result;
     }
 
@@ -162,10 +169,14 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public void openNewTab(GURL url, String extraHeaders, ResourceRequestBody postData,
-            int disposition, boolean isRendererInitiated) {
-        // This is only called in chrome layers.
-        assert false;
+    public void openNewTab(
+            GURL url,
+            String extraHeaders,
+            ResourceRequestBody postData,
+            int disposition,
+            boolean isRendererInitiated) {
+        // Not supported.  There are very few cases where this is called other than in //chrome
+        // and we don't expect them to matter for WebView.
     }
 
     @Override
@@ -182,26 +193,30 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
         final int msgContinuePendingReload = 1;
         final int msgCancelPendingReload = 2;
 
-        final Handler handler = new Handler(ThreadUtils.getUiThreadLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                if (mAwContents.getNavigationController() == null) return;
+        final Handler handler =
+                new Handler(ThreadUtils.getUiThreadLooper()) {
+                    @Override
+                    public void handleMessage(Message msg) {
+                        if (mAwContents.getNavigationController() == null) return;
 
-                switch(msg.what) {
-                    case msgContinuePendingReload: {
-                        mAwContents.getNavigationController().continuePendingReload();
-                        break;
+                        switch (msg.what) {
+                            case msgContinuePendingReload:
+                                {
+                                    mAwContents.getNavigationController().continuePendingReload();
+                                    break;
+                                }
+                            case msgCancelPendingReload:
+                                {
+                                    mAwContents.getNavigationController().cancelPendingReload();
+                                    break;
+                                }
+                            default:
+                                throw new IllegalStateException(
+                                        "WebContentsDelegateAdapter: unhandled message "
+                                                + msg.what);
+                        }
                     }
-                    case msgCancelPendingReload: {
-                        mAwContents.getNavigationController().cancelPendingReload();
-                        break;
-                    }
-                    default:
-                        throw new IllegalStateException(
-                                "WebContentsDelegateAdapter: unhandled message " + msg.what);
-                }
-            }
-        };
+                };
 
         Message resend = handler.obtainMessage(msgContinuePendingReload);
         Message dontResend = handler.obtainMessage(msgCancelPendingReload);
@@ -209,30 +224,53 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     }
 
     @Override
-    public void runFileChooser(final int processId, final int renderId, final int modeFlags,
-            String acceptTypes, String title, String defaultFilename, boolean capture) {
-        int correctedModeFlags = FileModeConversionHelper.convertFileChooserMode(modeFlags);
-        AwContentsClient.FileChooserParamsImpl params = new AwContentsClient.FileChooserParamsImpl(
-                correctedModeFlags, acceptTypes, title, defaultFilename, capture);
+    public void runFileChooser(
+            final int processId,
+            final int renderId,
+            final int blinkFileChooserParamsMode,
+            boolean openWritable,
+            String acceptTypes,
+            String title,
+            String defaultFilename,
+            boolean capture) {
+        int webChromeClientMode =
+                FileModeConversionHelper.convertFileChooserMode(blinkFileChooserParamsMode);
+        AwContentsClient.FileChooserParamsImpl params =
+                new AwContentsClient.FileChooserParamsImpl(
+                        webChromeClientMode,
+                        openWritable,
+                        acceptTypes,
+                        title,
+                        defaultFilename,
+                        capture);
 
-        mContentsClient.showFileChooser(new Callback<String[]>() {
-            boolean mCompleted;
-            @Override
-            public void onResult(String[] results) {
-                if (mCompleted) {
-                    throw new IllegalStateException("Duplicate showFileChooser result");
-                }
-                mCompleted = true;
-                if (results == null) {
-                    AwWebContentsDelegateJni.get().filesSelectedInChooser(
-                            processId, renderId, correctedModeFlags, null, null);
-                    return;
-                }
-                GetDisplayNameTask task = new GetDisplayNameTask(
-                        mContext, processId, renderId, correctedModeFlags, results);
-                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-            }
-        }, params);
+        mContentsClient.showFileChooser(
+                new Callback<String[]>() {
+                    boolean mCompleted;
+
+                    @Override
+                    public void onResult(String[] results) {
+                        if (mCompleted) {
+                            throw new IllegalStateException("Duplicate showFileChooser result");
+                        }
+                        mCompleted = true;
+                        if (results == null) {
+                            AwWebContentsDelegateJni.get()
+                                    .filesSelectedInChooser(
+                                            processId, renderId, webChromeClientMode, null, null);
+                            return;
+                        }
+                        GetDisplayNameTask task =
+                                new GetDisplayNameTask(
+                                        mContext,
+                                        processId,
+                                        renderId,
+                                        webChromeClientMode,
+                                        results);
+                        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    }
+                },
+                params);
     }
 
     @Override
@@ -255,9 +293,11 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
         // must match InvalidateTypes.URL (the flag fired by
         // NavigationControllerImpl::DidAccessInitialMainDocument()) and we must
         // check whether a page load has previously been synthesized here.
-        boolean shouldSynthesizePageLoad = mAwContents.isPopupWindow()
-                && mAwContents.hasAccessedInitialDocument() && (flags == InvalidateTypes.URL)
-                && !mDidSynthesizePageLoad;
+        boolean shouldSynthesizePageLoad =
+                mAwContents.isPopupWindow()
+                        && mAwContents.hasAccessedInitialDocument()
+                        && (flags == InvalidateTypes.URL)
+                        && !mDidSynthesizePageLoad;
         if (shouldSynthesizePageLoad) {
             String url = mAwContents.getLastCommittedUrl();
             url = TextUtils.isEmpty(url) ? ContentUrlConstants.ABOUT_BLANK_DISPLAY_URL : url;
@@ -302,19 +342,18 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
         if (fullscreenView == null) {
             return;
         }
-        AwContentsClient.CustomViewCallback cb = () -> {
-            if (mCustomView != null) {
-                mAwContents.requestExitFullscreen();
-            }
-        };
+        AwContentsClient.CustomViewCallback cb =
+                () -> {
+                    if (mCustomView != null) {
+                        mAwContents.requestExitFullscreen();
+                    }
+                };
         mCustomView = new FrameLayout(mContext);
         mCustomView.addView(fullscreenView);
         mContentsClient.onShowCustomView(mCustomView, cb);
     }
 
-    /**
-     * Called to show the web contents in embedded mode.
-     */
+    /** Called to show the web contents in embedded mode. */
     private void exitFullscreen() {
         if (mCustomView != null) {
             mCustomView = null;
@@ -360,8 +399,8 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
 
         @Override
         protected void onPostExecute(String[] result) {
-            AwWebContentsDelegateJni.get().filesSelectedInChooser(
-                    mProcessId, mRenderId, mModeFlags, mFilePaths, result);
+            AwWebContentsDelegateJni.get()
+                    .filesSelectedInChooser(mProcessId, mRenderId, mModeFlags, mFilePaths, result);
         }
 
         /**
@@ -374,5 +413,29 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
             return ContentUriUtils.getDisplayName(
                     uri, mContext, MediaStore.MediaColumns.DISPLAY_NAME);
         }
+    }
+
+    /** Handle zoom in/zoom out for ctrl + mouse wheel. */
+    @Override
+    public void contentsZoomChange(boolean zoomIn) {
+        boolean supportsZoom = mAwContents.getSettings().supportZoom();
+        if (supportsZoom) {
+            if (zoomIn) {
+                mAwContents.zoomIn();
+            } else {
+                mAwContents.zoomOut();
+            }
+        }
+    }
+
+    /**
+     * Convenience method for native to call without Context object. Determines if popups are
+     * supported for the context menu.
+     *
+     * @return true if popups are supported, false otherwise.
+     */
+    @Override
+    protected boolean isPopupSupported() {
+        return ContextMenuUtils.isPopupSupported(mContext);
     }
 }

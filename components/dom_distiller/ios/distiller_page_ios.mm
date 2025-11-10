@@ -8,13 +8,14 @@
 
 #include <utility>
 
+#include "base/apple/foundation_util.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#import "components/dom_distiller/ios/distiller_page_utils.h"
 #include "ios/web/public/browser_state.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
@@ -22,90 +23,6 @@
 #import "ios/web/public/navigation/web_state_policy_decider.h"
 #import "ios/web/public/web_state.h"
 #include "ios/web/public/web_state_observer.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-namespace {
-
-// This is duplicated here from ios/web/js_messaging/web_view_js_utils.mm in
-// order to handle numbers. The dom distiller proto expects integers and the
-// generated JSON deserializer does not accept doubles in the place of ints.
-// However WKWebView only returns "numbers." However, here the proto expects
-// integers and doubles, which is done by checking if the number has a fraction
-// or not; since this is a hacky method it's isolated to this file so as to
-// limit the risk of broken JS calls.
-
-int const kMaximumParsingRecursionDepth = 6;
-
-// Returns a clone of |value| where double values are converted to integers if
-// the numbers has no fraction. |value| is only processed up to |max_depth|.
-base::Value ConvertedResultFromScriptResult(const base::Value* value,
-                                            int max_depth) {
-  base::Value result;
-  if (!value || value->is_none()) {
-    DCHECK_EQ(result.type(), base::Value::Type::NONE);
-    return result;
-  }
-
-  if (max_depth < 0) {
-    DLOG(WARNING) << "JS maximum recursion depth exceeded.";
-    return result;
-  }
-
-  if (value->is_string()) {
-    result = base::Value(value->GetString());
-    DCHECK_EQ(result.type(), base::Value::Type::STRING);
-  } else if (value->is_double()) {
-    // Different implementation is here.
-    double double_value = value->GetDouble();
-    int int_value = round(double_value);
-    if (double_value == int_value) {
-      result = base::Value(int_value);
-      DCHECK_EQ(result.type(), base::Value::Type::INTEGER);
-    } else {
-      result = base::Value(double_value);
-      DCHECK_EQ(result.type(), base::Value::Type::DOUBLE);
-    }
-    // End of different implementation.
-  } else if (value->is_bool()) {
-    result = base::Value(value->GetBool());
-    DCHECK_EQ(result.type(), base::Value::Type::BOOLEAN);
-  } else if (value->is_dict()) {
-    base::Value::Dict dictionary;
-    for (const auto kv : value->GetDict()) {
-      base::Value item_value =
-          ConvertedResultFromScriptResult(&kv.second, max_depth - 1);
-
-      if (item_value.type() == base::Value::Type::NONE) {
-        return result;
-      }
-      dictionary.SetByDottedPath(kv.first, std::move(item_value));
-    }
-    result = base::Value(std::move(dictionary));
-    DCHECK_EQ(result.type(), base::Value::Type::DICT);
-
-  } else if (value->is_list()) {
-    base::Value::List list;
-    for (const base::Value& list_item : value->GetList()) {
-      base::Value converted_item =
-          ConvertedResultFromScriptResult(&list_item, max_depth - 1);
-      if (converted_item.type() == base::Value::Type::NONE) {
-        return result;
-      }
-
-      list.Append(std::move(converted_item));
-    }
-    result = base::Value(std::move(list));
-    DCHECK_EQ(result.type(), base::Value::Type::LIST);
-  } else {
-    NOTREACHED();  // Convert other types as needed.
-  }
-  return result;
-}
-
-}  // namespace
 
 namespace dom_distiller {
 
@@ -148,10 +65,6 @@ class DistillerPageMediaBlocker : public web::WebStatePolicyDecider {
 DistillerPageIOS::DistillerPageIOS(web::BrowserState* browser_state)
     : browser_state_(browser_state), weak_ptr_factory_(this) {}
 
-bool DistillerPageIOS::StringifyOutput() {
-  return false;
-}
-
 DistillerPageIOS::~DistillerPageIOS() {
   DetachWebState();
 }
@@ -163,7 +76,7 @@ void DistillerPageIOS::AttachWebState(
   }
   web_state_ = std::move(web_state);
   if (web_state_) {
-    web_state_->AddObserver(this);
+    web_state_observation_.Observe(web_state_.get());
     media_blocker_ =
         std::make_unique<DistillerPageMediaBlocker>(web_state_.get());
   }
@@ -172,7 +85,7 @@ void DistillerPageIOS::AttachWebState(
 std::unique_ptr<web::WebState> DistillerPageIOS::DetachWebState() {
   if (web_state_) {
     media_blocker_.reset();
-    web_state_->RemoveObserver(this);
+    web_state_observation_.Reset();
   }
   return std::move(web_state_);
 }
@@ -194,17 +107,25 @@ void DistillerPageIOS::DistillPageImpl(const GURL& url,
         web::WebState::Create(web_state_create_params);
     AttachWebState(std::move(web_state_unique));
   }
+
+  distilling_navigation_ = true;
   // Load page using WebState.
   web::NavigationManager::WebLoadParams params(url_);
   web_state_->SetKeepRenderProcessAlive(true);
   web_state_->GetNavigationManager()->LoadURLWithParams(params);
   // LoadIfNecessary is needed because the view is not created (but needed) when
-  // loading the page. TODO(crbug.com/705819): Remove this call.
+  // loading the page. TODO(crbug.com/41309809): Remove this call.
   web_state_->GetNavigationManager()->LoadIfNecessary();
 }
 
 void DistillerPageIOS::OnLoadURLDone(
     web::PageLoadCompletionStatus load_completion_status) {
+  if (!distilling_navigation_) {
+    // This is a second navigation after the distillation request.
+    // Distillation was already requested, so ignore this one.
+    return;
+  }
+  distilling_navigation_ = false;
   // Don't attempt to distill if the page load failed or if there is no
   // WebState.
   if (load_completion_status == web::PageLoadCompletionStatus::FAILURE ||
@@ -228,9 +149,7 @@ void DistillerPageIOS::OnLoadURLDone(
 }
 
 void DistillerPageIOS::HandleJavaScriptResult(const base::Value* result) {
-  base::Value result_as_value =
-      ConvertedResultFromScriptResult(result, kMaximumParsingRecursionDepth);
-
+  base::Value result_as_value = ParseValueFromScriptResult(result);
   OnDistillationDone(url_, &result_as_value);
 }
 

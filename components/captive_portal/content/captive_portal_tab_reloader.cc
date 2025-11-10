@@ -55,7 +55,7 @@ CaptivePortalTabReloader::CaptivePortalTabReloader(
       slow_ssl_load_time_(base::Seconds(kDefaultSlowSSLTimeSeconds)),
       open_login_tab_callback_(open_login_tab_callback) {}
 
-CaptivePortalTabReloader::~CaptivePortalTabReloader() {}
+CaptivePortalTabReloader::~CaptivePortalTabReloader() = default;
 
 void CaptivePortalTabReloader::OnLoadStart(bool is_ssl) {
   provisional_main_frame_load_ = true;
@@ -234,7 +234,6 @@ void CaptivePortalTabReloader::SetState(State new_state) {
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   state_ = new_state;

@@ -7,20 +7,14 @@
 #include <algorithm>
 
 #include "base/strings/string_util.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/ash/arc/intent_helper/arc_intent_helper_mojo_ash.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/renderer_context_menu/render_view_context_menu_proxy.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/context_menu_params.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/arc/intent_helper/arc_intent_helper_mojo_ash.h"
-#else  // BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/lacros/arc/arc_intent_helper_mojo_lacros.h"
-#endif
 
 namespace arc {
 
@@ -54,13 +48,8 @@ void OpenWithMenu::InitMenu(const content::ContextMenuParams& params) {
   if (context_->IsOffTheRecord())
     return;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  using ArcIntentHelperMojo = ArcIntentHelperMojoAsh;
-#else  // BUILDFLAG(IS_CHROMEOS_LACROS)
-  using ArcIntentHelperMojo = ArcIntentHelperMojoLacros;
-#endif
   menu_model_ = LinkHandlerModel::Create(
-      context_, params.link_url, std::make_unique<ArcIntentHelperMojo>());
+      context_, params.link_url, std::make_unique<ArcIntentHelperMojoAsh>());
   if (!menu_model_)
     return;
 
@@ -105,18 +94,22 @@ void OpenWithMenu::ModelChanged(const std::vector<LinkHandlerInfo>& handlers) {
     const auto it = handlers_.find(command_id);
     if (command_id == submenu_parent_id) {
       // Show the submenu parent.
-      proxy_->UpdateMenuItem(command_id, true, false, more_apps_label_);
+      proxy_->UpdateMenuItem(command_id, /*enabled=*/true, /*hidden=*/false,
+                             /*title=*/more_apps_label_);
     } else if (it == handlers_.end()) {
       // Hide the menu or submenu parent.
-      proxy_->UpdateMenuItem(command_id, false, true, std::u16string());
+      proxy_->UpdateMenuItem(command_id, /*enabled=*/false, /*hidden=*/true,
+                             /*title=*/std::u16string());
     } else {
       // Update the menu with the new model.
       const std::u16string label = l10n_util::GetStringFUTF16(
           IDS_CONTENT_CONTEXT_OPEN_WITH_APP, it->second.name);
-      proxy_->UpdateMenuItem(command_id, true, false, label);
-      if (!it->second.icon.IsEmpty())
+      proxy_->UpdateMenuItem(command_id, /*enabled=*/true, /*hidden=*/false,
+                             label);
+      if (!it->second.icon.IsEmpty()) {
         proxy_->UpdateMenuIcon(command_id,
                                ui::ImageModel::FromImage(it->second.icon));
+      }
     }
   }
 }
@@ -138,14 +131,14 @@ void OpenWithMenu::AddPlaceholderItems(RenderViewContextMenuProxy* proxy,
   for (int i = 0; i < kNumSubMenuCommands; ++i) {
     const int command_id =
         IDC_CONTENT_CONTEXT_OPEN_WITH1 + kNumMainMenuCommands + i;
-    submenu->AddItem(command_id, std::u16string());
+    submenu->AddItem(command_id, /*title=*/std::u16string());
   }
   int command_id;
   for (int i = 0; i < kNumMainMenuCommands - 1; ++i) {
     command_id = IDC_CONTENT_CONTEXT_OPEN_WITH1 + i;
-    proxy->AddMenuItem(command_id, std::u16string());
+    proxy->AddMenuItem(command_id, /*title=*/std::u16string());
   }
-  proxy->AddSubMenu(++command_id, std::u16string(), submenu);
+  proxy->AddSubMenu(++command_id, /*label=*/std::u16string(), submenu);
 }
 
 std::pair<OpenWithMenu::HandlerMap, int> OpenWithMenu::BuildHandlersMap(

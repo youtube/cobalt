@@ -30,8 +30,10 @@ _ALLOW_TESTS = {
     '//base:base_perftests',
     '//base:base_unittests',
     '//cobalt/renderer:renderer_browsertests',
-    '//cobalt:cobalt_unittests',
-    '//gpu/gles2_conform_support:gles2_conform_test',
+    # TODO: b/418842688 - Broken due to missing files.
+    # '//cobalt:cobalt_unittests',
+    # TODO: b/418842688 - Disabled temporarily.
+    # '//gpu/gles2_conform_support:gles2_conform_test',
     '//mojo:mojo_perftests',
     '//mojo:mojo_unittests',
     '//net:net_unittests',

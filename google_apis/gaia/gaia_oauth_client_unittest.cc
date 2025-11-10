@@ -237,7 +237,7 @@ class GaiaOAuthClientTest : public testing::Test {
 
  protected:
   void TestAccountCapabilitiesUploadData(
-      const std::vector<std::string>& capabilities_names,
+      base::span<const std::string_view> capabilities_names,
       const std::string& expected_body) {
     ResponseInjector injector(&url_loader_factory_);
     injector.set_complete_immediately(false);
@@ -446,7 +446,7 @@ TEST_F(GaiaOAuthClientTest, GetUserInfo) {
   auth.GetUserInfo("access_token", 1, &delegate);
   FlushNetwork();
 
-  absl::optional<base::Value> expected_value =
+  std::optional<base::Value> expected_value =
       base::JSONReader::Read(kDummyFullUserInfoResult);
   DCHECK(expected_value);
   ASSERT_TRUE(expected_value->is_dict());
@@ -513,14 +513,10 @@ TEST_F(GaiaOAuthClientTest, GetAccountCapabilities) {
                               {"capability1", "capability2", "capability3"}, 1,
                               &delegate);
 
-  std::string actual_authorization_header;
-  EXPECT_TRUE(injector.GetRequestHeaders().GetHeader(
-      "Authorization", &actual_authorization_header));
-  EXPECT_EQ(actual_authorization_header, "Bearer some_token");
-  std::string actual_method_override_header;
-  EXPECT_TRUE(injector.GetRequestHeaders().GetHeader(
-      "X-HTTP-Method-Override", &actual_method_override_header));
-  EXPECT_EQ(actual_method_override_header, "GET");
+  EXPECT_THAT(injector.GetRequestHeaders().GetHeader("Authorization"),
+              testing::Optional(std::string("Bearer some_token")));
+  EXPECT_THAT(injector.GetRequestHeaders().GetHeader("X-HTTP-Method-Override"),
+              testing::Optional(std::string("GET")));
   EXPECT_EQ(injector.GetUploadData(),
             "names=capability1&names=capability2&names=capability3");
 

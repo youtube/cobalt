@@ -6,16 +6,17 @@
 
 #import "base/check.h"
 #import "base/notreached.h"
+#import "base/time/time.h"
 #import "ios/web/common/crw_content_view.h"
 #import "ios/web/common/crw_viewport_adjustment_container.h"
 #import "ios/web/common/crw_web_view_content_view.h"
 #import "ios/web/common/features.h"
-#import "ios/web/public/ui/crw_context_menu_item.h"
 #import "ios/web/web_state/ui/crw_web_view_proxy_impl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+namespace {
+// Delay to fix the zoomScale after a rotation or window size change.
+constexpr base::TimeDelta kFixZoomScaleOnRotationDelay = base::Seconds(0.1);
+}  // namespace
 
 @interface CRWWebControllerContainerView () <CRWViewportAdjustmentContainer>
 
@@ -28,14 +29,13 @@
 
 @end
 
-@implementation CRWWebControllerContainerView {
-  NSMutableDictionary<NSString*, ProceduralBlock>* _currentMenuItems;
-}
+@implementation CRWWebControllerContainerView
+
 @synthesize webViewContentView = _webViewContentView;
 @synthesize delegate = _delegate;
 
 - (instancetype)initWithDelegate:
-        (id<CRWWebControllerContainerViewDelegate>)delegate {
+    (id<CRWWebControllerContainerViewDelegate>)delegate {
   self = [super initWithFrame:CGRectZero];
   if (self) {
     DCHECK(delegate);
@@ -43,22 +43,32 @@
     self.backgroundColor = [UIColor whiteColor];
     self.autoresizingMask =
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    if (@available(iOS 17, *)) {
+      __weak __typeof(self) weakSelf = self;
+      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                       UITraitCollection* previousCollection) {
+        [weakSelf updateUIOnTraitChange:previousCollection];
+      };
+      NSArray<UITrait>* traits = @[
+        UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class,
+        UITraitPreferredContentSizeCategory.class
+      ];
+      [self registerForTraitChanges:traits withHandler:handler];
+    }
   }
   return self;
 }
 
 - (instancetype)initWithCoder:(NSCoder*)decoder {
   NOTREACHED();
-  return nil;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
   NOTREACHED();
-  return nil;
 }
 
 - (void)dealloc {
-  self.contentViewProxy.contentView = nil;
+  [self.contentViewProxy clearContentViewAndAddPlaceholder:NO];
 }
 
 #pragma mark Accessors
@@ -75,7 +85,7 @@
   if (![_webViewContentView isEqual:webViewContentView]) {
     [_webViewContentView removeFromSuperview];
     _webViewContentView = webViewContentView;
-    [_webViewContentView setFrame:self.bounds];
+    [self updateWebViewContentViewFrame];
     [self addSubview:_webViewContentView];
   }
 }
@@ -86,21 +96,23 @@
 
 #pragma mark Layout
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
-  if (previousTraitCollection.preferredContentSizeCategory !=
-      self.traitCollection.preferredContentSizeCategory) {
-    // In case the preferred content size changes, the layout is dirty.
-    [self setNeedsLayout];
+  if (@available(iOS 17, *)) {
+    return;
   }
+
+  [self updateUIOnTraitChange:previousTraitCollection];
 }
+#endif
 
 - (void)layoutSubviews {
   [super layoutSubviews];
 
   // webViewContentView layout.  `-setNeedsLayout` is called in case any webview
   // layout updates need to occur despite the bounds size staying constant.
-  self.webViewContentView.frame = self.bounds;
+  [self updateWebViewContentViewFrame];
   [self.webViewContentView setNeedsLayout];
 }
 
@@ -114,18 +126,20 @@
 }
 
 - (void)updateWebViewContentViewForContainerWindow:(UIWindow*)containerWindow {
-  if (!base::FeatureList::IsEnabled(web::features::kKeepsRenderProcessAlive))
+  if (!base::FeatureList::IsEnabled(web::features::kKeepsRenderProcessAlive)) {
     return;
+  }
 
-  if (!self.webViewContentView)
+  if (!self.webViewContentView) {
     return;
+  }
 
   // If there's a containerWindow or `webViewContentView` is inactive, put it
   // back where it belongs.
   if (containerWindow ||
       ![_delegate shouldKeepRenderProcessAliveForContainerView:self]) {
     if (self.webViewContentView.superview != self) {
-      [_webViewContentView setFrame:self.bounds];
+      [self updateWebViewContentViewFrame];
       // Insert the content view on the back of the container view so any view
       // that was presented on top of the content view can still appear.
       [self insertSubview:_webViewContentView atIndex:0];
@@ -170,84 +184,55 @@
   [self.webViewContentView.webView drawRect:rect];
 }
 
-#pragma mark Custom Context Menu
+#pragma mark - UIView overrides
 
-- (void)showMenuWithItems:(NSArray<CRWContextMenuItem*>*)items
-                     rect:(CGRect)rect {
-  [self becomeFirstResponder];
-  // Remove observer, because showMenuFromView will call it when replacing an
-  // existing menu.
-  [[NSNotificationCenter defaultCenter]
-      removeObserver:self
-                name:UIMenuControllerDidHideMenuNotification
-              object:nil];
+- (void)safeAreaInsetsDidChange {
+  // Update the frame to take into account the safe area inset as they are set
+  // fractionally later than the rest of the view loading.
+  [self updateWebViewContentViewFrame];
+}
 
-  _currentMenuItems = [[NSMutableDictionary alloc] init];
-  NSMutableArray* menuItems = [[NSMutableArray alloc] init];
-  for (CRWContextMenuItem* item in items) {
-    UIMenuItem* menuItem =
-        [[UIMenuItem alloc] initWithTitle:item.title
-                                   action:NSSelectorFromString(item.ID)];
-    [menuItems addObject:menuItem];
+#pragma mark - Private helpers
 
-    _currentMenuItems[item.ID] = item.action;
+// Update the content view frame.
+- (void)updateWebViewContentViewFrame {
+  if (base::FeatureList::IsEnabled(web::features::kSmoothScrollingDefault)) {
+    [self.webViewContentView setFrame:self.bounds];
+  } else {
+    if (self.cover) {
+      [self.webViewContentView setFrame:self.bounds];
+    } else {
+      [self.webViewContentView
+          setFrame:UIEdgeInsetsInsetRect(self.bounds, self.safeAreaInsets)];
+    }
   }
-
-  UIMenuController* menu = [UIMenuController sharedMenuController];
-  menu.menuItems = menuItems;
-
-  [menu showMenuFromView:self rect:rect];
-
-  [[NSNotificationCenter defaultCenter]
-      addObserver:self
-         selector:@selector(didHideMenuNotification)
-             name:UIMenuControllerDidHideMenuNotification
-           object:nil];
 }
 
-// Called when menu is dismissed for cleanup.
-- (void)didHideMenuNotification {
-  [[NSNotificationCenter defaultCenter]
-      removeObserver:self
-                name:UIMenuControllerDidHideMenuNotification
-              object:nil];
-  _currentMenuItems = nil;
-}
-
-// Checks is selector is one for an item of the custom menu and if so, tell objc
-// runtime that it exists, even if it doesn't.
-- (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
-  if (_currentMenuItems[NSStringFromSelector(action)]) {
-    return YES;
+//
+- (void)updateUIOnTraitChange:(UITraitCollection*)previousTraitCollection {
+  if ((self.traitCollection.verticalSizeClass !=
+       previousTraitCollection.verticalSizeClass) ||
+      (self.traitCollection.horizontalSizeClass !=
+       previousTraitCollection.horizontalSizeClass) ||
+      self.traitCollection.preferredContentSizeCategory !=
+          previousTraitCollection.preferredContentSizeCategory) {
+    // Reset zoom scale when the window is resized (portrait to landscape,
+    // landscape to portrait or multi-window resizing), or if text size is
+    // modified as websites can adjust to the preferred content size (using
+    // font: -apple-system-body;). It avoids being in a different zoomed
+    // position from where the user initially zoomed.
+    __weak UIScrollView* weakScrollView =
+        self.contentViewProxy.contentView.scrollView;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                                 kFixZoomScaleOnRotationDelay.InNanoseconds()),
+                   dispatch_get_main_queue(), ^{
+                     weakScrollView.zoomScale = weakScrollView.minimumZoomScale;
+                   });
   }
-  return [super canPerformAction:action withSender:sender];
-}
-
-// Catches a menu item selector and replace with `selectedMenuItemWithID` so it
-// passes the test made to check is selector exists.
-- (NSMethodSignature*)methodSignatureForSelector:(SEL)sel {
-  if (_currentMenuItems[NSStringFromSelector(sel)]) {
-    return
-        [super methodSignatureForSelector:@selector(selectedMenuItemWithID:)];
-  }
-  return [super methodSignatureForSelector:sel];
-}
-
-// Catches invovation of a menu item selector and forward to
-// `selectedMenuItemWithID` tagging on the menu item id for recognition.
-- (void)forwardInvocation:(NSInvocation*)invocation {
-  NSString* sel = NSStringFromSelector(invocation.selector);
-  if (_currentMenuItems[sel]) {
-    [self selectedMenuItemWithID:sel];
-    return;
-  }
-  [super forwardInvocation:invocation];
-}
-
-// Triggers the action for the menu item with given `ID`.
-- (void)selectedMenuItemWithID:(NSString*)ID {
-  if (_currentMenuItems[ID]) {
-    _currentMenuItems[ID]();
+  if (previousTraitCollection.preferredContentSizeCategory !=
+      self.traitCollection.preferredContentSizeCategory) {
+    // In case the preferred content size changes, the layout is dirty.
+    [self setNeedsLayout];
   }
 }
 

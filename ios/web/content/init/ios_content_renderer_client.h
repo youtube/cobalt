@@ -23,10 +23,25 @@ class IOSContentRendererClient : public content::ContentRendererClient {
 
   // content::ContentRendererClient implementation:
   void RenderThreadStarted() override;
+  void RenderFrameCreated(content::RenderFrame* render_frame) override;
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
   void RunScriptsAtDocumentEnd(content::RenderFrame* render_frame) override;
+  void PrepareErrorPage(content::RenderFrame* render_frame,
+                        const blink::WebURLError& error,
+                        const std::string& http_method,
+                        content::mojom::AlternativeErrorPageOverrideInfoPtr
+                            alternative_error_page_info,
+                        std::string* error_html) override;
+  void PrepareErrorPageForHttpStatusError(
+      content::RenderFrame* render_frame,
+      const blink::WebURLError& error,
+      const std::string& http_method,
+      int http_status,
+      content::mojom::AlternativeErrorPageOverrideInfoPtr
+          alternative_error_page_info,
+      std::string* error_html) override;
 };
 
 }  // namespace web
 
-#endif  // IOS_WEB_CONTENT_RENDERER_IOS_CONTENT_RENDERER_CLIENT_H_
+#endif  // IOS_WEB_CONTENT_INIT_IOS_CONTENT_RENDERER_CLIENT_H_

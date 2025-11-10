@@ -75,12 +75,12 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   // Represents a listening socket.
   struct FlossListeningSocket {
     SocketId id = FlossSocketManager::kInvalidSocketId;
-    SocketType type;
-    int flags;
-    absl::optional<int> psm;
-    absl::optional<int> channel;
-    absl::optional<std::string> name;
-    absl::optional<device::BluetoothUUID> uuid;
+    SocketType type = SocketType::kUnknown;
+    int flags = 0;
+    std::optional<int> psm;
+    std::optional<int> channel;
+    std::optional<std::string> name;
+    std::optional<device::BluetoothUUID> uuid;
 
     FlossListeningSocket();
     FlossListeningSocket(const FlossListeningSocket&);
@@ -93,13 +93,13 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   struct FlossSocket {
     SocketId id = FlossSocketManager::kInvalidSocketId;
     FlossDeviceId remote_device;
-    SocketType type;
-    int flags;
-    absl::optional<base::ScopedFD> fd;
-    int port;
-    absl::optional<device::BluetoothUUID> uuid;
-    int max_rx_size;
-    int max_tx_size;
+    SocketType type = SocketType::kUnknown;
+    int flags = 0;
+    std::optional<base::ScopedFD> fd;
+    int port = 0;
+    std::optional<device::BluetoothUUID> uuid;
+    int max_rx_size = 0;
+    int max_tx_size = 0;
 
     FlossSocket();
     ~FlossSocket();
@@ -130,7 +130,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
 
   // Callback when a connection socket completes.
   using ConnectionCompleted =
-      base::OnceCallback<void(BtifStatus, absl::optional<FlossSocket>&&)>;
+      base::OnceCallback<void(BtifStatus, std::optional<FlossSocket>&&)>;
 
   // Error: Callback id is invalid.
   static const char kErrorInvalidCallback[];
@@ -166,10 +166,10 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   // variants capable of supporting a use-case, such as when manually
   // constructing SDP records for a listening socket.
   virtual void ListenUsingRfcommAlt(
-      const absl::optional<std::string> name,
-      const absl::optional<device::BluetoothUUID> application_uuid,
-      const absl::optional<int> channel,
-      const absl::optional<int> flags,
+      const std::optional<std::string> name,
+      const std::optional<device::BluetoothUUID> application_uuid,
+      const std::optional<int> channel,
+      const std::optional<int> flags,
       ResponseCallback<BtifStatus> callback,
       ConnectionStateChanged ready_cb,
       ConnectionAccepted new_connection_cb);
@@ -204,7 +204,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   // Accept new connections on |id|. If the given SocketId is not a listening
   // socket or closed, the callback will receive a failing |BtifStatus| value.
   virtual void Accept(const SocketId id,
-                      absl::optional<uint32_t> timeout_ms,
+                      std::optional<uint32_t> timeout_ms,
                       ResponseCallback<BtifStatus> callback);
 
   // Closes the socket on |id|. Only works for listening sockets. For connecting
@@ -215,6 +215,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
  protected:
@@ -223,6 +224,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   // Complete the method call for |RegisterCallback|.
   void CompleteRegisterCallback(dbus::Response* response,
                                 dbus::ErrorResponse* error_response);
+
+  // Complete the method call for |UnregisterCallback|.
+  void CompleteUnregisterCallback(DBusResult<bool> result);
 
   // Complete any of |ListenUsingL2cap| or |ListenUsingRfcomm|.
   void CompleteListen(ResponseCallback<BtifStatus> callback,
@@ -286,7 +290,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
 
   // All socket api calls require callback id since callbacks must take
   // ownership of the file descriptors. A value of zero is invalid.
-  CallbackId callback_id_ = 0;
+  CallbackId callback_id_ = kInvalidCallbackId;
 
   // Signal when client is ready to be used.
   base::OnceClosure on_ready_;

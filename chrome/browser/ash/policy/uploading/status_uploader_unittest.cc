@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/policy/uploading/status_uploader.h"
 
 #include <memory>
+#include <tuple>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -13,12 +14,14 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/gmock_move_support.h"
+#include "base/test/task_environment.h"
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/status_collector/device_status_collector.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/dbus/tpm_manager/tpm_manager_client.h"
@@ -42,13 +45,14 @@ namespace {
 
 constexpr base::TimeDelta kDefaultStatusUploadDelay = base::Hours(1);
 constexpr base::TimeDelta kMinImmediateUploadInterval = base::Seconds(10);
+constexpr base::TimeDelta kMinimumScreenshotIdlenessCutoff = base::Minutes(5);
 
 // Using a DeviceStatusCollector to have a concrete StatusCollector, but the
 // exact type doesn't really matter, as it is being mocked.
 class MockDeviceStatusCollector : public DeviceStatusCollector {
  public:
   explicit MockDeviceStatusCollector(PrefService* local_state)
-      : DeviceStatusCollector(local_state, nullptr, nullptr) {}
+      : DeviceStatusCollector(local_state, nullptr, nullptr, nullptr) {}
   MOCK_METHOD1(GetStatusAsync, void(StatusCollectorCallback));
 
   MOCK_METHOD0(OnSubmittedSuccessfully, void());
@@ -58,7 +62,7 @@ class MockDeviceStatusCollector : public DeviceStatusCollector {
   std::unique_ptr<DeviceLocalAccount> GetAutoLaunchedKioskSessionInfo()
       override {
     return std::make_unique<DeviceLocalAccount>(
-        DeviceLocalAccount::TYPE_KIOSK_APP,
+        DeviceLocalAccountType::kKioskApp,
         policy::DeviceLocalAccount::EphemeralMode::kUnset, "account_id",
         "app_id", "update_url");
   }
@@ -161,12 +165,19 @@ class StatusUploaderTest : public testing::Test {
                                             kDefaultStatusUploadDelay);
   }
 
-  content::BrowserTaskEnvironment task_environment_;
+  void MockUserInput() {
+    ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), 0, 0);
+    const ui::PlatformEvent& native_event = &e;
+    ui::UserActivityDetector::Get()->DidProcessEvent(native_event);
+  }
+
+  content::BrowserTaskEnvironment task_environment_{
+      content::BrowserTaskEnvironment::TimeSource::MOCK_TIME};
   scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
   ash::ScopedTestingCrosSettings scoped_testing_cros_settings_;
   std::unique_ptr<MockDeviceStatusCollector> collector_;
-  raw_ptr<MockDeviceStatusCollector, ExperimentalAsh> collector_ptr_;
-  ui::UserActivityDetector detector_;
+  raw_ptr<MockDeviceStatusCollector, DanglingUntriaged> collector_ptr_;
   MockCloudPolicyClient client_;
   TestingPrefServiceSimple prefs_;
   // This property is required to instantiate the session manager, a singleton
@@ -298,23 +309,30 @@ TEST_F(StatusUploaderTest, ChangeFrequency) {
                                    true /* upload_success */);
 }
 
-TEST_F(StatusUploaderTest, NoUploadAfterUserInput) {
+TEST_F(StatusUploaderTest, ScreenshotUploadAllowOnlyAfterCutoffTime) {
   auto uploader = CreateStatusUploader();
   // Should allow data upload before there is user input.
-  EXPECT_TRUE(uploader->IsSessionDataUploadAllowed());
+  EXPECT_TRUE(uploader->IsScreenshotAllowed());
 
-  // Now mock user input, and no session data should be allowed.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                   ui::EventTimeForNow(), 0, 0);
-  const ui::PlatformEvent& native_event = &e;
-  ui::UserActivityDetector::Get()->DidProcessEvent(native_event);
-  EXPECT_FALSE(uploader->IsSessionDataUploadAllowed());
+  MockUserInput();
+  EXPECT_FALSE(uploader->IsScreenshotAllowed());
+
+  MockUserInput();
+  task_environment_.AdvanceClock(kMinimumScreenshotIdlenessCutoff -
+                                 base::Seconds(1));
+  EXPECT_FALSE(uploader->IsScreenshotAllowed());
+
+  // Screenshot is allowed again after a period of inactivity
+  MockUserInput();
+  task_environment_.AdvanceClock(kMinimumScreenshotIdlenessCutoff +
+                                 base::Seconds(1));
+  EXPECT_TRUE(uploader->IsScreenshotAllowed());
 }
 
 TEST_F(StatusUploaderTest, NoUploadAfterVideoCapture) {
   auto uploader = CreateStatusUploader();
   // Should allow data upload before there is video capture.
-  EXPECT_TRUE(uploader->IsSessionDataUploadAllowed());
+  EXPECT_TRUE(uploader->IsScreenshotAllowed());
 
   // Now mock video capture, and no session data should be allowed.
   MediaCaptureDevicesDispatcher::GetInstance()->OnMediaRequestStateChanged(
@@ -322,7 +340,7 @@ TEST_F(StatusUploaderTest, NoUploadAfterVideoCapture) {
       blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE,
       content::MEDIA_REQUEST_STATE_OPENING);
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(uploader->IsSessionDataUploadAllowed());
+  EXPECT_FALSE(uploader->IsScreenshotAllowed());
 }
 
 TEST_F(StatusUploaderTest, ScheduleImmediateStatusUpload) {

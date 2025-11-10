@@ -49,12 +49,12 @@ struct LookupProxyForURLMockResult {
 // LookUpProxyForURL().
 class MockNetworkContext : public network::TestNetworkContext {
  public:
-  MockNetworkContext() {}
+  MockNetworkContext() = default;
 
   MockNetworkContext(const MockNetworkContext&) = delete;
   MockNetworkContext& operator=(const MockNetworkContext&) = delete;
 
-  ~MockNetworkContext() override {}
+  ~MockNetworkContext() override = default;
 
   // network::mojom::NetworkContext implementation:
   void LookUpProxyForURL(
@@ -73,7 +73,7 @@ class MockNetworkContext : public network::TestNetworkContext {
       proxy_lookup_client_remote->OnProxyLookupComplete(net::OK, proxy_info);
     } else {
       proxy_lookup_client_remote->OnProxyLookupComplete(
-          lookup_proxy_result_.error, absl::nullopt);
+          lookup_proxy_result_.error, std::nullopt);
     }
   }
 

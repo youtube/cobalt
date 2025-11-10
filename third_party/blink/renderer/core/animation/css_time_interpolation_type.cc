@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/animation/css_time_interpolation_type.h"
 
 #include "base/notreached.h"
+#include "third_party/blink/renderer/core/animation/tree_counting_checker.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
@@ -19,14 +20,29 @@ InterpolationValue CSSTimeInterpolationType::MaybeConvertNeutral(
   return CreateTimeValue(0);
 }
 
+InterpolationValue CSSTimeInterpolationType::MaybeConvertTime(
+    const CSSValue& value,
+    const CSSToLengthConversionData& conversion_data) const {
+  const auto* primitive_value = DynamicTo<CSSPrimitiveValue>(value);
+  if (!primitive_value || !primitive_value->IsTime()) {
+    return nullptr;
+  }
+  return CreateTimeValue(primitive_value->ComputeSeconds(conversion_data));
+}
+
 InterpolationValue CSSTimeInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState*,
-    ConversionCheckers&) const {
-  auto* primitive_value = DynamicTo<CSSPrimitiveValue>(value);
-  if (!primitive_value || !primitive_value->IsTime())
-    return nullptr;
-  return CreateTimeValue(primitive_value->ComputeSeconds());
+    const StyleResolverState& state,
+    ConversionCheckers& conversion_checkers) const {
+  const CSSToLengthConversionData& conversion_data =
+      state.CssToLengthConversionData();
+  if (const auto* primitive_value = DynamicTo<CSSPrimitiveValue>(value)) {
+    if (primitive_value->IsElementDependent()) {
+      conversion_checkers.push_back(
+          TreeCountingChecker::Create(conversion_data));
+    }
+  }
+  return MaybeConvertTime(value, conversion_data);
 }
 
 const CSSValue* CSSTimeInterpolationType::CreateCSSValue(
@@ -39,22 +55,24 @@ const CSSValue* CSSTimeInterpolationType::CreateCSSValue(
 
 InterpolationValue CSSTimeInterpolationType::CreateTimeValue(
     double seconds) const {
-  return InterpolationValue(std::make_unique<InterpolableNumber>(seconds));
+  return InterpolationValue(MakeGarbageCollected<InterpolableNumber>(seconds));
 }
 
 // static
-absl::optional<double> CSSTimeInterpolationType::GetSeconds(
+std::optional<double> CSSTimeInterpolationType::GetSeconds(
     const CSSPropertyID& property,
     const ComputedStyle& style) {
   switch (property) {
-    // No properties currently use CSSTimeInterpolationType.
+    case CSSPropertyID::kInterestTargetShowDelay:
+      return style.InterestTargetShowDelay();
+    case CSSPropertyID::kInterestTargetHideDelay:
+      return style.InterestTargetHideDelay();
     default:
       NOTREACHED();
-      return absl::optional<double>();
   }
 }
 
-absl::optional<double> CSSTimeInterpolationType::GetSeconds(
+std::optional<double> CSSTimeInterpolationType::GetSeconds(
     const ComputedStyle& style) const {
   return GetSeconds(CssProperty().PropertyID(), style);
 }
@@ -66,10 +84,11 @@ absl::optional<double> CSSTimeInterpolationType::GetSeconds(
 double CSSTimeInterpolationType::ClampTime(const CSSPropertyID& property,
                                            double value) const {
   switch (property) {
-    // No properties currently use CSSTimeInterpolationType.
+    case CSSPropertyID::kInterestTargetShowDelay:
+    case CSSPropertyID::kInterestTargetHideDelay:
+      return ClampTo<float>(value, 0);
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -81,16 +100,30 @@ CSSTimeInterpolationType::MaybeConvertStandardPropertyUnderlyingValue(
   return nullptr;
 }
 
+InterpolationValue
+CSSTimeInterpolationType::MaybeConvertCustomPropertyUnderlyingValue(
+    const CSSValue& value) const {
+  return MaybeConvertTime(value,
+                          CSSToLengthConversionData(/*element=*/nullptr));
+}
+
 void CSSTimeInterpolationType::ApplyStandardPropertyValue(
     const InterpolableValue& interpolable_value,
     const NonInterpolableValue*,
     StyleResolverState& state) const {
+  ComputedStyleBuilder& builder = state.StyleBuilder();
   auto property = CssProperty().PropertyID();
+  double clamped_seconds =
+      ClampTime(property, To<InterpolableNumber>(interpolable_value).Value());
   switch (property) {
-    // No properties currently use CSSTimeInterpolationType.
+    case CSSPropertyID::kInterestTargetShowDelay:
+      builder.SetInterestTargetShowDelay(clamped_seconds);
+      break;
+    case CSSPropertyID::kInterestTargetHideDelay:
+      builder.SetInterestTargetHideDelay(clamped_seconds);
+      break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -107,19 +140,18 @@ InterpolationValue CSSTimeInterpolationType::MaybeConvertInitial(
 class InheritedTimeChecker : public CSSInterpolationType::CSSConversionChecker {
  public:
   InheritedTimeChecker(const CSSProperty& property,
-                       absl::optional<double> seconds)
+                       std::optional<double> seconds)
       : property_(property), seconds_(seconds) {}
 
  private:
   bool IsValid(const StyleResolverState& state,
                const InterpolationValue& underlying) const final {
-    absl::optional<double> parent_seconds =
-        CSSTimeInterpolationType::GetSeconds(property_.PropertyID(),
-                                             *state.ParentStyle());
+    std::optional<double> parent_seconds = CSSTimeInterpolationType::GetSeconds(
+        property_.PropertyID(), *state.ParentStyle());
     return seconds_ == parent_seconds;
   }
   const CSSProperty& property_;
-  const absl::optional<double> seconds_;
+  const std::optional<double> seconds_;
 };
 
 InterpolationValue CSSTimeInterpolationType::MaybeConvertInherit(
@@ -127,9 +159,9 @@ InterpolationValue CSSTimeInterpolationType::MaybeConvertInherit(
     ConversionCheckers& conversion_checkers) const {
   if (!state.ParentStyle())
     return nullptr;
-  absl::optional<double> inherited_seconds = GetSeconds(*state.ParentStyle());
-  conversion_checkers.push_back(
-      std::make_unique<InheritedTimeChecker>(CssProperty(), inherited_seconds));
+  std::optional<double> inherited_seconds = GetSeconds(*state.ParentStyle());
+  conversion_checkers.push_back(MakeGarbageCollected<InheritedTimeChecker>(
+      CssProperty(), inherited_seconds));
   if (!inherited_seconds)
     return nullptr;
   return CreateTimeValue(*inherited_seconds);

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cinttypes>
+#include <climits>
+#include <cwchar>
+
 #include "starboard/configuration.h"
 
 namespace nplb {
@@ -40,6 +44,40 @@ SB_COMPILE_ASSERT(sizeof(long long) == SB_SIZE_OF_LLONG,  // NOLINT(runtime/int)
 
 SB_COMPILE_ASSERT(sizeof(short) == SB_SIZE_OF_SHORT,  // NOLINT(runtime/int)
                   SB_SIZE_OF_SHORT_is_inconsistent_with_sizeof_short);
+
+// --- Standard Include Emulation Audits ---------------------------------------
+
+#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
+    (LONG_MIN + 1 == LONG_MAX - 1)
+// This should always evaluate to false, but ensures that the limits macros can
+// be used arithmetically in the preprocessor.
+#endif
+
+#if !defined(PRId32)
+#error "inttypes.h should provide the portable formatting macros."
+#endif
+
+// --- Standard Type Audits ----------------------------------------------------
+
+#if SB_IS(WCHAR_T_UTF16)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
+                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
+#endif
+
+#if SB_IS(WCHAR_T_UTF32)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
+                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
+#endif
+
+#if SB_IS(WCHAR_T_SIGNED)
+SB_COMPILE_ASSERT((wchar_t)(-1) < 0,
+                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
+#endif
+
+#if SB_IS(WCHAR_T_UNSIGNED)
+SB_COMPILE_ASSERT((wchar_t)(-1) > 0,
+                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
+#endif
 
 }  // namespace
 }  // namespace nplb

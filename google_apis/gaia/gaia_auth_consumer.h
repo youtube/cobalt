@@ -26,9 +26,11 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GaiaAuthConsumer {
                       bool is_under_advanced_protection,
                       bool is_bound_to_key);
     ClientOAuthResult(const ClientOAuthResult& other);
+    ClientOAuthResult& operator=(const ClientOAuthResult& other);
     ~ClientOAuthResult();
 
-    bool operator==(const ClientOAuthResult &b) const;
+    friend bool operator==(const ClientOAuthResult&,
+                           const ClientOAuthResult&) = default;
 
     // OAuth2 refresh token.  Used to mint new access tokens when needed.
     std::string refresh_token;
@@ -96,12 +98,6 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GaiaAuthConsumer {
   virtual void OnClientOAuthFailure(const GoogleServiceAuthError& error) {}
 
   virtual void OnOAuth2RevokeTokenCompleted(TokenRevocationStatus status) {}
-
-  virtual void OnUberAuthTokenSuccess(const std::string& token) {}
-  virtual void OnUberAuthTokenFailure(const GoogleServiceAuthError& error) {}
-
-  virtual void OnMergeSessionSuccess(const std::string& data) {}
-  virtual void OnMergeSessionFailure(const GoogleServiceAuthError& error) {}
 
   virtual void OnListAccountsSuccess(const std::string& data) {}
   virtual void OnListAccountsFailure(const GoogleServiceAuthError& error) {}

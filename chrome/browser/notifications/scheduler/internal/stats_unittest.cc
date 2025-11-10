@@ -12,24 +12,10 @@ namespace notifications {
 namespace stats {
 namespace {
 
-const char kIhnrActionButtonEventHistogram[] =
-    "Notifications.Scheduler.IhnrActionButtonEvent";
-
-const char kIhnrActionButtonEventTestHistogram[] =
-    "Notifications.Scheduler.IhnrActionButtonEvent.__Test__";
-
 void TestLogUserAction(const UserActionData& user_action_data,
                        ActionButtonEvent action_button_event) {
   base::HistogramTester histograms;
   LogUserAction(user_action_data);
-  histograms.ExpectBucketCount("Notifications.Scheduler.UserAction",
-                               user_action_data.action_type, 1);
-  histograms.ExpectBucketCount("Notifications.Scheduler.UserAction.__Test__",
-                               user_action_data.action_type, 1);
-  histograms.ExpectBucketCount(kIhnrActionButtonEventHistogram,
-                               action_button_event, 1);
-  histograms.ExpectBucketCount(kIhnrActionButtonEventTestHistogram,
-                               action_button_event, 1);
 }
 
 void TestNotificationShow(const NotificationData& notification_data,
@@ -38,16 +24,6 @@ void TestNotificationShow(const NotificationData& notification_data,
                           bool expect_life_cycle_histogram) {
   base::HistogramTester histograms;
   LogNotificationShow(notification_data, client_type);
-  if (expect_ihnr_histogram) {
-    histograms.ExpectBucketCount(kIhnrActionButtonEventHistogram,
-                                 ActionButtonEvent::kShown, 1);
-    histograms.ExpectBucketCount(kIhnrActionButtonEventTestHistogram,
-                                 ActionButtonEvent::kShown, 1);
-  } else {
-    histograms.ExpectTotalCount(kIhnrActionButtonEventHistogram, 0);
-    histograms.ExpectTotalCount(kIhnrActionButtonEventTestHistogram, 0);
-  }
-
   if (expect_life_cycle_histogram) {
     histograms.ExpectBucketCount(
         "Notifications.Scheduler.NotificationLifeCycleEvent",
@@ -94,41 +70,6 @@ TEST(NotificationSchedulerStatsTest, LogNotificationShow) {
                          true /*expect_ihnr_histogram*/,
                          true /*expect_life_cycle_histogram*/);
   }
-}
-
-// Verifies database initialization and record count are correctly tracked.
-TEST(NotificationSchedulerStatsTest, LogDbInit) {
-  base::HistogramTester histograms;
-  LogDbInit(DatabaseType::kImpressionDb, true, 3);
-  histograms.ExpectBucketCount(
-      "Notifications.Scheduler.ImpressionDb.InitResult", true, 1);
-  histograms.ExpectBucketCount(
-      "Notifications.Scheduler.ImpressionDb.RecordCount", 3, 1);
-
-  LogDbInit(DatabaseType::kNotificationDb, true, 5);
-  histograms.ExpectBucketCount(
-      "Notifications.Scheduler.NotificationDb.InitResult", true, 1);
-  histograms.ExpectBucketCount(
-      "Notifications.Scheduler.NotificationDb.RecordCount", 5, 1);
-
-  LogDbInit(DatabaseType::kIconDb, true, 1);
-  histograms.ExpectBucketCount("Notifications.Scheduler.IconDb.InitResult",
-                               true, 1);
-  histograms.ExpectTotalCount("Notifications.Scheduler.IconDb.RecordCount", 1);
-}
-
-// Verifies database operations are correctly tracked.
-TEST(NotificationSchedulerStatsTest, LogDbOperationResult) {
-  base::HistogramTester histograms;
-  LogDbOperation(DatabaseType::kImpressionDb, true);
-  histograms.ExpectBucketCount(
-      "Notifications.Scheduler.ImpressionDb.OperationResult", true, 1);
-  LogDbOperation(DatabaseType::kNotificationDb, true);
-  histograms.ExpectBucketCount(
-      "Notifications.Scheduler.NotificationDb.OperationResult", true, 1);
-  LogDbOperation(DatabaseType::kIconDb, true);
-  histograms.ExpectBucketCount("Notifications.Scheduler.IconDb.OperationResult",
-                               true, 1);
 }
 
 }  // namespace

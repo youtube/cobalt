@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -45,10 +46,11 @@ bool CheckTokenWithWhitespace(const String& token,
                               ExceptionState& exception_state) {
   if (token.Find(IsHTMLSpace) == kNotFound)
     return true;
-  exception_state.ThrowDOMException(DOMExceptionCode::kInvalidCharacterError,
-                                    "The token provided ('" + token +
-                                        "') contains HTML space characters, "
-                                        "which are not valid in tokens.");
+  exception_state.ThrowDOMException(
+      DOMExceptionCode::kInvalidCharacterError,
+      WTF::StrCat({"The token provided ('", token,
+                   "') contains HTML space characters, "
+                   "which are not valid in tokens."}));
   return false;
 }
 
@@ -79,6 +81,7 @@ bool CheckTokensSyntax(const Vector<String>& tokens,
 }  // anonymous namespace
 
 void DOMTokenList::Trace(Visitor* visitor) const {
+  visitor->Trace(token_set_);
   visitor->Trace(element_);
   ScriptWrappable::Trace(visitor);
   ElementRareDataField::Trace(visitor);

@@ -21,8 +21,9 @@ class BrowserContext;
 }
 
 // Base class for Factories that take a BrowserContext object and return some
-// service on a one-to-one mapping. Each factory that derives from this class
-// *must* be a Singleton (only unit tests don't do that).
+// service on a one-to-one mapping. Barring unit tests, each factory that
+// derives from this class *must* be a singleton (base::NoDestructor is
+// recommended over base::Singleton).
 //
 // We do this because services depend on each other and we need to control
 // shutdown/destruction order. In each derived classes' constructors, the
@@ -33,7 +34,7 @@ class KEYED_SERVICE_EXPORT BrowserContextKeyedServiceFactory
   // A callback that supplies the instance of a KeyedService for a given
   // BrowserContext. This is used primarily for testing, where we want to feed
   // a specific test double into the BCKSF system.
-  using TestingFactory = base::RepeatingCallback<std::unique_ptr<KeyedService>(
+  using TestingFactory = base::OnceCallback<std::unique_ptr<KeyedService>(
       content::BrowserContext* context)>;
 
   BrowserContextKeyedServiceFactory(const BrowserContextKeyedServiceFactory&) =
@@ -57,9 +58,29 @@ class KEYED_SERVICE_EXPORT BrowserContextKeyedServiceFactory
   // A variant of |TestingFactory| for supplying a subclass of
   // KeyedService for a given BrowserContext.
   template <typename Derived>
-  using TestingSubclassFactory =
-      base::RepeatingCallback<std::unique_ptr<Derived>(
-          content::BrowserContext* context)>;
+  using TestingSubclassFactory = base::OnceCallback<std::unique_ptr<Derived>(
+      content::BrowserContext* context)>;
+
+  // Like |SetTestingFactory|, but instead takes a factory for a subclass
+  // of KeyedService and returns a pointer to this subclass. This allows
+  // callers to avoid using static_cast in both directions: casting up to
+  // KeyedService in their factory, and casting down to their subclass on
+  // the returned pointer.
+  template <typename Derived>
+    requires(std::convertible_to<Derived*, KeyedService*>)
+  Derived* SetTestingSubclassFactory(
+      content::BrowserContext* context,
+      TestingSubclassFactory<Derived> derived_factory) {
+    TestingFactory upcast_factory = base::BindOnce(
+        [](TestingSubclassFactory<Derived> derived_factory,
+           content::BrowserContext* context) -> std::unique_ptr<KeyedService> {
+          return std::move(derived_factory).Run(context);
+        },
+        std::move(derived_factory));
+
+    return static_cast<Derived*>(
+        SetTestingFactory(context, std::move(upcast_factory)));
+  }
 
   // Like |SetTestingFactoryAndUse|, but instead takes a factory for a
   // subclass of KeyedService and returns a pointer to this subclass.
@@ -67,14 +88,14 @@ class KEYED_SERVICE_EXPORT BrowserContextKeyedServiceFactory
   // casting up to KeyedService in their factory, and casting down to
   // their subclass on the returned pointer.
   template <typename Derived>
+    requires(std::convertible_to<Derived*, KeyedService*>)
   Derived* SetTestingSubclassFactoryAndUse(
       content::BrowserContext* context,
       TestingSubclassFactory<Derived> derived_factory) {
-    TestingFactory upcast_factory = base::BindRepeating(
+    TestingFactory upcast_factory = base::BindOnce(
         [](TestingSubclassFactory<Derived> derived_factory,
-           content::BrowserContext* context) {
-          return std::unique_ptr<KeyedService>(
-              derived_factory.Run(context).release());
+           content::BrowserContext* context) -> std::unique_ptr<KeyedService> {
+          return std::move(derived_factory).Run(context);
         },
         std::move(derived_factory));
 
@@ -141,15 +162,8 @@ class KEYED_SERVICE_EXPORT BrowserContextKeyedServiceFactory
   //
   // This should not return nullptr; instead, return nullptr from
   // `GetBrowserContextToUse()`.
-  //
-  // Sub-classes implement one of these two forms:
   virtual std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
-      content::BrowserContext* context) const;
-
-  // DEPRECATED: allows incremental conversion to the unique_ptr<> form
-  // above. New code should not be using this form.
-  virtual KeyedService* BuildServiceInstanceFor(
-      content::BrowserContext* context) const;
+      content::BrowserContext* context) const = 0;
 
   // A helper object actually listens for notifications about BrowserContext
   // destruction, calculates the order in which things are destroyed and then
@@ -164,7 +178,7 @@ class KEYED_SERVICE_EXPORT BrowserContextKeyedServiceFactory
   // and the default implementation removes it from |mapping_| and deletes
   // the pointer.
   virtual void BrowserContextShutdown(content::BrowserContext* context);
-  void BrowserContextDestroyed(content::BrowserContext* context);
+  virtual void BrowserContextDestroyed(content::BrowserContext* context);
 
  private:
   friend class BrowserContextDependencyManagerUnittests;
@@ -177,7 +191,6 @@ class KEYED_SERVICE_EXPORT BrowserContextKeyedServiceFactory
   // KeyedServiceFactory:
   std::unique_ptr<KeyedService> BuildServiceInstanceFor(
       void* context) const final;
-  bool IsOffTheRecord(void* context) const final;
 
   // KeyedServiceBaseFactory:
   void* GetContextToUse(void* context) const final;

@@ -4,6 +4,7 @@
 
 #include "extensions/browser/updater/extension_installer.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/files/file_path.h"
@@ -15,6 +16,7 @@
 #include "components/update_client/update_client_errors.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
@@ -24,7 +26,7 @@ using Result = update_client::CrxInstaller::Result;
 }  // namespace
 
 ExtensionInstaller::ExtensionInstaller(
-    std::string extension_id,
+    ExtensionId extension_id,
     const base::FilePath& extension_root,
     bool install_immediately,
     ExtensionInstallerCallback extension_installer_callback)
@@ -58,24 +60,13 @@ void ExtensionInstaller::Install(
                                      Result(InstallError::GENERIC_ERROR)));
 }
 
-bool ExtensionInstaller::GetInstalledFile(const std::string& file,
-                                          base::FilePath* installed_file) {
-  base::FilePath relative_path = base::FilePath::FromUTF8Unsafe(file);
-  if (relative_path.IsAbsolute() || relative_path.ReferencesParent())
-    return false;
-  *installed_file = extension_root_.Append(relative_path);
-  if (!extension_root_.IsParent(*installed_file) ||
-      !base::PathExists(*installed_file)) {
-    VLOG(1) << "GetInstalledFile failed to find " << installed_file->value();
-    installed_file->clear();
-    return false;
-  }
-  return true;
+std::optional<base::FilePath> ExtensionInstaller::GetInstalledFile(
+    const std::string& file) {
+  return std::nullopt;
 }
 
 bool ExtensionInstaller::Uninstall() {
   NOTREACHED();
-  return false;
 }
 
 ExtensionInstaller::~ExtensionInstaller() = default;

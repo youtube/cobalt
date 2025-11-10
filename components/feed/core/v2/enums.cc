@@ -5,7 +5,7 @@
 #include "components/feed/core/v2/enums.h"
 
 #include <ostream>
-#include "base/strings/string_piece.h"
+#include <string_view>
 
 namespace feed {
 
@@ -112,6 +112,10 @@ std::ostream& operator<<(std::ostream& out, LoadStreamStatus value) {
       return out << "kNetworkFetchTimedOut";
     case LoadStreamStatus::kLoadNotAllowedDisabled:
       return out << "kLoadNotAllowedDisabled";
+    case LoadStreamStatus::kLoadNotAllowedDisabledByDse:
+      return out << "kLoadNotAllowedDisabledByDse";
+    case LoadStreamStatus::kNoCardReceived:
+      return out << "kNoCardReceived";
   }
 #else
   return out << (static_cast<int>(value));
@@ -154,6 +158,8 @@ bool IsLoadingSuccessfulAndFresh(LoadStreamStatus status) {
     case LoadStreamStatus::kAccountTokenFetchTimedOut:
     case LoadStreamStatus::kNetworkFetchTimedOut:
     case LoadStreamStatus::kLoadNotAllowedDisabled:
+    case LoadStreamStatus::kLoadNotAllowedDisabledByDse:
+    case LoadStreamStatus::kNoCardReceived:
       return false;
   }
 }
@@ -225,7 +231,7 @@ std::ostream& operator<<(std::ostream& out, WebFeedRefreshStatus value) {
   }
 }
 
-base::StringPiece ToString(UserSettingsOnStart v) {
+std::string_view ToString(UserSettingsOnStart v) {
   switch (v) {
     case UserSettingsOnStart::kFeedNotEnabledByPolicy:
       return "FeedNotEnabledByPolicy";
@@ -247,6 +253,8 @@ base::StringPiece ToString(UserSettingsOnStart v) {
       return "SignedInNoRecentData";
     case UserSettingsOnStart::kFeedNotEnabled:
       return "FeedNotEnabled";
+    case UserSettingsOnStart::kFeedNotEnabledByDse:
+      return "FeedNotEnabledByDse";
   }
   return "Unknown";
 }

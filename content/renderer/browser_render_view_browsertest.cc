@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "content/public/browser/browser_context.h"
@@ -139,19 +140,13 @@ class RenderViewBrowserTest : public ContentBrowserTest {
         error_code, stale_cache_entry_present);
   }
 
-  TestShellContentRendererClient* renderer_client_;
+  raw_ptr<TestShellContentRendererClient> renderer_client_;
 };
 
 // https://crbug.com/788788
-#if (BUILDFLAG(IS_ANDROID) && defined(ADDRESS_SANITIZER)) || \
-    (BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER))
-#define MAYBE_ConfirmCacheInformationPlumbed \
-  DISABLED_ConfirmCacheInformationPlumbed
-#else
-#define MAYBE_ConfirmCacheInformationPlumbed ConfirmCacheInformationPlumbed
-#endif  // BUILDFLAG(IS_ANDROID) && defined(ADDRESS_SANITIZER)
+// TODO(crbug.com/408394636): Tests are flaky.
 IN_PROC_BROWSER_TEST_F(RenderViewBrowserTest,
-                       MAYBE_ConfirmCacheInformationPlumbed) {
+                       DISABLED_ConfirmCacheInformationPlumbed) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Load URL with "nocache" set, to create stale cache.

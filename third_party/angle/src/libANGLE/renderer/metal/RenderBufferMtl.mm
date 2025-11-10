@@ -9,6 +9,7 @@
 
 #include "libANGLE/renderer/metal/RenderBufferMtl.h"
 
+#include "libANGLE/ErrorStrings.h"
 #include "libANGLE/renderer/metal/ContextMtl.h"
 #include "libANGLE/renderer/metal/ImageMtl.h"
 #include "libANGLE/renderer/metal/mtl_format_utils.h"
@@ -36,7 +37,8 @@ angle::Result RenderbufferMtl::setStorageImpl(const gl::Context *context,
                                               GLsizei samples,
                                               GLenum internalformat,
                                               GLsizei width,
-                                              GLsizei height)
+                                              GLsizei height,
+                                              gl::MultisamplingMode mode)
 {
     ContextMtl *contextMtl = mtl::GetImpl(context);
 
@@ -69,31 +71,26 @@ angle::Result RenderbufferMtl::setStorageImpl(const gl::Context *context,
         const gl::TextureCaps &textureCaps =
             contextMtl->getTextureCaps().get(mFormat.intendedFormatId);
         actualSamples = textureCaps.getNearestSamples(actualSamples);
-        ANGLE_MTL_CHECK(contextMtl, actualSamples != 0, GL_INVALID_VALUE);
+        ANGLE_CHECK(contextMtl, actualSamples != 0, gl::err::kInternalError, GL_INVALID_VALUE);
     }
 
     if ((mTexture == nullptr || !mTexture->valid()) && (width != 0 && height != 0))
     {
-        if (actualSamples == 1 || (mFormat.getCaps().resolve))
+        if (actualSamples == 1 || mode == gl::MultisamplingMode::MultisampledRenderToTexture)
         {
             ANGLE_TRY(mtl::Texture::Make2DTexture(
                 contextMtl, mFormat, static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1,
                 /* renderTargetOnly */ false,
                 /* allowFormatView */ mFormat.hasDepthAndStencilBits(), &mTexture));
 
-            // Use implicit resolve for depth stencil texture whenever possible. This is because
-            // for depth stencil texture, if stencil needs to be blitted, a formatted clone has
-            // to be created. And it is expensive to clone a multisample texture.
-            if (actualSamples > 1)
+            if (mode == gl::MultisamplingMode::MultisampledRenderToTexture)
             {
                 // This format must supports implicit resolve
                 ASSERT(mFormat.getCaps().resolve);
 
-                ANGLE_TRY(mtl::Texture::Make2DMSTexture(
+                ANGLE_TRY(mtl::Texture::MakeMemoryLess2DMSTexture(
                     contextMtl, mFormat, static_cast<uint32_t>(width),
-                    static_cast<uint32_t>(height), actualSamples,
-                    /* renderTargetOnly */ true,
-                    /* allowFormatView */ mFormat.hasDepthAndStencilBits(), &mImplicitMSTexture));
+                    static_cast<uint32_t>(height), actualSamples, &mImplicitMSTexture));
             }
         }
         else
@@ -115,7 +112,7 @@ angle::Result RenderbufferMtl::setStorageImpl(const gl::Context *context,
         {
             gl::ImageIndex index;
 
-            if (actualSamples > 1)
+            if (mTexture->samples() > 1)
             {
                 index = gl::ImageIndex::Make2DMultisample();
             }
@@ -126,18 +123,12 @@ angle::Result RenderbufferMtl::setStorageImpl(const gl::Context *context,
 
             ANGLE_TRY(mtl::InitializeTextureContents(context, mTexture, mFormat,
                                                      mtl::ImageNativeIndex(index, 0)));
-            if (mImplicitMSTexture)
-            {
-                ANGLE_TRY(mtl::InitializeTextureContents(
-                    context, mImplicitMSTexture, mFormat,
-                    mtl::ImageNativeIndex(gl::ImageIndex::Make2DMultisample(), 0)));
-            }
         }  // if (emulatedChannels)
         bool isDepthStencil = mFormat.hasDepthOrStencilBits();
         if (isDepthStencil)
         {
             gl::ImageIndex index;
-            if (actualSamples > 1)
+            if (mTexture->samples() > 1)
             {
                 index = gl::ImageIndex::Make2DMultisample();
             }
@@ -147,12 +138,6 @@ angle::Result RenderbufferMtl::setStorageImpl(const gl::Context *context,
             }
             ANGLE_TRY(mtl::InitializeDepthStencilTextureContentsGPU(
                 context, mTexture, mFormat, mtl::ImageNativeIndex(index, 0)));
-            if (mImplicitMSTexture)
-            {
-                ANGLE_TRY(mtl::InitializeDepthStencilTextureContentsGPU(
-                    context, mImplicitMSTexture, mFormat,
-                    mtl::ImageNativeIndex(gl::ImageIndex::Make2DMultisample(), 0)));
-            }
         }
     }
 
@@ -164,7 +149,8 @@ angle::Result RenderbufferMtl::setStorage(const gl::Context *context,
                                           GLsizei width,
                                           GLsizei height)
 {
-    return setStorageImpl(context, 0, internalformat, width, height);
+    return setStorageImpl(context, 0, internalformat, width, height,
+                          gl::MultisamplingMode::Regular);
 }
 
 angle::Result RenderbufferMtl::setStorageMultisample(const gl::Context *context,
@@ -174,7 +160,7 @@ angle::Result RenderbufferMtl::setStorageMultisample(const gl::Context *context,
                                                      GLsizei height,
                                                      gl::MultisamplingMode mode)
 {
-    return setStorageImpl(context, samples, internalformat, width, height);
+    return setStorageImpl(context, samples, internalformat, width, height, mode);
 }
 
 angle::Result RenderbufferMtl::setStorageEGLImageTarget(const gl::Context *context,
@@ -219,4 +205,4 @@ angle::Result RenderbufferMtl::initializeContents(const gl::Context *context,
             context, mTexture, mFormat,
             mtl::ImageNativeIndex::FromBaseZeroGLIndex(gl::ImageIndex::Make2D(0)));
 }
-}
+}  // namespace rx

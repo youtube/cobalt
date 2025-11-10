@@ -54,7 +54,7 @@ void CSSPaintImageGeneratorImpl::NotifyGeneratorReady() {
 scoped_refptr<Image> CSSPaintImageGeneratorImpl::Paint(
     const ImageResourceObserver& observer,
     const gfx::SizeF& container_size,
-    const CSSStyleValueVector* data) {
+    const GCedCSSStyleValueVector* data) {
   return paint_worklet_->Paint(name_, observer, container_size, data);
 }
 
@@ -73,14 +73,13 @@ bool CSSPaintImageGeneratorImpl::GetValidDocumentDefinition(
   // register that CSSPaintDefinition on the main thread. So for the off-thread
   // case, as long as the DocumentPaintDefinition exists in the map, it should
   // be valid.
-  if (RuntimeEnabledFeatures::OffMainThreadCSSPaintEnabled()) {
+  if (paint_worklet_->IsOffMainThread()) {
     DCHECK(definition);
     return true;
   }
-  if (definition->GetRegisteredDefinitionCount() !=
-      PaintWorklet::kNumGlobalScopesPerThread) {
+  if (definition && definition->GetRegisteredDefinitionCount() !=
+                        PaintWorklet::kNumGlobalScopesPerThread) {
     definition = nullptr;
-    return false;
   }
   return definition;
 }

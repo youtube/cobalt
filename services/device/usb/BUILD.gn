@@ -2,26 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 
 assert(use_blink)
 
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
-}
-
-if (is_win) {
-  config("usb_linker_flags") {
-    ldflags = [
-      "/DELAYLOAD:advapi32.dll",
-      "/DELAYLOAD:cfgmgr32.dll",
-      "/DELAYLOAD:ole32.dll",
-      "/DELAYLOAD:setupapi.dll",
-      "/DELAYLOAD:winusb.dll",
-    ]
-  }
+  import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 static_library("usb") {
@@ -45,12 +33,13 @@ static_library("usb") {
     "webusb_descriptors.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   deps = [
-    "//base/third_party/dynamic_annotations",
-    "//build:chromeos_buildflags",
     "//components/device_event_log",
     "//device/base",
     "//services/device:utility",
+    "//services/device/public/cpp:device_features",
     "//services/device/public/cpp/usb",
     "//services/device/public/mojom:usb",
   ]
@@ -98,23 +87,12 @@ static_library("usb") {
       "winusb.lib",
     ]
 
-    all_dependent_configs = [ ":usb_linker_flags" ]
-
     deps += [ "//third_party/re2" ]
   }
 
   if (is_mac) {
-    sources += [
-      "usb_device_handle_mac.cc",
-      "usb_device_handle_mac.h",
-      "usb_device_mac.cc",
-      "usb_device_mac.h",
-      "usb_service_mac.cc",
-      "usb_service_mac.h",
-    ]
-
     # These sources and deps are required for libusb.
-    # TODO(https://crbug.com/1096743) Remove these sources.
+    # TODO(crbug.com/40136337) Remove these sources.
     sources += [
       "scoped_libusb_device_handle.cc",
       "scoped_libusb_device_handle.h",
@@ -140,6 +118,10 @@ static_library("usb") {
       "usb_device_linux.cc",
       "usb_device_linux.h",
     ]
+    deps += [
+      "//components/crash/core/common:crash_key",
+      "//services/device/public/cpp:device_features",
+    ]
   }
 
   if (use_udev) {
@@ -156,6 +138,13 @@ static_library("usb") {
     sources += [
       "usb_device_handle_usbfs.cc",
       "usb_device_handle_usbfs.h",
+    ]
+  }
+
+  if (is_android || is_linux) {
+    sources += [
+      "usb_interface_detach_allowlist.cc",
+      "usb_interface_detach_allowlist.h",
     ]
   }
 
@@ -240,13 +229,13 @@ if (is_android) {
   }
 
   android_library("java") {
+    srcjar_deps = [ ":jni_headers" ]
     sources = java_sources_needing_jni
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//build/android:build_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   }
 }

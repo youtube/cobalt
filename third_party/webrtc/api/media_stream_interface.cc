@@ -9,29 +9,30 @@
  */
 
 #include "api/media_stream_interface.h"
+
+#include "api/audio_options.h"
 #include "api/media_types.h"
+#include "api/scoped_refptr.h"
 
 namespace webrtc {
 
-const char* const MediaStreamTrackInterface::kVideoKind =
-    cricket::kMediaTypeVideo;
-const char* const MediaStreamTrackInterface::kAudioKind =
-    cricket::kMediaTypeAudio;
+const char* const MediaStreamTrackInterface::kVideoKind = kMediaTypeVideo;
+const char* const MediaStreamTrackInterface::kAudioKind = kMediaTypeAudio;
 
 VideoTrackInterface::ContentHint VideoTrackInterface::content_hint() const {
   return ContentHint::kNone;
 }
 
-bool AudioTrackInterface::GetSignalLevel(int* level) {
+bool AudioTrackInterface::GetSignalLevel(int* /* level */) {
   return false;
 }
 
-rtc::scoped_refptr<AudioProcessorInterface>
+scoped_refptr<AudioProcessorInterface>
 AudioTrackInterface::GetAudioProcessor() {
   return nullptr;
 }
 
-const cricket::AudioOptions AudioSourceInterface::options() const {
+const AudioOptions AudioSourceInterface::options() const {
   return {};
 }
 

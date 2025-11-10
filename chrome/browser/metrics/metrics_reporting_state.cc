@@ -9,7 +9,6 @@
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/common/pref_names.h"
@@ -24,11 +23,10 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/browser_process_platform_part.h"
-#include "components/metrics/structured/neutrino_logging.h"  // nogncheck
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/policy/core/common/features.h"
@@ -76,16 +74,10 @@ void SetMetricsReporting(bool to_update_pref,
   g_browser_process->local_state()->SetBoolean(
       metrics::prefs::kMetricsReportingEnabled, updated_pref);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  metrics::structured::NeutrinoDevicesLogWithClientId(
-      g_browser_process->local_state()->GetString(
-          metrics::prefs::kMetricsClientID),
-      metrics::structured::NeutrinoDevicesLocation::kSetMetricsReporting);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   UpdateMetricsPrefsOnPermissionChange(updated_pref, called_from);
 
   // Uses the current state of whether reporting is enabled to enable services.
-  g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions(true);
+  g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions();
 
   if (to_update_pref == updated_pref) {
     RecordMetricsReportingHistogramValue(updated_pref ?
@@ -93,8 +85,9 @@ void SetMetricsReporting(bool to_update_pref,
   } else {
     RecordMetricsReportingHistogramValue(METRICS_REPORTING_ERROR);
   }
-  if (!callback_fn.is_null())
+  if (!callback_fn.is_null()) {
     std::move(callback_fn).Run(updated_pref);
+  }
 }
 
 }  // namespace
@@ -116,13 +109,15 @@ void ChangeMetricsReportingStateWithReply(
   // Chrome OS manages metrics settings externally and changes to reporting
   // should be propagated to metrics service regardless if the policy is managed
   // or not.
-  // TODO(crbug/1346321): Possibly change |is_chrome_os| to use
-  // BUILDFLAG(IS_CHROMEOS_ASH).
+  // TODO(crbug.com/40232452): Possibly change |is_chrome_os| to use
+  // BUILDFLAG(IS_CHROMEOS).
   bool is_chrome_os =
       (called_from ==
        ChangeMetricsReportingStateCalledFrom::kCrosMetricsSettingsChange) ||
       (called_from ==
-       ChangeMetricsReportingStateCalledFrom::kCrosMetricsSettingsCreated);
+       ChangeMetricsReportingStateCalledFrom::kCrosMetricsSettingsCreated) ||
+      (called_from ==
+       ChangeMetricsReportingStateCalledFrom::kCrosMetricsPreConsent);
   if (IsMetricsReportingPolicyManaged() && !is_chrome_os) {
     if (!callback_fn.is_null()) {
       const bool metrics_enabled =
@@ -132,13 +127,6 @@ void ChangeMetricsReportingStateWithReply(
     return;
   }
 #endif
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  metrics::structured::NeutrinoDevicesLogWithClientId(
-      g_browser_process->local_state()->GetString(
-          metrics::prefs::kMetricsClientID),
-      metrics::structured::NeutrinoDevicesLocation::
-          kChangeMetricsReportingStateWithReply);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   GoogleUpdateSettings::CollectStatsConsentTaskRunner()
       ->PostTaskAndReplyWithResult(
           FROM_HERE, base::BindOnce(&SetGoogleUpdateSettings, enabled),
@@ -193,12 +181,6 @@ void UpdateMetricsPrefsOnPermissionChange(
   UMA_HISTOGRAM_BOOLEAN("UMA.ClientIdCleared", true);
 
   PrefService* local_state = g_browser_process->local_state();
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  metrics::structured::NeutrinoDevicesLogClientIdCleared(
-      local_state->GetString(metrics::prefs::kMetricsClientID),
-      local_state->GetInt64(metrics::prefs::kInstallDate),
-      local_state->GetInt64(metrics::prefs::kMetricsReportingEnabledTimestamp));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   local_state->ClearPref(metrics::prefs::kMetricsClientID);
   local_state->ClearPref(metrics::prefs::kMetricsProvisionalClientID);
@@ -224,25 +206,16 @@ void ApplyMetricsReportingPolicy() {
 }
 
 bool IsMetricsReportingPolicyManaged() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   policy::BrowserPolicyConnectorAsh* policy_connector =
       g_browser_process->platform_part()->browser_policy_connector_ash();
-  const bool is_managed = policy_connector->IsDeviceEnterpriseManaged();
-
-  metrics::structured::NeutrinoDevicesLogPolicy(
-      g_browser_process->local_state()->GetString(
-          metrics::prefs::kMetricsClientID),
-      is_managed,
-      metrics::structured::NeutrinoDevicesLocation::
-          kIsMetricsReportingPolicyManaged);
-
-  return is_managed;
+  return policy_connector->IsDeviceEnterpriseManaged();
 #else
   const PrefService* pref_service = g_browser_process->local_state();
   const PrefService::Preference* pref =
       pref_service->FindPreference(metrics::prefs::kMetricsReportingEnabled);
   return pref && pref->IsManaged();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void ClearPreviouslyCollectedMetricsData() {

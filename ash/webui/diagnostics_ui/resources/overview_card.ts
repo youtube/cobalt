@@ -5,12 +5,12 @@
 import './diagnostics_shared.css.js';
 
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getSystemDataProvider} from './mojo_interface_provider.js';
 import {getTemplate} from './overview_card.html.js';
-import {SystemDataProviderInterface, SystemInfo} from './system_data_provider.mojom-webui.js';
+import type {SystemDataProviderInterface, SystemInfo} from './system_data_provider.mojom-webui.js';
 
 /**
  * @fileoverview
@@ -19,8 +19,8 @@ import {SystemDataProviderInterface, SystemInfo} from './system_data_provider.mo
  */
 
 export class OverviewCardElement extends PolymerElement {
-  static get is(): string {
-    return 'overview-card';
+  static get is(): 'overview-card' {
+    return 'overview-card' as const;
   }
 
   static get template(): HTMLTemplateElement {
@@ -90,7 +90,7 @@ export class OverviewCardElement extends PolymerElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'overview-card': OverviewCardElement;
+    [OverviewCardElement.is]: OverviewCardElement;
   }
 }
 

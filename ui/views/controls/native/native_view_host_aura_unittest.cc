@@ -43,12 +43,22 @@ class NativeViewHostWindowObserver : public aura::WindowObserver {
   };
 
   struct EventDetails {
-    EventType type;
-    raw_ptr<aura::Window> window;
-    gfx::Rect bounds;
-    bool operator!=(const EventDetails& rhs) {
-      return type != rhs.type || window != rhs.window || bounds != rhs.bounds;
+    static int id;
+
+    EventDetails(EventType event_type,
+                 aura::Window& window,
+                 const gfx::Rect& event_bounds)
+        : type(event_type), bounds(event_bounds) {
+      if (window.GetId() == aura::Window::kInitialId) {
+        window.SetId(++id);
+      }
+      window_id = window.GetId();
     }
+
+    EventType type;
+    int window_id;
+    gfx::Rect bounds;
+    bool operator==(const EventDetails& rhs) const = default;
   };
 
   NativeViewHostWindowObserver() = default;
@@ -63,30 +73,27 @@ class NativeViewHostWindowObserver : public aura::WindowObserver {
 
   // aura::WindowObserver overrides
   void OnWindowVisibilityChanged(aura::Window* window, bool visible) override {
-    EventDetails event;
-    event.type = visible ? EVENT_SHOWN : EVENT_HIDDEN;
-    event.window = window;
-    event.bounds = window->GetBoundsInRootWindow();
+    EventDetails event(visible ? EVENT_SHOWN : EVENT_HIDDEN, *window,
+                       window->GetBoundsInRootWindow());
 
     // Dedupe events as a single Hide() call can result in several
     // notifications.
-    if (events_.size() == 0u || events_.back() != event)
+    if (events_.size() == 0u || events_.back() != event) {
       events_.push_back(event);
+    }
   }
 
   void OnWindowBoundsChanged(aura::Window* window,
                              const gfx::Rect& old_bounds,
                              const gfx::Rect& new_bounds,
                              ui::PropertyChangeReason reason) override {
-    EventDetails event;
-    event.type = EVENT_BOUNDS_CHANGED;
-    event.window = window;
-    event.bounds = window->GetBoundsInRootWindow();
+    EventDetails event(EVENT_BOUNDS_CHANGED, *window,
+                       window->GetBoundsInRootWindow());
     events_.push_back(event);
   }
 
   void OnWindowDestroyed(aura::Window* window) override {
-    EventDetails event = {EVENT_DESTROYED, window, gfx::Rect()};
+    EventDetails event(EVENT_DESTROYED, *window, gfx::Rect());
     events_.push_back(event);
   }
 
@@ -94,6 +101,8 @@ class NativeViewHostWindowObserver : public aura::WindowObserver {
   std::vector<EventDetails> events_;
   gfx::Rect bounds_at_visibility_changed_;
 };
+
+int NativeViewHostWindowObserver::EventDetails::id = 1;
 
 class NativeViewHostAuraTest : public test::NativeViewHostTestBase {
  public:
@@ -115,9 +124,8 @@ class NativeViewHostAuraTest : public test::NativeViewHostTestBase {
   void CreateHost() {
     CreateTopLevel();
     CreateTestingHost();
-    child_.reset(CreateChildForHost(toplevel()->GetNativeView(),
-                                    toplevel()->client_view(), new View,
-                                    host()));
+    child_ = CreateChildForHost(toplevel()->GetNativeView(),
+                                toplevel()->client_view(), new View, host());
   }
 
   // test::NativeViewHostTestBase:
@@ -173,7 +181,7 @@ TEST_F(NativeViewHostAuraTest, CursorForNativeView) {
 
   toplevel()->SetCursor(ui::mojom::CursorType::kHand);
   child()->SetCursor(ui::mojom::CursorType::kWait);
-  ui::MouseEvent move_event(ui::ET_MOUSE_MOVED, gfx::Point(0, 0),
+  ui::MouseEvent move_event(ui::EventType::kMouseMoved, gfx::Point(0, 0),
                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
 
   EXPECT_EQ(ui::mojom::CursorType::kWait, host()->GetCursor(move_event).type());
@@ -333,8 +341,8 @@ TEST_F(NativeViewHostAuraTest, InstallClip) {
 // a regression test for http://crbug.com/389261.
 TEST_F(NativeViewHostAuraTest, ParentAfterDetach) {
   CreateHost();
-  // Force a Layout() now so that the visibility is set to false (because the
-  // bounds is empty).
+  // Trigger layout so that the visibility is set to false (because the bounds
+  // is empty).
   test::RunScheduledLayout(host());
 
   aura::Window* child_win = child()->GetNativeView();
@@ -380,7 +388,7 @@ TEST_F(NativeViewHostAuraTest, RemoveClippingWindowOrder) {
   ASSERT_GE(test_observer.events().size(), 1u);
   EXPECT_EQ(NativeViewHostWindowObserver::EVENT_HIDDEN,
             test_observer.events()[0].type);
-  EXPECT_EQ(clipping_window(), test_observer.events()[0].window);
+  EXPECT_EQ(clipping_window()->GetId(), test_observer.events()[0].window_id);
 
   clipping_window()->RemoveObserver(&test_observer);
   child()->GetNativeView()->RemoveObserver(&test_observer);
@@ -405,8 +413,7 @@ TEST_F(NativeViewHostAuraTest, Attach) {
 
   host()->Attach(child()->GetNativeView());
 
-  // Visibiliity is not updated until Layout() happens. This is normally async,
-  // but force a Layout() so this code doesn't have to wait.
+  // Visibiliity is not updated until layout happens.
   test::RunScheduledLayout(host());
 
   auto expected_bounds = client_bounds;
@@ -414,17 +421,19 @@ TEST_F(NativeViewHostAuraTest, Attach) {
   ASSERT_EQ(3u, test_observer.events().size());
   EXPECT_EQ(NativeViewHostWindowObserver::EVENT_BOUNDS_CHANGED,
             test_observer.events()[0].type);
-  EXPECT_EQ(child()->GetNativeView(), test_observer.events()[0].window);
+  EXPECT_EQ(child()->GetNativeView()->GetId(),
+            test_observer.events()[0].window_id);
   EXPECT_EQ(expected_bounds.ToString(),
             test_observer.events()[0].bounds.ToString());
   EXPECT_EQ(NativeViewHostWindowObserver::EVENT_SHOWN,
             test_observer.events()[1].type);
-  EXPECT_EQ(child()->GetNativeView(), test_observer.events()[1].window);
+  EXPECT_EQ(child()->GetNativeView()->GetId(),
+            test_observer.events()[1].window_id);
   EXPECT_EQ(expected_bounds.ToString(),
             test_observer.events()[1].bounds.ToString());
   EXPECT_EQ(NativeViewHostWindowObserver::EVENT_SHOWN,
             test_observer.events()[2].type);
-  EXPECT_EQ(clipping_window(), test_observer.events()[2].window);
+  EXPECT_EQ(clipping_window()->GetId(), test_observer.events()[2].window_id);
   EXPECT_EQ(expected_bounds.ToString(),
             test_observer.events()[2].bounds.ToString());
 
@@ -496,11 +505,15 @@ TEST_F(NativeViewHostAuraTest, FocusManagerUpdatedDuringDestruction) {
 
   std::unique_ptr<NativeViewHost> native_view_host =
       std::make_unique<NativeViewHost>();
-  toplevel()->GetContentsView()->AddChildView(native_view_host.get());
+  toplevel()->GetContentsView()->AddChildViewRaw(native_view_host.get());
 
-  Widget::InitParams params = CreateParams(Widget::InitParams::TYPE_CONTROL);
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
-  params.delegate = new views::WidgetDelegateView();  // Owned by the widget.
+  auto widget_delegate_view =
+      std::make_unique<WidgetDelegateView>(WidgetDelegateView::CreatePassKey());
+  Widget::InitParams params =
+      CreateParams(views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+                   Widget::InitParams::TYPE_CONTROL);
+  // Delegate is "owned" via the view and will be deleted with it.
+  params.delegate = widget_delegate_view.release();
   params.child = true;
   params.bounds = gfx::Rect(10, 10, 100, 100);
   params.parent = window.get();
@@ -509,10 +522,10 @@ TEST_F(NativeViewHostAuraTest, FocusManagerUpdatedDuringDestruction) {
 
   native_view_host->Attach(window.get());
 
-  View* view1 = new View;  // Owned by |child_widget|.
+  View* view1 = child_widget->GetContentsView()->AddChildView(
+      std::make_unique<View>());  // Owned by |child_widget|.
   view1->SetFocusBehavior(View::FocusBehavior::ALWAYS);
   view1->SetBounds(0, 0, 20, 20);
-  child_widget->GetContentsView()->AddChildView(view1);
   child_widget->Show();
   view1->RequestFocus();
   EXPECT_EQ(view1, toplevel()->GetFocusManager()->GetFocusedView());
@@ -535,7 +548,7 @@ ui::EventTarget* GetTarget(aura::Window* window, const gfx::Point& location) {
   gfx::Point root_location = location;
   aura::Window::ConvertPointToTarget(window, window->GetRootWindow(),
                                      &root_location);
-  ui::MouseEvent event(ui::ET_MOUSE_MOVED, root_location, root_location,
+  ui::MouseEvent event(ui::EventType::kMouseMoved, root_location, root_location,
                        base::TimeTicks::Now(), 0, 0);
   return window->GetHost()->dispatcher()->event_targeter()->FindTargetForEvent(
       window->GetRootWindow(), &event);
@@ -642,7 +655,7 @@ TEST_F(NativeViewHostAuraTest, ShouldDescendIntoChildForEventHandling) {
   widget_delegate.set_window(window.get());
 
   CreateTestingHost();
-  toplevel()->GetRootView()->AddChildView(host());
+  toplevel()->GetRootView()->AddChildViewRaw(host());
   host()->SetVisible(true);
   host()->SetBoundsRect(gfx::Rect(0, 0, 200, 200));
   host()->Attach(window.get());
@@ -656,6 +669,7 @@ TEST_F(NativeViewHostAuraTest, ShouldDescendIntoChildForEventHandling) {
   // Because the delegate overrides ShouldDescendIntoChildForEventHandling()
   // the NativeView does not get the event, but NativeViewHost will.
   EXPECT_EQ(1, on_mouse_pressed_called_count());
+  widget_delegate.set_window(nullptr);
   DestroyHost();
   DestroyTopLevel();
 }

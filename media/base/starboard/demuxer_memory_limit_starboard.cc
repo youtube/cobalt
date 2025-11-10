@@ -59,7 +59,7 @@ size_t GetDemuxerStreamAudioMemoryLimit(
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
-    Demuxer::DemuxerTypes /*demuxer_type*/,
+    DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   if (!video_config) {
     return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
@@ -75,7 +75,7 @@ size_t GetDemuxerStreamVideoMemoryLimit(
       codec, width, height, bits_per_pixel);
 }
 
-size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type) {
+size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
   return GetDemuxerStreamAudioMemoryLimit(nullptr) +
          GetDemuxerStreamVideoMemoryLimit(demuxer_type, nullptr);
 }

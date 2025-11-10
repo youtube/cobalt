@@ -4,7 +4,8 @@
 
 package org.chromium.components.media_router;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.List;
 
@@ -12,6 +13,7 @@ import java.util.List;
  * A complimentary interface to {@link MediaRouteProvider}. Media route providers use the
  * implementation to communicate back to the {@link BrowserMediaRouter}.
  */
+@NullMarked
 public interface MediaRouteManager {
     /**
      * Adds a {@link MediaRouteProvider} to be managed.
@@ -37,8 +39,12 @@ public interface MediaRouteManager {
      * @param wasLaunched whether the presentation on the other end of the route was launched or
      *                    just joined.
      */
-    public void onRouteCreated(String mediaRouteId, String mediaSinkId, int requestId,
-            MediaRouteProvider provider, boolean wasLaunched);
+    public void onRouteCreated(
+            String mediaRouteId,
+            String mediaSinkId,
+            int requestId,
+            MediaRouteProvider provider,
+            boolean wasLaunched);
 
     /**
      * Called when the router failed to create a route.

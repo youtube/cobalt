@@ -2,10 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/host/linux/x_server_clipboard.h"
 
+#include <array>
 #include <limits>
 
+#include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
@@ -16,7 +25,6 @@
 #include "ui/gfx/x/extension_manager.h"
 #include "ui/gfx/x/future.h"
 #include "ui/gfx/x/xproto.h"
-#include "ui/gfx/x/xproto_util.h"
 
 namespace remoting {
 
@@ -34,10 +42,6 @@ void XServerClipboard::Init(x11::Connection* connection,
     return;
   }
 
-  // Let the server know the client version.
-  connection_->xfixes().QueryVersion(
-      {x11::XFixes::major_version, x11::XFixes::minor_version});
-
   clipboard_window_ = connection_->GenerateId<x11::Window>();
   connection_->CreateWindow({
       .wid = clipboard_window_,
@@ -49,18 +53,22 @@ void XServerClipboard::Init(x11::Connection* connection,
 
   // TODO(lambroslambrou): Use ui::X11AtomCache for this, either by adding a
   // dependency on ui/ or by moving X11AtomCache to base/.
-  static const char* const kAtomNames[] = {"CLIPBOARD",        "INCR",
-                                           "SELECTION_STRING", "TARGETS",
-                                           "TIMESTAMP",        "UTF8_STRING"};
+  static const auto kAtomNames = std::to_array<const char*>({
+      "CLIPBOARD",
+      "INCR",
+      "SELECTION_STRING",
+      "TARGETS",
+      "TIMESTAMP",
+      "UTF8_STRING",
+  });
   static const int kNumAtomNames = std::size(kAtomNames);
 
-  x11::Future<x11::InternAtomReply> futures[kNumAtomNames];
+  std::array<x11::Future<x11::InternAtomReply>, kNumAtomNames> futures;
   for (size_t i = 0; i < kNumAtomNames; i++) {
     futures[i] = connection_->InternAtom({false, kAtomNames[i]});
   }
   connection_->Flush();
-  x11::Atom atoms[kNumAtomNames];
-  memset(atoms, 0, sizeof(atoms));
+  std::array<x11::Atom, kNumAtomNames> atoms = {};
   for (size_t i = 0; i < kNumAtomNames; i++) {
     if (auto reply = futures[i].Sync()) {
       atoms[i] = reply->atom;
@@ -108,25 +116,32 @@ void XServerClipboard::SetClipboard(const std::string& mime_type,
 }
 
 void XServerClipboard::ProcessXEvent(const x11::Event& event) {
-  if (clipboard_window_ == x11::Window::None ||
-      event.window() != clipboard_window_) {
+  if (clipboard_window_ == x11::Window::None) {
     return;
   }
 
   if (auto* property_notify = event.As<x11::PropertyNotifyEvent>()) {
-    OnPropertyNotify(*property_notify);
+    if (property_notify->window == clipboard_window_) {
+      OnPropertyNotify(*property_notify);
+    }
   } else if (auto* selection_notify = event.As<x11::SelectionNotifyEvent>()) {
-    OnSelectionNotify(*selection_notify);
+    if (selection_notify->requestor == clipboard_window_) {
+      OnSelectionNotify(*selection_notify);
+    }
   } else if (auto* selection_request = event.As<x11::SelectionRequestEvent>()) {
-    OnSelectionRequest(*selection_request);
+    if (selection_request->owner == clipboard_window_) {
+      OnSelectionRequest(*selection_request);
+    }
   } else if (auto* selection_clear = event.As<x11::SelectionClearEvent>()) {
-    OnSelectionClear(*selection_clear);
-  }
-
-  if (auto* xfixes_selection_notify =
-          event.As<x11::XFixes::SelectionNotifyEvent>()) {
-    OnSetSelectionOwnerNotify(xfixes_selection_notify->selection,
-                              xfixes_selection_notify->selection_timestamp);
+    if (selection_clear->owner == clipboard_window_) {
+      OnSelectionClear(*selection_clear);
+    }
+  } else if (auto* xfixes_selection_notify =
+                 event.As<x11::XFixes::SelectionNotifyEvent>()) {
+    if (xfixes_selection_notify->window == clipboard_window_) {
+      OnSetSelectionOwnerNotify(xfixes_selection_notify->selection,
+                                xfixes_selection_notify->selection_timestamp);
+    }
   }
 }
 
@@ -165,7 +180,7 @@ void XServerClipboard::OnPropertyNotify(const x11::PropertyNotifyEvent& event) {
   if (large_selection_property_ != x11::Atom::None &&
       event.atom == large_selection_property_ &&
       event.state == x11::Property::NewValue) {
-    auto req = connection_->GetProperty({
+    auto req = connection()->GetProperty({
         .c_delete = true,
         .window = clipboard_window_,
         .property = large_selection_property_,
@@ -189,7 +204,7 @@ void XServerClipboard::OnPropertyNotify(const x11::PropertyNotifyEvent& event) {
 void XServerClipboard::OnSelectionNotify(
     const x11::SelectionNotifyEvent& event) {
   if (event.property != x11::Atom::None) {
-    auto req = connection_->GetProperty({
+    auto req = connection()->GetProperty({
         .c_delete = true,
         .window = clipboard_window_,
         .property = event.property,
@@ -205,7 +220,7 @@ void XServerClipboard::OnSelectionNotify(
         large_selection_property_ = x11::Atom::None;
         if (reply->type != x11::Atom::None) {
           HandleSelectionNotify(event, reply->type, reply->format,
-                                reply->value_len, reply->value->data());
+                                reply->value_len, reply->value->bytes());
           return;
         }
       }
@@ -240,8 +255,8 @@ void XServerClipboard::OnSelectionRequest(
                          selection_event.target);
     }
   }
-  x11::SendEvent(selection_event, selection_event.requestor,
-                 x11::EventMask::NoEvent, connection_);
+  connection_->SendEvent(selection_event, selection_event.requestor,
+                         x11::EventMask::NoEvent);
 }
 
 void XServerClipboard::OnSelectionClear(const x11::SelectionClearEvent& event) {
@@ -265,7 +280,7 @@ void XServerClipboard::SendTargetsResponse(x11::Window requestor,
       .format = CHAR_BIT * sizeof(x11::Atom),
       .data_len = std::size(targets),
       .data = base::MakeRefCounted<base::RefCountedStaticMemory>(
-          &targets[0], sizeof(targets)),
+          base::as_byte_span(targets)),
   });
   connection_->Flush();
 }
@@ -287,8 +302,8 @@ void XServerClipboard::SendTimestampResponse(x11::Window requestor,
       .type = x11::Atom::INTEGER,
       .format = CHAR_BIT * sizeof(x11::Time),
       .data_len = 1,
-      .data = base::MakeRefCounted<base::RefCountedStaticMemory>(&time,
-                                                                 sizeof(time)),
+      .data = base::MakeRefCounted<base::RefCountedStaticMemory>(
+          base::byte_span_from_ref(time)),
   });
   connection_->Flush();
 }
@@ -307,7 +322,7 @@ void XServerClipboard::SendStringResponse(x11::Window requestor,
         .format = 8,
         .data_len = static_cast<uint32_t>(data_.size()),
         .data = base::MakeRefCounted<base::RefCountedStaticMemory>(
-            data_.data(), data_.size()),
+            base::as_byte_span(data_)),
     });
     connection_->Flush();
   }
@@ -406,7 +421,7 @@ void XServerClipboard::AssertSelectionOwnership(x11::Atom selection) {
 }
 
 bool XServerClipboard::IsSelectionOwner(x11::Atom selection) {
-  return selections_owned_.find(selection) != selections_owned_.end();
+  return base::Contains(selections_owned_, selection);
 }
 
 }  // namespace remoting

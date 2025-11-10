@@ -6,7 +6,6 @@
 #define UI_ACCESSIBILITY_ANDROID_ACCESSIBILITY_STATE_H_
 
 #include <vector>
-#include "base/no_destructor.h"
 
 namespace ui {
 
@@ -16,28 +15,42 @@ class AccessibilityState {
  public:
   // Provides an interface for clients to listen to animator duration scale
   // changes.
-  class Delegate {
+  class AccessibilityStateDelegate {
    public:
     // Called when the animator duration scale changes.
     virtual void OnAnimatorDurationScaleChanged() = 0;
+
+    // Called when the display inversion state changes.
+    virtual void OnDisplayInversionEnabledChanged(bool enabled) = 0;
+
+    // Called when the contrast level changes.
+    virtual void OnContrastLevelChanged(bool highContrastEnabled) = 0;
+
+    // Called during browser startup and any time enabled services change.
+    virtual void RecordAccessibilityServiceInfoHistograms() = 0;
   };
 
-  // Registers a delegate to listen to animator duration scale changes.
-  static void RegisterAnimatorDurationScaleDelegate(Delegate* delegate);
+  static void RegisterAccessibilityStateDelegate(
+      AccessibilityStateDelegate* delegate);
 
-  // Unregisters a delegate to listen to animator duration scale changes.
-  static void UnregisterAnimatorDurationScaleDelegate(Delegate* delegate);
+  static void UnregisterAccessibilityStateDelegate(
+      AccessibilityStateDelegate* delegate);
 
   // Notifies all delegates of an animator duration scale change.
   static void NotifyAnimatorDurationScaleObservers();
 
+  // Notifies all delegates of a display inversion state change.
+  static void NotifyDisplayInversionEnabledObservers(bool enabled);
+
+  // Notifies all delegates of a contrast level change.
+  static void NotifyContrastLevelObservers(bool highContrastEnabled);
+
+  // Notifies all delegates to record service info histograms.
+  static void NotifyRecordAccessibilityServiceInfoHistogram();
+
   // --------------------------------------------------------------------------
   // Methods that call into AccessibilityState.java via JNI
   // --------------------------------------------------------------------------
-
-  // Register Java-side Android accessibility state observers and ensure
-  // AccessibilityState is initialized.
-  static void RegisterObservers();
 
   // Returns the event mask of all running accessibility services.
   static int GetAccessibilityServiceEventTypeMask();
@@ -54,12 +67,23 @@ class AccessibilityState {
   // Returns a vector containing the IDs of all running accessibility services.
   static std::vector<std::string> GetAccessibilityServiceIds();
 
- private:
-  // Returns the static vector of Delegates.
-  static std::vector<Delegate*> GetDelegates() {
-    static base::NoDestructor<std::vector<Delegate*>> delegates;
-    return *delegates;
-  }
+  // Returns true when the user has set the OS-level setting to reduce motion.
+  static bool PrefersReducedMotion();
+
+  // --------------------------------------------------------------------------
+  // Methods that call into AccessibilityAutofillHelper.java via JNI
+  // --------------------------------------------------------------------------
+
+  // Returns true if this instance should respect the displayed password text
+  // (available in the shadow DOM), false if it should return bullets. Default
+  // false.
+  static bool ShouldRespectDisplayedPasswordText();
+  static void ForceRespectDisplayedPasswordTextForTesting();
+
+  // Returns true if this instance should expose password text to AT (e.g. as a
+  // user is typing in a field), false if it should return bullets. Default
+  // true.
+  static bool ShouldExposePasswordText();
 };
 
 }  // namespace ui

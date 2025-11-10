@@ -9,7 +9,9 @@
 #include "ash/root_window_controller.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/style/ash_color_id.h"
 #include "ash/style/ash_color_provider.h"
+#include "ash/style/typography.h"
 #include "ash/system/phonehub/phone_hub_metrics.h"
 #include "ash/system/phonehub/phone_hub_tray.h"
 #include "ash/system/status_area_widget.h"
@@ -19,8 +21,11 @@
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/components/phonehub/user_action_recorder.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
@@ -84,12 +89,12 @@ ContinueBrowsingChip::ContinueBrowsingChip(
   favicon->SetImageSize(kContinueBrowsingChipFaviconSize);
 
   if (metadata.favicon.IsEmpty()) {
-    favicon->SetImage(CreateVectorIcon(
+    favicon->SetImage(ui::ImageModel::FromVectorIcon(
         kPhoneHubDefaultFaviconIcon,
         AshColorProvider::Get()->GetContentLayerColor(
             AshColorProvider::ContentLayerType::kIconColorPrimary)));
   } else {
-    favicon->SetImage(metadata.favicon.AsImageSkia());
+    favicon->SetImage(ui::ImageModel::FromImage(metadata.favicon));
   }
 
   auto* url_label = header_view->AddChildView(
@@ -100,6 +105,9 @@ ContinueBrowsingChip::ContinueBrowsingChip(
       AshColorProvider::ContentLayerType::kTextColorPrimary));
   url_label->SetElideBehavior(gfx::ElideBehavior::ELIDE_TAIL);
 
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosAnnotation1,
+                                        *url_label);
+
   auto* title_label =
       AddChildView(std::make_unique<views::Label>(metadata.title));
   title_label->SetAutoColorReadabilityEnabled(false);
@@ -109,32 +117,29 @@ ContinueBrowsingChip::ContinueBrowsingChip(
   title_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title_label->SetMultiLine(true);
   title_label->SetMaxLines(kTitleMaxLines);
-  title_label->SetFontList(
-      title_label->font_list().DeriveWithWeight(gfx::Font::Weight::BOLD));
+
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosAnnotation2,
+                                        *title_label);
 
   const std::u16string card_label = l10n_util::GetStringFUTF16(
       IDS_ASH_PHONE_HUB_CONTINUE_BROWSING_TAB_LABEL,
       base::NumberToString16(index_ + 1), base::NumberToString16(total_count_),
       metadata.title, base::UTF8ToUTF16(url_.spec()));
   SetTooltipText(card_label);
-  SetAccessibleName(card_label);
+  GetViewAccessibility().SetName(card_label);
 }
 
 void ContinueBrowsingChip::OnPaintBackground(gfx::Canvas* canvas) {
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
-  flags.setColor(AshColorProvider::Get()->GetControlsLayerColor(
-      AshColorProvider::ControlsLayerType::kControlBackgroundColorInactive));
+  flags.setColor(
+      GetColorProvider()->GetColor(kColorAshControlBackgroundColorInactive));
   gfx::Rect bounds = GetContentsBounds();
   canvas->DrawRoundRect(bounds, kTaskContinuationChipRadius, flags);
   views::View::OnPaintBackground(canvas);
 }
 
 ContinueBrowsingChip::~ContinueBrowsingChip() = default;
-
-const char* ContinueBrowsingChip::GetClassName() const {
-  return "ContinueBrowsingChip";
-}
 
 void ContinueBrowsingChip::ButtonPressed() {
   PA_LOG(INFO) << "Opening browser tab: " << url_;
@@ -160,5 +165,8 @@ void ContinueBrowsingChip::ButtonPressed() {
       ->phone_hub_tray()
       ->CloseBubble();
 }
+
+BEGIN_METADATA(ContinueBrowsingChip)
+END_METADATA
 
 }  // namespace ash

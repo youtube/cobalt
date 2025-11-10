@@ -1,4 +1,4 @@
-// Copyright 2021 TF.Text Authors.
+// Copyright 2024 TF.Text Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,21 +92,19 @@ template <class Index, bool kUseUnionByRank>
 void DisjointSetForest<Index, kUseUnionByRank>::Init(Index size) {
   size_ = size;
   parents_.resize(size_);
-  if (kUseUnionByRank)
-    ranks_.resize(size_);
+  if (kUseUnionByRank) ranks_.resize(size_);
 
   // Create singleton sets.
   for (Index i = 0; i < size_; ++i) {
     parents_[i] = i;
-    if (kUseUnionByRank)
-      ranks_[i] = 0;
+    if (kUseUnionByRank) ranks_[i] = 0;
   }
 }
 
 template <class Index, bool kUseUnionByRank>
 Index DisjointSetForest<Index, kUseUnionByRank>::FindRoot(Index element) {
   DCHECK_LT(element, size());
-  Index* const __restrict parents = parents_.data();
+  Index *const __restrict parents = parents_.data();
 
   // Walk up to the root of the |element|.  Unroll the first two comparisons
   // because path compression ensures most FindRoot() calls end there.  In
@@ -114,13 +112,11 @@ Index DisjointSetForest<Index, kUseUnionByRank>::FindRoot(Index element) {
   // path compression updates can be skipped.
   Index current = element;
   Index parent = parents[current];
-  if (current == parent)
-    return current;  // |element| is a root
+  if (current == parent) return current;  // |element| is a root
   current = parent;
   parent = parents[current];
-  if (current == parent)
-    return current;  // |element| is the child of a root
-  do {               // otherwise, continue upwards until root
+  if (current == parent) return current;  // |element| is the child of a root
+  do {  // otherwise, continue upwards until root
     current = parent;
     parent = parents[current];
   } while (current != parent);
@@ -151,13 +147,12 @@ void DisjointSetForest<Index, kUseUnionByRank>::UnionOfRoots(Index root1,
   DCHECK_LT(root2, size());
   DCHECK_EQ(root1, parents_[root1]);
   DCHECK_EQ(root2, parents_[root2]);
-  if (root1 == root2)
-    return;  // already merged
-  Index* const __restrict parents = parents_.data();
+  if (root1 == root2) return;  // already merged
+  Index *const __restrict parents = parents_.data();
 
   if (kUseUnionByRank) {
     // Attach the lesser-rank root to the higher-rank root.
-    Index* const __restrict ranks = ranks_.data();
+    Index *const __restrict ranks = ranks_.data();
     const Index rank1 = ranks[root1];
     const Index rank2 = ranks[root2];
     if (rank2 < rank1) {

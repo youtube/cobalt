@@ -31,33 +31,52 @@ namespace ash {
 NetworkDetailedView::NetworkDetailedView(
     DetailedViewDelegate* detailed_view_delegate,
     Delegate* delegate,
-    ListType list_type)
+    NetworkDetailedViewListType list_type)
     : TrayDetailedView(detailed_view_delegate),
       list_type_(list_type),
       login_(Shell::Get()->session_controller()->login_status()),
       model_(Shell::Get()->system_tray_model()->network_state_model()),
       delegate_(delegate) {
-  CreateTitleRow(list_type_ == ListType::LIST_TYPE_NETWORK
-                     ? IDS_ASH_STATUS_TRAY_NETWORK
-                     : IDS_ASH_STATUS_TRAY_VPN);
+  title_row_string_id_ = GetStringIdForNetworkDetailedViewTitleRow(list_type_);
+  CreateTitleRow(title_row_string_id_);
+
   CreateScrollableList();
   // TODO(b/207089013): add metrics for UI surface displayed.
 }
 
-NetworkDetailedView::~NetworkDetailedView() = default;
+NetworkDetailedView::~NetworkDetailedView() {
+  if (info_bubble_tracker_.view()) {
+    info_bubble_tracker_.view()->GetWidget()->CloseWithReason(
+        views::Widget::ClosedReason::kUnspecified);
+  }
+}
 
 void NetworkDetailedView::HandleViewClicked(views::View* view) {
   if (login_ == LoginStatus::LOCKED) {
     return;
   }
 
-  if (view->GetID() == VIEW_ID_JOIN_NETWORK_ENTRY) {
+  if (view->GetID() == VIEW_ID_JOIN_WIFI_NETWORK_ENTRY) {
     base::RecordAction(
         base::UserMetricsAction("QS_Subpage_Network_JoinNetwork"));
     Shell::Get()->system_tray_model()->client()->ShowNetworkCreate(
         onc::network_type::kWiFi);
     return;
   }
+
+  if (view->GetID() == VIEW_ID_OPEN_CROSS_DEVICE_SETTINGS) {
+    // TODO (b/323346091): Add metric for "Set Up Your Device" clicks
+    Shell::Get()->system_tray_model()->client()->ShowMultiDeviceSetup();
+    return;
+  }
+
+  if (view->GetID() == VIEW_ID_ADD_ESIM_ENTRY) {
+    base::RecordAction(base::UserMetricsAction("QS_Subpage_Network_AddESim"));
+    Shell::Get()->system_tray_model()->client()->ShowNetworkCreate(
+        ::onc::network_type::kCellular);
+    return;
+  }
+
   delegate()->OnNetworkListItemSelected(
       static_cast<NetworkListItemView*>(view)->network_properties());
 }
@@ -91,31 +110,24 @@ bool NetworkDetailedView::ShouldIncludeDeviceAddresses() {
 }
 
 void NetworkDetailedView::OnInfoBubbleDestroyed() {
-  info_bubble_ = nullptr;
-
   // Widget of info bubble is activated while info bubble is shown. To move
   // focus back to the widget of this view, activate it again here.
   GetWidget()->Activate();
 }
 
 void NetworkDetailedView::OnInfoClicked() {
-  if (CloseInfoBubble()) {
+  if (info_bubble_tracker_.view()) {
+    info_bubble_tracker_.view()->GetWidget()->CloseWithReason(
+        views::Widget::ClosedReason::kCloseButtonClicked);
     return;
   }
 
-  info_bubble_ =
-      new NetworkInfoBubble(weak_ptr_factory_.GetWeakPtr(), tri_view());
-  views::BubbleDialogDelegateView::CreateBubble(info_bubble_)->Show();
-  info_bubble_->NotifyAccessibilityEvent(ax::mojom::Event::kAlert, false);
-}
-
-bool NetworkDetailedView::CloseInfoBubble() {
-  if (!info_bubble_) {
-    return false;
-  }
-
-  info_bubble_->GetWidget()->Close();
-  return true;
+  auto info_bubble = std::make_unique<NetworkInfoBubble>(
+      weak_ptr_factory_.GetWeakPtr(), tri_view());
+  info_bubble_tracker_.SetView(info_bubble.get());
+  views::BubbleDialogDelegateView::CreateBubble(std::move(info_bubble))->Show();
+  info_bubble_tracker_.view()->NotifyAccessibilityEventDeprecated(
+      ax::mojom::Event::kAlert, false);
 }
 
 void NetworkDetailedView::OnSettingsClicked() {
@@ -140,7 +152,7 @@ void NetworkDetailedView::OnSettingsClicked() {
   }
 }
 
-BEGIN_METADATA(NetworkDetailedView, TrayDetailedView)
+BEGIN_METADATA(NetworkDetailedView)
 END_METADATA
 
 }  // namespace ash

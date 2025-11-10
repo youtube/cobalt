@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSION_INSTALL_DIALOG_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSION_INSTALL_DIALOG_VIEW_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -15,8 +16,8 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/uninstall_reason.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
@@ -30,9 +31,9 @@ class Profile;
 class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
                                    public extensions::ExtensionRegistryObserver,
                                    public views::TextfieldController {
- public:
-  METADATA_HEADER(ExtensionInstallDialogView);
+  METADATA_HEADER(ExtensionInstallDialogView, views::BubbleDialogDelegateView)
 
+ public:
   // The views::View::id of the ratings section in the dialog.
   static const int kRatingsViewId = 1;
 
@@ -57,7 +58,7 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
   // views::BubbleDialogDelegateView:
   void VisibilityChanged(views::View* starting_from, bool is_visible) override;
   void AddedToWidget() override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   std::u16string GetAccessibleWindowTitle() const override;
 
   ExtensionInstallPromptShowParams* GetShowParamsForTesting();
@@ -92,14 +93,6 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
   // Enables the install button and updates the dialog buttons.
   void EnableInstallButton();
 
-  // Updates the histogram that holds installation accepted/aborted data.
-  void UpdateInstallResultHistogram(bool accepted) const;
-
-  // Updates the histogram that holds cloud extension request accepted/aborted
-  // decision made by user on the specific prompt dialog.
-  void UpdateEnterpriseCloudExtensionRequestDialogActionHistogram(
-      bool accepted) const;
-
   raw_ptr<Profile> profile_;
   std::unique_ptr<ExtensionInstallPromptShowParams> show_params_;
   ExtensionInstallPrompt::DoneCallback done_callback_;
@@ -115,7 +108,7 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
 
   // Used to record time between dialog creation and acceptance, cancellation,
   // or dismissal.
-  absl::optional<base::ElapsedTimer> install_result_timer_;
+  std::optional<base::ElapsedTimer> install_result_timer_;
 
   // Used to delay the activation of the install button.
   base::OneShotTimer enable_install_timer_;

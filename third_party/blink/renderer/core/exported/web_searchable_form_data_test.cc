@@ -28,8 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "third_party/blink/public/web/web_searchable_form_data.h"
-
 #include <string>
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -37,8 +35,10 @@
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_frame.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_searchable_form_data.h"
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
@@ -64,6 +64,7 @@ class WebSearchableFormDataTest : public testing::Test {
     url_test_helpers::UnregisterAllURLsAndClearMemoryCache();
   }
 
+  test::TaskEnvironment task_environment_;
   frame_test_helpers::WebViewHelper web_view_helper_;
 };
 
@@ -74,7 +75,7 @@ TEST_F(WebSearchableFormDataTest, HttpSearchString) {
   WebViewImpl* web_view =
       web_view_helper_.InitializeAndLoad(base_url + "search_form_http.html");
 
-  WebVector<WebFormElement> forms =
+  std::vector<WebFormElement> forms =
       web_view->MainFrameImpl()->GetDocument().Forms();
 
   EXPECT_EQ(forms.size(), 1U);
@@ -90,7 +91,7 @@ TEST_F(WebSearchableFormDataTest, HttpsSearchString) {
   WebViewImpl* web_view =
       web_view_helper_.InitializeAndLoad(base_url + "search_form_https.html");
 
-  WebVector<WebFormElement> forms =
+  std::vector<WebFormElement> forms =
       web_view->MainFrameImpl()->GetDocument().Forms();
 
   EXPECT_EQ(forms.size(), 1U);

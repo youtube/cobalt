@@ -150,7 +150,7 @@ class TestHostClient : public MutatorHostClient {
                            ElementListType list_type,
                            float maximum_scale) override;
 
-  void ScrollOffsetAnimationFinished() override {}
+  void ScrollOffsetAnimationFinished(ElementId element_id) override {}
 
   void SetScrollOffsetForAnimation(const gfx::PointF& scroll_offset,
                                    ElementId element_id);
@@ -258,7 +258,7 @@ class TestAnimationDelegate : public AnimationDelegate {
       base::TimeTicks animation_start_time,
       std::unique_ptr<gfx::AnimationCurve> curve) override;
   void NotifyLocalTimeUpdated(
-      absl::optional<base::TimeDelta> local_time) override;
+      std::optional<base::TimeDelta> local_time) override;
 
   bool started() { return started_; }
 

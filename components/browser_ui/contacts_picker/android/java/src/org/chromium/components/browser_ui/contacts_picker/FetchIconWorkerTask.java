@@ -14,40 +14,41 @@ import android.provider.ContactsContract;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 
-/**
- * A worker task to retrieve images for contacts.
- */
-class FetchIconWorkerTask extends AsyncTask<Bitmap> {
-    /**
-     * An interface to use to communicate back the results to the client.
-     */
+/** A worker task to retrieve images for contacts. */
+@NullMarked
+class FetchIconWorkerTask extends AsyncTask<@Nullable Bitmap> {
+    /** An interface to use to communicate back the results to the client. */
     public interface IconRetrievedCallback {
         /**
          * A callback to define to receive the icon for a contact.
+         *
          * @param icon The icon retrieved.
          * @param contactId The id of the contact the icon refers to.
          */
-        void iconRetrieved(Bitmap icon, String contactId);
+        void iconRetrieved(@Nullable Bitmap icon, String contactId);
     }
 
     // The ID of the contact to look up.
-    private String mContactId;
+    private final String mContactId;
 
     // If positive, the returned icon will be scaled to this size, measured along one side of a
     // square, in pixels. Otherwise, the returned image will be returned as-is.
     private int mDesiredIconSize;
 
     // The content resolver to use for looking up
-    private ContentResolver mContentResolver;
+    private final ContentResolver mContentResolver;
 
     // The callback to use to communicate the results.
-    private IconRetrievedCallback mCallback;
+    private final IconRetrievedCallback mCallback;
 
     /**
      * A FetchIconWorkerTask constructor.
+     *
      * @param id The id of the contact to look up.
      * @param contentResolver The ContentResolver to use for the lookup.
      * @param callback The callback to use to communicate back the results.
@@ -62,8 +63,9 @@ class FetchIconWorkerTask extends AsyncTask<Bitmap> {
     }
 
     /**
-     * If called, {@link FetchIconWorkerTask} will scale the icon to the given size before
-     * returning it.
+     * If called, {@link FetchIconWorkerTask} will scale the icon to the given size before returning
+     * it.
+     *
      * @param iconSize the size (both width and height) to scale to.
      */
     public void setDesiredIconSize(int iconSize) {
@@ -72,29 +74,37 @@ class FetchIconWorkerTask extends AsyncTask<Bitmap> {
 
     /**
      * Fetches the icon of a particular contact (in a background thread).
+     *
      * @return The icon representing a contact (returned as Bitmap).
      */
     @Override
-    protected Bitmap doInBackground() {
+    protected @Nullable Bitmap doInBackground() {
         assert !ThreadUtils.runningOnUiThread();
 
         if (isCancelled()) return null;
 
-        Uri contactUri = ContentUris.withAppendedId(
-                ContactsContract.Contacts.CONTENT_URI, Long.parseLong(mContactId));
+        Uri contactUri =
+                ContentUris.withAppendedId(
+                        ContactsContract.Contacts.CONTENT_URI, Long.parseLong(mContactId));
         Uri photoUri =
                 Uri.withAppendedPath(contactUri, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY);
-        Cursor cursor = mContentResolver.query(
-                photoUri, new String[] {ContactsContract.Contacts.Photo.PHOTO}, null, null, null);
+        Cursor cursor =
+                mContentResolver.query(
+                        photoUri,
+                        new String[] {ContactsContract.Contacts.Photo.PHOTO},
+                        null,
+                        null,
+                        null);
         if (cursor == null) return null;
         try {
             if (cursor.moveToFirst()) {
                 byte[] data = cursor.getBlob(0);
                 if (data != null) {
                     Bitmap icon = BitmapFactory.decodeStream(new ByteArrayInputStream(data));
-                    return mDesiredIconSize > 0 ? Bitmap.createScaledBitmap(
-                                   icon, mDesiredIconSize, mDesiredIconSize, true)
-                                                : icon;
+                    return mDesiredIconSize > 0
+                            ? Bitmap.createScaledBitmap(
+                                    icon, mDesiredIconSize, mDesiredIconSize, true)
+                            : icon;
                 }
             }
         } finally {
@@ -105,10 +115,11 @@ class FetchIconWorkerTask extends AsyncTask<Bitmap> {
 
     /**
      * Communicates the results back to the client. Called on the UI thread.
+     *
      * @param icon The icon retrieved.
      */
     @Override
-    protected void onPostExecute(Bitmap icon) {
+    protected void onPostExecute(@Nullable Bitmap icon) {
         assert ThreadUtils.runningOnUiThread();
 
         if (isCancelled()) return;

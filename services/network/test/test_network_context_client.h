@@ -6,11 +6,10 @@
 #define SERVICES_NETWORK_TEST_TEST_NETWORK_CONTEXT_CLIENT_H_
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
-#include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/network_context_client.mojom.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
 
 namespace network {
@@ -49,9 +48,6 @@ class TestNetworkContextClient : public network::mojom::NetworkContextClient {
       const std::string& auth_negotiate_android_account_type,
       const std::string& spn,
       OnGenerateHttpNegotiateAuthTokenCallback callback) override {}
-#endif
-#if BUILDFLAG(IS_CHROMEOS)
-  void OnTrustAnchorUsed() override {}
 #endif
 #if BUILDFLAG(IS_CT_SUPPORTED)
   void OnCanSendSCTAuditingReport(

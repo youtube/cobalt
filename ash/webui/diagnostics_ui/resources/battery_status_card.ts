@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/icons.html.js';
+import 'chrome://resources/ash/common/cr_elements/icons.html.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import './data_point.js';
 import './diagnostics_card.js';
@@ -10,20 +10,21 @@ import './diagnostics_shared.css.js';
 import './icons.html.js';
 import './percent_bar_chart.js';
 import './routine_section.js';
-import './strings.m.js';
+import '/strings.m.js';
 
+import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
+import {mojoString16ToString} from 'chrome://resources/js/mojo_type_util.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './battery_status_card.html.js';
 import {getDiagnosticsIcon} from './diagnostics_utils.js';
 import {getSystemDataProvider} from './mojo_interface_provider.js';
-import {mojoString16ToString} from './mojo_utils.js';
 import {TestSuiteStatus} from './routine_list_executor.js';
-import {BatteryChargeStatus, BatteryChargeStatusObserverReceiver, BatteryHealth, BatteryHealthObserverReceiver, BatteryInfo, BatteryState, ExternalPowerSource, SystemDataProviderInterface} from './system_data_provider.mojom-webui.js';
+import type {BatteryChargeStatus, BatteryHealth, BatteryInfo, SystemDataProviderInterface} from './system_data_provider.mojom-webui.js';
+import {BatteryChargeStatusObserverReceiver, BatteryHealthObserverReceiver, BatteryState, ExternalPowerSource} from './system_data_provider.mojom-webui.js';
 import {RoutineType} from './system_routine_controller.mojom-webui.js';
 
 const BATTERY_ICON_PREFIX = 'battery-';
@@ -142,6 +143,10 @@ export class BatteryStatusCardElement extends BatteryStatusCardElementBase {
     if (this.batteryHealthObserverReceiver) {
       this.batteryHealthObserverReceiver.$.close();
     }
+  }
+
+  getBatteryChargeStatusForTesting(): BatteryChargeStatus {
+    return this.batteryChargeStatus;
   }
 
   private fetchBatteryInfo(): void {

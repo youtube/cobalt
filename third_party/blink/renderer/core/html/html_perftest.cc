@@ -1,9 +1,16 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
 //
 // A benchmark to isolate the HTML parsing done in the Speedometer test,
 // for more stable benchmarking and profiling.
+
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
@@ -33,10 +40,11 @@ TEST(HTMLParsePerfTest, Speedometer) {
 
   auto reporter = perf_test::PerfResultReporter("BlinkHTML", label);
 
-  scoped_refptr<SharedBuffer> serialized =
+  std::optional<Vector<char>> serialized =
       test::ReadFromFile(test::CoreTestDataPath(filename));
-  absl::optional<base::Value> json = base::JSONReader::Read(
-      base::StringPiece(serialized->Data(), serialized->size()));
+  CHECK(serialized);
+  std::optional<base::Value> json =
+      base::JSONReader::Read(base::as_string_view(*serialized));
   if (!json.has_value()) {
     char msg[256];
     snprintf(msg, sizeof(msg), "Skipping %s test because %s could not be read",

@@ -9,9 +9,11 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AlertDialog;
 
-/**
- * Shows the dialog that confirms the user really wants to delete a credential.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Shows the dialog that confirms the user really wants to delete a credential. */
+@NullMarked
 public class PasswordCheckDeletionDialogFragment extends PasswordCheckDialogFragment {
     // This handler is used to answer the user actions on the dialog.
     private final String mOrigin;
@@ -26,9 +28,9 @@ public class PasswordCheckDeletionDialogFragment extends PasswordCheckDialogFrag
      * by ID passed in arguments.
      */
     @Override
-    public Dialog onCreateDialog(Bundle savedInstanceState) {
-        return new AlertDialog
-                .Builder(getActivity(), R.style.ThemeOverlay_BrowserUI_AlertDialog_NoActionBar)
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        return new AlertDialog.Builder(
+                        getActivity(), R.style.ThemeOverlay_BrowserUI_AlertDialog_NoActionBar)
                 .setTitle(R.string.password_entry_edit_delete_credential_dialog_title)
                 .setPositiveButton(
                         R.string.password_entry_edit_delete_credential_dialog_confirm, mHandler)

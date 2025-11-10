@@ -97,15 +97,18 @@ bool ServiceWorkerLifetimeManager::KeepaliveKey::operator<(
 
 std::string ServiceWorkerLifetimeManager::IncrementKeepalive(
     const WorkerId& worker_id) {
-  return process_manager_->IncrementServiceWorkerKeepaliveCount(
-      worker_id,
-      content::ServiceWorkerExternalRequestTimeoutType::kDoesNotTimeout,
-      extensions::Activity::Type::EVENT, /*extra_data=*/"");
+  return process_manager_
+      ->IncrementServiceWorkerKeepaliveCount(
+          worker_id,
+          content::ServiceWorkerExternalRequestTimeoutType::kDoesNotTimeout,
+          extensions::Activity::Type::EVENT, /*extra_data=*/"")
+      .AsLowercaseString();
 }
 
 void ServiceWorkerLifetimeManager::DecrementKeepalive(const KeepaliveKey& key) {
+  base::Uuid uuid = base::Uuid::ParseLowercase(key.request_uuid);
   process_manager_->DecrementServiceWorkerKeepaliveCount(
-      key.worker_id, key.request_uuid, extensions::Activity::Type::EVENT,
+      key.worker_id, uuid, extensions::Activity::Type::EVENT,
       /*extra_data=*/"");
 }
 
@@ -128,9 +131,10 @@ ServiceWorkerLifetimeManagerFactory::ServiceWorkerLifetimeManagerFactory()
           "ServiceWorkerLifetimeManagerFactory",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
-              // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(extensions::ProcessManagerFactory::GetInstance());
 }
@@ -138,9 +142,10 @@ ServiceWorkerLifetimeManagerFactory::ServiceWorkerLifetimeManagerFactory()
 ServiceWorkerLifetimeManagerFactory::~ServiceWorkerLifetimeManagerFactory() =
     default;
 
-KeyedService* ServiceWorkerLifetimeManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ServiceWorkerLifetimeManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new ServiceWorkerLifetimeManager(context);
+  return std::make_unique<ServiceWorkerLifetimeManager>(context);
 }
 
 }  // namespace extensions::file_system_provider

@@ -3,16 +3,16 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import '../controls/settings_slider.js';
 import '../settings_shared.css.js';
-import '/shared/settings/controls/settings_dropdown_menu.js';
+import '../controls/settings_dropdown_menu.js';
 
-import {FontsBrowserProxy, FontsBrowserProxyImpl, FontsData} from '/shared/settings/appearance_page/fonts_browser_proxy.js';
-import {DropdownMenuOptionList} from '/shared/settings/controls/settings_dropdown_menu.js';
-import {SliderTick} from 'chrome://resources/cr_elements/cr_slider/cr_slider.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {FontsBrowserProxy, FontsData} from '/shared/settings/appearance_page/fonts_browser_proxy.js';
+import {FontsBrowserProxyImpl} from '/shared/settings/appearance_page/fonts_browser_proxy.js';
+import type {SliderTick} from 'chrome://resources/cr_elements/cr_slider/cr_slider.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+
+import type {DropdownMenuOptionList} from '../controls/settings_dropdown_menu.js';
 
 import {getTemplate} from './appearance_fonts_page.html.js';
 
@@ -55,16 +55,6 @@ export class SettingsAppearanceFontsPageElement extends PolymerElement {
 
   static get properties() {
     return {
-      // The font appearance menu to configure the "math" generic family is only
-      // relevant if CSSFontFamilyMath is enabled. Also, it requires MathMLCore
-      // to be enabled in order to properly display the mathematical formula
-      // used in the preview. CSSFontFamilyMath is implied by MathMLCore so we
-      // just rely on the latter flag to decide when to enable the menu.
-      cssFontFamilyMathMenuEnabled_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('enableMathMLCore'),
-      },
-
       fontOptions_: Object,
 
       /** Common font sizes. */
@@ -97,11 +87,10 @@ export class SettingsAppearanceFontsPageElement extends PolymerElement {
     ];
   }
 
-  prefs: Object;
-  private cssFontFamilyMathMenuEnabled_: boolean;
-  private fontOptions_: DropdownMenuOptionList;
-  private fontSizeRange_: SliderTick[];
-  private minimumFontSizeRange_: SliderTick[];
+  declare prefs: Object;
+  declare private fontOptions_: DropdownMenuOptionList;
+  declare private fontSizeRange_: SliderTick[];
+  declare private minimumFontSizeRange_: SliderTick[];
   private browserProxy_: FontsBrowserProxy =
       FontsBrowserProxyImpl.getInstance();
 
@@ -129,6 +118,19 @@ export class SettingsAppearanceFontsPageElement extends PolymerElement {
 
   private onMinimumSizeChange_() {
     this.$.minimumSizeFontPreview.hidden = this.computeMinimumFontSize_() <= 0;
+  }
+
+  private fontFamilyValueForFixed_(prefValue: string) {
+    // <if expr="is_macosx">
+    // Osaka font family, which is bundled with macOS, contains a proportional
+    // and a fixed-width fonts. The CSS `font-family` property distinguishes
+    // them by assuming 'Osaka' for the proportional font and 'Osaka-Mono' for
+    // the fixed-width font. See crbug.com/40535332.
+    if (prefValue === 'Osaka') {
+      return 'Osaka-Mono';
+    }
+    // </if>
+    return prefValue;
   }
 }
 

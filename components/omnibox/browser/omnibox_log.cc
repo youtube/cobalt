@@ -4,6 +4,7 @@
 
 #include "components/omnibox/browser/omnibox_log.h"
 
+#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 
 OmniboxLog::OmniboxLog(
@@ -13,7 +14,7 @@ OmniboxLog::OmniboxLog(
     bool in_keyword_mode,
     metrics::OmniboxEventProto::KeywordModeEntryMethod entry_method,
     bool is_popup_open,
-    size_t selected_index,
+    OmniboxPopupSelection selection,
     WindowOpenDisposition disposition,
     bool is_paste_and_go,
     SessionID tab_id,
@@ -23,14 +24,16 @@ OmniboxLog::OmniboxLog(
     base::TimeDelta elapsed_time_since_last_change_to_default_match,
     const AutocompleteResult& result,
     const GURL& final_destination_url,
-    bool is_incognito)
+    bool is_incognito,
+    bool is_zero_suggest,
+    std::optional<SessionData> session)
     : text(text),
       just_deleted_text(just_deleted_text),
       input_type(input_type),
       in_keyword_mode(in_keyword_mode),
       keyword_mode_entry_method(entry_method),
       is_popup_open(is_popup_open),
-      selected_index(selected_index),
+      selection(selection),
       disposition(disposition),
       is_paste_and_go(is_paste_and_go),
       tab_id(tab_id),
@@ -42,10 +45,15 @@ OmniboxLog::OmniboxLog(
           elapsed_time_since_last_change_to_default_match),
       result(result),
       final_destination_url(final_destination_url),
-      is_incognito(is_incognito) {
-  DCHECK(selected_index < result.size())
-      << "The selected index should always be valid. See comments on "
-         "OmniboxLog::selected_index.";
+      is_incognito(is_incognito),
+      is_zero_suggest(is_zero_suggest),
+      session(session),
+      steady_state_omnibox_position(
+          metrics::OmniboxEventProto::UNKNOWN_POSITION),
+      ukm_source_id(ukm::kInvalidSourceId) {
+  DCHECK(selection.line < result.size())
+      << "The selection line index should always be valid. See comments on "
+         "OmniboxLog::selection.";
 }
 
-OmniboxLog::~OmniboxLog() {}
+OmniboxLog::~OmniboxLog() = default;

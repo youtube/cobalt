@@ -3,17 +3,19 @@
 // found in the LICENSE file.
 
 #include "components/autofill/core/browser/payments/test_virtual_card_enrollment_manager.h"
+
+#include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_flow.h"
-#include "components/autofill/core/browser/test_personal_data_manager.h"
 
 namespace autofill {
 
 TestVirtualCardEnrollmentManager::TestVirtualCardEnrollmentManager(
-    TestPersonalDataManager* personal_data_manager,
-    payments::TestPaymentsClient* payments_client,
+    PaymentsDataManager* payments_data_manager,
+    payments::TestPaymentsNetworkInterface* payments_network_interface,
     TestAutofillClient* autofill_client = nullptr)
-    : VirtualCardEnrollmentManager(personal_data_manager,
-                                   payments_client,
+    : VirtualCardEnrollmentManager(payments_data_manager,
+                                   payments_network_interface,
                                    autofill_client) {}
 
 TestVirtualCardEnrollmentManager::~TestVirtualCardEnrollmentManager() = default;
@@ -27,7 +29,7 @@ void TestVirtualCardEnrollmentManager::LoadRiskDataAndContinueFlow(
 void TestVirtualCardEnrollmentManager::
     OnDidGetUpdateVirtualCardEnrollmentResponse(
         VirtualCardEnrollmentRequestType type,
-        AutofillClient::PaymentsRpcResult result) {
+        payments::PaymentsAutofillClient::PaymentsRpcResult result) {
   result_ = result;
   VirtualCardEnrollmentManager::OnDidGetUpdateVirtualCardEnrollmentResponse(
       type, result);
@@ -40,6 +42,11 @@ void TestVirtualCardEnrollmentManager::Reset() {
 void TestVirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble() {
   bubble_shown_ = true;
   VirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble();
+}
+
+void TestVirtualCardEnrollmentManager::
+    OnVirtualCardEnrollmentBubbleCancelled() {
+  VirtualCardEnrollmentManager::OnVirtualCardEnrollmentBubbleCancelled();
 }
 
 }  // namespace autofill

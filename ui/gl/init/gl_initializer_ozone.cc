@@ -35,7 +35,6 @@ GLDisplay* InitializeGLOneOffPlatform(gl::GpuPreference gpu_preference) {
     default:
       NOTREACHED();
   }
-  return nullptr;
 }
 
 bool InitializeStaticGLBindings(GLImplementationParts implementation) {
@@ -58,7 +57,6 @@ bool InitializeStaticGLBindings(GLImplementationParts implementation) {
     default:
       NOTREACHED();
   }
-  return false;
 }
 
 void ShutdownGLPlatform(GLDisplay* display) {

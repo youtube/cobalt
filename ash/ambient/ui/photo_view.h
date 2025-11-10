@@ -29,15 +29,20 @@ class AmbientViewDelegateImpl;
 class JitterCalculator;
 struct PhotoWithDetails;
 
+struct ASH_EXPORT PhotoViewConfig {
+  bool peripheral_ui_visible = true;
+  bool force_resize_to_fit = false;
+};
+
 // View to display photos in ambient mode.
 class ASH_EXPORT PhotoView : public views::View,
                              public AmbientBackendModelObserver,
                              public ui::ImplicitAnimationObserver {
- public:
-  METADATA_HEADER(PhotoView);
+  METADATA_HEADER(PhotoView, views::View)
 
+ public:
   explicit PhotoView(AmbientViewDelegateImpl* delegate,
-                     bool peripheral_ui_visible = true);
+                     PhotoViewConfig view_config = PhotoViewConfig());
 
   PhotoView(const PhotoView&) = delete;
   PhotoView& operator=(PhotoView&) = delete;
@@ -66,17 +71,16 @@ class ASH_EXPORT PhotoView : public views::View,
 
   gfx::ImageSkia GetVisibleImageForTesting();
 
-  // Flag to set the peripheral ui visibility, true by default.
-  const bool peripheral_ui_visible_ = true;
+  // PhotoView configuration allows setting the photo view related behaviors and
+  // configurations.
+  const PhotoViewConfig view_config_;
 
   // Note that we should be careful when using |delegate_|, as there is no
   // strong guarantee on the life cycle.
-  const raw_ptr<AmbientViewDelegateImpl, ExperimentalAsh> delegate_ = nullptr;
+  const raw_ptr<AmbientViewDelegateImpl> delegate_ = nullptr;
 
   // Image containers used for animation. Owned by view hierarchy.
   std::array<AmbientBackgroundImageView*, 2> image_views_{nullptr, nullptr};
-
-  const std::unique_ptr<JitterCalculator> glanceable_info_jitter_calculator_;
 
   // The index of |image_views_| to update the next image.
   int image_index_ = 0;

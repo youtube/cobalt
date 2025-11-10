@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_epoll_client_factory.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
@@ -31,7 +33,7 @@ std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     QUIC_LOG(ERROR) << "Unable to resolve address: " << host_for_lookup;
     return nullptr;
   }
-  QuicServerId server_id(host_for_handshake, port, false);
+  QuicServerId server_id(host_for_handshake, port);
   return std::make_unique<QuicDefaultClient>(
       addr, server_id, versions, config, event_loop_.get(), std::move(verifier),
       std::move(session_cache));

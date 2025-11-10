@@ -2,18 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/js_injection/renderer/js_binding.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/functional/overloaded.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
-#include "components/js_injection/common/features.h"
 #include "components/js_injection/common/interfaces.mojom-forward.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
@@ -21,18 +26,18 @@
 #include "gin/data_object_builder.h"
 #include "gin/handle.h"
 #include "gin/object_template_builder.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
-#include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/public/web/web_frame.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_message_port_converter.h"
 #include "v8/include/v8.h"
 
 namespace {
+
 constexpr char kPostMessage[] = "postMessage";
 constexpr char kOnMessage[] = "onmessage";
 constexpr char kAddEventListener[] = "addEventListener";
@@ -53,10 +58,10 @@ class V8ArrayBufferPayload : public blink::WebMessageArrayBufferPayload {
 
   size_t GetLength() const override { return array_buffer_->ByteLength(); }
 
-  absl::optional<base::span<const uint8_t>> GetAsSpanIfPossible()
+  std::optional<base::span<const uint8_t>> GetAsSpanIfPossible()
       const override {
-    return base::make_span(static_cast<const uint8_t*>(array_buffer_->Data()),
-                           array_buffer_->ByteLength());
+    return base::span(static_cast<const uint8_t*>(array_buffer_->Data()),
+                      array_buffer_->ByteLength());
   }
 
   void CopyInto(base::span<uint8_t> dest) const override {
@@ -68,7 +73,7 @@ class V8ArrayBufferPayload : public blink::WebMessageArrayBufferPayload {
   v8::Local<v8::ArrayBuffer> array_buffer_;
 };
 
-}  // anonymous namespace
+}  // namespace
 
 namespace js_injection {
 
@@ -78,18 +83,26 @@ gin::WrapperInfo JsBinding::kWrapperInfo = {gin::kEmbedderNativeGin};
 base::WeakPtr<JsBinding> JsBinding::Install(
     content::RenderFrame* render_frame,
     const std::u16string& js_object_name,
-    base::WeakPtr<JsCommunication> js_communication) {
+    base::WeakPtr<JsCommunication> js_communication,
+    v8::Isolate* isolate,
+    v8::Local<v8::Context> context) {
   CHECK(!js_object_name.empty())
       << "JavaScript wrapper name shouldn't be empty";
 
-  v8::Isolate* isolate = blink::MainThreadIsolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
-      render_frame->GetWebFrame()->MainWorldScriptContext();
-  if (context.IsEmpty())
-    return nullptr;
+  std::optional<v8::HandleScope> handle_scope;
+  std::optional<v8::Context::Scope> context_scope;
+  // The scopes may have already been setup outside this method.
+  if (!isolate) {
+    blink::WebLocalFrame* web_frame = render_frame->GetWebFrame();
+    isolate = web_frame->GetAgentGroupScheduler()->Isolate();
+    handle_scope.emplace(isolate);
+    context = web_frame->MainWorldScriptContext();
+    if (context.IsEmpty()) {
+      return nullptr;
+    }
 
-  v8::Context::Scope context_scope(context);
+    context_scope.emplace(context);
+  }
   // The call to CreateHandle() takes ownership of `js_binding` (but only on
   // success).
   JsBinding* js_binding =
@@ -116,12 +129,6 @@ JsBinding::JsBinding(content::RenderFrame* render_frame,
     : render_frame_(render_frame),
       js_object_name_(js_object_name),
       js_communication_(js_communication) {
-  mojom::JsToBrowserMessaging* js_to_java_messaging =
-      js_communication_->GetJsToJavaMessage(js_object_name_);
-  if (js_to_java_messaging) {
-    js_to_java_messaging->SetBrowserToJsMessaging(
-        receiver_.BindNewEndpointAndPassRemote());
-  }
 }
 
 JsBinding::~JsBinding() = default;
@@ -131,12 +138,11 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
   if (!js_communication_)
     return;
 
-  v8::Isolate* isolate = blink::MainThreadIsolate();
-  v8::HandleScope handle_scope(isolate);
-
   blink::WebLocalFrame* web_frame = render_frame_->GetWebFrame();
   if (!web_frame)
     return;
+  v8::Isolate* isolate = web_frame->GetAgentGroupScheduler()->Isolate();
+  v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Context> context = web_frame->MainWorldScriptContext();
   if (context.IsEmpty())
@@ -148,7 +154,7 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
   v8::TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
 
-  v8::Local<v8::Value> v8_message = absl::visit(
+  v8::Local<v8::Value> v8_message = std::visit(
       base::Overloaded{
           [isolate](std::u16string& string_value) -> v8::Local<v8::Value> {
             return gin::ConvertToV8(isolate, std::move(string_value));
@@ -160,8 +166,8 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
             CHECK(backing_store->ByteLength() ==
                   array_buffer_value->GetLength());
             array_buffer_value->CopyInto(
-                base::make_span(static_cast<uint8_t*>(backing_store->Data()),
-                                backing_store->ByteLength()));
+                base::span(static_cast<uint8_t*>(backing_store->Data()),
+                           backing_store->ByteLength()));
             return v8::ArrayBuffer::New(isolate, std::move(backing_store));
           }},
       message);
@@ -180,14 +186,14 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
 
   // Copy the listeners so that if the listener modifies the list in some way
   // there isn't a UAF.
-  std::vector<v8::Local<v8::Function>> listeners_copy;
+  v8::LocalVector<v8::Function> listeners_copy(isolate);
   listeners_copy.reserve(listeners_.size());
   for (const auto& listener : listeners_) {
     listeners_copy.push_back(listener.Get(isolate));
   }
   for (const auto& listener : listeners_copy) {
     // Ensure the listener is still registered.
-    if (base::Contains(listeners_, listener)) {
+    if (find_listener(listener) != listeners_.end()) {
       web_frame->RequestExecuteV8Function(context, listener, self, 1, argv, {});
     }
   }
@@ -196,6 +202,12 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
 void JsBinding::ReleaseV8GlobalObjects() {
   listeners_.clear();
   on_message_.Reset();
+}
+
+void JsBinding::Bind(
+    mojo::PendingAssociatedReceiver<mojom::BrowserToJsMessaging> receiver) {
+  receiver_.reset();
+  return receiver_.Bind(std::move(receiver));
 }
 
 gin::ObjectTemplateBuilder JsBinding::GetObjectTemplateBuilder(
@@ -220,8 +232,7 @@ void JsBinding::PostMessage(gin::Arguments* args) {
     gin::Converter<std::u16string>::FromV8(args->isolate(), js_payload,
                                            &string);
     message_payload = std::move(string);
-  } else if (IsJsToBrowserArrayBufferSupported() &&
-             js_payload->IsArrayBuffer()) {
+  } else if (js_payload->IsArrayBuffer()) {
     v8::Local<v8::ArrayBuffer> array_buffer = js_payload.As<v8::ArrayBuffer>();
     message_payload = std::make_unique<V8ArrayBufferPayload>(array_buffer);
   } else {
@@ -230,7 +241,7 @@ void JsBinding::PostMessage(gin::Arguments* args) {
   }
 
   std::vector<blink::MessagePortChannel> ports;
-  std::vector<v8::Local<v8::Object>> objs;
+  v8::LocalVector<v8::Object> objs(args->isolate());
   // If we get more than two arguments and the second argument is not an array
   // of ports, we can't process.
   if (args->Length() >= 2 && !args->GetNext(&objs)) {
@@ -239,7 +250,7 @@ void JsBinding::PostMessage(gin::Arguments* args) {
   }
 
   for (auto& obj : objs) {
-    absl::optional<blink::MessagePortChannel> port =
+    std::optional<blink::MessagePortChannel> port =
         blink::WebMessagePortConverter::DisentangleAndExtractMessagePortChannel(
             args->isolate(), obj);
     // If the port is null we should throw an exception.
@@ -284,8 +295,9 @@ void JsBinding::AddEventListener(gin::Arguments* args) {
     return;
   }
 
-  if (base::Contains(listeners_, listener))
+  if (find_listener(listener) != listeners_.end()) {
     return;
+  }
 
   v8::Local<v8::Context> context = args->GetHolderCreationContext();
   listeners_.push_back(
@@ -316,11 +328,9 @@ void JsBinding::RemoveEventListener(gin::Arguments* args) {
     return;
   }
 
-  auto iter = base::ranges::find(listeners_, listener);
-  if (iter == listeners_.end())
-    return;
-
-  listeners_.erase(iter);
+  if (auto iter = find_listener(listener); iter != listeners_.end()) {
+    listeners_.erase(iter);
+  }
 }
 
 v8::Local<v8::Function> JsBinding::GetOnMessage(v8::Isolate* isolate) {

@@ -2,30 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/cr_icons.css.js';
-import 'chrome://resources/cr_elements/icons.html.js';
+import 'chrome://resources/ash/common/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'chrome://resources/ash/common/cr_elements/cr_icons.css.js';
+import 'chrome://resources/ash/common/cr_elements/icons.html.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/polymer/v3_0/iron-media-query/iron-media-query.js';
 import 'chrome://resources/polymer/v3_0/paper-progress/paper-progress.js';
 import './icons.html.js';
 import './print_management_fonts.css.js';
 import './print_management_shared.css.js';
-import './strings.m.js';
+import '/strings.m.js';
 
+import {FocusRowMixin} from 'chrome://resources/ash/common/cr_elements/focus_row_mixin.js';
+import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {FocusRowMixin} from 'chrome://resources/cr_elements/focus_row_mixin.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
-import {Time} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import type {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
+import type {Time} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
 import {IronA11yAnnouncer} from 'chrome://resources/polymer/v3_0/iron-a11y-announcer/iron-a11y-announcer.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getMetadataProvider} from './mojo_interface_provider.js';
 import {getTemplate} from './print_job_entry.html.js';
-import {PrinterErrorCode, PrintingMetadataProviderInterface, PrintJobCompletionStatus, PrintJobInfo} from './printing_manager.mojom-webui.js';
+import type {PrintingMetadataProviderInterface, PrintJobInfo} from './printing_manager.mojom-webui.js';
+import {PrinterErrorCode, PrintJobCompletionStatus} from './printing_manager.mojom-webui.js';
 
 const GENERIC_FILE_EXTENSION_ICON = 'print-management:file-generic';
 
@@ -506,6 +507,8 @@ export class PrintJobEntryElement extends PrintJobEntryElementBase {
         return loadTimeData.getString('unknownPrinterError');
       case PrinterErrorCode.kClientUnauthorized:
         return loadTimeData.getString('clientUnauthorized');
+      case PrinterErrorCode.kExpiredCertificate:
+        return loadTimeData.getString('expiredCertificate');
       default:
         assertNotReached();
     }
@@ -541,8 +544,10 @@ export class PrintJobEntryElement extends PrintJobEntryElementBase {
         return loadTimeData.getString('unknownPrinterErrorStopped');
       case PrinterErrorCode.kClientUnauthorized:
         return loadTimeData.getString('clientUnauthorized');
+      case PrinterErrorCode.kExpiredCertificate:
+        return loadTimeData.getString('expiredCertificate');
       case PrinterErrorCode.kPrinterUnreachable:
-        assertNotReached();
+        return loadTimeData.getString('printerUnreachableStopped');
       default:
         assertNotReached();
     }

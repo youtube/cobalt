@@ -5,6 +5,7 @@ include_rules = [
   "-ios",
 
   "+components/bookmarks",
+  "+components/signin/public/base",
   "+components/keyed_service/core",
   "+components/strings/grit/components_strings.h",
   "+ui/base",

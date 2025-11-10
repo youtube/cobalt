@@ -18,8 +18,7 @@ namespace {
 
 // Computes a SHA-1 hash of |data| and returns it as a hex string.
 std::string ComputeSHA1(const std::string& data) {
-  const std::string sha1 = base::SHA1HashString(data);
-  return base::HexEncode(sha1.data(), sha1.size());
+  return base::HexEncode(base::SHA1Hash(base::as_byte_span(data)));
 }
 
 }  // namespace
@@ -32,11 +31,11 @@ EnvironmentRecorder::~EnvironmentRecorder() = default;
 std::string EnvironmentRecorder::SerializeAndRecordEnvironmentToPrefs(
     const SystemProfileProto& system_profile) {
   std::string serialized_system_profile;
-  std::string base64_system_profile;
   if (system_profile.SerializeToString(&serialized_system_profile)) {
     // Persist the system profile to disk. In the event of an unclean shutdown,
     // it will be used as part of the initial stability report.
-    base::Base64Encode(serialized_system_profile, &base64_system_profile);
+    const std::string base64_system_profile =
+        base::Base64Encode(serialized_system_profile);
     local_state_->SetString(prefs::kStabilitySavedSystemProfile,
                             base64_system_profile);
     local_state_->SetString(prefs::kStabilitySavedSystemProfileHash,
@@ -58,10 +57,21 @@ bool EnvironmentRecorder::LoadEnvironmentFromPrefs(
       local_state_->GetString(prefs::kStabilitySavedSystemProfileHash);
 
   std::string serialized_system_profile;
-  return base::Base64Decode(base64_system_profile,
-                            &serialized_system_profile) &&
-         ComputeSHA1(serialized_system_profile) == system_profile_hash &&
-         system_profile->ParseFromString(serialized_system_profile);
+  if (!base::Base64Decode(base64_system_profile, &serialized_system_profile)) {
+    return false;
+  }
+  if (ComputeSHA1(serialized_system_profile) != system_profile_hash) {
+    return false;
+  }
+  if (!system_profile->ParseFromString(serialized_system_profile)) {
+    return false;
+  }
+  // Prevent initial stability logs from having the `fg_bg_id` field set, since
+  // those logs contain metrics *about* a previous session, and are not emitted
+  // during those sessions (and should certainly not be associated with any
+  // particular background or foreground period).
+  system_profile->clear_fg_bg_id();
+  return true;
 }
 
 void EnvironmentRecorder::ClearEnvironmentFromPrefs() {

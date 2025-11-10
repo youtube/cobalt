@@ -8,12 +8,15 @@ import android.content.Context;
 import android.graphics.RectF;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
+import org.chromium.chrome.browser.layouts.SceneOverlay;
 
 /**
- * This is the minimal interface of the host view from the layout side.
- * Any of these functions may be called on the GL thread.
+ * This is the minimal interface of the host view from the layout side. Any of these functions may
+ * be called on the GL thread.
  */
 public interface LayoutManagerHost {
     /**
@@ -22,9 +25,7 @@ public interface LayoutManagerHost {
      */
     static final boolean LOG_CHROME_VIEW_SHOW_TIME = false;
 
-    /**
-     * Requests a refresh of the visuals.
-     */
+    /** Requests a refresh of the visuals. */
     void requestRender();
 
     /**
@@ -72,16 +73,6 @@ public interface LayoutManagerHost {
     void getViewportFullControls(RectF outRect);
 
     /**
-     * @return The height of the top browser controls in pixels.
-     */
-    int getTopControlsHeightPixels();
-
-    /**
-     * @return The height of the bottom browsers controls in pixels.
-     */
-    int getBottomControlsHeightPixels();
-
-    /**
      * @return The associated {@link LayoutRenderHost} to be used from the GL Thread.
      */
     LayoutRenderHost getLayoutRenderHost();
@@ -103,16 +94,29 @@ public interface LayoutManagerHost {
      */
     FullscreenManager getFullscreenManager();
 
-    /**
-     * Called when the currently visible content has been changed.
-     */
+    /** Called when the currently visible content has been changed. */
     void onContentChanged();
 
     /**
      * Hides the the keyboard if it was opened for the ContentView.
-     * @param postHideTask A task to run after the keyboard is done hiding and the view's
-     *         layout has been updated.  If the keyboard was not shown, the task will run
-     *         immediately.
+     *
+     * @param postHideTask A task to run after the keyboard is done hiding and the view's layout has
+     *     been updated. If the keyboard was not shown, the task will run immediately.
      */
     void hideKeyboard(Runnable postHideTask);
+
+    /** Resets keyboard focus. */
+    void resetKeyboardFocus();
+
+    /**
+     * Requests keyboard focus for {@param SceneOverlay}.
+     *
+     * @param sceneOverlay The {@link SceneOverlay} to request keyboard focus for.
+     */
+    void requestKeyboardFocus(@NonNull SceneOverlay sceneOverlay);
+
+    /**
+     * @return Whether {@param SceneOverlay} contains keyboard focus.
+     */
+    boolean containsKeyboardFocus(@NonNull SceneOverlay sceneOverlay);
 }

@@ -258,19 +258,8 @@ struct DesktopEnvironmentOptions {
   // True if the session should be terminated when local input is detected.
   bool terminate_upon_input;
 
-  // True if this host has file transfer enabled.
-  bool enable_file_transfer;
-
-  // True if this host has the remote open URL feature enabled.
-  bool enable_remote_open_url;
-
   // True if this host has the remote WebAuthn feature enabled.
   bool enable_remote_webauthn;
-
-  // If set, this value is used to constrain the amount of data that can be
-  // transferred using ClipboardEvents. A value of 0 will effectively disable
-  // clipboard sharing.
-  UInt32? clipboard_size;
 
   // The DesktopCaptureOptions to initialize DesktopCapturer.
   DesktopCaptureOptions desktop_capture_options;
@@ -398,11 +387,10 @@ union BeginFileWriteResult {
 // The remote for this interface is owned in the low-privilege network process
 // and the receiver is bound in the high-privilege desktop integration process.
 interface DesktopSessionControl {
-  // Requests that a new frame be captured.
-  CaptureFrame();
-
-  // Selects a display source in a multi-monitor system.
-  SelectSource(int32 desktop_display_id);
+  // Requests the Desktop process to create a new video-capturer for the
+  // specified display device.
+  CreateVideoCapturer(int64 desktop_display_id) =>
+      (CreateVideoCapturerResult result);
 
   // Changes the screen resolution in the desktop session.
   SetScreenResolution(ScreenResolution new_resolution);
@@ -448,6 +436,48 @@ interface DesktopSessionControl {
       => (BeginFileWriteResult result);
 };
 
+struct CreateVideoCapturerResult {
+  pending_remote<VideoCapturer> video_capturer;
+  pending_receiver<VideoCapturerEventHandler> video_capturer_event_handler;
+};
+
+// Enables capturing from a display device.
+// The remote for this interface is owned in the low-privilege network process
+// and the receiver is bound in the high-privilege desktop integration process.
+interface VideoCapturer {
+  // Requests that a new frame be captured. Video-frames are returned via
+  // VideoCapturerEventHandler (rather than in response to this CaptureFrame()
+  // request). This ensures the frames are correctly ordered relative to the
+  // shared-memory events.
+  CaptureFrame();
+
+  // Indicates whether the mouse cursor should be embedded in the video frame.
+  SetComposeEnabled(bool enabled);
+};
+
+// Enables receiving capture information (shared-memory, video-frames) from a
+// display device.
+// The remote for this interface is owned in the high-privilege desktop
+// integration process and the receiver is bound in the low-privilege network
+// process.
+interface VideoCapturerEventHandler {
+  // Notifies the network process that a new shared memory region has been
+  // created to use for passing video frames between processes. |id| refers to
+  // the new shared memory region and is included in each capture result to
+  // indicate which region the frame data resides in.
+  OnSharedMemoryRegionCreated(
+      int32 id, mojo_base.mojom.ReadOnlySharedMemoryRegion region, uint32 size);
+
+  // Notifies the network process that a shared memory region has been released
+  // and should no longer be used.
+  OnSharedMemoryRegionReleased(int32 id);
+
+  // Notifies the network process that new frame data is available in the shared
+  // memory region along with the details on how to access it (e.g. stride,
+  // size, etc.), otherwise provides the error reason the capture failed.
+  OnCaptureResult(CaptureResult result);
+};
+
 // |frame| is set and contains valid frame data when a frame is captured
 // successfully, otherwise |error| will contain the reason the capture failed.
 union CaptureResult {
@@ -472,6 +502,9 @@ struct VideoTrackLayout {
 
   // DPI of the screen being captured.
   DesktopVector dpi;
+
+  // Display name. This is displayed in the client UI and is informational only.
+  string display_name;
 };
 
 // This struct mirrors the remoting::protocol::VideoLayout message.
@@ -481,6 +514,9 @@ struct VideoLayout {
 
   // True if this display configuration supports capturing the entire desktop.
   bool supports_full_desktop_capture;
+
+  // ID of the display to be associated with the main window on the client.
+  int64 primary_screen_id;
 };
 
 // Allows the desktop process to forward events and data to the network process
@@ -501,24 +537,6 @@ interface DesktopSessionEventHandler {
   // Forwards an audio packet captured from the desktop session to the client.
   OnAudioPacket(AudioPacket audio_packet);
 
-  // Notifies the network process that a new shared memory region has been
-  // created to use for passing video frames between processes. |id| refers to
-  // the new shared memory region and is included in each capture result to
-  // indicate which region the frame data resides in.
-  // TODO(joedow): Look into refactoring our shared memory and capture impl
-  // to use a message pipe per shared memory region.
-  OnSharedMemoryRegionCreated(
-      int32 id, mojo_base.mojom.ReadOnlySharedMemoryRegion region, uint32 size);
-
-  // Notifies the network process that a shared memory region has been released
-  // and should no longer be used.
-  OnSharedMemoryRegionReleased(int32 id);
-
-  // Notifies the network process that new frame data is available in the shared
-  // memory region along with the details on how to access it (e.g. stride,
-  // size, etc.), otherwise provides the error reason the capture failed.
-  OnCaptureResult(CaptureResult result);
-
   // Notifies the network process that the host display layout has changed.
   OnDesktopDisplayChanged(VideoLayout layout);
 
@@ -527,6 +545,12 @@ interface DesktopSessionEventHandler {
 
   // Notifies the network process that the keyboard layout has changed.
   OnKeyboardLayoutChanged(KeyboardLayout keyboard_layout);
+
+  // Notifies the network process that local mouse movement was detected.
+  OnLocalMouseMoveDetected(DesktopVector new_position);
+
+  // Notifies the network process that local keyboard input was detected.
+  OnLocalKeyboardInputDetected(int32 usb_keycode);
 };
 
 // This enum mirrors the remoting::protocol::ErrorCode enum.
@@ -552,6 +576,21 @@ enum ProtocolErrorCode {
   kDisallowedByPolicy = 18,
   kLocationAuthzPolicyCheckFailed = 19,
   kUnauthorizedAccount = 20,
+  kReauthzPolicyCheckFailed = 21,
+  kNoCommonAuthMethod = 22,
+  kLoginScreenNotSupported = 23,
+  kSessionPoliciesChanged = 24,
+  kUnexpectedAuthenticatorError = 25,
+  kInvalidState = 26,
+  kInvalidArgument = 27,
+  kNetworkFailure = 28,
+};
+
+// This struct mirrors remoting::SourceLocation.
+struct SourceLocation {
+  string? function_name;
+  string? file_name;
+  int32 line_number;
 };
 
 // Provides the desktop integration process with a mechanism for controlling the
@@ -560,12 +599,19 @@ enum ProtocolErrorCode {
 // integration process and the receiver is bound in the low-privilege network
 // process.
 interface DesktopSessionStateHandler {
-  // Disconnects the remote client from the host machine, |error_code| is
-  // passed to the remote client as the reason for the disconnection. An example
-  // usage is when the 'disconnect' button is clicked on the local disconnect
-  // window. The desktop process should expect to be terminated shortly after
-  // calling this method.
-  DisconnectSession(ProtocolErrorCode error_code);
+  // Disconnects the remote client from the host machine. All arguments will
+  // be passed to the website client as the reason for the disconnection.
+  // `error_code` is the general error category, while `error_details` is a
+  // human readable string without PII that provides details for
+  // troubleshooting. `error_location` has information about where the
+  // disconnection was initiated.
+  // An example usage is when the 'disconnect' button is clicked on the local
+  // disconnect window. The desktop process should expect to be terminated
+  // shortly after calling this method.
+  DisconnectSession(
+    ProtocolErrorCode error_code,
+    string error_details,
+    SourceLocation error_location);
 };
 
 // Allows the worker process launcher to send messages to a child process.

@@ -5,6 +5,7 @@
 #include "components/blocklist/opt_out_blocklist/opt_out_blocklist.h"
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <memory>
 #include <string>
@@ -160,8 +161,9 @@ class TestOptOutBlocklist : public OptOutBlocklist {
   bool ShouldUseSessionPolicy(base::TimeDelta* duration,
                               size_t* history,
                               int* threshold) const override {
-    if (!session_policy_)
+    if (!session_policy_) {
       return false;
+    }
     *duration = session_policy_->duration;
     *history = session_policy_->history;
     *threshold = session_policy_->threshold;
@@ -172,8 +174,9 @@ class TestOptOutBlocklist : public OptOutBlocklist {
   bool ShouldUsePersistentPolicy(base::TimeDelta* duration,
                                  size_t* history,
                                  int* threshold) const override {
-    if (!persistent_policy_)
+    if (!persistent_policy_) {
       return false;
+    }
     *duration = persistent_policy_->duration;
     *history = persistent_policy_->history;
     *threshold = persistent_policy_->threshold;
@@ -185,8 +188,9 @@ class TestOptOutBlocklist : public OptOutBlocklist {
                            size_t* history,
                            int* threshold,
                            size_t* max_hosts) const override {
-    if (!host_policy_)
+    if (!host_policy_) {
       return false;
+    }
     *duration = host_policy_->duration;
     *history = host_policy_->history;
     *threshold = host_policy_->threshold;
@@ -198,8 +202,9 @@ class TestOptOutBlocklist : public OptOutBlocklist {
   bool ShouldUseTypePolicy(base::TimeDelta* duration,
                            size_t* history,
                            int* threshold) const override {
-    if (!type_policy_)
+    if (!type_policy_) {
       return false;
+    }
     *duration = type_policy_->duration;
     *history = type_policy_->history;
     *threshold = type_policy_->threshold;
@@ -287,7 +292,7 @@ class OptOutBlocklistTest : public testing::Test {
   TestOptOutBlocklistDelegate blocklist_delegate_;
 
   base::SimpleTestClock test_clock_;
-  raw_ptr<TestOptOutStore> opt_out_store_;
+  raw_ptr<TestOptOutStore, DanglingUntriaged> opt_out_store_;
   base::Time start_;
 
   std::unique_ptr<TestOptOutBlocklist> block_list_;
@@ -576,12 +581,12 @@ TEST_F(OptOutBlocklistTest, TypeBlockListNoStore) {
 
 TEST_F(OptOutBlocklistTest, HostIndifferentBlocklist) {
   // Tests the block list behavior when a null OptOutStore is passed in.
-  const std::string hosts[] = {
+  const auto hosts = std::to_array<std::string>({
       "url_0.com",
       "url_1.com",
       "url_2.com",
       "url_3.com",
-  };
+  });
 
   int host_indifferent_threshold = 4;
 
@@ -884,12 +889,12 @@ TEST_F(OptOutBlocklistTest, ObserverIsNotifiedOnHostBlocklisted) {
 
 TEST_F(OptOutBlocklistTest, ObserverIsNotifiedOnUserBlocklisted) {
   // Tests the block list behavior when a null OptOutStore is passed in.
-  const std::string hosts[] = {
+  const auto hosts = std::to_array<std::string>({
       "url_0.com",
       "url_1.com",
       "url_2.com",
       "url_3.com",
-  };
+  });
 
   int host_indifferent_threshold = 4;
 
@@ -1078,12 +1083,12 @@ TEST_F(OptOutBlocklistTest, PassedReasonsWhenUserRecentlyOptedOut) {
 TEST_F(OptOutBlocklistTest, PassedReasonsWhenUserBlocklisted) {
   // Test that IsLoadedAndAllow, push checked BlocklistReasons to the
   // |passed_reasons| vector.
-  const std::string hosts[] = {
+  const auto hosts = std::to_array<std::string>({
       "http://www.url_0.com",
       "http://www.url_1.com",
       "http://www.url_2.com",
       "http://www.url_3.com",
-  };
+  });
 
   auto session_policy =
       std::make_unique<BlocklistData::Policy>(base::Seconds(1), 1u, 1);
@@ -1108,10 +1113,10 @@ TEST_F(OptOutBlocklistTest, PassedReasonsWhenUserBlocklisted) {
       BlocklistReason::kUserOptedOutInGeneral,
       block_list_->IsLoadedAndAllowed(hosts[0], 1, false, &passed_reasons_));
 
-  BlocklistReason expected_reasons[] = {
+  auto expected_reasons = std::to_array<BlocklistReason>({
       BlocklistReason::kBlocklistNotLoaded,
       BlocklistReason::kUserOptedOutInSession,
-  };
+  });
   EXPECT_EQ(std::size(expected_reasons), passed_reasons_.size());
   for (size_t i = 0; i < passed_reasons_.size(); i++) {
     EXPECT_EQ(expected_reasons[i], passed_reasons_[i]);
@@ -1144,11 +1149,11 @@ TEST_F(OptOutBlocklistTest, PassedReasonsWhenHostBlocklisted) {
       BlocklistReason::kUserOptedOutOfHost,
       block_list_->IsLoadedAndAllowed(kTestHost1, 1, false, &passed_reasons_));
 
-  BlocklistReason expected_reasons[] = {
+  auto expected_reasons = std::to_array<BlocklistReason>({
       BlocklistReason::kBlocklistNotLoaded,
       BlocklistReason::kUserOptedOutInSession,
       BlocklistReason::kUserOptedOutInGeneral,
-  };
+  });
   EXPECT_EQ(std::size(expected_reasons), passed_reasons_.size());
   for (size_t i = 0; i < passed_reasons_.size(); i++) {
     EXPECT_EQ(expected_reasons[i], passed_reasons_[i]);
@@ -1181,13 +1186,13 @@ TEST_F(OptOutBlocklistTest, PassedReasonsWhenAllowed) {
       BlocklistReason::kAllowed,
       block_list_->IsLoadedAndAllowed(kTestHost1, 1, false, &passed_reasons_));
 
-  BlocklistReason expected_reasons[] = {
+  auto expected_reasons = std::to_array<BlocklistReason>({
       BlocklistReason::kBlocklistNotLoaded,
       BlocklistReason::kUserOptedOutInSession,
       BlocklistReason::kUserOptedOutInGeneral,
       BlocklistReason::kUserOptedOutOfHost,
       BlocklistReason::kUserOptedOutOfType,
-  };
+  });
   EXPECT_EQ(std::size(expected_reasons), passed_reasons_.size());
   for (size_t i = 0; i < passed_reasons_.size(); i++) {
     EXPECT_EQ(expected_reasons[i], passed_reasons_[i]);

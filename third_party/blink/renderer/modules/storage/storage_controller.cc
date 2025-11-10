@@ -53,15 +53,13 @@ StorageController* StorageController::GetInstance() {
 // static
 bool StorageController::CanAccessStorageArea(LocalFrame* frame,
                                              StorageArea::StorageType type) {
-  if (auto* settings_client = frame->GetContentSettingsClient()) {
-    switch (type) {
-      case StorageArea::StorageType::kLocalStorage:
-        return settings_client->AllowStorageAccessSync(
-            WebContentSettingsClient::StorageType::kLocalStorage);
-      case StorageArea::StorageType::kSessionStorage:
-        return settings_client->AllowStorageAccessSync(
-            WebContentSettingsClient::StorageType::kSessionStorage);
-    }
+  switch (type) {
+    case StorageArea::StorageType::kLocalStorage:
+      return frame->AllowStorageAccessSyncAndNotify(
+          WebContentSettingsClient::StorageType::kLocalStorage);
+    case StorageArea::StorageType::kSessionStorage:
+      return frame->AllowStorageAccessSyncAndNotify(
+          WebContentSettingsClient::StorageType::kSessionStorage);
   }
   return true;
 }
@@ -69,7 +67,7 @@ bool StorageController::CanAccessStorageArea(LocalFrame* frame,
 StorageController::StorageController(DomStorageConnection connection,
                                      size_t total_cache_limit)
     : namespaces_(MakeGarbageCollected<
-                  HeapHashMap<String, WeakMember<StorageNamespace>>>()),
+                  GCedHeapHashMap<String, WeakMember<StorageNamespace>>>()),
       total_cache_limit_(total_cache_limit),
       dom_storage_remote_(std::move(connection.dom_storage_remote)) {
   // May be null in tests.
@@ -86,7 +84,7 @@ StorageNamespace* StorageController::CreateSessionStorageNamespace(
   // around.
   auto it = namespaces_->find(namespace_id);
   if (it != namespaces_->end())
-    return it->value;
+    return it->value.Get();
   StorageNamespace* ns =
       MakeGarbageCollected<StorageNamespace>(page, this, namespace_id);
   namespaces_->insert(namespace_id, ns);
@@ -115,11 +113,12 @@ void StorageController::ClearAreasIfNeeded() {
 
 scoped_refptr<CachedStorageArea> StorageController::GetLocalStorageArea(
     LocalDOMWindow* local_dom_window,
-    mojo::PendingRemote<mojom::blink::StorageArea> local_storage_area) {
+    mojo::PendingRemote<mojom::blink::StorageArea> local_storage_area,
+    StorageNamespace::StorageContext context) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   EnsureLocalStorageNamespaceCreated();
-  return local_storage_namespace_->GetCachedArea(local_dom_window,
-                                                 std::move(local_storage_area));
+  return local_storage_namespace_->GetCachedArea(
+      local_dom_window, std::move(local_storage_area), context);
 }
 
 void StorageController::AddLocalStorageInspectorStorageAgent(

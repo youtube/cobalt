@@ -7,8 +7,9 @@
 
 #include <stdint.h>
 
+#include <string>
+
 #include "base/functional/callback.h"
-#import "base/mac/scoped_nsobject.h"
 #include "base/time/time.h"
 #include "ui/views/controls/menu/menu_runner_impl_interface.h"
 
@@ -28,7 +29,7 @@ namespace internal {
 // A menu runner implementation that uses NSMenu to show a context menu.
 class VIEWS_EXPORT MenuRunnerImplCocoa : public MenuRunnerImplInterface {
  public:
-  MenuRunnerImplCocoa(ui::MenuModel* menu,
+  MenuRunnerImplCocoa(ui::MenuModel* menu_model,
                       base::RepeatingClosure on_menu_closed_callback);
 
   MenuRunnerImplCocoa(const MenuRunnerImplCocoa&) = delete;
@@ -41,9 +42,11 @@ class VIEWS_EXPORT MenuRunnerImplCocoa : public MenuRunnerImplInterface {
       MenuButtonController* button_controller,
       const gfx::Rect& bounds,
       MenuAnchorPosition anchor,
+      ui::mojom::MenuSourceType source_type,
       int32_t run_types,
       gfx::NativeView native_view_for_gestures,
-      absl::optional<gfx::RoundedCornersF> corners = absl::nullopt) override;
+      std::optional<gfx::RoundedCornersF> corners,
+      std::optional<std::string> show_menu_host_duration_histogram) override;
   void Cancel() override;
   base::TimeTicks GetClosingEventTime() const override;
 
@@ -52,11 +55,13 @@ class VIEWS_EXPORT MenuRunnerImplCocoa : public MenuRunnerImplInterface {
 
   ~MenuRunnerImplCocoa() override;
 
+  raw_ptr<ui::MenuModel> menu_model_;
+
   // The Cocoa menu controller that this instance is bridging.
-  base::scoped_nsobject<MenuControllerCocoa> menu_controller_;
+  MenuControllerCocoa* __strong menu_controller_;
 
   // The delegate for the |menu_controller_|.
-  base::scoped_nsobject<MenuControllerCocoaDelegateImpl> menu_delegate_;
+  MenuControllerCocoaDelegateImpl* __strong menu_delegate_;
 
   // Are we in run waiting for it to return?
   bool running_ = false;

@@ -5,6 +5,10 @@
 module auction_worklet.mojom;
 
 import "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom";
+import "content/services/auction_worklet/public/mojom/real_time_reporting.mojom";
+import "content/services/auction_worklet/public/mojom/reject_reason.mojom";
+import "content/services/auction_worklet/public/mojom/trusted_signals_cache.mojom";
+import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "services/network/public/mojom/url_loader_factory.mojom";
 import "third_party/blink/public/mojom/devtools/devtools_agent.mojom";
@@ -13,27 +17,19 @@ import "third_party/blink/public/mojom/interest_group/interest_group_types.mojom
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 
-struct PreviousWin {
-  // Approximate time a particular group won an auction.
-  //
-  // TODO(mmenke): Provide this as an integer time since an auction was won, in
-  // seconds, to reduce time resolution of cross-site information provided to an
-  // untrusted service.
-  //
-  // TODO(https://crbug.com/1207135): Decide what to do when wins are
-  // "in the future" due to clock changes.
-  mojo_base.mojom.Time time;
-
-  // The ad object returned by that group's bidding function with the winning
-  // bid.
-  string ad_json;
-};
-
 // Degree to which k-anonymity is enforced.
 enum KAnonymityBidMode {
   kNone,   // k-anonymity is ignored.
   kSimulate,  // No enforcement, but result of enforcement is simulated
   kEnforce  // Enforced.
+};
+
+// k-anonymity status of a bid.
+enum KAnonymityStatus {
+  kUnknown,
+  kBelowThreshold,
+  kPassingNotEnforced,
+  kPassingAndEnforced,
 };
 
 // An opaque identifier that identifies an ad configuration used for
@@ -55,6 +51,9 @@ struct KAnonKey {
 struct BidderWorkletNonSharedParams {
   string name;
 
+  blink.mojom.InterestGroup.TrustedBiddingSignalsSlotSizeMode
+      trusted_bidding_signals_slot_size_mode;
+
   bool enable_bidding_signals_prioritization;
   map<string, double>? priority_vector;
 
@@ -62,33 +61,23 @@ struct BidderWorkletNonSharedParams {
 
   url.mojom.Url? update_url;
   array<string>? trusted_bidding_signals_keys;
+  int32 max_trusted_bidding_signals_url_length;
   string? user_bidding_signals;
   array<blink.mojom.InterestGroupAd>? ads;
   array<blink.mojom.InterestGroupAd>? ad_components;
 
-  // ads_kanon[kanon_key] is true iff `kanon_key` is sufficiently k-anonymous to
+  // A key is present iff it is sufficiently k-anonymous to
   // be used as an ad or an ad component.
-  map<KAnonKey, bool> kanon_keys;
-};
-
-// Browser signals passed to the BidderWorklet's generateBid() method that are
-// stored on disk and updated by the browser, as opposed to coming from the
-// frame running the auction, or from the definition of the InterestGroup taking
-// part in an auction.
-struct BiddingBrowserSignals {
-  // How many times this interest group has been joined in the period history
-  // is maintained.
-  int32 join_count;
-
-  // How many times this interest group has made bids in auctions.
-  int32 bid_count;
-
-  // Previous times the group won auctions.
-  array<PreviousWin> prev_wins;
+  array<KAnonKey> kanon_keys;
 };
 
 // The results of running a FLEDGE generateBid() script.
 struct BidderWorkletBid {
+  // In order to update k-anonymity information, the auction keeps track of
+  // leaders both with and without enforcement. This field denotes which of
+  // these this bid is suitable for.
+  BidRole bid_role;
+
   // JSON string to be passed to the scoring function.
   string ad;
 
@@ -101,8 +90,12 @@ struct BidderWorkletBid {
   // 'adCost' returned by generateBid, if any.
   double? ad_cost;
 
-  // Render URL of the bid.
+  // Render URL of the bid, plus sizing information.
   blink.mojom.AdDescriptor ad_descriptor;
+
+  // The selected reporting id from the interest group's ad's
+  // `selectableBuyerAndSellerReportingIds` array.
+  string? selected_buyer_and_seller_reporting_id;
 
   // Ad components associated with bid, if any. These allow a single ad to be
   // composed of multiple smaller ads. The `ad_descriptor` contains the main
@@ -117,20 +110,26 @@ struct BidderWorkletBid {
   // `modelingSignals` returned by generateBid, if any.
   uint16? modeling_signals;
 
+  // `aggregateWinSignals` returned by `generateBid`, if present. This field
+  // allows the bidder to pass arbitrary JSON-serializable data that can be
+  // accessed within the `reportAggregateWin()` javascript function.
+  string? aggregate_win_signals;
+
   // How long it took to run the generateBid() script.
   mojo_base.mojom.TimeDelta bid_duration;
 };
 
-struct BidderWorklerKAnonBidSameAsNonEnforced {};
+// Which auctions the bid is appropriate for, based on whether the auction
+// enforces k-anonymity or not.
+enum BidRole {
+  // Bid valid only for auctions that do not enforce k-anonymity.
+  kUnenforcedKAnon,
 
-// Represents result of applying k-anonymity enforcement to a bidder worklet.
-// The resulting bid can be the same as without enforcement, or a different one.
-//
-// You must use BidderWorklerKAnonBidSameAsNonEnforced when the bids match,
-// to make it easier to sanity-check the result at IPC boundary.
-union BidderWorkletKAnonEnforcedBid {
-  BidderWorklerKAnonBidSameAsNonEnforced? same_as_non_enforced; // value unused.
-  BidderWorkletBid bid;
+  // Bid valid only for auctions that enforce k-anonymity.
+  kEnforcedKAnon,
+
+  // Bid valid regardless of whether the auction does k-anon enforcement.
+  kBothKAnonModes
 };
 
 // An optional double value. GenerateBid() returns them as values its
@@ -139,6 +138,74 @@ union BidderWorkletKAnonEnforcedBid {
 // have a `has_value` field, since this struct itself can be made optional.
 struct PrioritySignalsDouble {
   double value;
+};
+
+// Which field identifying the ad is passed to reportWin()
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum ReportingIdField {
+  kNone = 0,
+  kInterestGroupName = 1,
+  kBuyerReportingId = 2,
+  kBuyerAndSellerReportingId = 3,
+  kSelectedBuyerAndSellerReportingId = 4,
+};
+
+// Represents the time between BidderWorklet::BeginGenerateBid and each of the
+// dependencies to GenerateBid, which can help to identify the slowest
+// dependency, both in absolute terms and relative to other dependencies.
+// Each of the latencies recorded here may be null if that dependency didn't
+// apply for this call to GenerateBid.
+struct GenerateBidDependencyLatencies {
+  // Load of Script and/or WASM
+  mojo_base.mojom.TimeDelta? code_ready_latency;
+
+  // Fulfillment of config promises
+  mojo_base.mojom.TimeDelta? config_promises_latency;
+
+  // Download of DirectFromSellerSignals
+  mojo_base.mojom.TimeDelta? direct_from_seller_signals_latency;
+
+  // Download of TrustedBiddingSignals
+  mojo_base.mojom.TimeDelta? trusted_bidding_signals_latency;
+
+  // Times of each step of the GenerateBid flow, used to compute start and end
+  // times for latency phase UKMs.
+  mojo_base.mojom.TimeTicks deps_wait_start_time;
+  mojo_base.mojom.TimeTicks generate_bid_start_time;
+  mojo_base.mojom.TimeTicks generate_bid_finish_time;
+};
+
+// How long particular tasks took. Unlike GenerateBidDependencyLatencies this
+// doesn't denote how long things blocked for --- e.g. the fetch times are
+// how long the download took, even for later calls to generateBid() that
+// may not actually wait for the download since it's already in memory.
+struct BidderTimingMetrics {
+  mojo_base.mojom.TimeDelta? js_fetch_latency;
+  mojo_base.mojom.TimeDelta? wasm_fetch_latency;
+
+  // Time to run generateBid (including any k-anon re-run) or reportWin,
+  // respectively. For generateBid, this will also include any top-level
+  // execution which happened (which it might not have depending on the
+  // execution mode).
+  mojo_base.mojom.TimeDelta script_latency;
+
+  bool script_timed_out;
+};
+
+// Represents data that needs to be passed to the browser process
+// to create a request for the Private Model Training API.
+struct PrivateModelTrainingRequestData {
+  // The raw data that will need to be passed to the browser.
+  // Will never have a size greater than the `payload_length`.
+  mojo_base.mojom.BigBuffer payload;
+  // The length specified within `queueReportAggregateWin()` as
+  // part of the `modelingSignalsConfig`, which may differ from the actual
+  // length of `payload` which was created within `reportAggregateWin()`.
+  // This is capped at 10000.
+  uint32 payload_length;
+  url.mojom.Url aggregation_coordinator_origin;
+  url.mojom.Url destination;
 };
 
 // Single use client for each GenerateBid() call. Allows deferring generating
@@ -175,35 +242,35 @@ interface GenerateBidClient {
   //
   //  `trusted_signals_fetch_latency` The amount of time taken fetching trusted
   //  bidding signals. If no trusted signals were fetched, returns a 0 duration.
+  //
+  //  `update_if_older_than` If present, indicates that the interest group
+  //  should potentially be updated even if its last update was less than 24
+  //  hours ago, if the last update was less recent than `update_if_older_than`.
   OnBiddingSignalsReceived(
       map<string, double> priority_vector,
-      mojo_base.mojom.TimeDelta trusted_signals_fetch_latency) => ();
+      mojo_base.mojom.TimeDelta trusted_signals_fetch_latency,
+      mojo_base.mojom.TimeDelta? update_if_older_than) => ();
 
-  // Invoked once GenerateBid completes, either having successfully generated a
-  // bid, or having failed to generate one for any reason.
+  // Invoked once GenerateBid completes, either having successfully generated
+  // bids, or having failed to generate one for any reason.
   //
   // Arguments:
   //
-  // `bid` If the worklet is successfully loaded and chooses to bid in the
-  //  auction, contains information about the bid with no k-anonymity
-  //  restriction. Null otherwise.
+  // `bids` List of bids generated. This is either:
+  //  - At most `multi_bid_limit` items with `bid_role` of either
+  //    kBothKAnonModes or kUnenforcedKAnon (if no k-anon re-run was done)
+  //  - At most `multi_bid_limit` kUnenforcedKAnon bids and at most one
+  //    kEnforcedKAnon bid (if k-anon re-run was done).
+  //  (If no k-anon enforcement is happening, all bids are expected to be
+  //   kUnenforcedKAnon).
   //
-  // `kanon_bid` If `kanon_mode` is not kNone, `kanon_bid` is the bid made
-  // under requirement of k-anonymous results. This can be the same as `bid`, a
-  // different bid, or null if the bidder will not bid under this restriction.
-  //
-  // If `kanon_mode` is kNone, this is always null.
-  //
-  // The following all arguments correspond to the execution (among those that
-  // produced `bid` and `kanon_bid`) that will end up shown to the user if it
-  // wins per `kanon_mode` passed to GenerateBid.
+  // The following arguments all correspond to the execution that will end up
+  // shown to the user if it wins per `kanon_mode` passed to GenerateBid.
+  // (This distinction exists only if generateBid() was run twice to deal with
+  //  k-anonymity).
   //
   // `bidding_signals_data_version` The value of the Data-Version header served
-  //  with the trusted bidding signals.
-  //
-  // `has_bidding_signals_data_version` True to indicate Data-Version header
-  //  was present in the HTTP response for the trusted bidding signals.
-  //  TODO(https://crbug.com/657632): Update when optional integers supported.
+  //  with the trusted bidding signals, if the header was present.
   //
   // `debug_loss_report_url` The URL to request if the auction runs to
   //  completion and this bid does not win. All bidders are allowed to send loss
@@ -219,38 +286,46 @@ interface GenerateBidClient {
   // `set_priority` The value of the updated priority for this interest group.
   //  This priority should be applied to the interest group after the auction.
   //  The priority is not changed if null.
-  //  TODO(https://crbug.com/657632): Update to use `double?` type if/when
-  //  optional integer support is added to Mojo.
   //
   // `update_priority_signals_overrides` A map of new values to be written to
   //  the interest group's priorityOverrides map. Null values mean to delete the
   //  corresponding value, if present. Values with keys not in the map are
   //  preserved.
-  //  TODO(https://crbug.com/657632): Update to use `double?` type if/when
-  //  optional integer support is added to Mojo.
+  //  TODO(crbug.com/40489779): Update to use `double?` type if/when
+  //  that's supported as a value in a Mojo map.
   //
   // `pa_requests` The various requests made to the Private Aggregation API.
   //
-  // `bidding_latency` The amount of time taken running all bids (note that
-  // there may be 2 bids if the first bid result was not k-anonymous).
+  // `real_time_contributions` Real time reporting contributions.
+  //
+  // `generate_bid_timing_metrics` The amount of time some of the operations
+  // performed took.
+  //
+  // `generate_bid_dependency_latencies` The amount of time GenerateBid had to
+  // wait for each of its dependencies to be fulfilled before it could be run.
+  //
+  // `reject_reason` If there is a valid bid that can participate in the auction
+  // this is kNotAvailable. Otherwise, it's the reason this bid was not
+  // permitted to participate (only kWrongGenerateBidCurrency at this time),
+  // or kNotAvailable.
   //
   // `errors` The various error messages to be used for debugging. These are too
   //  sensitive for the renderer to see. There may be errors even when a bid
   //  is offered, and there may be no errors when there's no bid. Includes
   //  errors from failing to load the worklet script.
   OnGenerateBidComplete(
-      BidderWorkletBid? bid,
-      BidderWorkletKAnonEnforcedBid? kanon_bid,
-      uint32 bidding_signals_data_version,
-      bool has_bidding_signals_data_version,
+      array<BidderWorkletBid> bids,
+      uint32? bidding_signals_data_version,
       url.mojom.Url? debug_loss_report_url,
       url.mojom.Url? debug_win_report_url,
-      double set_priority,
-      bool has_set_priority,
+      double? set_priority,
       map<string, PrioritySignalsDouble?> update_priority_signals_overrides,
       array<PrivateAggregationRequest> pa_requests,
       array<PrivateAggregationRequest> non_kanon_pa_requests,
-      mojo_base.mojom.TimeDelta bidding_latency,
+      array<RealTimeReportingContribution> real_time_contributions,
+      BidderTimingMetrics generate_bid_timing_metrics,
+      GenerateBidDependencyLatencies generate_bid_dependency_latencies,
+      RejectReason reject_reason,
       array<string> errors);
 };
 
@@ -279,15 +354,27 @@ interface GenerateBidFinalizer {
   //  page. Null will be passed to the worklet in that case.
   //
   // See BeginGenerateBid for description of
-  //  `direct_from_seller_per_buyer_signals`, `
+  //  `direct_from_seller_per_buyer_signals`,
   //  `direct_from_seller_auction_signals`
+  //
+  //  `direct_from_seller_per_buyer_signals_header_ad_slot` A JSON string of the
+  //   DirectFromSellerSignals for this specific buyer. Must not be passed if
+  //   `direct_from_seller_per_buyer_signals` or
+  //   `direct_from_seller_auction_signals` is passed.
+  //
+  //  `direct_from_seller_auction_signals_header_ad_slot` A JSON string of the
+  //   DirectFromSellerSignals for the seller and all buyers. Must not be passed
+  //   if `direct_from_seller_auction_signals` or
+  //   `direct_from_seller_per_buyer_signals` is passed.
   FinishGenerateBid(
       string? auction_signals_json,
       string? per_buyer_signals_json,
       mojo_base.mojom.TimeDelta? per_buyer_timeout,
       blink.mojom.AdCurrency? expected_buyer_currency,
       url.mojom.Url? direct_from_seller_per_buyer_signals,
-      url.mojom.Url? direct_from_seller_auction_signals);
+      string? direct_from_seller_per_buyer_signals_header_ad_slot,
+      url.mojom.Url? direct_from_seller_auction_signals,
+      string? direct_from_seller_auction_signals_header_ad_slot);
 };
 
 // Manages the auction workflow for one loaded FLEDGE bidder worklet.
@@ -317,28 +404,37 @@ interface BidderWorklet {
   //  InterestGroup definitions of the InterestGroups that can share this
   //  BidderWorklet.
   //
+  // `key_value_signals_cache_key`: When using version two of the trusted
+  //  signals key value protocol, this contains information needed to retrieve
+  //  the fetched signals for the call from the browser process through the
+  //  TrustedSignalsCache API. When the browser-side cache is disabled and
+  //  fetching is done by the worklet service directly, this should be null.
+  //  SetTrustedSignalsCache() must have already been called on the parent
+  //  AuctionWorkletService before creating the BidderWorklet in order to
+  //  pass in a non-null value.
+  //
   // `kanon_mode` determines whether to use k-anonymity to potentially re-run
   //  the bidding function with only ads that are k-anonymous and produce an
   //  alternative bid. See GenerateBidClient.OnGenerateBidComplete for more
   //  details.
   //
   // `interest_group_join_origin` is the origin from which the interest group
-  //  was joined; can affect context reuse in certain execution modes.
+  //  was joined; can affect KVv2 trusted signals fetches.
   //
   // `direct_from_seller_per_buyer_signals` The subresource URL of the
-  // DirectFromSellerSignals for the specific owner of this interest group, as
-  // produced by concatenating the `directFromSellerSignals` URL prefix field
-  // passed from runAdAuction() with "?perBuyerSignals=[buyer]" for the
-  // URL-encoded buyer origin for this buyer. Since this is fetched from a
-  // subresource bundle, it may only be fetched using the URLLoaderFactory
-  // passed in when creating the worklet.
+  //  DirectFromSellerSignals for the specific owner of this interest group, as
+  //  produced by concatenating the `directFromSellerSignals` URL prefix field
+  //  passed from runAdAuction() with "?perBuyerSignals=[buyer]" for the
+  //  URL-encoded buyer origin for this buyer. Since this is fetched from a
+  //  subresource bundle, it may only be fetched using the URLLoaderFactory
+  //  passed in when creating the worklet.
   //
   // `direct_from_seller_auction_signals` The subresource URL of the
-  // DirectFromSellerSignals for the seller and all buyers, as produced by
-  // concatenating the `directFromSellerSignals` URL prefix field passed from
-  // runAdAuction() with "?auctionSignals". Since this is fetched from a
-  // subresource bundle, it may only be fetched using the URLLoaderFactory
-  // passed in when creating the worklet.
+  //  DirectFromSellerSignals for the seller and all buyers, as produced by
+  //  concatenating the `directFromSellerSignals` URL prefix field passed from
+  //  runAdAuction() with "?auctionSignals". Since this is fetched from a
+  //  subresource bundle, it may only be fetched using the URLLoaderFactory
+  //  passed in when creating the worklet.
   //
   // Both `direct_from_seller_auction_signals` and
   // `direct_from_seller_per_buyer_signals` can alternatively be passed as
@@ -353,10 +449,36 @@ interface BidderWorklet {
   //  if this worklet is running as part of a component (nested) Auction.
   //  Null, otherwise.
   //
+  //  `browser_signal_recency` The duration of time from when this device
+  //  joined this interest group until now, rounded to the nearest 100ms.
+  //
+  //  `browser_signal_for_debugging_only_sampling` Whether the browser has fDO
+  //  sampling enabled.
+  //
   // `bidding_browser_signals` See BiddingBrowserSignals.
   //
   // `auction_start_time` The time the auction started, used to ensure the
   //  last win times provided to all worklets are relative to the same time.
+  //
+  //  `requested_ad_size` The size of the ad slot requested in the initial
+  //  auction configuration. Will be passed into the buyer-side JS. Optional
+  //  because requested size is optional in the originating auction
+  //  configuration, and therefore not required to generate bids.
+  //
+  // `multi_bid_limit` Limit on how many bids can be returned at once from
+  //  generateBid().  This is always at least 1.  It has no effect if the
+  //  support for returning more than one bid at once is disabled.
+  //  OnGenerateBidComplete() may get `multi_bid_limit + 1` bids in case
+  //  generateBid() got re-run after returning exactly one bid that's
+  //  non-k-anon.
+  //
+  //  Calls with the same values for `group_by_origin_id` can reuse execution
+  //  contexts in group-by-origin mode. `group_by_origin_id` is not used in
+  //  other execution modes. The value will be 0 if neither the auction config
+  //  nor the interest group specify `group-by-origin` as their execution mode;
+  //  if either does, the value will be non-zero. However, in this worklet,
+  //  the value is only ever looked at by the ExecutionModeHelper if the
+  //  interest group specifies `group-by-origin` as the execution mode.
   //
   // `trace_id` ID of a nestable asynchronous trace event of category `fledge`
   //  to use with tracing calls.
@@ -368,14 +490,20 @@ interface BidderWorklet {
   //  that may be delivered later (via JS promises).
   BeginGenerateBid(
       BidderWorkletNonSharedParams bidder_worklet_non_shared_params,
+      TrustedSignalsCacheKey? key_value_signals_cache_key,
       KAnonymityBidMode kanon_mode,
       url.mojom.Origin interest_group_join_origin,
       url.mojom.Url? direct_from_seller_per_buyer_signals,
       url.mojom.Url? direct_from_seller_auction_signals,
       url.mojom.Origin browser_signal_seller_origin,
       url.mojom.Origin? browser_signal_top_level_seller_origin,
-      BiddingBrowserSignals bidding_browser_signals,
+      mojo_base.mojom.TimeDelta browser_signal_recency,
+      bool browser_signal_for_debugging_only_sampling,
+      blink.mojom.BiddingBrowserSignals bidding_browser_signals,
       mojo_base.mojom.Time auction_start_time,
+      blink.mojom.AdSize? requested_ad_size,
+      uint16 multi_bid_limit,
+      uint64 group_by_origin_id,
       uint64 trace_id,
       pending_associated_remote<GenerateBidClient> generate_bid_client,
       pending_associated_receiver<GenerateBidFinalizer> bid_finalizer);
@@ -393,8 +521,24 @@ interface BidderWorklet {
   // be loaded first, if needed.
   //
   // Arguments:
-  // `interest_group_name` Name of the winning interest group that ReportWin()
-  //  is being invoked on behalf of.
+  //  `is_for_additional_bid` If true, this will call reportAdditionalBidWin()
+  //  rather than reportWin().
+  //
+  // `interest_group_name_reporting_id` Optional string value that when
+  //  contains value, represents the ad campaign identification signal that
+  //  has been provided to ReportWin().
+  //
+  // `buyer_reporting_id` Optional string value that when
+  //  contains value, represents the ad campaign identification signal that
+  //  has been provided to ReportWin().
+  //
+  // `buyer_and_seller_reporting_id` Optional string value that when
+  //  contains value, represents the ad campaign identification signal that
+  //  has been provided to ReportWin().
+  //
+  // `selected_buyer_and_seller_reporting_id` Optional string
+  // value that when contains value, represents the selected ad campaign
+  // identification signal that has been provided to ReportWin().
   //
   // `auction_signals_json` The JSON representation of the auction signals for
   //  the auction, if specified by the publisher page and provided to bidder
@@ -408,39 +552,51 @@ interface BidderWorklet {
   //  publisher page. Null will be passed to the worklet in that case.
   //
   // `direct_from_seller_per_buyer_signals` The subresource URL of the
-  // DirectFromSellerSignals for the specific owner of this interest group, as
-  // produced by concatenating the `directFromSellerSignals` URL prefix field
-  // passed from runAdAuction() with "?perBuyerSignals=[buyer]" for the
-  // URL-encoded buyer origin for this buyer. Since this is fetched from a
-  // subresource bundle, it may only be fetched using the URLLoaderFactory
-  // passed in when creating the worklet.
+  //  DirectFromSellerSignals for the specific owner of this interest group, as
+  //  produced by concatenating the `directFromSellerSignals` URL prefix field
+  //  passed from runAdAuction() with "?perBuyerSignals=[buyer]" for the
+  //  URL-encoded buyer origin for this buyer. Since this is fetched from a
+  //  subresource bundle, it may only be fetched using the URLLoaderFactory
+  //  passed in when creating the worklet.
+  //
+  // `direct_from_seller_per_buyer_signals_header_ad_slot` A JSON string of the
+  //  DirectFromSellerSignals for this specific buyer. Must not be passed if
+  //  `direct_from_seller_per_buyer_signals` or
+  //  `direct_from_seller_auction_signals` is passed.
   //
   // `direct_from_seller_auction_signals` The subresource URL of the
-  // DirectFromSellerSignals for the seller and all buyers, as produced by
-  // concatenating the `directFromSellerSignals` URL prefix field passed from
-  // runAdAuction() with "?auctionSignals". Since this is fetched from a
-  // subresource bundle, it may only be fetched using the URLLoaderFactory
-  // passed in when creating the worklet.
+  //  DirectFromSellerSignals for the seller and all buyers, as produced by
+  //  concatenating the `directFromSellerSignals` URL prefix field passed from
+  //  runAdAuction() with "?auctionSignals". Since this is fetched from a
+  //  subresource bundle, it may only be fetched using the URLLoaderFactory
+  //  passed in when creating the worklet.
+  //
+  // `direct_from_seller_auction_signals_header_ad_slot` A JSON string of the
+  //   DirectFromSellerSignals for the seller and all buyers. Must not be passed
+  //   if `direct_from_seller_auction_signals` or
+  //   `direct_from_seller_per_buyer_signals` is passed.
   //
   // `seller_signals_json` is a JSON representation of the object returned by
   //  the seller worklet's ReportResult method.
+  //
+  // `kanon_status` indicates the k-anonymity status of the winning bid.
   //
   // `browser_signal_render_url` is the `render_url` returned by the
   //  BidderWorklet's generateBid() method, invoked as part of BidderWorklet
   //  creation.
   //
-  // `browser_signal_bid` The numeric value of the winning bid. This is always
-  //  in the bidder's own currency.
+  // `browser_signal_bid` The stochastically rounded numeric value of the
+  //  winning bid. This is always in the bidder's own currency.
   //
   // `browser_signal_bid_currency` Currency for the winning bid.
   //  The client should redact the currency if it's not guaranteed by the
   //  auction configuration to avoid leaking information.
   //
-  // `browser_signal_highest_scoring_other_bid` The numeric value of the bid
-  //  that got the second highest score, or 0 if it's not available, either
-  //  because there is no such thing or because sellerCurrency is enabled, and
-  //  the relevant bid was in a different currency without scoreAd providing
-  //  a conversion for it.
+  // `browser_signal_highest_scoring_other_bid` The stochastically rounded
+  //  numeric value of the bid that got the second highest score, or 0 if it's
+  //  not available, either because there is no such thing or because
+  //  sellerCurrency is enabled, and the relevant bid was in a different
+  //  currency without scoreAd providing a conversion for it.
   //
   // `browser_signal_highest_scoring_other_bid_currency` The currency associated
   //  with `browser_signal_highest_scoring_other_bid`. If a concrete value is
@@ -450,12 +606,19 @@ interface BidderWorklet {
   //  the interest group that ReportWin() is being invoked on behalf of made
   //  all the second-highest scoring bids in the auction.
   //
-  // `browser_signal_ad_cost` The numeric value of the adCost associated with
-  //  the winning bid, if specified by `generateBid()`.
+  // `browser_signal_ad_cost` The stochastically rounded numeric value of the
+  //  adCost associated with the winning bid, if specified by `generateBid()`.
   //
-  //  `browser_signal_modeling_signals` The masked and noised numeric value of
+  // `browser_signal_modeling_signals` The masked and noised numeric value of
   //  the modelingSignals associated with the winning bid, if specified by
   //  `generateBid()`.
+  //
+  // `browser_signal_join_count` The masked and noised number of times this
+  //  device has joined this interest group in the last 30 days while the
+  //  interest group has been continuously stored.
+  //
+  // `browser_signal_recency` The masked and noised duration of time
+  //  (in minutes) from when this device joined this interest group until now.
   //
   // `browser_signal_seller_origin` The origin of the seller script running
   //  the auction. Typically a valid, non-opaque HTTPS origin.
@@ -464,12 +627,16 @@ interface BidderWorklet {
   //  if this worklet is running as part of a component (nested) Auction.
   //  Null, otherwise.
   //
+  // `browser_signal_reporting_timeout`. The value restricts the runtime of
+  //  reportWin() script. Any timeout higher than 5s will be clamped to 5s
+  //  before passed in.
+  //
   // `bidding_signals_data_version` The value of the Data-Version header served
   //  with the trusted bidding signals.
   //
-  // `has_bidding_signals_data_version` True to indicate Data-Version header
-  //  was present in the HTTP response for the trusted bidding signals.
-  //  TODO(https://crbug.com/657632): Update when optional integers supported.
+  // `aggregate_win_signals`:  The value of a JSON serializable object for
+  // `reportAggregateWin()`. Note that this is passed along with `reportWin()`,
+  // but is not a visible argument within the JavaScript function.
   //
   // `trace_id` ID of a nestable asynchronous trace event of category `fledge`
   //  to use with tracing calls.
@@ -482,7 +649,16 @@ interface BidderWorklet {
   // `ad_beacon_map` The map of ad reporting events to URLs for fenced frame
   //  reporting.
   //
+  // `ad_macro_map` The map of ad macro names to macro values for macro support
+  //  in third party ad tracking.
+  //
   // `pa_requests` The various requests made to the Private Aggregation API.
+  //
+  // `pmt_request_data` The data needed to build a request for the
+  // Private Model Training API.
+  //
+  // `reporting_latency` How long it took to run the JavaScript for
+  // `reportWin()` (including the top-level).
   //
   // `errors` is an array of any errors that occurred while attempting
   //  to run the worklet's reportWin() method. These are too sensitive for
@@ -490,12 +666,19 @@ interface BidderWorklet {
   //  provided, and there may be no errors when there's no `report_url`.
   //  Includes errors from failing to load the worklet script.
   ReportWin(
-      string interest_group_name,
+      bool is_for_additional_bid,
+      string? interest_group_name_reporting_id,
+      string? buyer_reporting_id,
+      string? buyer_and_seller_reporting_id,
+      string? selected_buyer_and_seller_reporting_id,
       string? auction_signals_json,
       string? per_buyer_signals_json,
       url.mojom.Url? direct_from_seller_per_buyer_signals,
+      string? direct_from_seller_per_buyer_signals_header_ad_slot,
       url.mojom.Url? direct_from_seller_auction_signals,
+      string? direct_from_seller_auction_signals_header_ad_slot,
       string seller_signals_json,
+      KAnonymityStatus kanon_status,
       url.mojom.Url browser_signal_render_url,
       double browser_signal_bid,
       blink.mojom.AdCurrency? browser_signal_bid_currency,
@@ -508,15 +691,23 @@ interface BidderWorklet {
       uint8 browser_signal_recency,
       url.mojom.Origin browser_signal_seller_origin,
       url.mojom.Origin? browser_signal_top_level_seller_origin,
-      uint32 bidding_signals_data_version,
-      bool has_bidding_signals_data_version,
+      mojo_base.mojom.TimeDelta? browser_signal_reporting_timeout,
+      uint32? bidding_signals_data_version,
+      string? aggregate_win_signals,
       uint64 trace_id) => (
           url.mojom.Url? report_url,
           map<string, url.mojom.Url> ad_beacon_map,
+          map<string, string> ad_macro_map,
           array<PrivateAggregationRequest> pa_requests,
+          PrivateModelTrainingRequestData? pmt_request_data,
+          BidderTimingMetrics timing_metrics,
           array<string> errors);
 
-  // Establishes a debugger connection to the worklet.
+  // Establishes a debugger connection to the worklet thread.
+  //
+  // Arguments:
+  // `thread_index` The index of the thread in the thread pool.
   ConnectDevToolsAgent(
-      pending_associated_receiver<blink.mojom.DevToolsAgent> agent);
+      pending_associated_receiver<blink.mojom.DevToolsAgent> agent,
+      uint32 thread_index);
 };

@@ -4,6 +4,8 @@
 
 #include "extensions/renderer/bindings/api_binding_js_util.h"
 
+#include <optional>
+
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "content/public/renderer/v8_value_converter.h"
@@ -48,6 +50,7 @@ gin::ObjectTemplateBuilder APIBindingJSUtil::GetObjectTemplateBuilder(
       .SetMethod("setLastError", &APIBindingJSUtil::SetLastError)
       .SetMethod("clearLastError", &APIBindingJSUtil::ClearLastError)
       .SetMethod("hasLastError", &APIBindingJSUtil::HasLastError)
+      .SetMethod("getLastErrorMessage", &APIBindingJSUtil::GetLastErrorMessage)
       .SetMethod("runCallbackWithLastError",
                  &APIBindingJSUtil::RunCallbackWithLastError)
       .SetMethod("handleException", &APIBindingJSUtil::HandleException)
@@ -61,7 +64,7 @@ gin::ObjectTemplateBuilder APIBindingJSUtil::GetObjectTemplateBuilder(
 void APIBindingJSUtil::SendRequest(
     gin::Arguments* arguments,
     const std::string& name,
-    const std::vector<v8::Local<v8::Value>>& request_args,
+    const v8::LocalVector<v8::Value>& request_args,
     v8::Local<v8::Value> options) {
   v8::Isolate* isolate = arguments->isolate();
   v8::HandleScope handle_scope(isolate);
@@ -74,12 +77,10 @@ void APIBindingJSUtil::SendRequest(
   if (!options.IsEmpty() && !options->IsUndefined() && !options->IsNull()) {
     if (!options->IsObject()) {
       NOTREACHED();
-      return;
     }
     v8::Local<v8::Object> options_obj = options.As<v8::Object>();
     if (!options_obj->GetPrototype()->IsNull()) {
       NOTREACHED();
-      return;
     }
     gin::Dictionary options_dict(isolate, options_obj);
     // NOTE: We don't throw any errors here if customCallback is of an invalid
@@ -134,7 +135,6 @@ void APIBindingJSUtil::CreateCustomEvent(gin::Arguments* arguments,
   if (!v8_event_name->IsUndefined()) {
     if (!v8_event_name->IsString()) {
       NOTREACHED();
-      return;
     }
     event_name = gin::V8ToString(isolate, v8_event_name);
   }
@@ -207,6 +207,22 @@ void APIBindingJSUtil::HasLastError(gin::Arguments* arguments) {
   arguments->Return(has_last_error);
 }
 
+void APIBindingJSUtil::GetLastErrorMessage(gin::Arguments* arguments) {
+  v8::Isolate* isolate = arguments->isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  std::optional<std::string> last_error_message =
+      request_handler_->last_error()->GetErrorMessage(
+          arguments->GetHolderCreationContext());
+  if (last_error_message) {
+    arguments->Return(*last_error_message);
+  } else {
+    // TODO(tjudkins): It would be nicer to return a v8::Undefined here, but the
+    // gin converter doesn't support it at the moment.
+    arguments->Return(v8::Local<v8::Value>());
+  }
+}
+
 void APIBindingJSUtil::RunCallbackWithLastError(
     gin::Arguments* arguments,
     const std::string& error,
@@ -216,7 +232,7 @@ void APIBindingJSUtil::RunCallbackWithLastError(
   v8::Local<v8::Context> context = arguments->GetHolderCreationContext();
 
   request_handler_->last_error()->SetError(context, error);
-  JSRunner::Get(context)->RunJSFunction(callback, context, 0, nullptr);
+  JSRunner::Get(context)->RunJSFunction(callback, context, {});
 
   bool report_if_unchecked = true;
   request_handler_->last_error()->ClearError(context, report_if_unchecked);
@@ -265,7 +281,6 @@ void APIBindingJSUtil::ValidateType(gin::Arguments* arguments,
     // We shouldn't be asked to validate unknown specs, but since this comes
     // from JS, assume nothing.
     NOTREACHED();
-    return;
   }
 
   std::string error;
@@ -289,22 +304,18 @@ void APIBindingJSUtil::AddCustomSignature(
 
   if (!signature->IsArray()) {
     NOTREACHED();
-    return;
   }
 
   std::unique_ptr<base::Value> base_signature =
       content::V8ValueConverter::Create()->FromV8Value(signature, context);
   if (!base_signature->is_list()) {
     NOTREACHED();
-    return;
   }
 
   type_refs_->AddCustomSignature(
       custom_signature_name,
       APISignature::CreateFromValues(*base_signature, nullptr /*returns_async*/,
-                                     nullptr /*access_checker*/,
-                                     custom_signature_name,
-                                     false /*is_event_signature*/));
+                                     nullptr /*access_checker*/));
 }
 
 void APIBindingJSUtil::ValidateCustomSignature(
@@ -321,10 +332,9 @@ void APIBindingJSUtil::ValidateCustomSignature(
     NOTREACHED();
   }
 
-  std::vector<v8::Local<v8::Value>> vector_arguments;
+  v8::LocalVector<v8::Value> vector_arguments(isolate);
   if (!gin::ConvertFromV8(isolate, arguments_to_validate, &vector_arguments)) {
     NOTREACHED();
-    return;
   }
 
   APISignature::V8ParseResult parse_result =

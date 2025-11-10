@@ -24,12 +24,12 @@ void DisplayList::RemoveObserver(DisplayObserver* observer) {
 
 DisplayList::Displays::const_iterator DisplayList::FindDisplayById(
     int64_t id) const {
-  return base::ranges::find(displays_, id, &Display::id);
+  return std::ranges::find(displays_, id, &Display::id);
 }
 
 DisplayList::Displays::const_iterator DisplayList::GetPrimaryDisplayIterator()
     const {
-  return base::ranges::find(displays_, primary_id_, &Display::id);
+  return std::ranges::find(displays_, primary_id_, &Display::id);
 }
 
 void DisplayList::AddOrUpdateDisplay(const Display& display, Type type) {
@@ -47,7 +47,7 @@ uint32_t DisplayList::UpdateDisplay(const Display& display) {
 
 uint32_t DisplayList::UpdateDisplay(const Display& display, Type type) {
   auto iter = FindDisplayByIdInternal(display.id());
-  DCHECK(iter != displays_.end());
+  CHECK(iter != displays_.end());
 
   Display* local_display = &(*iter);
   uint32_t changed_values = 0;
@@ -84,10 +84,10 @@ uint32_t DisplayList::UpdateDisplay(const Display& display, Type type) {
     local_display->set_device_scale_factor(display.device_scale_factor());
     changed_values |= DisplayObserver::DISPLAY_METRIC_DEVICE_SCALE_FACTOR;
   }
-  if (local_display->color_spaces() != display.color_spaces() ||
+  if (local_display->GetColorSpaces() != display.GetColorSpaces() ||
       local_display->depth_per_component() != display.depth_per_component() ||
       local_display->color_depth() != display.color_depth()) {
-    local_display->set_color_spaces(display.color_spaces());
+    local_display->SetColorSpaces(display.GetColorSpaces());
     local_display->set_depth_per_component(display.depth_per_component());
     local_display->set_color_depth(display.color_depth());
     changed_values |= DisplayObserver::DISPLAY_METRIC_COLOR_SPACE;
@@ -98,6 +98,9 @@ uint32_t DisplayList::UpdateDisplay(const Display& display, Type type) {
   }
   if (local_display->GetSizeInPixel() != display.GetSizeInPixel()) {
     local_display->set_size_in_pixels(display.GetSizeInPixel());
+  }
+  if (local_display->native_origin() != display.native_origin()) {
+    local_display->set_native_origin(display.native_origin());
   }
   for (DisplayObserver& observer : observers_)
     observer.OnDisplayMetricsChanged(*local_display, changed_values);
@@ -120,7 +123,7 @@ void DisplayList::AddDisplay(const Display& display, Type type) {
 
 void DisplayList::RemoveDisplay(int64_t id) {
   auto iter = FindDisplayByIdInternal(id);
-  DCHECK(displays_.end() != iter);
+  CHECK(displays_.end() != iter);
   if (id == primary_id_) {
     // The primary display can only be removed if it is the last display.
     // Users must choose a new primary before removing an old primary display.
@@ -130,8 +133,7 @@ void DisplayList::RemoveDisplay(int64_t id) {
   const Display display = *iter;
   displays_.erase(iter);
   for (DisplayObserver& observer : observers_) {
-    observer.OnDisplayRemoved(display);
-    observer.OnDidRemoveDisplays();
+    observer.OnDisplaysRemoved({display});
   }
   DCHECK(IsValid());
 }
@@ -167,7 +169,7 @@ bool DisplayList::IsValid() const {
 
 DisplayList::Displays::iterator DisplayList::FindDisplayByIdInternal(
     int64_t id) {
-  return base::ranges::find(displays_, id, &Display::id);
+  return std::ranges::find(displays_, id, &Display::id);
 }
 
 }  // namespace display

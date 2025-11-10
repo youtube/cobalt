@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_METRICS_SERVICE_CLIENT_H_
-#define COBALT_METRICS_SERVICE_CLIENT_H_
+#ifndef COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICE_CLIENT_H_
+#define COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICE_CLIENT_H_
 
 #include <memory>
+#include <string_view>
 
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
@@ -85,7 +86,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::unique_ptr<::metrics::MetricsLogUploader> CreateUploader(
       const GURL& server_url,
       const GURL& insecure_server_url,
-      base::StringPiece mime_type,
+      std::string_view mime_type,
       ::metrics::MetricsLogUploader::MetricServiceType service_type,
       const ::metrics::MetricsLogUploader::UploadCallback& on_upload_complete)
       override;
@@ -155,4 +156,4 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
 }  // namespace cobalt
 
-#endif  // COBALT_METRICS_SERVICE_CLIENT_H_
+#endif  // COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICE_CLIENT_H_

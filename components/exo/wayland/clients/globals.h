@@ -21,6 +21,10 @@ struct Globals {
     explicit Object(T* ptr) : std::unique_ptr<T>(ptr) {}
     explicit Object(std::unique_ptr<T>&& from)
         : std::unique_ptr<T>(std::move(from)) {}
+    Object(Object&& from)
+        : std::unique_ptr<T>(std::move(from)), name_(std::move(from.name_)) {
+      from.name_ = 0;
+    }
     Object& operator=(std::unique_ptr<T>&& from) {
       std::unique_ptr<T>::operator=(std::move(from));
       name_ = 0;
@@ -44,11 +48,22 @@ struct Globals {
   void Init(wl_display* display,
             base::flat_map<std::string, uint32_t> in_requested_versions);
 
+  // TestObserver is an interface that observes certain events for testing
+  // purposes.
+  class TestObserver {
+   public:
+    virtual void OnRegistryGlobal(uint32_t id,
+                                  const char* interface,
+                                  uint32_t version) = 0;
+    virtual void OnRegistryGlobalRemove(uint32_t id) = 0;
+  };
+  void set_observer_for_testing(TestObserver* observer) {
+    observer_for_testing_ = observer;
+  }
+
   std::unique_ptr<wl_registry> registry;
 
-  // TODO(aluh): Support multiple outputs, and probably other globals like
-  // aura_output, seat, etc.
-  Object<wl_output> output;
+  std::vector<Object<wl_output>> outputs;
   Object<wl_compositor> compositor;
   Object<wl_shm> shm;
   Object<wp_presentation> presentation;
@@ -56,10 +71,10 @@ struct Globals {
   Object<wl_shell> shell;
   Object<wl_seat> seat;
   Object<wl_subcompositor> subcompositor;
-  Object<wl_touch> touch;
   Object<zaura_shell> aura_shell;
-  Object<zaura_output> aura_output;
-  Object<zxdg_shell_v6> xdg_shell_v6;
+  std::vector<Object<zaura_output>> aura_outputs;
+  Object<zaura_output_manager> aura_output_manager;
+  Object<zaura_output_manager_v2> aura_output_manager_v2;
   Object<xdg_wm_base> xdg_wm_base;
   Object<zwp_fullscreen_shell_v1> fullscreen_shell;
   Object<zwp_input_timestamps_manager_v1> input_timestamps_manager;
@@ -70,8 +85,14 @@ struct Globals {
   Object<zcr_remote_shell_v1> cr_remote_shell_v1;
   Object<zcr_remote_shell_v2> cr_remote_shell_v2;
   Object<surface_augmenter> surface_augmenter;
+  Object<wp_single_pixel_buffer_manager_v1> wp_single_pixel_buffer_manager_v1;
+  Object<wp_viewporter> wp_viewporter;
+  Object<wp_fractional_scale_manager_v1> wp_fractional_scale_manager_v1;
+  Object<wl_data_device_manager> data_device_manager;
 
   base::flat_map<std::string, uint32_t> requested_versions;
+
+  raw_ptr<TestObserver> observer_for_testing_;
 };
 
 }  // namespace exo::wayland::clients

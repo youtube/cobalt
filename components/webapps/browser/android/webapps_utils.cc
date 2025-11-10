@@ -9,9 +9,11 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "components/webapps/browser/android/webapk/webapk_types.h"
-#include "components/webapps/browser/android/webapps_jni_headers/WebappsUtils_jni.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/webapps/browser/android/webapps_jni_headers/WebappsUtils_jni.h"
 
 namespace webapps {
 
@@ -28,8 +30,7 @@ bool IsUrlWebApkCompatible(const GURL& url) {
 }  // namespace
 
 // static
-bool WebappsUtils::IsWebApkInstalled(content::BrowserContext* browser_context,
-                                     const GURL& url) {
+bool WebappsUtils::IsWebApkInstalled(const GURL& url) {
   JNIEnv* env = base::android::AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jstring> java_url =
       base::android::ConvertUTF8ToJavaString(env, url.spec());

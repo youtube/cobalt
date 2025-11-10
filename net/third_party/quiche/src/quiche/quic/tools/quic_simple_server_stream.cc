@@ -4,14 +4,17 @@
 
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <list>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -21,9 +24,8 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 
 namespace quic {
 
@@ -145,7 +147,7 @@ void QuicSimpleServerStream::HandleRequestConnectData(bool fin_received) {
 
   if (quic_simple_server_backend_ == nullptr) {
     QUIC_DVLOG(1) << "Backend is missing on CONNECT data.";
-    ResetWriteSide(
+    ResetWithError(
         QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR));
     return;
   }
@@ -301,6 +303,15 @@ void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
     return;
   }
 
+  if (response->response_type() ==
+      QuicBackendResponse::EMPTY_PAYLOAD_WITH_FIN) {
+    // Send an empty payload with FIN without any response headers or body.
+    absl::InlinedVector<quiche::QuicheMemSlice, 4> quic_slices;
+    absl::Span<quiche::QuicheMemSlice> span(quic_slices);
+    WriteMemSlices(std::move(span), true);
+    return;
+  }
+
   // Examing response status, if it was not pure integer as typical h2
   // response status, send error response. Notice that
   // QuicHttpResponseCache push urls are strictly authority + path only,
@@ -308,7 +319,7 @@ void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
   std::string request_url = request_headers_[":authority"].as_string() +
                             request_headers_[":path"].as_string();
   int response_code;
-  const Http2HeaderBlock& response_headers = response->headers();
+  const HttpHeaderBlock& response_headers = response->headers();
   if (!ParseHeaderStatusCode(response_headers, &response_code)) {
     auto status = response_headers.find(":status");
     if (status == response_headers.end()) {
@@ -339,7 +350,7 @@ void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
       SendNotFoundResponse();
       return;
     }
-    Http2HeaderBlock headers = response->headers().Clone();
+    HttpHeaderBlock headers = response->headers().Clone();
     headers["content-length"] = absl::StrCat(generate_bytes_length_);
 
     WriteHeaders(std::move(headers), false, nullptr);
@@ -363,10 +374,10 @@ void QuicSimpleServerStream::SendStreamData(absl::string_view data,
 
   if (close_stream) {
     SendHeadersAndBodyAndTrailers(
-        /*response_headers=*/absl::nullopt, data,
-        /*response_trailers=*/spdy::Http2HeaderBlock());
+        /*response_headers=*/std::nullopt, data,
+        /*response_trailers=*/quiche::HttpHeaderBlock());
   } else {
-    SendIncompleteResponse(/*response_headers=*/absl::nullopt, data);
+    SendIncompleteResponse(/*response_headers=*/std::nullopt, data);
   }
 }
 
@@ -374,7 +385,7 @@ void QuicSimpleServerStream::TerminateStreamWithError(
     QuicResetStreamError error) {
   QUIC_DVLOG(1) << "Stream " << id() << " abruptly terminating with error "
                 << error.internal_code();
-  ResetWriteSide(error);
+  ResetWithError(error);
 }
 
 void QuicSimpleServerStream::OnCanWrite() {
@@ -395,7 +406,7 @@ void QuicSimpleServerStream::WriteGeneratedBytes() {
 
 void QuicSimpleServerStream::SendNotFoundResponse() {
   QUIC_DVLOG(1) << "Stream " << id() << " sending not found response.";
-  Http2HeaderBlock headers;
+  HttpHeaderBlock headers;
   headers[":status"] = "404";
   headers["content-length"] = absl::StrCat(strlen(kNotFoundResponseBody));
   SendHeadersAndBody(std::move(headers), kNotFoundResponseBody);
@@ -408,7 +419,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
   if (!reading_stopped()) {
     StopReading();
   }
-  Http2HeaderBlock headers;
+  HttpHeaderBlock headers;
   if (resp_code <= 0) {
     headers[":status"] = "500";
   } else {
@@ -419,7 +430,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
 }
 
 void QuicSimpleServerStream::SendIncompleteResponse(
-    absl::optional<Http2HeaderBlock> response_headers, absl::string_view body) {
+    std::optional<HttpHeaderBlock> response_headers, absl::string_view body) {
   // Headers should be sent iff not sent in a previous response.
   QUICHE_DCHECK_NE(response_headers.has_value(), response_sent_);
 
@@ -443,14 +454,14 @@ void QuicSimpleServerStream::SendIncompleteResponse(
 }
 
 void QuicSimpleServerStream::SendHeadersAndBody(
-    Http2HeaderBlock response_headers, absl::string_view body) {
+    HttpHeaderBlock response_headers, absl::string_view body) {
   SendHeadersAndBodyAndTrailers(std::move(response_headers), body,
-                                Http2HeaderBlock());
+                                HttpHeaderBlock());
 }
 
 void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
-    absl::optional<Http2HeaderBlock> response_headers, absl::string_view body,
-    Http2HeaderBlock response_trailers) {
+    std::optional<HttpHeaderBlock> response_headers, absl::string_view body,
+    HttpHeaderBlock response_trailers) {
   // Headers should be sent iff not sent in a previous response.
   QUICHE_DCHECK_NE(response_headers.has_value(), response_sent_);
 

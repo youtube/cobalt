@@ -27,9 +27,15 @@ class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
 
  protected:
   void Visit(const void*, TraceDescriptor) final;
+  void VisitMultipleUncompressedMember(const void*, size_t,
+                                       TraceDescriptorCallback) final;
+#if defined(CPPGC_POINTER_COMPRESSION)
+  void VisitMultipleCompressedMember(const void*, size_t,
+                                     TraceDescriptorCallback) final;
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
   void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
-  void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
+  void VisitWeakContainer(const void* object, TraceDescriptor strong_desc,
                           TraceDescriptor weak_desc, WeakCallback callback,
                           const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
@@ -53,6 +59,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
  protected:
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, TraceCallback,
                                              size_t) final;
+  bool IsConcurrent() const final { return true; }
 };
 
 class V8_EXPORT_PRIVATE RootMarkingVisitor : public RootVisitorBase {

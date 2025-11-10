@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ash/ash_export.h"
+#include "ash/drag_drop/scoped_drag_drop_observer.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
 #include "ash/public/cpp/holding_space/holding_space_controller_observer.h"
 #include "ash/public/cpp/holding_space/holding_space_model.h"
@@ -24,8 +25,8 @@
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/compositor/layer_tree_owner.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
@@ -55,9 +56,9 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
                                     public SessionObserver,
                                     public ui::SimpleMenuModel::Delegate,
                                     public views::WidgetObserver {
- public:
-  METADATA_HEADER(HoldingSpaceTray);
+  METADATA_HEADER(HoldingSpaceTray, TrayBackgroundView)
 
+ public:
   explicit HoldingSpaceTray(Shelf* shelf);
   HoldingSpaceTray(const HoldingSpaceTray& other) = delete;
   HoldingSpaceTray& operator=(const HoldingSpaceTray& other) = delete;
@@ -65,15 +66,13 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
 
   // TrayBackgroundView:
   void Initialize() override;
-  void ClickedOutsideBubble() override;
-  std::u16string GetAccessibleNameForTray() override;
+  void ClickedOutsideBubble(const ui::LocatedEvent& event) override;
   views::View* GetTooltipHandlerForPoint(const gfx::Point& point) override;
-  std::u16string GetTooltipText(const gfx::Point& point) const override;
   void HandleLocaleChange() override;
   void HideBubbleWithView(const TrayBubbleView* bubble_view) override;
   void AnchorUpdated() override;
   void UpdateAfterLoginStatusChange() override;
-  void CloseBubble() override;
+  void CloseBubbleInternal() override;
   void ShowBubble() override;
   TrayBubbleView* GetBubbleView() override;
   views::Widget* GetBubbleWidget() const override;
@@ -85,11 +84,12 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
   int OnDragUpdated(const ui::DropTargetEvent& event) override;
   views::View::DropCallback GetDropCallback(
       const ui::DropTargetEvent& event) override;
-  void Layout() override;
+  void Layout(PassKey) override;
   void VisibilityChanged(views::View* starting_from, bool is_visible) override;
   void OnThemeChanged() override;
   void OnShouldShowAnimationChanged(bool should_animate) override;
   std::unique_ptr<ui::SimpleMenuModel> CreateContextMenuModel() override;
+  void UpdateTrayItemColor(bool is_active) override;
 
   // Invoke to cause the holding space tray to recalculate and update its
   // visibility. Note that this may or may not result in a visibility change
@@ -120,7 +120,6 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
   // HoldingSpaceControllerObserver:
   void OnHoldingSpaceModelAttached(HoldingSpaceModel* model) override;
   void OnHoldingSpaceModelDetached(HoldingSpaceModel* model) override;
-  void OnHoldingSpaceForceShowInShelfChanged() override;
 
   // HoldingSpaceModelObserver:
   void OnHoldingSpaceItemsAdded(
@@ -142,6 +141,9 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
   // Registers pref change registrars for preferences relevant to the holding
   // space tray state.
   void ObservePrefService(PrefService* prefs);
+
+  // Callback called when this TrayBackgroundView is pressed.
+  void OnTrayButtonPressed(const ui::Event& event);
 
   // Called when the state reflected in the previews icon changes - it updates
   // the previews icon visibility and schedules the previews icon update.
@@ -174,14 +176,14 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
   // target. If `event` is `nullptr`, this view is *not* a drop target.
   // Otherwise this view is a drop target if the `event` is located within
   // sufficient range of its bounds and contains pinnable files.
-  void UpdateDropTargetState(const ui::DropTargetEvent* event);
+  void UpdateDropTargetState(ScopedDragDropObserver::EventType event_type,
+                             const ui::DropTargetEvent* event);
 
   // Sets whether tray visibility and previews updates should be animated.
   void SetShouldAnimate(bool should_animate);
 
-  // Pins the dropped files `unpinned_file_paths` to the tray.
-  void PerformDrop(std::vector<base::FilePath> unpinned_file_paths,
-                   const ui::DropTargetEvent& event,
+  // Handles the specified drop `event` by pinning associated files to the tray.
+  void PerformDrop(const ui::DropTargetEvent& event,
                    ui::mojom::DragOperation& output_drag_op,
                    std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
 
@@ -191,19 +193,19 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
   // Default tray icon shown when there are no previews available (or the
   // previews are disabled).
   // Owned by views hierarchy.
-  raw_ptr<views::ImageView, ExperimentalAsh> default_tray_icon_ = nullptr;
+  raw_ptr<views::ImageView> default_tray_icon_ = nullptr;
 
   // Content forward tray icon that contains holding space item previews.
   // Owned by views hierarchy.
-  raw_ptr<HoldingSpaceTrayIcon, ExperimentalAsh> previews_tray_icon_ = nullptr;
+  raw_ptr<HoldingSpaceTrayIcon> previews_tray_icon_ = nullptr;
 
   // The view drawn on top of all other child views to indicate that this
   // view is a drop target capable of handling the current drag payload.
-  raw_ptr<views::View, ExperimentalAsh> drop_target_overlay_ = nullptr;
+  raw_ptr<views::View> drop_target_overlay_ = nullptr;
 
   // The icon parented by the `drop_target_overlay_` to indicate that this view
   // is a drop target capable of handling the current drag payload.
-  raw_ptr<views::ImageView, ExperimentalAsh> drop_target_icon_ = nullptr;
+  raw_ptr<views::ImageView> drop_target_icon_ = nullptr;
 
   // Owns the `ui::Layer` which paints indication of progress for all holding
   // space items in the model attached to the holding space controller.
@@ -227,6 +229,11 @@ class ASH_EXPORT HoldingSpaceTray : public TrayBackgroundView,
   // Used in tests to shorten the timeout for updating previews in the content
   // forward tray icon.
   bool use_zero_previews_update_delay_ = false;
+
+  // Whether the user is currently dragging data which can be dropped on the
+  // tray as part of a drag-and-drop to pin action. Note that this value is only
+  // present while a drag is in progress and the holding space tray is visible.
+  std::optional<bool> can_drop_to_pin_;
 
   // Whether the user performed a drag-and-drop to pin action. Note that this
   // flag is set only within the scope of a drop release event sequence. It is

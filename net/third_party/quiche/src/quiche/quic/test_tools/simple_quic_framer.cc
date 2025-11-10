@@ -5,12 +5,16 @@
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 
 #include <memory>
-#include <utility>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
@@ -31,9 +35,6 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   }
 
   void OnPacket() override {}
-  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {
-    public_reset_packet_ = std::make_unique<QuicPublicResetPacket>((packet));
-  }
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {
     version_negotiation_packet_ =
@@ -70,6 +71,10 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
                              EncryptionLevel /*decryption_level*/,
                              bool /*has_decryption_key*/) override {}
 
+  // Returns the types of the frames in the packet so far, in the order they
+  // were received.
+  const std::vector<QuicFrameType>& frame_types() const { return frame_types_; }
+
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     // Save a copy of the data so it is valid after the packet is processed.
     std::string* string_data =
@@ -79,6 +84,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset,
         absl::string_view(*string_data)));
+    frame_types_.push_back(STREAM_FRAME);
     return true;
   }
 
@@ -89,6 +95,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     crypto_data_.push_back(absl::WrapUnique(string_data));
     crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
         frame.level, frame.offset, absl::string_view(*string_data)));
+    frame_types_.push_back(CRYPTO_FRAME);
     return true;
   }
 
@@ -98,6 +105,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     ack_frame.largest_acked = largest_acked;
     ack_frame.ack_delay_time = ack_delay_time;
     ack_frames_.push_back(ack_frame);
+    frame_types_.push_back(ACK_FRAME);
     return true;
   }
 
@@ -114,102 +122,133 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   bool OnAckFrameEnd(
       QuicPacketNumber /*start*/,
-      const absl::optional<QuicEcnCounts>& /*ecn_counts*/) override {
+      const std::optional<QuicEcnCounts>& /*ecn_counts*/) override {
     return true;
   }
 
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override {
     stop_waiting_frames_.push_back(frame);
+    frame_types_.push_back(STOP_WAITING_FRAME);
     return true;
   }
 
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override {
     padding_frames_.push_back(frame);
+    frame_types_.push_back(PADDING_FRAME);
     return true;
   }
 
   bool OnPingFrame(const QuicPingFrame& frame) override {
     ping_frames_.push_back(frame);
+    frame_types_.push_back(PING_FRAME);
     return true;
   }
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
     rst_stream_frames_.push_back(frame);
+    frame_types_.push_back(RST_STREAM_FRAME);
     return true;
   }
 
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
     connection_close_frames_.push_back(frame);
+    frame_types_.push_back(CONNECTION_CLOSE_FRAME);
     return true;
   }
 
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override {
     new_connection_id_frames_.push_back(frame);
+    frame_types_.push_back(NEW_CONNECTION_ID_FRAME);
     return true;
   }
 
   bool OnRetireConnectionIdFrame(
       const QuicRetireConnectionIdFrame& frame) override {
     retire_connection_id_frames_.push_back(frame);
+    frame_types_.push_back(RETIRE_CONNECTION_ID_FRAME);
     return true;
   }
 
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override {
     new_token_frames_.push_back(frame);
+    frame_types_.push_back(NEW_TOKEN_FRAME);
     return true;
   }
 
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override {
     stop_sending_frames_.push_back(frame);
+    frame_types_.push_back(STOP_SENDING_FRAME);
     return true;
   }
 
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override {
     path_challenge_frames_.push_back(frame);
+    frame_types_.push_back(PATH_CHALLENGE_FRAME);
     return true;
   }
 
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override {
     path_response_frames_.push_back(frame);
+    frame_types_.push_back(PATH_RESPONSE_FRAME);
     return true;
   }
 
   bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override {
     goaway_frames_.push_back(frame);
+    frame_types_.push_back(GOAWAY_FRAME);
     return true;
   }
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
     max_streams_frames_.push_back(frame);
+    frame_types_.push_back(MAX_STREAMS_FRAME);
     return true;
   }
 
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
     streams_blocked_frames_.push_back(frame);
+    frame_types_.push_back(STREAMS_BLOCKED_FRAME);
     return true;
   }
 
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override {
     window_update_frames_.push_back(frame);
+    frame_types_.push_back(WINDOW_UPDATE_FRAME);
     return true;
   }
 
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override {
     blocked_frames_.push_back(frame);
+    frame_types_.push_back(BLOCKED_FRAME);
     return true;
   }
 
   bool OnMessageFrame(const QuicMessageFrame& frame) override {
     message_frames_.emplace_back(frame.data, frame.message_length);
+    frame_types_.push_back(MESSAGE_FRAME);
     return true;
   }
 
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override {
     handshake_done_frames_.push_back(frame);
+    frame_types_.push_back(HANDSHAKE_DONE_FRAME);
     return true;
   }
 
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override {
     ack_frequency_frames_.push_back(frame);
+    frame_types_.push_back(ACK_FREQUENCY_FRAME);
+    return true;
+  }
+
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override {
+    immediate_ack_frames_.push_back(frame);
+    frame_types_.push_back(IMMEDIATE_ACK_FRAME);
+    return true;
+  }
+
+  bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
+    reset_stream_at_frames_.push_back(frame);
+    frame_types_.push_back(RESET_STREAM_AT_FRAME);
     return true;
   }
 
@@ -292,8 +331,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   bool has_header_;
   QuicPacketHeader header_;
   std::unique_ptr<QuicVersionNegotiationPacket> version_negotiation_packet_;
-  std::unique_ptr<QuicPublicResetPacket> public_reset_packet_;
   std::unique_ptr<QuicIetfStatelessResetPacket> stateless_reset_packet_;
+  std::vector<QuicFrameType> frame_types_;
   std::vector<QuicAckFrame> ack_frames_;
   std::vector<QuicStopWaitingFrame> stop_waiting_frames_;
   std::vector<QuicPaddingFrame> padding_frames_;
@@ -316,6 +355,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicMessageFrame> message_frames_;
   std::vector<QuicHandshakeDoneFrame> handshake_done_frames_;
   std::vector<QuicAckFrequencyFrame> ack_frequency_frames_;
+  std::vector<QuicImmediateAckFrame> immediate_ack_frames_;
+  std::vector<QuicResetStreamAtFrame> reset_stream_at_frames_;
   std::vector<std::unique_ptr<std::string>> stream_data_;
   std::vector<std::unique_ptr<std::string>> crypto_data_;
   EncryptionLevel last_decrypted_level_;
@@ -324,17 +365,23 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
 SimpleQuicFramer::SimpleQuicFramer()
     : framer_(AllSupportedVersions(), QuicTime::Zero(), Perspective::IS_SERVER,
-              kQuicDefaultConnectionIdLength) {}
+              kQuicDefaultConnectionIdLength) {
+  framer_.set_process_reset_stream_at(true);
+}
 
 SimpleQuicFramer::SimpleQuicFramer(
     const ParsedQuicVersionVector& supported_versions)
     : framer_(supported_versions, QuicTime::Zero(), Perspective::IS_SERVER,
-              kQuicDefaultConnectionIdLength) {}
+              kQuicDefaultConnectionIdLength) {
+  framer_.set_process_reset_stream_at(true);
+}
 
 SimpleQuicFramer::SimpleQuicFramer(
     const ParsedQuicVersionVector& supported_versions, Perspective perspective)
     : framer_(supported_versions, QuicTime::Zero(), perspective,
-              kQuicDefaultConnectionIdLength) {}
+              kQuicDefaultConnectionIdLength) {
+  framer_.set_process_reset_stream_at(true);
+}
 
 SimpleQuicFramer::~SimpleQuicFramer() {}
 
@@ -370,6 +417,10 @@ size_t SimpleQuicFramer::num_frames() const {
          stream_frames().size() + ping_frames().size() +
          connection_close_frames().size() + padding_frames().size() +
          crypto_frames().size();
+}
+
+const std::vector<QuicFrameType>& SimpleQuicFramer::frame_types() const {
+  return visitor_->frame_types();
 }
 
 const std::vector<QuicAckFrame>& SimpleQuicFramer::ack_frames() const {

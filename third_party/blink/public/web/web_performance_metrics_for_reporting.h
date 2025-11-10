@@ -5,18 +5,40 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_PERFORMANCE_METRICS_FOR_REPORTING_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_PERFORMANCE_METRICS_FOR_REPORTING_H_
 
+#include <optional>
+#include <vector>
+
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
 #include "third_party/blink/public/platform/web_url_request.h"
-#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 
 namespace blink {
 
 class WindowPerformance;
+
+struct ResourceLoadTimingsForReporting {
+  std::optional<base::TimeDelta> discovery_time = std::nullopt;
+  std::optional<base::TimeDelta> load_start = std::nullopt;
+  std::optional<base::TimeDelta> load_end = std::nullopt;
+};
+
+struct LargestContentfulPaintDetailsForReporting {
+  double image_paint_time = 0;
+  uint64_t image_paint_size = 0;
+  ResourceLoadTimingsForReporting resource_load_timings = {};
+  blink::LargestContentfulPaintType type =
+      blink::LargestContentfulPaintType::kNone;
+  double image_bpp = 0.0;
+  double text_paint_time = 0;
+  uint64_t text_paint_size = 0;
+  base::TimeTicks paint_time = base::TimeTicks();
+  std::optional<WebURLRequest::Priority> image_request_priority = std::nullopt;
+  // The unclamped paint time of the largest content (image/text).
+  std::optional<base::TimeTicks> merged_unclamped_paint_time = std::nullopt;
+};
 
 // This class is used for reporting purposes (e.g. ukm) of non-web-exposed
 // metrics.
@@ -33,11 +55,11 @@ class BLINK_EXPORT WebPerformanceMetricsForReporting {
     std::array<double,
                kRequestAnimationFramesToRecordAfterBackForwardCacheRestore>
         request_animation_frames = {};
-    absl::optional<base::TimeDelta> first_input_delay;
+    std::optional<base::TimeDelta> first_input_delay;
   };
 
   using BackForwardCacheRestoreTimings =
-      WebVector<BackForwardCacheRestoreTiming>;
+      std::vector<BackForwardCacheRestoreTiming>;
 
   ~WebPerformanceMetricsForReporting() { Reset(); }
 
@@ -62,10 +84,17 @@ class BLINK_EXPORT WebPerformanceMetricsForReporting {
   WebNavigationType GetNavigationType() const;
 
   // These functions return time in seconds (not milliseconds) since the epoch.
+  //
+  // TODO (crbug.com/355962211): Update the methods which return double for
+  // timing information to return `base::TimeTicks`.
   double InputForNavigationStart() const;
   double NavigationStart() const;
   base::TimeTicks NavigationStartAsMonotonicTime() const;
   BackForwardCacheRestoreTimings BackForwardCacheRestore() const;
+  double DomainLookupStart() const;
+  double DomainLookupEnd() const;
+  double ConnectStart() const;
+  double ConnectEnd() const;
   double ResponseStart() const;
   double DomContentLoadedEventStart() const;
   double DomContentLoadedEventEnd() const;
@@ -78,39 +107,32 @@ class BLINK_EXPORT WebPerformanceMetricsForReporting {
   base::TimeTicks FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime()
       const;
   double FirstMeaningfulPaint() const;
-  double LargestImagePaintForMetrics() const;
-  uint64_t LargestImagePaintSizeForMetrics() const;
-  absl::optional<base::TimeDelta> LargestContentfulPaintImageLoadStart() const;
-  absl::optional<base::TimeDelta> LargestContentfulPaintImageLoadEnd() const;
-  double LargestTextPaintForMetrics() const;
-  uint64_t LargestTextPaintSizeForMetrics() const;
-  base::TimeTicks LargestContentfulPaintAsMonotonicTimeForMetrics() const;
-  blink::LargestContentfulPaintType LargestContentfulPaintTypeForMetrics()
+  LargestContentfulPaintDetailsForReporting LargestContentfulDetailsForMetrics()
       const;
-  double LargestContentfulPaintImageBPPForMetrics() const;
-  absl::optional<WebURLRequest::Priority>
-  LargestContentfulPaintImageRequestPriorityForMetrics() const;
+  LargestContentfulPaintDetailsForReporting
+  SoftNavigationLargestContentfulDetailsForMetrics() const;
   double FirstEligibleToPaint() const;
   double FirstInputOrScrollNotifiedTimestamp() const;
-  absl::optional<base::TimeDelta> FirstInputDelay() const;
-  absl::optional<base::TimeDelta> FirstInputTimestamp() const;
-  absl::optional<base::TimeTicks> FirstInputTimestampAsMonotonicTime() const;
-  absl::optional<base::TimeDelta> LongestInputDelay() const;
-  absl::optional<base::TimeDelta> LongestInputTimestamp() const;
-  absl::optional<base::TimeDelta> FirstInputProcessingTime() const;
-  absl::optional<base::TimeDelta> FirstScrollDelay() const;
-  absl::optional<base::TimeDelta> FirstScrollTimestamp() const;
+  std::optional<base::TimeDelta> FirstInputDelay() const;
+  std::optional<base::TimeDelta> FirstInputTimestamp() const;
+  std::optional<base::TimeTicks> FirstInputTimestampAsMonotonicTime() const;
+  std::optional<base::TimeDelta> LongestInputDelay() const;
+  std::optional<base::TimeDelta> LongestInputTimestamp() const;
+  std::optional<base::TimeDelta> FirstInputProcessingTime() const;
+  std::optional<base::TimeDelta> FirstScrollDelay() const;
+  std::optional<base::TimeDelta> FirstScrollTimestamp() const;
   double ParseStart() const;
   double ParseStop() const;
   double ParseBlockedOnScriptLoadDuration() const;
   double ParseBlockedOnScriptLoadFromDocumentWriteDuration() const;
   double ParseBlockedOnScriptExecutionDuration() const;
   double ParseBlockedOnScriptExecutionFromDocumentWriteDuration() const;
-  absl::optional<base::TimeTicks> LastPortalActivatedPaint() const;
-  absl::optional<base::TimeDelta> PrerenderActivationStart() const;
-  absl::optional<base::TimeDelta> UserTimingMarkFullyLoaded() const;
-  absl::optional<base::TimeDelta> UserTimingMarkFullyVisible() const;
-  absl::optional<base::TimeDelta> UserTimingMarkInteractive() const;
+  std::optional<base::TimeDelta> PrerenderActivationStart() const;
+  std::optional<base::TimeDelta> UserTimingMarkFullyLoaded() const;
+  std::optional<base::TimeDelta> UserTimingMarkFullyVisible() const;
+  std::optional<base::TimeDelta> UserTimingMarkInteractive() const;
+  std::optional<std::tuple<std::string, base::TimeDelta>> CustomUserTimingMark()
+      const;
 
 #if INSIDE_BLINK
   explicit WebPerformanceMetricsForReporting(WindowPerformance*);
@@ -118,7 +140,7 @@ class BLINK_EXPORT WebPerformanceMetricsForReporting {
 #endif
 
  private:
-  WebPrivatePtr<WindowPerformance> private_;
+  WebPrivatePtrForGC<WindowPerformance> private_;
 };
 
 }  // namespace blink

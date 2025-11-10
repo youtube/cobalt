@@ -16,14 +16,15 @@
 
 namespace webrtc {
 
-rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> ObjCToNativeVideoCapturer(
-    RTC_OBJC_TYPE(RTCVideoCapturer) * objc_video_capturer,
-    rtc::Thread *signaling_thread,
-    rtc::Thread *worker_thread) {
+webrtc::scoped_refptr<webrtc::VideoTrackSourceInterface>
+    ObjCToNativeVideoCapturer(RTC_OBJC_TYPE(RTCVideoCapturer) *
+                                  objc_video_capturer,
+                              webrtc::Thread *signaling_thread,
+                              webrtc::Thread *worker_thread) {
   RTCObjCVideoSourceAdapter *adapter = [[RTCObjCVideoSourceAdapter alloc] init];
-  rtc::scoped_refptr<webrtc::ObjCVideoTrackSource> objc_video_track_source =
-      rtc::make_ref_counted<webrtc::ObjCVideoTrackSource>(adapter);
-  rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
+  webrtc::scoped_refptr<webrtc::ObjCVideoTrackSource> objc_video_track_source =
+      webrtc::make_ref_counted<webrtc::ObjCVideoTrackSource>(adapter);
+  webrtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
       webrtc::CreateVideoTrackSourceProxy(
           signaling_thread, worker_thread, objc_video_track_source.get());
 

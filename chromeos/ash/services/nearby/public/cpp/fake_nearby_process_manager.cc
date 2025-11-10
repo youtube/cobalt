@@ -23,7 +23,8 @@ FakeNearbyProcessManager::FakeNearbyProcessReference::
             ::nearby::connections::mojom::NearbyConnections>& connections,
         const mojo::SharedRemote<
             ::ash::nearby::presence::mojom::NearbyPresence>& presence,
-        const mojo::SharedRemote<sharing::mojom::NearbySharingDecoder>& decoder,
+        const mojo::SharedRemote<::sharing::mojom::NearbySharingDecoder>&
+            decoder,
         const mojo::SharedRemote<quick_start::mojom::QuickStartDecoder>&
             quick_start_decoder,
         base::OnceClosure destructor_callback)
@@ -50,7 +51,7 @@ FakeNearbyProcessManager::FakeNearbyProcessReference::GetNearbyPresence()
   return presence_;
 }
 
-const mojo::SharedRemote<sharing::mojom::NearbySharingDecoder>&
+const mojo::SharedRemote<::sharing::mojom::NearbySharingDecoder>&
 FakeNearbyProcessManager::FakeNearbyProcessReference::GetNearbySharingDecoder()
     const {
   return decoder_;
@@ -119,6 +120,10 @@ FakeNearbyProcessManager::GetNearbyProcessReference(
       active_quick_start_decoder_->shared_remote(),
       base::BindOnce(&FakeNearbyProcessManager::OnReferenceDeleted,
                      weak_ptr_factory_.GetWeakPtr(), id));
+}
+
+void FakeNearbyProcessManager::ShutDownProcess() {
+  NOTIMPLEMENTED();
 }
 
 void FakeNearbyProcessManager::OnReferenceDeleted(

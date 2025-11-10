@@ -1,5 +1,4 @@
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//visibility:private",
     ],
@@ -13,7 +12,7 @@ cc_test(
         "//tensorflow_lite_support/cc/port:gtest_main",
         "//tensorflow_lite_support/scann_ondevice/cc:mem_random_access_file",
         "@com_google_leveldb//:util",
-        "@org_tensorflow//tensorflow/lite/core/shims:cc_shims_test_util",
+        "@org_tensorflow//tensorflow/lite:test_util",
     ],
 )
 
@@ -31,10 +30,10 @@ cc_test(
         "//tensorflow_lite_support/scann_ondevice/cc:index",
         "//tensorflow_lite_support/scann_ondevice/cc/core:serialized_searcher_cc_proto",
         "//tensorflow_lite_support/scann_ondevice/proto:index_config_cc_proto",
-        "@com_google_absl//absl/flags:flag",
+        "//testing/base/public:gunit",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
-        "@org_tensorflow//tensorflow/lite/core/shims:cc_shims_test_util",
+        "@org_tensorflow//tensorflow/lite:test_util",
     ],
 )
 
@@ -55,7 +54,7 @@ cc_test(
         "//tensorflow_lite_support/cc/test:test_utils",
         "//tensorflow_lite_support/scann_ondevice/cc:index_builder",
         "//tensorflow_lite_support/scann_ondevice/proto:index_config_cc_proto",
-        "@com_google_absl//absl/flags:flag",
+        "//testing/base/public:gunit",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",

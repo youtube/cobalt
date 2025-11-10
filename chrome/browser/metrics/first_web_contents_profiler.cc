@@ -64,20 +64,20 @@ void FirstWebContentsProfiler::RecordFinishReason(
 
 void FirstWebContentsProfiler::RecordNavigationFinished(
     base::TimeTicks navigation_start) {
-  startup_metric_utils::RecordFirstWebContentsMainNavigationStart(
+  startup_metric_utils::GetBrowser().RecordFirstWebContentsMainNavigationStart(
       navigation_start);
-  startup_metric_utils::RecordFirstWebContentsMainNavigationFinished(
-      base::TimeTicks::Now());
+  startup_metric_utils::GetBrowser()
+      .RecordFirstWebContentsMainNavigationFinished(base::TimeTicks::Now());
 }
 
 void FirstWebContentsProfiler::RecordFirstNonEmptyPaint() {
-  startup_metric_utils::RecordFirstWebContentsNonEmptyPaint(
+  startup_metric_utils::GetBrowser().RecordFirstWebContentsNonEmptyPaint(
       base::TimeTicks::Now(),
       web_contents()->GetPrimaryMainFrame()->GetProcess()->GetLastInitTime());
 }
 
 bool FirstWebContentsProfiler::WasStartupInterrupted() {
-  return startup_metric_utils::WasMainWindowStartupInterrupted();
+  return startup_metric_utils::GetBrowser().WasMainWindowStartupInterrupted();
 }
 
 }  // namespace
@@ -85,7 +85,7 @@ bool FirstWebContentsProfiler::WasStartupInterrupted() {
 void BeginFirstWebContentsProfiling() {
   content::WebContents* visible_contents = nullptr;
   const BrowserList* browser_list = BrowserList::GetInstance();
-  for (Browser* browser : *browser_list) {
+  for (Browser* browser : browser_list->OrderedByActivation()) {
     visible_contents =
         FirstWebContentsProfilerBase::GetVisibleContents(browser);
     if (visible_contents)

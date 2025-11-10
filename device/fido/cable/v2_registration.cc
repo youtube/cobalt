@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/fido/cable/v2_registration.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "components/cbor/reader.h"
@@ -45,13 +51,13 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
     // number of new registrations with the FCM service. Thus this code does not
     // compile on other platforms. Check with //components/gcm_driver owners
     // before changing this.
-#if !BUILDFLAG(IS_ANDROID)
-    CHECK(false) << "Do not use outside of Android.";
-#endif
-
+#if BUILDFLAG(IS_ANDROID)
     gcm::GCMDriver* const gcm_driver = instance_id_->gcm_driver();
     CHECK(gcm_driver->GetAppHandler(app_id()) == nullptr);
     instance_id_->gcm_driver()->AddAppHandler(app_id(), this);
+#else
+    NOTREACHED() << "Do not use outside of Android.";
+#endif
   }
 
   ~FCMHandler() override {
@@ -89,11 +95,11 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
                                              base::Unretained(this)));
   }
 
-  absl::optional<std::vector<uint8_t>> contact_id() const override {
+  std::optional<std::vector<uint8_t>> contact_id() const override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
     if (!registration_token_) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return std::vector<uint8_t>(registration_token_->begin(),
                                 registration_token_->end());
@@ -112,7 +118,7 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
       return;
     }
 
-    absl::optional<std::unique_ptr<Registration::Event>> event =
+    std::optional<std::unique_ptr<Registration::Event>> event =
         MessageToEvent(message.data, type_);
     if (!event) {
       FIDO_LOG(ERROR) << "Failed to decode FCM message. Ignoring.";
@@ -178,7 +184,7 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
     PrepareContactID();
   }
 
-  static absl::optional<std::unique_ptr<Registration::Event>> MessageToEvent(
+  static std::optional<std::unique_ptr<Registration::Event>> MessageToEvent(
       const gcm::MessageData& data,
       Type source) {
     auto event = std::make_unique<Registration::Event>();
@@ -187,46 +193,46 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
     gcm::MessageData::const_iterator it = data.find("caBLE.tunnelID");
     if (it == data.end() ||
         !base::HexStringToSpan(it->second, event->tunnel_id)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     it = data.find("caBLE.routingID");
     if (it == data.end() ||
         !base::HexStringToSpan(it->second, event->routing_id)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     std::vector<uint8_t> payload_bytes;
     it = data.find("caBLE.clientPayload");
     if (it == data.end() ||
         !base::HexStringToBytes(it->second, &payload_bytes)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
-    absl::optional<cbor::Value> payload = cbor::Reader::Read(payload_bytes);
+    std::optional<cbor::Value> payload = cbor::Reader::Read(payload_bytes);
     if (!payload || !payload->is_map()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     const cbor::Value::MapValue& map = payload->GetMap();
     cbor::Value::MapValue::const_iterator cbor_it = map.find(cbor::Value(1));
     if (cbor_it == map.end() || !cbor_it->second.is_bytestring()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     const std::vector<uint8_t>& pairing_id = cbor_it->second.GetBytestring();
     if (pairing_id.size() != event->pairing_id.size()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     memcpy(event->pairing_id.data(), pairing_id.data(),
            event->pairing_id.size());
 
     if (!fido_parsing_utils::CopyCBORBytestring(&event->client_nonce, map, 2)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     cbor_it = map.find(cbor::Value(3));
     if (cbor_it == map.end() || !cbor_it->second.is_string()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     const std::string& request_type_str = cbor_it->second.GetString();
     if (request_type_str == "mc") {
@@ -234,7 +240,7 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
     } else if (request_type_str == "ga") {
       event->request_type = FidoRequestType::kGetAssertion;
     } else {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     return event;
@@ -247,7 +253,7 @@ class FCMHandler : public gcm::GCMAppHandler, public Registration {
   const raw_ptr<instance_id::InstanceIDDriver> instance_id_driver_;
   const raw_ptr<instance_id::InstanceID> instance_id_;
   bool registration_token_pending_ = false;
-  absl::optional<std::string> registration_token_;
+  std::optional<std::string> registration_token_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
@@ -311,7 +317,7 @@ std::unique_ptr<Registration::Event> Registration::Event::FromSerialized(
   return e;
 }
 
-absl::optional<std::vector<uint8_t>> Registration::Event::Serialize() {
+std::optional<std::vector<uint8_t>> Registration::Event::Serialize() {
   bssl::ScopedCBB cbb;
   if (!CBB_init(cbb.get(), /*initial_capacity=*/512) ||
       !CBB_add_u8(cbb.get(), static_cast<uint8_t>(this->source)) ||
@@ -326,13 +332,13 @@ absl::optional<std::vector<uint8_t>> Registration::Event::Serialize() {
                      this->client_nonce.size()) ||
       (this->contact_id && !CBB_add_bytes(cbb.get(), this->contact_id->data(),
                                           this->contact_id->size()))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   uint8_t* serialized_bytes;
   size_t serialized_bytes_len;
   if (!CBB_finish(cbb.get(), &serialized_bytes, &serialized_bytes_len)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   const std::vector<uint8_t> ret(serialized_bytes,
                                  serialized_bytes + serialized_bytes_len);

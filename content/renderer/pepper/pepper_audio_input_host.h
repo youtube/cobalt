@@ -11,7 +11,8 @@
 #include <memory>
 #include <string>
 
-#include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/unsafe_shared_memory_region.h"
 #include "base/sync_socket.h"
 #include "content/renderer/pepper/pepper_device_enumeration_host_helper.h"
 #include "ipc/ipc_platform_file.h"
@@ -39,7 +40,7 @@ class PepperAudioInputHost : public ppapi::host::ResourceHost {
       ppapi::host::HostMessageContext* context) override;
 
   // Called when the stream is created.
-  void StreamCreated(base::ReadOnlySharedMemoryRegion shared_memory_region,
+  void StreamCreated(base::UnsafeSharedMemoryRegion shared_memory_region,
                      base::SyncSocket::ScopedHandle socket);
   void StreamCreationFailed();
 
@@ -52,27 +53,27 @@ class PepperAudioInputHost : public ppapi::host::ResourceHost {
   int32_t OnClose(ppapi::host::HostMessageContext* context);
 
   void OnOpenComplete(int32_t result,
-                      base::ReadOnlySharedMemoryRegion shared_memory_region,
+                      base::UnsafeSharedMemoryRegion shared_memory_region,
                       base::SyncSocket::ScopedHandle socket_handle);
 
   int32_t GetRemoteHandles(
       const base::SyncSocket& socket,
-      const base::ReadOnlySharedMemoryRegion& shared_memory_region,
+      const base::UnsafeSharedMemoryRegion& shared_memory_region,
       IPC::PlatformFileForTransit* remote_socket_handle,
-      base::ReadOnlySharedMemoryRegion* remote_shared_memory_region);
+      base::UnsafeSharedMemoryRegion* remote_shared_memory_region);
 
   void Close();
 
   void SendOpenReply(int32_t result);
 
   // Non-owning pointer.
-  RendererPpapiHostImpl* renderer_ppapi_host_;
+  raw_ptr<RendererPpapiHostImpl> renderer_ppapi_host_;
 
   ppapi::host::ReplyMessageContext open_context_;
 
   // Audio input object that we delegate audio IPC through.
   // We don't own this pointer but are responsible for calling Shutdown on it.
-  PepperPlatformAudioInput* audio_input_;
+  raw_ptr<PepperPlatformAudioInput> audio_input_;
 
   PepperDeviceEnumerationHostHelper enumeration_helper_;
 };

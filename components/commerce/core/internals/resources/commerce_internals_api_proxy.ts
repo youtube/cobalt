@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import type {ProductInfo} from 'chrome://resources/cr_components/commerce/shared.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
+
+import type {ProductSpecificationsSet, ShoppingEligibilityDetails, Subscription} from './commerce_internals.mojom-webui.js';
 import {CommerceInternalsHandlerFactory, CommerceInternalsHandlerRemote, CommerceInternalsPageCallbackRouter} from './commerce_internals.mojom-webui.js';
 
 export class CommerceInternalsApiProxy {
@@ -26,8 +30,34 @@ export class CommerceInternalsApiProxy {
     return this.handler.getIsShoppingListEligible();
   }
 
+  resetPriceTrackingEmailPref(): void {
+    this.handler.resetPriceTrackingEmailPref();
+  }
+
+  getProductInfoForUrl(url: Url): Promise<{info: ProductInfo}> {
+    return this.handler.getProductInfoForUrl(url);
+  }
+
   getCallbackRouter(): CommerceInternalsPageCallbackRouter {
     return this.callbackRouter;
+  }
+
+  getSubscriptionDetails(): Promise<{subscriptions: Subscription[]}> {
+    return this.handler.getSubscriptionDetails();
+  }
+
+  getProductSpecificationsDetails():
+      Promise<{productSpecificationsSet: ProductSpecificationsSet[]}> {
+    return this.handler.getProductSpecificationsDetails();
+  }
+
+  resetProductSpecifications(): void {
+    return this.handler.resetProductSpecifications();
+  }
+
+  getShoppingEligibilityDetails():
+      Promise<{details: ShoppingEligibilityDetails}> {
+    return this.handler.getShoppingEligibilityDetails();
   }
 }
 

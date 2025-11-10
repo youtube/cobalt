@@ -36,8 +36,6 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
-using HandlerResult = PlayerWorker::Handler::HandlerResult;
-
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kPlayerStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
 #else   // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
@@ -169,7 +167,7 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 }
 
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
-                                     HandlerResult result,
+                                     Result<void> result,
                                      const std::string& error_message) {
   SB_DCHECK(!result);
   std::string complete_error_message = error_message;
@@ -224,7 +222,7 @@ void PlayerWorker::DoInit() {
   update_player_error_cb =
       std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
                 Result<void>(Unexpected(std::string())), _2);
-  HandlerResult result = handler_->Init(
+  Result<void> result = handler_->Init(
       player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),
       std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
@@ -258,7 +256,7 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
   pending_audio_buffers_.clear();
   pending_video_buffers_.clear();
 
-  HandlerResult result = handler_->Seek(seek_to_time, ticket);
+  Result<void> result = handler_->Seek(seek_to_time, ticket);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed seek.");
     return;
@@ -300,8 +298,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     SB_DCHECK(pending_video_buffers_.empty());
   }
   int samples_written;
-  HandlerResult result =
-      handler_->WriteSamples(input_buffers, &samples_written);
+  Result<void> result = handler_->WriteSamples(input_buffers, &samples_written);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to write sample.");
     return;
@@ -371,7 +368,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
     SB_DCHECK(pending_video_buffers_.empty());
   }
 
-  HandlerResult result = handler_->WriteEndOfStream(sample_type);
+  Result<void> result = handler_->WriteEndOfStream(sample_type);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result,
                       "Failed to write end of stream.");
@@ -380,7 +377,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
 
 void PlayerWorker::DoSetBounds(Bounds bounds) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  HandlerResult result = handler_->SetBounds(bounds);
+  Result<void> result = handler_->SetBounds(bounds);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to set bounds.");
   }
@@ -389,7 +386,7 @@ void PlayerWorker::DoSetBounds(Bounds bounds) {
 void PlayerWorker::DoSetPause(bool pause) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  HandlerResult result = handler_->SetPause(pause);
+  Result<void> result = handler_->SetPause(pause);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to set pause.");
   }
@@ -398,7 +395,7 @@ void PlayerWorker::DoSetPause(bool pause) {
 void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  HandlerResult result = handler_->SetPlaybackRate(playback_rate);
+  Result<void> result = handler_->SetPlaybackRate(playback_rate);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result,
                       "Failed to set playback rate.");

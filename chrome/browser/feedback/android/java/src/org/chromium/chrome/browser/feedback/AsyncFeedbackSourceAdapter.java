@@ -9,6 +9,9 @@ import android.content.Context;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.AsyncTask.Status;
+import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.concurrent.ExecutionException;
 
@@ -20,10 +23,11 @@ import java.util.concurrent.ExecutionException;
  * asynchronous work.
  * @param <Result> The {@link Object} type that represents the result of doing the background work.
  */
+@NullMarked
 public abstract class AsyncFeedbackSourceAdapter<Result> implements AsyncFeedbackSource {
-    private Worker mWorker;
+    private @Nullable Worker mWorker;
 
-    private class Worker extends AsyncTask<Result> {
+    private class Worker extends AsyncTask<@Nullable Result> {
         private final Runnable mCallback;
 
         public Worker(Runnable callback) {
@@ -32,13 +36,13 @@ public abstract class AsyncFeedbackSourceAdapter<Result> implements AsyncFeedbac
 
         // AsyncTask implementation.
         @Override
-        protected Result doInBackground() {
+        protected @Nullable Result doInBackground() {
             return AsyncFeedbackSourceAdapter.this.doInBackground(
                     ContextUtils.getApplicationContext());
         }
 
         @Override
-        protected void onPostExecute(Result result) {
+        protected void onPostExecute(@Nullable Result result) {
             mCallback.run();
         }
     }
@@ -49,14 +53,14 @@ public abstract class AsyncFeedbackSourceAdapter<Result> implements AsyncFeedbac
      * @param context The application {@link Context}.
      * @return        The result of doing the work in the background or {@code null}.
      */
-    protected abstract Result doInBackground(Context context);
+    protected abstract @Nullable Result doInBackground(Context context);
 
     /**
      * @return The result of the background work if it has been started and finished.  This will be
      *         null if the underlying background task has not finished yet (see {@link #isReady()})
      *         or if {@link #doInBackground(Context)} returned {@code null}.
      */
-    protected final Result getResult() {
+    protected final @Nullable Result getResult() {
         try {
             return mWorker != null && mWorker.getStatus() == Status.FINISHED ? mWorker.get() : null;
         } catch (ExecutionException | InterruptedException e) {
@@ -74,6 +78,7 @@ public abstract class AsyncFeedbackSourceAdapter<Result> implements AsyncFeedbac
     public final void start(Runnable callback) {
         if (mWorker != null) return;
         mWorker = new Worker(callback);
-        mWorker.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        // USER_BLOCKING since we eventually .get() this.
+        mWorker.executeWithTaskTraits(TaskTraits.USER_BLOCKING_MAY_BLOCK);
     }
 }

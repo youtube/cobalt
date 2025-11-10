@@ -5,13 +5,15 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_STREAM_SENDER_DELEGATE_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_STREAM_SENDER_DELEGATE_H_
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
 
 // This interface writes encoder/decoder data to peer.
-class QUIC_EXPORT_PRIVATE QpackStreamSenderDelegate {
+class QUICHE_EXPORT QpackStreamSenderDelegate {
  public:
   virtual ~QpackStreamSenderDelegate() = default;
 

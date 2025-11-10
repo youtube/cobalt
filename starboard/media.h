@@ -20,9 +20,12 @@
 #ifndef STARBOARD_MEDIA_H_
 #define STARBOARD_MEDIA_H_
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/drm.h"
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -607,27 +610,6 @@ SB_EXPORT int64_t SbMediaGetBufferGarbageCollectionDurationThreshold();
 // reducing fragmentation and can avoid failures to allocate incrementally. This
 // can return 0.
 SB_EXPORT int SbMediaGetInitialBufferCapacity();
-
-// The maximum amount of memory that will be used to store media buffers. This
-// must be larger than sum of the video budget and audio budget.
-// This is a soft limit and the app will continue to allocate media buffers even
-// if the accumulated memory used by the media buffers exceeds the maximum
-// buffer capacity. The allocation of media buffers may only fail when there is
-// not enough memory in the system to fulfill the request, under which case the
-// app will be terminated as under other OOM situations.
-//
-// |codec|: the video codec associated with the buffer.
-//
-// |resolution_width|: the width of the video resolution.
-//
-// |resolution_height|: the height of the video resolution.
-//
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR
-// than non-HDR video.
-SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
-                                          int resolution_width,
-                                          int resolution_height,
-                                          int bits_per_pixel);
 
 // DEPRECATED with SB_API_VERSION 16
 //

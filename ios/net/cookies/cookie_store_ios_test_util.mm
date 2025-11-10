@@ -2,27 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ios/net/cookies/cookie_store_ios_test_util.h"
+#import "ios/net/cookies/cookie_store_ios_test_util.h"
 
 #import <Foundation/Foundation.h>
 
-#include <memory>
+#import <memory>
 
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/run_loop.h"
+#import "base/functional/bind.h"
+#import "base/functional/callback_helpers.h"
+#import "base/run_loop.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/task/single_thread_task_runner.h"
-#include "base/test/test_simple_task_runner.h"
+#import "base/test/test_simple_task_runner.h"
 #import "ios/net/cookies/cookie_store_ios.h"
-#include "net/cookies/canonical_cookie.h"
-#include "net/cookies/cookie_options.h"
-#include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "net/cookies/canonical_cookie.h"
+#import "net/cookies/cookie_options.h"
+#import "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
@@ -39,9 +34,9 @@ TestPersistentCookieStore::~TestPersistentCookieStore() = default;
 
 void TestPersistentCookieStore::RunLoadedCallback() {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
-  std::unique_ptr<net::CanonicalCookie> cookie(net::CanonicalCookie::Create(
-      kTestCookieURL, "a=b", base::Time::Now(), /*server_time=*/absl::nullopt,
-      /*cookie_partition_key=*/absl::nullopt));
+  std::unique_ptr<net::CanonicalCookie> cookie(
+      net::CanonicalCookie::CreateForTesting(kTestCookieURL, "a=b",
+                                             base::Time::Now()));
   cookies.push_back(std::move(cookie));
 
   std::unique_ptr<net::CanonicalCookie> bad_canonical_cookie =
@@ -53,8 +48,7 @@ void TestPersistentCookieStore::RunLoadedCallback() {
           base::Time(),  // last updated
           false,         // secure
           false,         // httponly
-          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
-          false /* same_party */);
+          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT);
   cookies.push_back(std::move(bad_canonical_cookie));
   std::move(loaded_callback_).Run(std::move(cookies));
 }
@@ -127,8 +121,9 @@ void RecordCookieChanges(std::vector<net::CanonicalCookie>* out_cookies,
                          const net::CookieChangeInfo& change) {
   DCHECK(out_cookies);
   out_cookies->push_back(change.cookie);
-  if (out_removes)
+  if (out_removes) {
     out_removes->push_back(net::CookieChangeCauseIsDeletion(change.cause));
+  }
 }
 
 void SetCookie(const std::string& cookie_line,
@@ -136,9 +131,8 @@ void SetCookie(const std::string& cookie_line,
                net::CookieStore* store) {
   net::CookieOptions options;
   options.set_include_httponly();
-  auto canonical_cookie = net::CanonicalCookie::Create(
-      url, cookie_line, base::Time::Now(), /*server_time=*/absl::nullopt,
-      /*cookie_partition_key=*/absl::nullopt);
+  auto canonical_cookie = net::CanonicalCookie::CreateForTesting(
+      url, cookie_line, base::Time::Now());
   ASSERT_TRUE(canonical_cookie);
   store->SetCanonicalCookieAsync(std::move(canonical_cookie), url, options,
                                  base::DoNothing());
@@ -151,8 +145,9 @@ void ClearCookies() {
   NSHTTPCookieStorage* store = [NSHTTPCookieStorage sharedHTTPCookieStorage];
   [store setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways];
   NSArray* cookies = [store cookies];
-  for (NSHTTPCookie* cookie in cookies)
+  for (NSHTTPCookie* cookie in cookies) {
     [store deleteCookie:cookie];
+  }
   EXPECT_EQ(0u, [[store cookies] count]);
 }
 

@@ -1,4 +1,5 @@
-UNKNOWN_TYPE | txtEmail | Your Email Address | Your Email Address | txtEmail_1
+EMAIL_ADDRESS | txtEmail | Your Email Address | Your Email Address | txtEmail_1
+
 NAME_FIRST | ctl00$ctl00$cphBody$cphBody$txtSA_FirstName | First Name * |  | ctl00$ctl00$cphBody$cphBody$txtSA_FirstName_1
 NAME_LAST | ctl00$ctl00$cphBody$cphBody$txtSA_LastName | Last Name * |  | ctl00$ctl00$cphBody$cphBody$txtSA_FirstName_1
 ADDRESS_HOME_LINE1 | ctl00$ctl00$cphBody$cphBody$txtSA_Address1 | Address Line 1 * |  | ctl00$ctl00$cphBody$cphBody$txtSA_FirstName_1
