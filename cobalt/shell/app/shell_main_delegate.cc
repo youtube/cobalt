@@ -58,10 +58,11 @@
 #define IPC_MESSAGE_MACROS_LOG_ENABLED
 #include "content/public/common/content_ipc_logging.h"
 #define IPC_LOG_TABLE_ADD_ENTRY(msg_id, logger) \
-    content::RegisterIPCLogger(msg_id, logger)
+  content::RegisterIPCLogger(msg_id, logger)
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
 #include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
 #include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
 #include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
@@ -190,8 +191,7 @@ namespace content {
 ShellMainDelegate::ShellMainDelegate(bool is_content_browsertests)
     : is_content_browsertests_(is_content_browsertests) {}
 
-ShellMainDelegate::~ShellMainDelegate() {
-}
+ShellMainDelegate::~ShellMainDelegate() {}
 
 std::optional<int> ShellMainDelegate::BasicStartupComplete() {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
@@ -212,7 +212,8 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
 
   InitLogging(command_line);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     const bool browser_process =
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
@@ -269,13 +270,15 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
     const std::string& process_type,
     MainFunctionParams main_function_params) {
   // For non-browser process, return and have the caller run the main loop.
-  if (!process_type.empty())
+  if (!process_type.empty()) {
     return std::move(main_function_params);
+  }
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Web tests implement their own BrowserMain() replacement.
     web_test_runner_->RunBrowserMain(std::move(main_function_params));
@@ -375,8 +378,9 @@ void ShellMainDelegate::InitializeResourceBundle() {
 
 std::optional<int> ShellMainDelegate::PreBrowserMain() {
   std::optional<int> exit_code = content::ContentMainDelegate::PreBrowserMain();
-  if (exit_code.has_value())
+  if (exit_code.has_value()) {
     return exit_code;
+  }
 
   return std::nullopt;
 }
@@ -422,7 +426,8 @@ ContentClient* ShellMainDelegate::CreateContentClient() {
 }
 
 ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     browser_client_ = std::make_unique<WebTestContentBrowserClient>();
     return browser_client_.get();
@@ -438,7 +443,8 @@ ContentGpuClient* ShellMainDelegate::CreateContentGpuClient() {
 }
 
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   if (switches::IsRunWebTestsSwitchPresent()) {
     renderer_client_ = std::make_unique<WebTestContentRendererClient>();
     return renderer_client_.get();

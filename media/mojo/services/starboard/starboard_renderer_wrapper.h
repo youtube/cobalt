@@ -15,8 +15,6 @@
 #ifndef MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 #define MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 
-#include <memory>
-
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
