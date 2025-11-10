@@ -75,13 +75,6 @@ void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
       web_contents());
 }
 
-namespace {
-enum {
-  // This must be kept in sync with Java dev.cobalt.PlatformError.ErrorType
-  kJniErrorTypeConnectionError = 0,
-};
-}  // namespace
-
 void CobaltWebContentsObserver::DidStopLoading() {
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
