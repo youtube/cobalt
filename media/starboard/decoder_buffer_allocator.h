@@ -24,13 +24,11 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
-#include "media/starboard/decoder_buffer_memory_info.h"
 #include "starboard/media.h"
 
 namespace media {
 
-class DecoderBufferAllocator : public DecoderBuffer::Allocator,
-                               public DecoderBufferMemoryInfo {
+class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
   // Manages the details of the Allocate() and Free(), to allow
   // DecoderBufferAllocator to adopt different strategies at runtime.
@@ -68,7 +66,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
-  // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
   size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);

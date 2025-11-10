@@ -6,7 +6,6 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/decoder_buffer.h"
-#include "media/starboard/decoder_buffer_allocator.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
@@ -28,23 +27,17 @@ MediaClient::~MediaClient() = default;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 uint64_t MediaClient::GetMediaSourceMaximumMemoryCapacity() {
-  auto* allocator = static_cast<DecoderBufferAllocator*>(
-      DecoderBuffer::Allocator::GetInstance());
-  return allocator ? allocator->GetMaximumMemoryCapacity() : 0;
+  return DecoderBuffer::Allocator::GetGlobalMaximumMemoryCapacity();
 }
 
 // static
 uint64_t MediaClient::GetMediaSourceCurrentMemoryCapacity() {
-  auto* allocator = static_cast<DecoderBufferAllocator*>(
-      DecoderBuffer::Allocator::GetInstance());
-  return allocator ? allocator->GetCurrentMemoryCapacity() : 0;
+  return DecoderBuffer::Allocator::GetGlobalCurrentMemoryCapacity();
 }
 
 // static
 uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
-  auto* allocator = static_cast<DecoderBufferAllocator*>(
-      DecoderBuffer::Allocator::GetInstance());
-  return allocator ? allocator->GetAllocatedMemory() : 0;
+  return DecoderBuffer::Allocator::GetGlobalAllocatedMemory();
 }
 
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

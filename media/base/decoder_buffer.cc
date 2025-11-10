@@ -34,6 +34,24 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
 }
+
+// static
+size_t DecoderBuffer::Allocator::GetGlobalAllocatedMemory() {
+  base::AutoLock auto_lock(*s_allocator_lock);
+  return s_allocator ? s_allocator->GetAllocatedMemory() : 0;
+}
+
+// static
+size_t DecoderBuffer::Allocator::GetGlobalCurrentMemoryCapacity() {
+  base::AutoLock auto_lock(*s_allocator_lock);
+  return s_allocator ? s_allocator->GetCurrentMemoryCapacity() : 0;
+}
+
+// static
+size_t DecoderBuffer::Allocator::GetGlobalMaximumMemoryCapacity() {
+  base::AutoLock auto_lock(*s_allocator_lock);
+  return s_allocator ? s_allocator->GetMaximumMemoryCapacity() : 0;
+}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::TimeInfo::TimeInfo() = default;

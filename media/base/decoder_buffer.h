@@ -84,6 +84,11 @@ class MEDIA_EXPORT DecoderBuffer
     static Allocator* GetInstance();
     static void Set(Allocator* allocator);
 
+    // Thread-safe static methods to query memory usage.
+    static size_t GetGlobalAllocatedMemory();
+    static size_t GetGlobalCurrentMemoryCapacity();
+    static size_t GetGlobalMaximumMemoryCapacity();
+
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
     virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
@@ -94,8 +99,12 @@ class MEDIA_EXPORT DecoderBuffer
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
 
+    virtual size_t GetAllocatedMemory() const = 0;
+    virtual size_t GetCurrentMemoryCapacity() const = 0;
+    virtual size_t GetMaximumMemoryCapacity() const = 0;
+
    protected:
-    ~Allocator() {}
+    virtual ~Allocator() {}
   };
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
