@@ -524,7 +524,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (size > 0 && decoder_state_tracker_) {
-    decoder_state_tracker_->AddFrame(input_buffer->timestamp());
+    decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
   }
 
   jint status;

@@ -1293,7 +1293,8 @@ void VideoDecoder::OnVideoFrameRelease(int64_t pts, int64_t release_us) {
   }
 
   if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
-    media_decoder_->decoder_state_tracker()->OnFrameReleased(pts, release_us);
+    media_decoder_->decoder_state_tracker()->SetFrameReleasedAt(pts,
+                                                                release_us);
   }
 }
 

@@ -59,7 +59,7 @@ DecoderStateTracker::DecoderStateTracker(
                << to_ms_string(kFrameTrackerLogIntervalUs);
 }
 
-void DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
+void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
   if (disabled_) {
@@ -93,8 +93,8 @@ void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
   }
 }
 
-void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
-                                          int64_t release_us) {
+void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
+                                             int64_t release_us) {
   {
     std::lock_guard lock(mutex_);
     if (disabled_) {

@@ -41,9 +41,9 @@ class DecoderStateTracker
                       shared::starboard::player::JobQueue* job_queue);
   ~DecoderStateTracker() = default;
 
-  void AddFrame(int64_t presentation_time_us);
+  void SetFrameAdded(int64_t presentation_time_us);
   void SetFrameDecoded(int64_t presentation_time_us);
-  void OnFrameReleased(int64_t presentation_time_us, int64_t release_us);
+  void SetFrameReleasedAt(int64_t presentation_time_us, int64_t release_us);
   void Reset();
 
   State GetCurrentStateForTest() const;
