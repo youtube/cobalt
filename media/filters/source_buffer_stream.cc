@@ -1888,9 +1888,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       memory_limit_,
       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                        &config));
-
   memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
-
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return true;

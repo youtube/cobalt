@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
@@ -83,7 +84,7 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
-constexpr auto kVideoBufferClampSettingName = "Media.UseVideoBufferSizeClamp";
+constexpr auto kVideoBufferSizeClampSetting = "Media.UseVideoBufferSizeClamp";
 
 }  // namespace
 
@@ -115,21 +116,21 @@ void CobaltContentRendererClient::RenderFrameCreated(
   if (!h5vcc_settings_remote_->GetSettings(&settings) || !settings) {
     return;
   }
-
-  auto it = settings->settings.find(kVideoBufferClampSettingName);
+  auto it = settings->settings.find(kVideoBufferSizeClampSetting);
   if (it == settings->settings.end()) {
     return;
   }
 
   const cobalt::mojom::SettingValuePtr& setting_value = it->second;
-  if (setting_value->is_string_value()) {
-    command_line->AppendSwitchASCII(switches::kMSEVideoBufferSizeLimitClampMb,
-                                    setting_value->get_string_value());
+  if (setting_value->is_int_value()) {
+    command_line->AppendSwitchASCII(
+        switches::kMSEVideoBufferSizeLimitClampMb,
+        base::NumberToString(setting_value->get_int_value()));
   } else {
-    LOG(WARNING) << "H5vcc setting " << kVideoBufferClampSettingName
+    LOG(WARNING) << "H5vcc setting " << kVideoBufferSizeClampSetting
                  << " was found, but its "
-                 << "associated value was not a string. Make sure the value "
-                    "set is a string.";
+                 << "associated value was not an integer. Make sure the value "
+                    "set is an integer.";
   }
 }
 
