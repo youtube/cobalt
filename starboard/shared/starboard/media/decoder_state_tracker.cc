@@ -26,7 +26,10 @@
 namespace starboard {
 namespace {
 
-constexpr int kMaxInFlightFrames = 100;
+constexpr int kFramesLowWatermark = 2;
+constexpr int kMaxFrameIncrement = 2;
+// Copied from Chromium.
+constexpr int kMaxInFlightFrames = 24;
 constexpr std::optional<int64_t> kFrameTrackerLogIntervalUs =
     5'000'000;  // 5 sec.
 
@@ -71,6 +74,10 @@ void DecoderStateTracker::AddFrame(int64_t presentation_time_us) {
     return;
   }
   frames_in_flight_[presentation_time_us] = FrameStatus::kDecoding;
+
+  if (frames_in_flight_.size() >= max_frames_) {
+    reached_max_ = true;
+  }
 }
 
 void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
@@ -107,6 +114,20 @@ void DecoderStateTracker::OnFrameReleased(int64_t presentation_time_us,
           bool was_full = IsFull_Locked();
           auto it = frames_in_flight_.upper_bound(presentation_time_us);
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
+
+          if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
+            if (max_frames_ < kMaxInFlightFrames) {
+              int old_max = max_frames_;
+              max_frames_ = std::min(max_frames_ + kMaxFrameIncrement,
+                                     kMaxInFlightFrames);
+              reached_max_ = false;
+              SB_LOG(WARNING)
+                  << "Buffer dipped to " << frames_in_flight_.size()
+                  << " after hitting max. Increasing max frames from "
+                  << old_max << " to " << max_frames_;
+            }
+          }
+
           if (was_full && !IsFull_Locked()) {
             should_signal = true;
           }
@@ -122,6 +143,10 @@ void DecoderStateTracker::Reset() {
   std::lock_guard lock(mutex_);
   frames_in_flight_.clear();
   disabled_ = false;
+  reached_max_ = false;
+  // We keep the existing max_frames_ instead of resetting it to the initial
+  // value. If it was dynamically increased during a previous playback session,
+  // it likely means this device needs the higher limit to avoid stalls.
   SB_LOG(INFO) << "DecoderStateTracker reset.";
 }
 

@@ -60,12 +60,13 @@ class DecoderStateTracker
   void EngageKillSwitch_Locked(const char* reason, int64_t pts);
   void LogStateAndReschedule(int64_t log_interval_us);
 
-  const int max_frames_;
   const StateChangedCB state_changed_cb_;
 
   mutable std::mutex mutex_;
   std::map<int64_t, FrameStatus> frames_in_flight_;  // GUARDED_BY(mutex_)
   bool disabled_ = false;                            // GUARDED_BY(mutex_)
+  int max_frames_;                                   // GUARDED_BY(mutex_)
+  bool reached_max_ = false;                         // GUARDED_BY(mutex_)
 };
 
 std::ostream& operator<<(std::ostream& os,
