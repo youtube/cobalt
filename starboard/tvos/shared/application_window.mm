@@ -531,7 +531,7 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
                                      eventData);
       return;
     }
-    [_viewController focusOnScreenKeyboardWithTicket:ticket];
+    [self->_viewController focusOnScreenKeyboardWithTicket:ticket];
   });
 }
 
@@ -544,13 +544,13 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
                                      eventData);
       return;
     }
-    [_viewController blurOnScreenKeyboardWithTicket:ticket];
+    [self->_viewController blurOnScreenKeyboardWithTicket:ticket];
   });
 }
 
 - (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket {
   dispatch_async(dispatch_get_main_queue(), ^{
-    [_viewController showOnScreenKeyboardWithText:text ticket:ticket];
+    [self->_viewController showOnScreenKeyboardWithText:text ticket:ticket];
     SbWindow starboardWindow = [SBDGetApplication().windowManager
         starboardWindowForApplicationWindow:self];
     auto eventData = new SbEventWindowSizeChangedData;
@@ -562,7 +562,7 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
 - (void)hideOnScreenKeyboardWithTicket:(NSInteger)ticket {
   dispatch_async(dispatch_get_main_queue(), ^{
-    [_viewController hideOnScreenKeyboardWithTicket:ticket];
+    [self->_viewController hideOnScreenKeyboardWithTicket:ticket];
     SbWindow starboardWindow = [SBDGetApplication().windowManager
         starboardWindowForApplicationWindow:self];
     auto eventData = new SbEventWindowSizeChangedData;
@@ -574,7 +574,7 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
 - (void)onScreenKeyboardKeepFocus:(BOOL)keepFocus {
   onApplicationMainThread(^{
-    [_viewController onScreenKeyboardKeepFocus:keepFocus];
+    [self->_viewController onScreenKeyboardKeepFocus:keepFocus];
   });
 }
 
@@ -584,10 +584,10 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
                                             alpha:(CGFloat)alpha {
   onApplicationMainThread(^{
     if ([self keyboardShowing]) {
-      [_viewController setOnScreenKeyboardBackgroundColorWithRed:red
-                                                           green:green
-                                                            blue:blue
-                                                           alpha:alpha];
+      [self->_viewController setOnScreenKeyboardBackgroundColorWithRed:red
+                                                                 green:green
+                                                                  blue:blue
+                                                                 alpha:alpha];
     }
   });
 }
@@ -595,7 +595,7 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 - (void)setOnScreenKeyboardLightTheme:(BOOL)lightTheme {
   onApplicationMainThread(^{
     if ([self keyboardShowing]) {
-      [_viewController setOnScreenKeyboardLightTheme:lightTheme];
+      [self->_viewController setOnScreenKeyboardLightTheme:lightTheme];
     }
   });
 }
@@ -613,8 +613,9 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
     // Display surfaces are not interactable.
     UIView* view = surface.view;
     view.userInteractionEnabled = NO;
-    [_viewController.applicationView.interfaceContainer addSubview:view];
-    [_viewController.applicationView.interfaceContainer sendSubviewToBack:view];
+    [self->_viewController.applicationView.interfaceContainer addSubview:view];
+    [self->_viewController.applicationView.interfaceContainer
+        sendSubviewToBack:view];
   });
 }
 

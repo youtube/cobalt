@@ -73,17 +73,17 @@
   __block SBDApplicationWindow* applicationWindow;
   onApplicationMainThread(^{
     // Share one application window that is persisted across suspend and resume.
-    if (!_window) {
-      _window = [[SBDApplicationWindow alloc] initWithName:name];
-      [_window makeKeyAndVisible];
+    if (!self->_window) {
+      self->_window = [[SBDApplicationWindow alloc] initWithName:name];
+      [self->_window makeKeyAndVisible];
     } else {  // _windowUseCount should not ever be larger than 1 in the current
               // user cases.
-      if (_windowUseCount == 0) {
-        [_window updateWindowSize];
+      if (self->_windowUseCount == 0) {
+        [self->_window updateWindowSize];
       }
     }
-    ++_windowUseCount;
-    applicationWindow = _window;
+    ++self->_windowUseCount;
+    applicationWindow = self->_window;
   });
 
   return applicationWindow;
@@ -91,9 +91,9 @@
 
 - (void)destroyWindow:(SBDApplicationWindow*)applicationWindow {
   dispatch_async(dispatch_get_main_queue(), ^{
-    if (applicationWindow == _window) {
-      SB_DCHECK(_windowUseCount > 0);
-      --_windowUseCount;
+    if (applicationWindow == self->_window) {
+      SB_DCHECK(self->_windowUseCount > 0);
+      --self->_windowUseCount;
     }
   });
 }

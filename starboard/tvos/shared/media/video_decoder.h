@@ -17,6 +17,7 @@
 
 #import <VideoToolbox/VideoToolbox.h>
 
+#include <limits>
 #include <list>
 #include <memory>
 #include <vector>
@@ -49,7 +50,9 @@ class TvosVideoDecoder
   size_t GetPrerollFrameCount() const override {
     return GetMaxNumberOfCachedFrames();
   }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 8; }
 
   // VideoDecoder methods

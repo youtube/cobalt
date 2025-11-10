@@ -301,7 +301,7 @@
     if (element != gamepad.dpad) {
       return;
     }
-    if (_searchFocused) {
+    if (self->_searchFocused) {
       return;
     }
     GCControllerDirectionPad* dpad = gamepad.dpad;
@@ -311,13 +311,14 @@
     if (!_isBeingTouched && isBeingTouched) {
       // If the dpad has gone from not being touched, to being touched,
       // report a touch down.
-      [_trackpad
+      [self->_trackpad
           touchDownAtPosition:SBDVectorMake(newLocation.x, newLocation.y)];
     } else if (isBeingTouched) {
-      [_trackpad moveToPosition:SBDVectorMake(newLocation.x, newLocation.y)];
+      [self->_trackpad
+          moveToPosition:SBDVectorMake(newLocation.x, newLocation.y)];
     } else {
       // No longer being touched, report a touch up.
-      [_trackpad
+      [self->_trackpad
           touchUpAtPosition:SBDVectorMake(_lastSiriRemoteGamepadLocation.x,
                                           _lastSiriRemoteGamepadLocation.y)];
     }
