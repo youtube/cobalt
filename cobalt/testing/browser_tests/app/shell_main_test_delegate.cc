@@ -23,8 +23,7 @@
 
 namespace content {
 
-ShellMainTestDelegate::ShellMainTestDelegate(bool is_content_browsertests)
-    : ShellMainDelegate(is_content_browsertests) {}
+ShellMainTestDelegate::ShellMainTestDelegate() : ShellMainDelegate() {}
 
 ShellMainTestDelegate::~ShellMainTestDelegate() {}
 
@@ -46,8 +45,7 @@ ContentClient* ShellMainTestDelegate::CreateContentClient() {
 }
 
 ContentUtilityClient* ShellMainTestDelegate::CreateContentUtilityClient() {
-  utility_client_ =
-      std::make_unique<ShellContentUtilityClient>(is_content_browsertests_);
+  utility_client_ = std::make_unique<ShellContentUtilityClient>();
   return utility_client_.get();
 }
 

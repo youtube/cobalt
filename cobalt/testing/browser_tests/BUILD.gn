@@ -420,7 +420,7 @@ static_library("cobalt_shell_test_lib") {
     "utility/shell_content_utility_client.h",
   ]
 
-  public_deps = [
+  deps = [
     "//cc/base",
     "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:browsertests_sources",

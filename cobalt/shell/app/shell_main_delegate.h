@@ -36,7 +36,7 @@ class WebTestBrowserMainRunner;
 
 class ShellMainDelegate : public ContentMainDelegate {
  public:
-  explicit ShellMainDelegate(bool is_content_browsertests = false);
+  explicit ShellMainDelegate();
 
   ShellMainDelegate(const ShellMainDelegate&) = delete;
   ShellMainDelegate& operator=(const ShellMainDelegate&) = delete;

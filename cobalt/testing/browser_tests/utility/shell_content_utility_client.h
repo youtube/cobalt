@@ -24,7 +24,7 @@ namespace content {
 
 class ShellContentUtilityClient : public ContentUtilityClient {
  public:
-  explicit ShellContentUtilityClient(bool is_browsertest = false);
+  explicit ShellContentUtilityClient();
 
   ShellContentUtilityClient(const ShellContentUtilityClient&) = delete;
   ShellContentUtilityClient& operator=(const ShellContentUtilityClient&) =

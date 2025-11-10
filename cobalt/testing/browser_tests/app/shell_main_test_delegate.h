@@ -25,7 +25,7 @@ class ShellContentUtilityClient;
 
 class ShellMainTestDelegate : public ShellMainDelegate {
  public:
-  explicit ShellMainTestDelegate(bool is_content_browsertests = false);
+  explicit ShellMainTestDelegate();
 
   ShellMainTestDelegate(const ShellMainTestDelegate&) = delete;
   ShellMainTestDelegate& operator=(const ShellMainTestDelegate&) = delete;

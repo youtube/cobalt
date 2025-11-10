@@ -183,8 +183,7 @@ void InitLogging(const base::CommandLine& command_line) {
 
 namespace content {
 
-ShellMainDelegate::ShellMainDelegate(bool is_content_browsertests)
-    : is_content_browsertests_(is_content_browsertests) {}
+ShellMainDelegate::ShellMainDelegate() {}
 
 ShellMainDelegate::~ShellMainDelegate() {}
 
