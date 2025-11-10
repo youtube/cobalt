@@ -19,6 +19,7 @@
 #include <iosfwd>
 #include <map>
 #include <mutex>
+#include <string_view>
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
@@ -57,7 +58,7 @@ class DecoderStateTracker
 
   State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
-  void EngageKillSwitch_Locked(const char* reason, int64_t pts);
+  void EngageKillSwitch_Locked(std::string_view reason, int64_t pts);
   void LogStateAndReschedule(int64_t log_interval_us);
 
   const StateChangedCB state_changed_cb_;

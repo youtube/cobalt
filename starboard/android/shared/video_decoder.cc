@@ -57,6 +57,17 @@ using std::placeholders::_2;
 // By default, we turn off decoder throttling.
 constexpr std::optional<int> kMaxFramesInDecoder = std::nullopt;
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& stream,
+                                const std::optional<T>& maybe_value) {
+  if (maybe_value) {
+    stream << *maybe_value;
+  } else {
+    stream << "nullopt";
+  }
+  return stream;
+}
+
 std::optional<int> GetMaxFramesInDecoder() {
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Do nothing
@@ -73,24 +84,8 @@ std::optional<int> GetMaxFramesInDecoder() {
 #endif
   SB_LOG(INFO) << "System property debug.cobalt.max_frames_in_decoder is not "
                   "set or invalid. Using default value: "
-               << [] {
-                    if constexpr (kMaxFramesInDecoder != std::nullopt) {
-                      return std::to_string(*kMaxFramesInDecoder);
-                    }
-                    return "(nullopt)";
-                  }();
+               << kMaxFramesInDecoder;
   return kMaxFramesInDecoder;
-}
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& stream,
-                                const std::optional<T>& maybe_value) {
-  if (maybe_value) {
-    stream << *maybe_value;
-  } else {
-    stream << "nullopt";
-  }
-  return stream;
 }
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {

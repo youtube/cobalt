@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <optional>
 #include <ostream>
+#include <string_view>
 #include <utility>
 
 #include "starboard/common/check_op.h"
@@ -66,7 +67,9 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
     return;
   }
   if (frames_in_flight_.size() >= kMaxInFlightFrames) {
-    EngageKillSwitch_Locked("Too many frames in flight", presentation_time_us);
+    EngageKillSwitch_Locked("Too many frames in flight: size=" +
+                                std::to_string(frames_in_flight_.size()),
+                            presentation_time_us);
     return;
   }
   if (frames_in_flight_.find(presentation_time_us) != frames_in_flight_.end()) {
@@ -190,7 +193,7 @@ bool DecoderStateTracker::IsFull_Locked() const {
   return state.total_frames() >= max_frames_;
 }
 
-void DecoderStateTracker::EngageKillSwitch_Locked(const char* reason,
+void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
                                                   int64_t pts) {
   SB_LOG(ERROR) << "KILL SWITCH ENGAGED: " << reason << ", pts=" << pts;
   disabled_ = true;
