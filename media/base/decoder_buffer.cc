@@ -7,6 +7,8 @@
 #include <sstream>
 
 #include "base/debug/alias.h"
+#include "base/no_destructor.h"
+#include "base/synchronization/lock.h"
 #include "media/base/subsample_entry.h"
 
 namespace media {
@@ -14,15 +16,18 @@ namespace media {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
+base::NoDestructor<base::Lock> s_allocator_lock;
 }  // namespace
 
 // static
 DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  base::AutoLock auto_lock(*s_allocator_lock);
   return s_allocator;
 }
 
 // static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  base::AutoLock auto_lock(*s_allocator_lock);
   // One of them has to be nullptr, i.e. either setting a valid allocator, or
   // resetting an existing allocator.  Setting an allocator while another
   // allocator is in place will fail.
@@ -83,9 +88,16 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-  if (s_allocator) {
-    Initialize(type);
-  } else {
+  bool used_allocator = false;
+  {
+    base::AutoLock auto_lock(*s_allocator_lock);
+    if (s_allocator) {
+      Initialize(type);
+      used_allocator = true;
+    }
+  }
+
+  if (!used_allocator) {
     Initialize();
   }
   memcpy(writable_data(), data, size_);
@@ -124,6 +136,7 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (allocator_data_) {
+    base::AutoLock auto_lock(*s_allocator_lock);
     CHECK(s_allocator);
     s_allocator->Free(allocator_data_->data, allocator_data_->size);
   }
@@ -134,10 +147,13 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (s_allocator) {
-    // This is used by Mojo.
-    Initialize(DemuxerStream::UNKNOWN);
-    return;
+  {
+    base::AutoLock auto_lock(*s_allocator_lock);
+    if (s_allocator) {
+      // This is used by Mojo.
+      Initialize(DemuxerStream::UNKNOWN);
+      return;
+    }
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
@@ -147,6 +163,7 @@ void DecoderBuffer::Initialize() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  s_allocator_lock->AssertAcquired();
   DCHECK(s_allocator);
   DCHECK(!data_);
 
