@@ -17,12 +17,12 @@
 
 #import <VideoToolbox/VideoToolbox.h>
 
+#include <atomic>
 #include <limits>
 #include <list>
 #include <memory>
 #include <vector>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/media/avc_util.h"
@@ -109,8 +109,8 @@ class TvosVideoDecoder
 
   bool stream_ended_ = false;
   bool error_occurred_ = false;
-  atomic_int32_t decoding_frames_;
   optional<starboard::media::VideoConfig> video_config_;
+  std::atomic_int32_t decoding_frames_{0};
   uint64_t frame_counter_ = 0;
   scoped_refptr<VideoFrame> last_frame_;
   scoped_refptr<DecodedImage> last_decoded_image_;
