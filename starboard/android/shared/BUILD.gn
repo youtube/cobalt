@@ -189,6 +189,8 @@ static_library("starboard_platform") {
     "egl_swap_buffers.cc",
     "exoplayer/exoplayer_bridge.cc",
     "exoplayer/exoplayer_bridge.h",
+    "exoplayer/exoplayer_util.cc",
+    "exoplayer/exoplayer_util.h",
     "exoplayer/exoplayer_worker_handler.cc",
     "exoplayer/exoplayer_worker_handler.h",
     "features_extension.cc",
@@ -407,7 +409,6 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
-    "exoplayer/exoplayer_bridge.h",
     "media_codec_bridge.h",
     "media_drm_bridge.h",
   ]

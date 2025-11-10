@@ -17,134 +17,78 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <memory>
 #include <mutex>
-#include <string>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
-#include "starboard/common/log.h"
 #include "starboard/media.h"
-#include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 namespace starboard {
 
-// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
-// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
-enum ExoPlayerRendererType {
-  EXOPLAYER_RENDERER_TYPE_AUDIO,
-  EXOPLAYER_RENDERER_TYPE_VIDEO,
-
-  EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
-};
-
-// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
-// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_AUDIO_CODEC_
-enum ExoPlayerAudioCodec {
-  EXOPLAYER_AUDIO_CODEC_AAC,
-  EXOPLAYER_AUDIO_CODEC_AC3,
-  EXOPLAYER_AUDIO_CODEC_EAC3,
-  EXOPLAYER_AUDIO_CODEC_OPUS,
-  EXOPLAYER_AUDIO_CODEC_VORBIS,
-  EXOPLAYER_AUDIO_CODEC_MP3,
-  EXOPLAYER_AUDIO_CODEC_FLAC,
-  EXOPLAYER_AUDIO_CODEC_PCM,
-  EXOPLAYER_AUDIO_CODEC_IAMF,
-
-  EXOPLAYER_AUDIO_CODEC_MAX = EXOPLAYER_AUDIO_CODEC_IAMF,
-};
-
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
   struct MediaInfo {
-    bool is_playing;
-    bool is_eos_played;
-    bool is_underflow;
-    double playback_rate;
+    int64_t media_time_usec;
+    int dropped_frames;
+    bool underflow;
   };
 
-  ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
-                  const VideoStreamInfo& video_stream_info);
+  ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
+                  const SbMediaVideoStreamInfo& video_stream_info);
   ~ExoPlayerBridge();
-
-  void SetCallbacks(ErrorCB error_cb,
-                    PrerolledCB prerolled_cb,
-                    EndedCB ended_cb);
-
-  void Seek(int64_t seek_to_timestamp);
-  void WriteSamples(const InputBuffers& input_buffers);
-  void WriteEndOfStream(SbMediaType stream_type);
-  void Play() const;
-  void Pause() const;
-  void Stop() const;
-  void SetVolume(double volume) const;
-  void SetPlaybackRate(const double playback_rate);
-
-  int GetDroppedFrames() const;
-  int64_t GetCurrentMediaTime(MediaInfo& info) const;
-
-  // Native callbacks.
-  void OnInitialized(JNIEnv*);
-  void OnReady(JNIEnv*);
-  void OnError(JNIEnv* env, jstring error_message);
-  void OnBuffering(JNIEnv*);
-  void SetPlayingStatus(JNIEnv*, jboolean isPlaying);
-  void OnPlaybackEnded(JNIEnv*);
 
   // VideoSurfaceHolder method.
   void OnSurfaceDestroyed() override;
 
-  bool IsEndOfStreamWritten(SbMediaType type) const {
-    std::lock_guard lock(mutex_);
-    return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
-  }
+  bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
 
-  bool is_valid() const {
-    return !j_exoplayer_bridge_.is_null() && !error_occurred_;
-  }
+  bool Seek(int64_t timestamp);
+  bool WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
+  bool WriteEOS(SbMediaType type);
+  bool SetPause(bool pause) const;
+  bool SetPlaybackRate(const double playback_rate) const;
+  void SetVolume(const double volume) const;
+  void Stop() const;
 
-  bool EnsurePlayerIsInitialized();
+  MediaInfo GetMediaInfo() const;
+
+  // Native callbacks.
+  void OnInitialized(JNIEnv* env);
+  void OnBuffering(JNIEnv* env);
+  void OnReady(JNIEnv* env);
+  void OnError(JNIEnv* env, jstring msg);
+  void OnEnded(JNIEnv* env) const;
+  void OnDroppedVideoFrames(JNIEnv* env, jint count);
+
+  bool is_valid() const { return !j_exoplayer_bridge_.is_null(); }
 
  private:
-  void InitExoplayer();
+  bool ShouldAbortOperation() const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_audio_media_source_;
   base::android::ScopedJavaGlobalRef<jobject> j_video_media_source_;
   base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
-  // Used in WriteSamples().
   base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
-  base::android::ScopedJavaGlobalRef<jintArray> j_sizes_;
-  base::android::ScopedJavaGlobalRef<jlongArray> j_timestamps_;
-  base::android::ScopedJavaGlobalRef<jbooleanArray> j_key_frames_;
 
-  std::atomic_bool error_occurred_ = false;
-  const AudioStreamInfo audio_stream_info_;
-  const VideoStreamInfo video_stream_info_;
-
-  int64_t seek_time_ = 0;
-  bool is_playing_ = false;
-  bool ended_ = false;
+  std::atomic_bool player_is_destroying_;
+  std::atomic_bool playback_error_occurred_;
+  std::atomic_bool underflow_;
+  std::atomic_bool initialized_;
+  std::atomic_bool seeking_;
+  std::atomic_int32_t dropped_frames_;
 
   ErrorCB error_cb_;
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  mutable std::mutex mutex_;
-  // Signaled once player initialization is complete.
+  std::mutex mutex_;
   std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
-  bool initialized_ = false;                // Guarded by |mutex_|.
-  bool audio_eos_written_ = false;          // Guarded by |mutex_|.
-  bool video_eos_written_ = false;          // Guarded by |mutex_|.
-  bool playback_ended_ = false;             // Guarded by |mutex_|.
-  double playback_rate_ = 1.0;              // Guarded by |mutex_|.
-  bool seeking_ = false;                    // Guarded by |mutex_|.
-  bool underflow_ = false;                  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

@@ -18,11 +18,11 @@
 #include "starboard/shared/starboard/player/player_worker.h"
 
 #include <memory>
+#include <string>
 
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -53,31 +53,29 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void Stop() override;
 
+  SbDecodeTarget GetCurrentDecodeTarget() override {
+    return kSbDecodeTargetInvalid;
+  }
+
   void Update();
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled();
   void OnEnded();
 
-  SbDecodeTarget GetCurrentDecodeTarget() override {
-    return kSbDecodeTargetInvalid;
-  }
+  bool IsEOSWritten(SbMediaType type) const;
 
-  SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaInfoCB update_media_info_cb_;
   GetPlayerStateCB get_player_state_cb_;
   UpdatePlayerStateCB update_player_state_cb_;
   UpdatePlayerErrorCB update_player_error_cb_;
 
-  const AudioStreamInfo audio_stream_info_;
-  const VideoStreamInfo video_stream_info_;
-
-  bool paused_ = false;
-  double playback_rate_ = 1.0;
-  double volume_ = 1.0;
   JobQueue::JobToken update_job_token_;
   const std::function<void()> update_job_;
 
   const std::unique_ptr<ExoPlayerBridge> bridge_;
+
+  bool audio_eos_written_;
+  bool video_eos_written_;
 };
 
 }  // namespace starboard
