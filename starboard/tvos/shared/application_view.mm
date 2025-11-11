@@ -295,34 +295,35 @@
     return;
   }
   siriRemoteGamepad.reportsAbsoluteDpadValues = YES;
-  siriRemoteGamepad.valueChangedHandler = ^(GCMicroGamepad* gamepad,
-                                            GCControllerElement* element) {
-    if (element != gamepad.dpad) {
-      return;
-    }
-    if (self->_searchFocused) {
-      return;
-    }
-    GCControllerDirectionPad* dpad = gamepad.dpad;
-    CGPoint newLocation = CGPointMake(dpad.xAxis.value, -dpad.yAxis.value);
-    BOOL dpadIsBeingTouched = dpad.up.pressed || dpad.down.pressed ||
-                              dpad.left.pressed || dpad.right.pressed;
-    if (!isBeingTouched && dpadIsBeingTouched) {
-      // If the dpad has gone from not being touched, to being touched,
-      // report a touch down.
-      [self->_trackpad
-          touchDownAtPosition:SBDVectorMake(newLocation.x, newLocation.y)];
-    } else if (dpadIsBeingTouched) {
-      [self->_trackpad moveToPosition:SBDVectorMake(newLocation.x, newLocation.y)];
-    } else {
-      // No longer being touched, report a touch up.
-      [self->_trackpad
-          touchUpAtPosition:SBDVectorMake(lastSiriRemoteGamepadLocation.x,
-                                          lastSiriRemoteGamepadLocation.y)];
-    }
-    lastSiriRemoteGamepadLocation = newLocation;
-    isBeingTouched = dpadIsBeingTouched;
-  };
+  siriRemoteGamepad.valueChangedHandler =
+      ^(GCMicroGamepad* gamepad, GCControllerElement* element) {
+        if (element != gamepad.dpad) {
+          return;
+        }
+        if (self->_searchFocused) {
+          return;
+        }
+        GCControllerDirectionPad* dpad = gamepad.dpad;
+        CGPoint newLocation = CGPointMake(dpad.xAxis.value, -dpad.yAxis.value);
+        BOOL dpadIsBeingTouched = dpad.up.pressed || dpad.down.pressed ||
+                                  dpad.left.pressed || dpad.right.pressed;
+        if (!isBeingTouched && dpadIsBeingTouched) {
+          // If the dpad has gone from not being touched, to being touched,
+          // report a touch down.
+          [self->_trackpad
+              touchDownAtPosition:SBDVectorMake(newLocation.x, newLocation.y)];
+        } else if (dpadIsBeingTouched) {
+          [self->_trackpad
+              moveToPosition:SBDVectorMake(newLocation.x, newLocation.y)];
+        } else {
+          // No longer being touched, report a touch up.
+          [self->_trackpad
+              touchUpAtPosition:SBDVectorMake(lastSiriRemoteGamepadLocation.x,
+                                              lastSiriRemoteGamepadLocation.y)];
+        }
+        lastSiriRemoteGamepadLocation = newLocation;
+        isBeingTouched = dpadIsBeingTouched;
+      };
 }
 
 /**
