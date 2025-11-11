@@ -107,8 +107,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     FileContents file_contents = resource_map[key];
     std::string mime_type = "application/octet-stream";
-    // Only serve splash resources the html loader and the video. So if
-    // the request is not webm serve the html as default.
+    // Only serve splash resources(html loader and the webm video). So if
+    // the request is not webm, provide the html as default.
     if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type = "video/webm";
     } else {
