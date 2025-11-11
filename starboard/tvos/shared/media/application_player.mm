@@ -587,7 +587,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
     return;
   }
   [self updatePlayerState:kSbPlayerStatePrerolling];
-  __weak typeof(self) weakSelf = self;
+  __weak SBDApplicationPlayer* weakSelf = self;
   [_player seekToTime:CMTimeMake(currentMediaTime, 1000000)
         toleranceBefore:kCMTimeZero
          toleranceAfter:kCMTimeZero

@@ -27,7 +27,7 @@
 }
 
 - (void)bindLeftThumbstick:(GCControllerDirectionPad*)dpad {
-  __weak typeof(self) weakself = self;
+  __weak SBDGameControllerInputDevice* weakself = self;
   dpad.valueChangedHandler =
       ^(GCControllerDirectionPad* dpad, float xValue, float yValue) {
         SBDGameControllerInputDevice* strongself = weakself;
@@ -44,7 +44,7 @@
 }
 
 - (void)bindRightThumbstick:(GCControllerDirectionPad*)dpad {
-  __weak typeof(self) weakself = self;
+  __weak SBDGameControllerInputDevice* weakself = self;
   dpad.valueChangedHandler =
       ^(GCControllerDirectionPad* dpad, float xValue, float yValue) {
         SBDGameControllerInputDevice* strongself = weakself;
@@ -61,7 +61,7 @@
 }
 
 - (void)bindButton:(GCControllerButtonInput*)button toKey:(SbKey)key {
-  __weak typeof(self) weakself = self;
+  __weak SBDGameControllerInputDevice* weakself = self;
   button.pressedChangedHandler =
       ^(GCControllerButtonInput* button, float value, BOOL pressed) {
         SBDGameControllerInputDevice* strongself = weakself;
