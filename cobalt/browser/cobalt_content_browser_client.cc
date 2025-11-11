@@ -426,7 +426,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
-
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
