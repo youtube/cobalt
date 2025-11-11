@@ -9,6 +9,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
@@ -20,6 +21,8 @@
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 
 namespace cobalt {
 
@@ -98,6 +101,11 @@ void CobaltContentRendererClient::RenderFrameCreated(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
+}
+
+void CobaltContentRendererClient::RenderThreadStarted() {
+  blink::SchemeRegistry::RegisterURLSchemeAsSupportingFetchAPI(
+      content::kH5vccEmbeddedScheme);
 }
 
 #if BUILDFLAG(IS_ANDROID)

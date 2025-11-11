@@ -33,6 +33,11 @@ namespace content {
 //
 // The loader resolves the requested resource based on the URL's path component
 // (e.g., "h5vcc-embedded://my_resource.html" -> "my_resource.html").
+//
+// As a special case, if the requested resource is "splash.webm", the loader
+// will first attempt to load it from the user's profile directory. If the file
+// "splash.webm" exists in the profile directory, it will be served. Otherwise,
+// the loader will fall back to serving the embedded "splash.webm" resource.
 class H5vccSchemeURLLoaderFactory final
     : public network::mojom::URLLoaderFactory {
  public:

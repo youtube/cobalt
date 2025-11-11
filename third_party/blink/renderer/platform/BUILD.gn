@@ -285,6 +285,7 @@ source_set("allow_discouraged_type") {
 component("platform") {
   visibility = []  # Allow re-assignment of list.
   visibility = [
+    "//cobalt/renderer/*",
     "//third_party/blink/*",
     "//tools/privacy_budget/font_indexer:*",
   ]
