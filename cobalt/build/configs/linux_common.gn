@@ -113,3 +113,6 @@ icu_use_data_file = false
 
 # Disable the Pepper API (PPAPI) plugin support
 enable_ppapi = false
+
+# Enable the compiler size optimizations e.g. -Os.
+optimize_for_size = true
