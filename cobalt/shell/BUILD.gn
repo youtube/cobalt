@@ -172,8 +172,6 @@ source_set("browsertests_sources") {
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
     "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
   ]
 
   public_deps = [
