@@ -57,7 +57,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (base::EndsWith(url_.ExtractFileName(), ".webm",
                        base::CompareCase::SENSITIVE)) {
       base::FilePath user_data_dir;
-      if (base::PathService::Get(SHELL_DIR_USER_DATA, &user_data_dir)) {
+      if (base::PathService::Get(base::DIR_CACHE, &user_data_dir)) {
         base::FilePath splash_path = user_data_dir.Append("splash.webm");
         base::ThreadPool::PostTaskAndReplyWithResult(
             FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
