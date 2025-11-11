@@ -814,7 +814,7 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   }
   if (_searchController.isBeingPresented ||
       _searchController.isBeingDismissed) {
-    __weak typeof(self) weakself = self;
+    __weak SBDApplicationWindowViewController* weakself = self;
     dispatch_after(
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
         dispatch_get_main_queue(), ^{
@@ -906,7 +906,7 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   }
   if (_searchController.isBeingPresented ||
       _searchController.isBeingDismissed) {
-    __weak typeof(self) weakself = self;
+    __weak SBDApplicationWindowViewController* weakself = self;
     dispatch_after(
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
         dispatch_get_main_queue(), ^{
