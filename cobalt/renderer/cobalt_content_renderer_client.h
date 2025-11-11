@@ -44,6 +44,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
+  void RenderThreadStarted() override;
   void GetSupportedKeySystems(::media::GetSupportedKeySystemsCB cb) override;
   bool IsSupportedAudioType(const ::media::AudioType& type) override;
   bool IsSupportedVideoType(const ::media::VideoType& type) override;

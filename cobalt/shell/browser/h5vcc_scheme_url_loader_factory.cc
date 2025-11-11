@@ -15,7 +15,13 @@
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
 #include "base/base64.h"
+#include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/memory/ref_counted_memory.h"
+#include "base/path_service.h"
 #include "base/strings/string_util.h"
+#include "base/task/thread_pool.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -28,36 +34,42 @@
 
 namespace content {
 
+namespace {
+std::string ReadSplashFile(const base::FilePath& path) {
+  std::string content;
+  if (base::PathExists(path) && base::ReadFileToString(path, &content)) {
+    return content;
+  }
+  return "";
+}
+}  // namespace
+
 class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
   H5vccSchemeURLLoader(
       const network::ResourceRequest& request,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client)
-      : client_(std::move(client)), url_(request.url) {
+      : client_(std::move(client)),
+        url_(request.url),
+        task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
     std::string key = url_.host();
-
-    // Get the embedded header resource
-    GeneratedResourceMap resource_map;
-    LoaderEmbeddedResources::GenerateMap(resource_map);
-
-    if (resource_map.find(key) == resource_map.end()) {
-      LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
-                   << " not found.";
-      SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
-      return;
+    // TODO(b/454630524): Implement splash video fetcher to populate the cache.
+    if (base::EndsWith(url_.ExtractFileName(), ".webm",
+                       base::CompareCase::SENSITIVE)) {
+      base::FilePath user_data_dir;
+      if (base::PathService::Get(SHELL_DIR_USER_DATA, &user_data_dir)) {
+        base::FilePath splash_path = user_data_dir.Append("splash.webm");
+        base::ThreadPool::PostTaskAndReplyWithResult(
+            FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+            base::BindOnce(&ReadSplashFile, splash_path),
+            base::BindOnce(&H5vccSchemeURLLoader::OnSplashVideoFileRead,
+                           weak_factory_.GetWeakPtr()));
+        return;
+      }
     }
 
-    FileContents file_contents = resource_map[key];
-    std::string mime_type = "application/octet-stream";
-
-    if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
-      mime_type = "text/html";
-    } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
-      mime_type = "video/webm";
-    }
-    std::string content(reinterpret_cast<const char*>(file_contents.data),
-                        file_contents.size);
-    SendResponse(content, mime_type);
+    // Fallback to embedded resources.
+    LoadFromEmbedded(key);
   }
   ~H5vccSchemeURLLoader() override = default;
 
@@ -73,6 +85,40 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void ResumeReadingBodyFromNet() override {}
 
  private:
+  void OnSplashVideoFileRead(std::string content) {
+    if (!content.empty()) {
+      SendResponse(content, "video/webm");
+      return;
+    }
+    LoadFromEmbedded("splash.webm");
+  }
+
+  void LoadFromEmbedded(const std::string& key) {
+    // Get the embedded header resource
+    GeneratedResourceMap resource_map;
+    LoaderEmbeddedResources::GenerateMap(resource_map);
+
+    if (resource_map.find(key) == resource_map.end()) {
+      LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
+                   << " not found.";
+      SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
+      return;
+    }
+
+    FileContents file_contents = resource_map[key];
+    std::string mime_type = "application/octet-stream";
+    // Only serve splash resources the html loader and the video. So if
+    // the request is not webm serve the html as default.
+    if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
+      mime_type = "video/webm";
+    } else {
+      mime_type = "text/html";
+    }
+    std::string content(reinterpret_cast<const char*>(file_contents.data),
+                        file_contents.size);
+    SendResponse(content, mime_type);
+  }
+
   void SendResponse(const std::string& data_content,
                     const std::string& mime_type,
                     int http_status = net::HTTP_OK) {
@@ -130,6 +176,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory() = default;

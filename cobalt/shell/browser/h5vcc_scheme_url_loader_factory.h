@@ -24,7 +24,7 @@ namespace content {
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
 // requests for the custom kH5vccEmbeddedScheme. It is designed to serve
 // embedded resources, such as splash screen videos or test HTML pages, directly
-// from memory.
+// from memory or profile dir(see below).
 //
 // This factory creates H5vccSchemeURLLoader instances to handle individual
 // requests. The resources are expected to be compiled into the binary using
@@ -33,6 +33,12 @@ namespace content {
 //
 // The loader resolves the requested resource based on the URL's path component
 // (e.g., "h5vcc-embedded://my_resource.html" -> "my_resource.html").
+//
+// As a special case, if the requested resource is "splash.webm", the splash
+// vidoe, the loader will first attempt to load the cached version from the
+// user's profile directory. If the file "splash.webm" exists in the profile
+// directory, it will be served. Otherwise, the loader will fall back to serving
+// the embedded "splash.webm" resource.
 class H5vccSchemeURLLoaderFactory final
     : public network::mojom::URLLoaderFactory {
  public:
