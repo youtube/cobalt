@@ -193,18 +193,21 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities),
-      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
+      max_video_capabilities_(max_video_capabilities) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
+  const bool use_external_allocator =
+      ShouldUseExternalAllocator(h5vcc_settings);
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", use_external_allocator="
-            << (use_external_allocator_ ? "true" : "false");
+            << (use_external_allocator ? "true" : "false");
+
+  ConfigureDecoderBufferAllocator(use_external_allocator);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -538,8 +541,6 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(audio_stream_ || video_stream_);
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
-
-  ConfigureDecoderBufferAllocator(use_external_allocator_);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the
