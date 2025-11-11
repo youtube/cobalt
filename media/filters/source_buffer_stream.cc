@@ -165,9 +165,6 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      memory_limit_clamp_(std::numeric_limits<size_t>::max()),
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       memory_limit_(GetDemuxerStreamAudioMemoryLimit(&audio_config)) {
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
@@ -183,9 +180,6 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      memory_limit_clamp_(std::numeric_limits<size_t>::max()),
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       memory_limit_(
           GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                            &video_config)) {
@@ -204,9 +198,6 @@ SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      memory_limit_clamp_(std::numeric_limits<size_t>::max()),
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       memory_limit_(
           GetDemuxerStreamAudioMemoryLimit(nullptr /*audio_config*/)) {}
 

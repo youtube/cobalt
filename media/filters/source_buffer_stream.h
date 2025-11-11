@@ -184,7 +184,7 @@ class MEDIA_EXPORT SourceBufferStream {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void set_memory_limit_clamp(size_t memory_limit_clamp) {
+  void set_and_apply_memory_limit_clamp(size_t memory_limit_clamp) {
     memory_limit_clamp_ = memory_limit_clamp;
     memory_limit_ = std::min(memory_limit_, memory_limit_clamp);
   }
@@ -515,7 +515,7 @@ class MEDIA_EXPORT SourceBufferStream {
   // The hard limit of possible data in bytes the stream will keep in memory.
   // This value is only used if the switch |kMSEVideoBufferSizeLimitClampMb| is 
   // used. If this switch is not enabled, this value is not used.
-  size_t memory_limit_clamp_;
+  size_t memory_limit_clamp_ = std::numeric_limits<size_t>::max();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Indicates that a kConfigChanged status has been reported by GetNextBuffer()
