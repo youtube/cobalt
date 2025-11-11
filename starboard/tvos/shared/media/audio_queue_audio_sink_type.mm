@@ -24,7 +24,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
-#include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"

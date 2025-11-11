@@ -20,7 +20,6 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/tvos/shared/media/decode_target_internal.h"

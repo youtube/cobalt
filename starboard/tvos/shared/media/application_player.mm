@@ -20,7 +20,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #import "starboard/tvos/shared/defines.h"
 #import "starboard/tvos/shared/media/application_drm_system.h"
 #import "starboard/tvos/shared/media/player_manager.h"

@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
