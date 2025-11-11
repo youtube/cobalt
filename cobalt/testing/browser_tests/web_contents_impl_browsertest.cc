@@ -792,12 +792,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_ResourceLoadComplete ResourceLoadComplete
-#else
-#define MAYBE_ResourceLoadComplete DISABLED_ResourceLoadComplete
-#endif
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_ResourceLoadComplete) {
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_ResourceLoadComplete) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   // Load a page with an image and an image.
@@ -3155,15 +3151,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
 }
 
 // TODO(b/437415063): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_HttpReduceAcceptLanguageInNavigation \
-  HttpReduceAcceptLanguageInNavigation
-#else
-#define MAYBE_HttpReduceAcceptLanguageInNavigation \
-  DISABLED_HttpReduceAcceptLanguageInNavigation
-#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
-                       MAYBE_HttpReduceAcceptLanguageInNavigation) {
+                       DISABLED_HttpReduceAcceptLanguageInNavigation) {
   net::EmbeddedTestServer http_server_http(net::EmbeddedTestServer::TYPE_HTTP);
   VerifyAcceptLanguageHeader(http_server_http);
 }
@@ -6514,13 +6503,8 @@ class MediaWatchTimeChangedDelegate : public WebContentsDelegate {
 // Tests that a media in a fenced frame reports the watch time with the url from
 // the top level frame.
 // TODO(b/437415063): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_MediaWatchTimeCallback MediaWatchTimeCallback
-#else
-#define MAYBE_MediaWatchTimeCallback DISABLED_MediaWatchTimeCallback
-#endif
 IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
-                       MAYBE_MediaWatchTimeCallback) {
+                       DISABLED_MediaWatchTimeCallback) {
   using UkmEntry = ukm::builders::Media_WebMediaPlayerState;
   ukm::TestAutoSetUkmRecorder test_recorder_;
 
