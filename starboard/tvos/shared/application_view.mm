@@ -294,7 +294,6 @@
   if (!siriRemoteGamepad) {
     return;
   }
-  siriRemoteGamepad = siriRemoteGamepad;
   siriRemoteGamepad.reportsAbsoluteDpadValues = YES;
   siriRemoteGamepad.valueChangedHandler = ^(GCMicroGamepad* gamepad,
                                             GCControllerElement* element) {
