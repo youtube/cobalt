@@ -11620,15 +11620,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe is visible and generates paint events.  See
 // https://crbug.com/638375.
 // TODO(b/437371782): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  SubframeVisibleAfterRenderViewBecomesSwappedOut
-#else
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
+IN_PROC_BROWSER_TEST_P(
+    SitePerProcessBrowserTest,
+    DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
