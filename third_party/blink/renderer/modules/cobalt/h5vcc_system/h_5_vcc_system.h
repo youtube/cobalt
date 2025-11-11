@@ -65,7 +65,8 @@ class MODULES_EXPORT H5vccSystem final
   void OnGetLimitAdTracking(ScriptPromiseResolver<IDLBoolean>*, bool);
   void OnGetTrackingAuthorizationStatus(ScriptPromiseResolver<IDLString>*,
                                         const String&);
-  void OnRequestTrackingAuthorization(ScriptPromiseResolver<IDLUndefined>*);
+  void OnRequestTrackingAuthorization(ScriptPromiseResolver<IDLUndefined>*,
+                                      bool);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 
