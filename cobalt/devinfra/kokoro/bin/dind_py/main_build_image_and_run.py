@@ -73,10 +73,10 @@ def main():
   if args.is_postsubmit:
     # Check for postsubmit flags before assigning the floating tag for a branch.
     # Sanitize the branch name to be a valid Docker tag.  Replace any characters
-    # that are not letters, numbers, underscores, periods, or dashes with an underscore.
-    # Also, added a step to truncate the tag to 128 characters to ensure it complies wiht
-    # the Docker's tag length limit.  This should cover all potential illegal characters
-    # for a Docker tag.
+    # that are not letters, numbers, underscores, periods, or dashes with an
+    # underscore. Also, added a step to truncate the tag to 128 characters to
+    # ensure it complies wiht the Docker's tag length limit.  This should cover
+    # all potential illegal characters for a Docker tag.
     sanitized_branch_name = re.sub(r'[^a-zA-Z0-9_.-]+', '_',
                                    args.base_branch_name)
     floating_tag = f'branch-{sanitized_branch_name}'[:128]
