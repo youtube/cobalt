@@ -74,11 +74,4 @@ void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
       web_contents());
 }
 
-namespace {
-enum {
-  // This must be kept in sync with Java dev.cobalt.PlatformError.ErrorType
-  kJniErrorTypeConnectionError = 0,
-};
-}  // namespace
-
 }  // namespace cobalt
