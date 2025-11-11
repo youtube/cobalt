@@ -16,10 +16,12 @@
 
 #include <stddef.h>
 
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
@@ -402,7 +404,7 @@ void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
 
 gfx::NativeView Shell::GetContentView() {
   if (!web_contents_) {
-    return nullptr;
+    return gfx::NativeView();
   }
   return web_contents_->GetNativeView();
 }

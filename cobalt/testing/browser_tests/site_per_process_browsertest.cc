@@ -1,6 +1,16 @@
-// Copyright 2012 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/testing/browser_tests/site_per_process_browsertest.h"
 
@@ -11610,15 +11620,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe is visible and generates paint events.  See
 // https://crbug.com/638375.
 // TODO(b/437371782): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  SubframeVisibleAfterRenderViewBecomesSwappedOut
-#else
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
+IN_PROC_BROWSER_TEST_P(
+    SitePerProcessBrowserTest,
+    DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 

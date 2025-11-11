@@ -16,3 +16,9 @@ enable_remoting = false
 # This flag comes from build/config/compiler/compiler.gni
 # TODO(b/432508012): Remove this flag after resolving build errors.
 treat_warnings_as_errors = false
+
+# These flags are disabled in common.gn but are required for the tvOS build to
+# work at the moment (iosurface_image_backing.mm depends on
+# dawn_shared_texture_cache.cc, for example).
+use_dawn = true
+skia_use_dawn = true
