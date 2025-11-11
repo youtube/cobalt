@@ -286,6 +286,12 @@ bool PlayerComponents::Factory::OutputModeSupported(
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture ||
             output_mode == kSbPlayerOutputModePunchOut);
 
+  // b/447334535: Decode to texture mode is being redesigned in main and the
+  // C25 tvOS implementation needs to be rewritten for Chromium integration.
+  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    return false;
+  }
+
   if (codec == kSbMediaVideoCodecNone || codec == kSbMediaVideoCodecH264) {
     return true;
   }
