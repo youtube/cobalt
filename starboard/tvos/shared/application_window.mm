@@ -25,7 +25,6 @@
 #import "starboard/tvos/shared/keyboard_input_device.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/media/egl_surface.h"
-#import "starboard/tvos/shared/search_controller_focus_delegate.h"
 #import "starboard/tvos/shared/search_results_view_controller.h"
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/window_manager.h"
@@ -665,7 +664,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   UISearchController* _searchController;
   SBDSearchResultsViewController* _searchResultsViewController;
   SBDSearchContainerViewController* _searchContainerViewController;
-  __weak id<SBDSearchControllerFocusDelegate> _focusDelegate;
   CGRect _resultsFrameOnShow;
   BOOL _keyboardKeepFocus;
   BOOL _keyboardVisible;
@@ -829,7 +827,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
   _keyboardShowing = YES;
   _lastShowTicket = ticket;
-  _focusDelegate = _applicationView;
 
   _searchResultsViewController = [[SBDSearchResultsViewController alloc] init];
   _searchResultsViewController.focusDelegate = self;
@@ -943,7 +940,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
     _delayedFocusTicket = ticket;
     return;
   }
-  [_focusDelegate searchShouldFocus];
   _keyboardFocused = YES;
 
   auto eventData = new int;
@@ -953,7 +949,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 }
 
 - (void)blurOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  [_focusDelegate searchShouldBlur];
   _keyboardFocused = NO;
 
   auto eventData = new int;
@@ -965,7 +960,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 #pragma mark - SBDSearchResultsFocusDelegate
 
 - (void)resultsDidLoseFocus {
-  [_focusDelegate searchDidFocus];
   _keyboardFocused = YES;
   auto eventData = new int(kSbEventOnScreenKeyboardInvalidTicket);
   ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardFocused,
@@ -973,7 +967,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 }
 
 - (void)resultsDidReceiveFocus {
-  [_focusDelegate searchDidBlur];
   _keyboardFocused = NO;
   auto eventData = new int(kSbEventOnScreenKeyboardInvalidTicket);
   ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardBlurred,
@@ -983,8 +976,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 #pragma mark - SBDSearchViewDisplayDelegate
 
 - (void)searchDidDisappear {
-  [_focusDelegate searchDidHide];
-
   // Move the interface container back into the application view.
   // NOTE: addSubview will remove the target from its superview, so don't
   //   removeFromSuperview explicitly as that may result in a focus change.
@@ -997,8 +988,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 }
 
 - (void)searchDidAppear {
-  [_focusDelegate searchDidShow];
-
   UIView* resultsView = _searchResultsViewController.view;
   _resultsFrameOnShow =
       [resultsView convertRect:resultsView.frame
