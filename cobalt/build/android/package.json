@@ -2,6 +2,7 @@
     "archive_datas": [
         {
             "files": [
+                "apks/Cobalt.apk",
                 "cobalt_shell.pak",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
@@ -14,6 +15,10 @@
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
             ],
             "rename_files": [
+                {
+                  "from_file": "apks/Cobalt.apk",
+                  "to_file": "Cobalt.apk"
+                },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"

@@ -457,7 +457,7 @@ bool TvosAudioSinkType::BelongToAudioThread() const {
 
 // static
 void* TvosAudioSinkType::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "tvos_audio_out");
+  pthread_setname_np("tvos_audio_out");
   pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
   SB_DCHECK(context);
   TvosAudioSinkType* type = static_cast<TvosAudioSinkType*>(context);
