@@ -234,7 +234,6 @@ if (build_with_chromium) {
     if (is_cobalt_hermetic_build) {
       sources += [ "starboard/gtest_main_chromium.cc" ]
       sources -= [ "gtest_main_chromium.cc" ]
-      deps += [ "//cobalt/testing/browser_tests:cobalt_shell_test_lib" ]
     }
     deps += [ "//base/test:test_support" ]
 

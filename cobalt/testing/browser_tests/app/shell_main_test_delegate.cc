@@ -17,8 +17,8 @@
 #include <iostream>
 
 #include "base/command_line.h"
+#include "cobalt/shell/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/common/shell_content_test_client.h"
-#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
 
 namespace content {
@@ -32,9 +32,9 @@ std::optional<int> ShellMainTestDelegate::BasicStartupComplete() {
   if (command_line.HasSwitch("run-layout-test")) {
     std::cerr << std::string(79, '*') << "\n"
               << "* The flag --run-layout-test is obsolete. Please use --"
-              << test_switches::kRunWebTests << " instead. *\n"
+              << switches::kRunWebTests << " instead. *\n"
               << std::string(79, '*') << "\n";
-    command_line.AppendSwitch(test_switches::kRunWebTests);
+    command_line.AppendSwitch(switches::kRunWebTests);
   }
   return ShellMainDelegate::BasicStartupComplete();
 }

@@ -446,7 +446,7 @@ static_library("cobalt_shell_test_lib") {
         "browser/shell_test_platform_delegate.h",
       ]
 
-      public_deps += [ "//ui/views:test_support" ]
+      deps += [ "//ui/views:test_support" ]
     }
   }
 }
