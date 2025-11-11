@@ -15,9 +15,6 @@
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
-<<<<<<< HEAD
-=======
-    "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
 
     "PosixLocaleSetTest.LocaleConvC",
     "PosixLocaleSetTest.NewUseFreeLocale",
@@ -34,7 +31,6 @@
     "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
->>>>>>> 6ee67ef36db (Add (disabled) tests and stubs for setlocale and related functions. (#7073))
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",

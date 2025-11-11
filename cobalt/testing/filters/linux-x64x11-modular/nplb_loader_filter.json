@@ -1,7 +1,4 @@
 {
-<<<<<<< HEAD
-  "failing_tests": []
-=======
   "_comment": "TODO(b/403007005): Disabled new locale tests.",
   "failing_tests": [
     "PosixTimeClockTests.ClockIncreasesOverTime",
@@ -22,5 +19,4 @@
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
   ]
->>>>>>> 6ee67ef36db (Add (disabled) tests and stubs for setlocale and related functions. (#7073))
 }
