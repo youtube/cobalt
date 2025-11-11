@@ -50,6 +50,8 @@ static_library("compiler_rt") {
       "lib/builtins/arm/aeabi_memset.S",
       "lib/builtins/arm/aeabi_uidivmod.S",
       "lib/builtins/arm/aeabi_uldivmod.S",
+      "lib/builtins/ashldi3.c",
+      "lib/builtins/ashrdi3.c",
       "lib/builtins/divdi3.c",
       "lib/builtins/divmoddi4.c",
       "lib/builtins/divmodsi4.c",
@@ -62,6 +64,7 @@ static_library("compiler_rt") {
       "lib/builtins/floatdisf.c",
       "lib/builtins/floatundidf.c",
       "lib/builtins/floatundisf.c",
+      "lib/builtins/lshrdi3.c",
       "lib/builtins/udivmoddi4.c",
       "lib/builtins/udivmodsi4.c",
       "lib/builtins/udivsi3.c",
@@ -89,6 +92,11 @@ static_library("compiler_rt") {
       "lib/builtins/i386/moddi3.S",
       "lib/builtins/i386/udivdi3.S",
       "lib/builtins/i386/umoddi3.S",
+    ]
+  } else if (target_cpu == "x64") {
+    sources += [
+      "lib/builtins/ashlti3.c",
+      "lib/builtins/lshrti3.c",
     ]
   }
 
