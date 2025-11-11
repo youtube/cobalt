@@ -25,16 +25,16 @@ namespace {
 struct ObserverEntry {
   const ObserverRegistry::Observer* volatile observer = nullptr;
   volatile int32_t observer_id;
-  SbAtomic32 lock = kSpinLockStateReleased;
+  std::atomic_int32_t lock{kSpinLockStateReleased};
 };
 
 // Use global data in case registered observers might be called after shutdown.
-SbAtomic32 g_observers_lock = kSpinLockStateReleased;
+std::atomic_int32_t g_observers_lock{kSpinLockStateReleased};
 constexpr int32_t kMaxObservers = 384;
 ObserverEntry g_observers[kMaxObservers];
 }  // namespace
 
-volatile SbAtomic32 ObserverRegistry::Observer::id_counter(0);
+volatile std::atomic_int32_t ObserverRegistry::Observer::id_counter{0};
 
 // static
 void ObserverRegistry::RegisterObserver(const Observer* observer) {

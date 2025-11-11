@@ -16,7 +16,8 @@
 
 #import <UIKit/UIKit.h>
 
-#include "starboard/common/atomic.h"
+#include <atomic>
+
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
@@ -25,7 +26,7 @@ namespace shared {
 namespace uikit {
 namespace {
 
-SbAtomic32 s_idle_timer_lock_count = 0;
+std::atomic_int32_t s_idle_timer_lock_count{0};
 
 }  // namespace
 
@@ -40,20 +41,20 @@ void ApplicationDarwin::Teardown() {
 
 // static
 void ApplicationDarwin::IncrementIdleTimerLockCount() {
-  if (SbAtomicBarrier_Increment(&s_idle_timer_lock_count, 1) == 1) {
+  if (s_idle_timer_lock_count.fetch_add(1, std::memory_order_relaxed) == 1) {
     dispatch_async(dispatch_get_main_queue(), ^{
       UIApplication.sharedApplication.idleTimerDisabled =
-          SbAtomicAcquire_Load(&s_idle_timer_lock_count) > 0;
+          s_idle_timer_lock_count.load(std::memory_order_acquire) > 0;
     });
   }
 }
 
 // static
 void ApplicationDarwin::DecrementIdleTimerLockCount() {
-  if (SbAtomicBarrier_Increment(&s_idle_timer_lock_count, -1) == 0) {
+  if (s_idle_timer_lock_count.fetch_sub(1, std::memory_order_relaxed) == 0) {
     dispatch_async(dispatch_get_main_queue(), ^{
       UIApplication.sharedApplication.idleTimerDisabled =
-          SbAtomicAcquire_Load(&s_idle_timer_lock_count) > 0;
+          s_idle_timer_lock_count.load(std::memory_order_acquire) > 0;
     });
   }
 }

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_TVOS_SHARED_OBSERVER_REGISTRY_H_
 #define STARBOARD_TVOS_SHARED_OBSERVER_REGISTRY_H_
 
-#include "starboard/atomic.h"
+#include <atomic>
 
 namespace starboard {
 namespace shared {
@@ -65,11 +65,11 @@ class ObserverRegistry {
   // be deallocated already.
   struct Observer final {
    public:
-    Observer() : id(SbAtomicNoBarrier_Increment(&id_counter, 1)) {}
+    Observer() : id(id_counter.fetch_add(1, std::memory_order_relaxed)) {}
     const int32_t id;
 
    private:
-    static volatile SbAtomic32 id_counter;
+    static volatile std::atomic_int32_t id_counter;
   };
 
   // Observers should be registered with this module before they are added to
