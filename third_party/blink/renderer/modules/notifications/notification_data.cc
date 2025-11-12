@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/notifications/notification_data.h"
 
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "third_party/blink/public/common/notifications/notification_constants.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
@@ -25,24 +26,27 @@ namespace blink {
 namespace {
 
 mojom::blink::NotificationDirection ToDirectionEnumValue(
-    const String& direction) {
-  if (direction == "ltr")
-    return mojom::blink::NotificationDirection::LEFT_TO_RIGHT;
-  if (direction == "rtl")
-    return mojom::blink::NotificationDirection::RIGHT_TO_LEFT;
-  if (direction == "auto")
-    return mojom::blink::NotificationDirection::AUTO;
-  NOTREACHED() << "Unknown direction: " << direction;
-  return mojom::blink::NotificationDirection::AUTO;
+    const V8NotificationDirection& direction) {
+  switch (direction.AsEnum()) {
+    case V8NotificationDirection::Enum::kLtr:
+      return mojom::blink::NotificationDirection::LEFT_TO_RIGHT;
+    case V8NotificationDirection::Enum::kRtl:
+      return mojom::blink::NotificationDirection::RIGHT_TO_LEFT;
+    case V8NotificationDirection::Enum::kAuto:
+      return mojom::blink::NotificationDirection::AUTO;
+  }
+  NOTREACHED();
 }
 
-mojom::blink::NotificationScenario ToScenarioEnumValue(const String& scenario) {
-  if (scenario == "default")
-    return mojom::blink::NotificationScenario::DEFAULT;
-  if (scenario == "incoming-call")
-    return mojom::blink::NotificationScenario::INCOMING_CALL;
-  NOTREACHED() << "Unknown scenario: " << scenario;
-  return mojom::blink::NotificationScenario::DEFAULT;
+mojom::blink::NotificationScenario ToScenarioEnumValue(
+    const V8NotificationScenario& scenario) {
+  switch (scenario.AsEnum()) {
+    case V8NotificationScenario::Enum::kDefault:
+      return mojom::blink::NotificationScenario::DEFAULT;
+    case V8NotificationScenario::Enum::kIncomingCall:
+      return mojom::blink::NotificationScenario::INCOMING_CALL;
+  }
+  NOTREACHED();
 }
 
 KURL CompleteURL(ExecutionContext* context, const String& string_url) {
@@ -101,12 +105,13 @@ mojom::blink::NotificationDataPtr CreateNotificationData(
         VibrationController::SanitizeVibrationPattern(options->vibrate());
   }
   notification_data->vibration_pattern = Vector<int32_t>();
-  notification_data->vibration_pattern->Append(vibration_pattern.data(),
-                                               vibration_pattern.size());
+  notification_data->vibration_pattern->AppendSpan(
+      base::span(vibration_pattern));
 
-  notification_data->timestamp = options->hasTimestamp()
-                                     ? static_cast<double>(options->timestamp())
-                                     : base::Time::Now().ToDoubleT() * 1000.0;
+  notification_data->timestamp =
+      options->hasTimestamp()
+          ? static_cast<double>(options->timestamp())
+          : base::Time::Now().InMillisecondsFSinceUnixEpoch();
   notification_data->renotify = options->renotify();
   notification_data->silent = options->silent();
   notification_data->require_interaction = options->requireInteraction();
@@ -129,10 +134,7 @@ mojom::blink::NotificationDataPtr CreateNotificationData(
     }
 
     notification_data->data = Vector<uint8_t>();
-    notification_data->data->Append(
-        serialized_script_value->Data(),
-        base::checked_cast<wtf_size_t>(
-            serialized_script_value->DataLengthInBytes()));
+    notification_data->data->AppendSpan(serialized_script_value->GetWireData());
   }
 
   Vector<mojom::blink::NotificationActionPtr> actions;
@@ -179,7 +181,8 @@ mojom::blink::NotificationDataPtr CreateNotificationData(
     UseCounter::Count(context, WebFeature::kNotificationShowTrigger);
 
     auto* timestamp_trigger = options->showTrigger();
-    auto timestamp = base::Time::FromJsTime(timestamp_trigger->timestamp());
+    auto timestamp = base::Time::FromMillisecondsSinceUnixEpoch(
+        base::checked_cast<int64_t>(timestamp_trigger->timestamp()));
 
     if (timestamp - base::Time::Now() > kMaxNotificationShowTriggerDelay) {
       RecordPersistentNotificationDisplayResult(

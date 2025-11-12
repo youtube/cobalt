@@ -49,9 +49,6 @@ class ShellDevToolsBindings : public WebContentsObserver,
                         WebContents* inspected_contents,
                         ShellDevToolsDelegate* delegate);
 
-  static std::vector<ShellDevToolsBindings*> GetInstancesForWebContents(
-      WebContents* web_contents);
-
   void InspectElementAt(int x, int y);
   virtual void Attach();
   void UpdateInspectedWebContents(WebContents* new_contents,

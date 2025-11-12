@@ -28,7 +28,6 @@ RequestNotifier::BackgroundSavePageResult ToBackgroundSavePageResult(
     case OfflinerPolicyUtils::RequestExpirationStatus::VALID:
     default:
       NOTREACHED();
-      return RequestNotifier::BackgroundSavePageResult::EXPIRED;
   }
 }
 }  // namespace
@@ -42,7 +41,7 @@ CleanupTask::CleanupTask(RequestQueueStore* store,
       notifier_(notifier),
       event_logger_(event_logger) {}
 
-CleanupTask::~CleanupTask() {}
+CleanupTask::~CleanupTask() = default;
 
 void CleanupTask::Run() {
   GetRequests();
@@ -86,7 +85,6 @@ void CleanupTask::OnRequestsExpired(UpdateRequestsResult result) {
     auto iter = expired_request_ids_and_reasons_.find(request.request_id());
     if (iter == expired_request_ids_and_reasons_.end()) {
       NOTREACHED() << "Expired request not found in deleted results.";
-      continue;
     }
 
     // Establish save page result based on the expiration reason.

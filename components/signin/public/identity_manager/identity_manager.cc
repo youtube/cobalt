@@ -4,12 +4,12 @@
 
 #include "components/signin/public/identity_manager/identity_manager.h"
 
+#include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/signin/internal/identity_manager/account_fetcher_service.h"
 #include "components/signin/internal/identity_manager/account_tracker_service.h"
 #include "components/signin/internal/identity_manager/gaia_cookie_manager_service.h"
@@ -17,14 +17,15 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_client.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/accounts_cookie_mutator.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/device_accounts_synchronizer.h"
 #include "components/signin/public/identity_manager/diagnostics_provider.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_string.h"
@@ -37,69 +38,7 @@
 #include "components/signin/internal/identity_manager/mutable_profile_oauth2_token_service_delegate.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "components/account_manager_core/account.h"
-#include "components/signin/public/identity_manager/tribool.h"
-#endif
-
 namespace signin {
-
-namespace {
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-
-void SetPrimaryAccount(IdentityManager* identity_manager,
-                       AccountTrackerService* account_tracker_service,
-                       SigninClient* signin_client,
-                       const account_manager::Account& device_account,
-                       signin::Tribool device_account_is_child,
-                       ConsentLevel requested_level) {
-  if (device_account.key.account_type() != account_manager::AccountType::kGaia)
-    return;
-
-  // An account can be set as the Primary Account only if it exists in
-  // `AccountTrackerService`. However, for the first run, when accounts have not
-  // yet been received from `AccountManagerFacade`, entities can ask about the
-  // Primary Account and expect it to be available pretty early. Manually seed
-  // the account in `AccountTrackerService` to get around this issue.
-  const CoreAccountId device_account_id =
-      account_tracker_service->SeedAccountInfo(
-          /*gaia=*/device_account.key.id(), device_account.raw_email);
-
-  const CoreAccountId primary_account_id =
-      identity_manager->GetPrimaryAccountId(requested_level);
-  DCHECK(signin_client);
-
-  if (primary_account_id == device_account_id) {
-    identity_manager->GetAccountsMutator()->UpdateAccountInfo(
-        device_account_id, device_account_is_child, signin::Tribool::kUnknown);
-
-    return;  // Already correct primary account set, nothing to do.
-  }
-
-  if (!primary_account_id.empty()) {
-    // Different primary account found, have to clear it first.
-    // TODO(https://crbug.com/1223364): Replace this if with a CHECK after all
-    //                                  the existing users have been migrated.
-    identity_manager->GetPrimaryAccountMutator()->ClearPrimaryAccount(
-        signin_metrics::ProfileSignout::kAccountRemovedFromDevice,
-        signin_metrics::SignoutDelete::kIgnoreMetric);
-  }
-
-  PrimaryAccountMutator::PrimaryAccountError error =
-      identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-          device_account_id, requested_level);
-  identity_manager->GetAccountsMutator()->UpdateAccountInfo(
-      device_account_id, device_account_is_child, signin::Tribool::kUnknown);
-  CHECK_EQ(PrimaryAccountMutator::PrimaryAccountError::kNoError, error)
-      << "SetPrimaryAccount error: " << static_cast<int>(error);
-  CHECK(identity_manager->HasPrimaryAccount(requested_level));
-  CHECK_EQ(identity_manager->GetPrimaryAccountInfo(requested_level).gaia,
-           device_account.key.id());
-}
-#endif
-
-}  // namespace
 
 IdentityManager::InitParameters::InitParameters() = default;
 
@@ -114,20 +53,23 @@ IdentityManager::IdentityManager(IdentityManager::InitParameters&& parameters)
           std::move(parameters.gaia_cookie_manager_service)),
       primary_account_manager_(std::move(parameters.primary_account_manager)),
       account_fetcher_service_(std::move(parameters.account_fetcher_service)),
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
       signin_client_(parameters.signin_client),
-#endif
 #if BUILDFLAG(IS_CHROMEOS)
       account_manager_facade_(parameters.account_manager_facade),
 #endif
-      identity_mutator_(std::move(parameters.primary_account_mutator),
-                        std::move(parameters.accounts_mutator),
-                        std::move(parameters.accounts_cookie_mutator),
-                        std::move(parameters.device_accounts_synchronizer)),
+      identity_mutator_(std::make_unique<IdentityMutator>(
+          std::move(parameters.primary_account_mutator),
+          std::move(parameters.accounts_mutator),
+          std::move(parameters.accounts_cookie_mutator),
+          std::move(parameters.device_accounts_synchronizer))),
       diagnostics_provider_(std::move(parameters.diagnostics_provider)),
-      account_consistency_(parameters.account_consistency) {
+      account_consistency_(parameters.account_consistency),
+      require_sync_consent_for_scope_verification_(
+          parameters.require_sync_consent_for_scope_verification),
+      weak_pointer_factory_(this) {
   DCHECK(account_fetcher_service_);
   DCHECK(diagnostics_provider_);
+  DCHECK(signin_client_);
 
   primary_account_manager_observation_.Observe(primary_account_manager_.get());
   token_service_observation_.Observe(token_service_.get());
@@ -157,40 +99,21 @@ IdentityManager::IdentityManager(IdentityManager::InitParameters&& parameters)
       base::android::AttachCurrentThread(), reinterpret_cast<intptr_t>(this),
       token_service_->GetDelegate()->GetJavaObject());
 #endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // We need to set the Primary Account in Lacros. In Ash, this happens in
-  // `UserSessionManager::InitProfilePreferences`, before anyone starts using
-  // Profile / KeyedServices - but with the availability of IdentityManager. We
-  // don't have such a place in Lacros - which guarantees that the Primary
-  // Account will be available on startup - just like Ash.
-  absl::optional<account_manager::Account> initial_account =
-      signin_client_->GetInitialPrimaryAccount();
-  if (initial_account.has_value()) {
-    const absl::optional<bool>& initial_account_is_child =
-        signin_client_->IsInitialPrimaryAccountChild();
-    CHECK(initial_account_is_child.has_value());
-    SetPrimaryAccount(this, account_tracker_service_.get(), signin_client_,
-                      initial_account.value(),
-                      initial_account_is_child.value()
-                          ? signin::Tribool::kTrue
-                          : signin::Tribool::kFalse,
-                      ConsentLevel::kSignin);
-  }
-#endif
 }
 
 IdentityManager::~IdentityManager() {
 #if BUILDFLAG(IS_ANDROID)
-  if (java_identity_manager_)
+  if (java_identity_manager_) {
     Java_IdentityManager_destroy(base::android::AttachCurrentThread(),
                                  java_identity_manager_);
+  }
 #endif
 }
 
 void IdentityManager::Shutdown() {
-  for (auto& observer : observer_list_)
+  for (auto& observer : observer_list_) {
     observer.OnIdentityManagerShutdown(this);
+  }
 
   // It is no longer safe to use the SigninClient beyond this point, everything
   // depending on it must be destroyed.
@@ -198,12 +121,24 @@ void IdentityManager::Shutdown() {
   token_service_observation_.Reset();
   primary_account_manager_observation_.Reset();
 
+  diagnostics_provider_.reset();
+  identity_mutator_.reset();
   account_fetcher_service_.reset();
   gaia_cookie_manager_service_.reset();
   primary_account_manager_.reset();
   token_service_.reset();
   account_tracker_service_.reset();
 }
+
+#if BUILDFLAG(IS_IOS)
+base::ScopedClosureRunner IdentityManager::StartBatchOfPrimaryAccountChanges() {
+  CHECK(!batch_of_primary_account_changes_in_progress_,
+        base::NotFatalUntil::M140);
+  batch_of_primary_account_changes_in_progress_ = true;
+  return base::ScopedClosureRunner(base::BindOnce(
+      &IdentityManager::BatchOfPrimaryAccountChangesDone, GetWeakPtr()));
+}
+#endif  // BUILDFLAG(IS_IOS)
 
 void IdentityManager::AddObserver(Observer* observer) {
   observer_list_.AddObserver(observer);
@@ -213,7 +148,7 @@ void IdentityManager::RemoveObserver(Observer* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
-// TODO(862619) change return type to absl::optional<CoreAccountInfo>
+// TODO(crbug.com/40584518) change return type to std::optional<CoreAccountInfo>
 CoreAccountInfo IdentityManager::GetPrimaryAccountInfo(
     ConsentLevel consent) const {
   return primary_account_manager_->GetPrimaryAccountInfo(consent);
@@ -233,10 +168,12 @@ IdentityManager::CreateAccessTokenFetcherForAccount(
     const std::string& oauth_consumer_name,
     const ScopeSet& scopes,
     AccessTokenFetcher::TokenCallback callback,
-    AccessTokenFetcher::Mode mode) {
+    AccessTokenFetcher::Mode mode,
+    AccessTokenFetcher::Source token_source) {
   return std::make_unique<AccessTokenFetcher>(
       account_id, oauth_consumer_name, token_service_.get(),
-      primary_account_manager_.get(), scopes, std::move(callback), mode);
+      primary_account_manager_.get(), scopes, std::move(callback), mode,
+      require_sync_consent_for_scope_verification_, token_source);
 }
 
 std::unique_ptr<AccessTokenFetcher>
@@ -250,8 +187,18 @@ IdentityManager::CreateAccessTokenFetcherForAccount(
   return std::make_unique<AccessTokenFetcher>(
       account_id, oauth_consumer_name, token_service_.get(),
       primary_account_manager_.get(), url_loader_factory, scopes,
-      std::move(callback), mode);
+      std::move(callback), mode, require_sync_consent_for_scope_verification_);
 }
+
+#if BUILDFLAG(IS_IOS)
+void IdentityManager::GetRefreshTokenFromDevice(
+    const CoreAccountId& account_id,
+    const OAuth2AccessTokenManager::ScopeSet& scopes,
+    AccessTokenFetcher::TokenCallback callback) {
+  GetTokenService()->GetRefreshTokenFromDevice(account_id, scopes,
+                                               std::move(callback));
+}
+#endif
 
 void IdentityManager::RemoveAccessTokenFromCache(
     const CoreAccountId& account_id,
@@ -300,6 +247,13 @@ bool IdentityManager::HasAccountWithRefreshToken(
   return token_service_->RefreshTokenIsAvailable(account_id);
 }
 
+#if BUILDFLAG(IS_IOS)
+bool IdentityManager::HasAccountWithRefreshTokenOnDevice(
+    const CoreAccountId& account_id) const {
+  return token_service_->RefreshTokenIsAvailableOnDevice(account_id);
+}
+#endif
+
 bool IdentityManager::AreRefreshTokensLoaded() const {
   return token_service_->AreAllCredentialsLoaded();
 }
@@ -308,6 +262,14 @@ bool IdentityManager::HasAccountWithRefreshTokenInPersistentErrorState(
     const CoreAccountId& account_id) const {
   return GetErrorStateOfRefreshTokenForAccount(account_id).IsPersistentError();
 }
+
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+std::vector<uint8_t>
+IdentityManager::GetWrappedBindingKeyOfRefreshTokenForAccount(
+    const CoreAccountId& account_id) const {
+  return token_service_->GetWrappedBindingKey(account_id);
+}
+#endif
 
 GoogleServiceAuthError IdentityManager::GetErrorStateOfRefreshTokenForAccount(
     const CoreAccountId& account_id) const {
@@ -321,8 +283,9 @@ AccountInfo IdentityManager::FindExtendedAccountInfo(
 
 AccountInfo IdentityManager::FindExtendedAccountInfoByAccountId(
     const CoreAccountId& account_id) const {
-  if (!HasAccountWithRefreshToken(account_id))
+  if (!HasAccountWithRefreshToken(account_id)) {
     return AccountInfo();
+  }
 
   // AccountTrackerService returns an empty AccountInfo if the account is not
   // found.
@@ -341,7 +304,7 @@ AccountInfo IdentityManager::FindExtendedAccountInfoByEmailAddress(
 }
 
 AccountInfo IdentityManager::FindExtendedAccountInfoByGaiaId(
-    const std::string& gaia_id) const {
+    const GaiaId& gaia_id) const {
   AccountInfo account_info =
       account_tracker_service_->FindAccountInfoByGaiaId(gaia_id);
   // AccountTrackerService always returns an AccountInfo, even on failure. In
@@ -352,30 +315,30 @@ AccountInfo IdentityManager::FindExtendedAccountInfoByGaiaId(
 }
 
 AccountsInCookieJarInfo IdentityManager::GetAccountsInCookieJar() const {
-  std::vector<gaia::ListedAccount> signed_in_accounts;
-  std::vector<gaia::ListedAccount> signed_out_accounts;
-  bool accounts_are_fresh = gaia_cookie_manager_service_->ListAccounts(
-      &signed_in_accounts, &signed_out_accounts);
-
-  return AccountsInCookieJarInfo(accounts_are_fresh, signed_in_accounts,
-                                 signed_out_accounts);
+  return gaia_cookie_manager_service_->ListAccounts();
 }
 
 PrimaryAccountMutator* IdentityManager::GetPrimaryAccountMutator() {
-  return identity_mutator_.GetPrimaryAccountMutator();
+  return identity_mutator_->GetPrimaryAccountMutator();
 }
 
 AccountsMutator* IdentityManager::GetAccountsMutator() {
-  return identity_mutator_.GetAccountsMutator();
+  return identity_mutator_->GetAccountsMutator();
 }
 
 AccountsCookieMutator* IdentityManager::GetAccountsCookieMutator() {
-  return identity_mutator_.GetAccountsCookieMutator();
+  return identity_mutator_->GetAccountsCookieMutator();
 }
 
 DeviceAccountsSynchronizer* IdentityManager::GetDeviceAccountsSynchronizer() {
-  return identity_mutator_.GetDeviceAccountsSynchronizer();
+  return identity_mutator_->GetDeviceAccountsSynchronizer();
 }
+
+#if BUILDFLAG(IS_IOS)
+std::vector<AccountInfo> IdentityManager::GetAccountsOnDevice() {
+  return token_service_->GetAccountsOnDevice();
+}
+#endif
 
 void IdentityManager::AddDiagnosticsObserver(DiagnosticsObserver* observer) {
   diagnostics_observation_list_.AddObserver(observer);
@@ -390,16 +353,8 @@ void IdentityManager::OnNetworkInitialized() {
   account_fetcher_service_->OnNetworkInitialized();
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-IdentityManager::AccountIdMigrationState
-IdentityManager::GetAccountIdMigrationState() const {
-  return static_cast<IdentityManager::AccountIdMigrationState>(
-      account_tracker_service_->GetMigrationState());
-}
-#endif
-
 CoreAccountId IdentityManager::PickAccountIdForAccount(
-    const std::string& gaia,
+    const GaiaId& gaia,
     const std::string& email) const {
   return account_tracker_service_->PickAccountIdForAccount(gaia, email);
 }
@@ -422,21 +377,32 @@ DiagnosticsProvider* IdentityManager::GetDiagnosticsProvider() {
   return diagnostics_provider_.get();
 }
 
-#if BUILDFLAG(IS_ANDROID)
-base::android::ScopedJavaLocalRef<jobject>
-IdentityManager::LegacyGetAccountTrackerServiceJavaObject() {
-  return account_tracker_service_->GetJavaObject();
+void IdentityManager::PrepareForAddingNewAccount() {
+  account_fetcher_service_->PrepareForFetchingAccountCapabilities();
 }
 
-base::android::ScopedJavaLocalRef<jobject> IdentityManager::GetJavaObject() {
+#if BUILDFLAG(IS_ANDROID)
+base::android::ScopedJavaLocalRef<jobject> IdentityManager::GetJavaObject()
+    const {
   DCHECK(java_identity_manager_);
   return base::android::ScopedJavaLocalRef<jobject>(java_identity_manager_);
+}
+
+// static
+IdentityManager* IdentityManager::FromJavaObject(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& j_identity_manager) {
+  if (!j_identity_manager) {
+    return nullptr;
+  }
+  return reinterpret_cast<IdentityManager*>(
+      Java_IdentityManager_getNativePointer(env, j_identity_manager));
 }
 
 base::android::ScopedJavaLocalRef<jobject>
 IdentityManager::GetIdentityMutatorJavaObject() {
   return base::android::ScopedJavaLocalRef<jobject>(
-      identity_mutator_.GetJavaObject());
+      identity_mutator_->GetJavaObject());
 }
 
 void IdentityManager::RefreshAccountInfoIfStale(
@@ -453,16 +419,19 @@ void IdentityManager::RefreshAccountInfoIfStale(
 void IdentityManager::RefreshAccountInfoIfStale(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& j_core_account_id) {
-  RefreshAccountInfoIfStale(
-      ConvertFromJavaCoreAccountId(env, j_core_account_id));
+  if (j_core_account_id) {
+    RefreshAccountInfoIfStale(
+        ConvertFromJavaCoreAccountId(env, j_core_account_id));
+  }
 }
 
 base::android::ScopedJavaLocalRef<jobject>
 IdentityManager::GetPrimaryAccountInfo(JNIEnv* env, jint consent_level) const {
   CoreAccountInfo account_info =
       GetPrimaryAccountInfo(static_cast<ConsentLevel>(consent_level));
-  if (account_info.IsEmpty())
+  if (account_info.IsEmpty()) {
     return nullptr;
+  }
   return ConvertToJavaCoreAccountInfo(env, account_info);
 }
 
@@ -472,8 +441,9 @@ IdentityManager::FindExtendedAccountInfoByEmailAddress(
     const base::android::JavaParamRef<jstring>& j_email) const {
   AccountInfo account_info = FindExtendedAccountInfoByEmailAddress(
       base::android::ConvertJavaStringToUTF8(env, j_email));
-  if (account_info.IsEmpty())
+  if (account_info.IsEmpty()) {
     return nullptr;
+  }
   return ConvertToJavaAccountInfo(env, account_info);
 }
 
@@ -496,7 +466,16 @@ IdentityManager::GetAccountsWithRefreshTokens(JNIEnv* env) const {
   }
   return array;
 }
+
+jboolean IdentityManager::IsClearPrimaryAccountAllowed(JNIEnv* env) const {
+  return signin_client_->IsClearPrimaryAccountAllowed(
+      HasPrimaryAccount(signin::ConsentLevel::kSync));
+}
 #endif
+
+base::WeakPtr<IdentityManager> IdentityManager::GetWeakPtr() {
+  return weak_pointer_factory_.GetWeakPtr();
+}
 
 AccountInfo IdentityManager::FindExtendedPrimaryAccountInfo(
     ConsentLevel consent_level) {
@@ -533,7 +512,7 @@ IdentityManager::GetAccountManagerFacade() const {
 
 AccountInfo IdentityManager::GetAccountInfoForAccountWithRefreshToken(
     const CoreAccountId& account_id) const {
-  // TODO(https://crbug.com/919793): This invariant is not currently possible to
+  // TODO(crbug.com/41434401): This invariant is not currently possible to
   // enforce on Android due to the underlying relationship between
   // O2TS::GetAccounts(), O2TS::RefreshTokenIsAvailable(), and
   // O2TS::Observer::OnRefreshTokenAvailable().
@@ -571,6 +550,11 @@ void IdentityManager::OnPrimaryAccountChanged(
         ConvertToJavaPrimaryAccountChangeEvent(env, event_details));
   }
 #endif
+#if BUILDFLAG(IS_IOS)
+  if (!batch_of_primary_account_changes_in_progress_) {
+    FireOnEndBatchOfPrimaryAccountChanges();
+  }
+#endif  // BUILDFLAG(IS_IOS)
 }
 
 void IdentityManager::OnRefreshTokenAvailable(const CoreAccountId& account_id) {
@@ -597,33 +581,50 @@ void IdentityManager::OnRefreshTokenRevoked(const CoreAccountId& account_id) {
 }
 
 void IdentityManager::OnRefreshTokensLoaded() {
-  for (auto& observer : observer_list_)
+  for (auto& observer : observer_list_) {
     observer.OnRefreshTokensLoaded();
+  }
 }
 
 void IdentityManager::OnEndBatchChanges() {
-  for (auto& observer : observer_list_)
+  for (auto& observer : observer_list_) {
     observer.OnEndBatchOfRefreshTokenStateChanges();
+  }
 }
 
 void IdentityManager::OnAuthErrorChanged(
     const CoreAccountId& account_id,
-    const GoogleServiceAuthError& auth_error) {
+    const GoogleServiceAuthError& auth_error,
+    signin_metrics::SourceForRefreshTokenOperation token_operation_source) {
   CoreAccountInfo account_info =
       GetAccountInfoForAccountWithRefreshToken(account_id);
 
-  for (auto& observer : observer_list_)
-    observer.OnErrorStateOfRefreshTokenUpdatedForAccount(account_info,
-                                                         auth_error);
+  for (auto& observer : observer_list_) {
+    observer.OnErrorStateOfRefreshTokenUpdatedForAccount(
+        account_info, auth_error, token_operation_source);
+  }
 }
 
+#if BUILDFLAG(IS_IOS)
+void IdentityManager::OnAccountsOnDeviceChanged() {
+  for (auto& observer : observer_list_) {
+    observer.OnAccountsOnDeviceChanged();
+  }
+}
+
+void IdentityManager::OnAccountOnDeviceUpdated(
+    const AccountInfo& account_info) {
+  for (auto& observer : observer_list_) {
+    observer.OnExtendedAccountInfoUpdated(account_info);
+  }
+}
+#endif
+
 void IdentityManager::OnGaiaAccountsInCookieUpdated(
-    const std::vector<gaia::ListedAccount>& signed_in_accounts,
-    const std::vector<gaia::ListedAccount>& signed_out_accounts,
+    const AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
     const GoogleServiceAuthError& error) {
-  AccountsInCookieJarInfo accounts_in_cookie_jar_info(
-      error == GoogleServiceAuthError::AuthErrorNone(), signed_in_accounts,
-      signed_out_accounts);
+  bool succeeded = error == GoogleServiceAuthError::AuthErrorNone();
+  CHECK(accounts_in_cookie_jar_info.AreAccountsFresh() == succeeded);
 
   for (auto& observer : observer_list_) {
     observer.OnAccountsInCookieUpdated(accounts_in_cookie_jar_info, error);
@@ -654,33 +655,37 @@ void IdentityManager::OnFetchAccessTokenComplete(
     const CoreAccountId& account_id,
     const std::string& consumer_id,
     const ScopeSet& scopes,
-    GoogleServiceAuthError error,
+    const GoogleServiceAuthError& error,
     base::Time expiration_time) {
-  for (auto& observer : diagnostics_observation_list_)
+  for (auto& observer : diagnostics_observation_list_) {
     observer.OnAccessTokenRequestCompleted(account_id, consumer_id, scopes,
                                            error, expiration_time);
+  }
 }
 
 void IdentityManager::OnAccessTokenRemoved(const CoreAccountId& account_id,
                                            const ScopeSet& scopes) {
-  for (auto& observer : diagnostics_observation_list_)
+  for (auto& observer : diagnostics_observation_list_) {
     observer.OnAccessTokenRemovedFromCache(account_id, scopes);
+  }
 }
 
 void IdentityManager::OnRefreshTokenAvailableFromSource(
     const CoreAccountId& account_id,
     bool is_refresh_token_valid,
     const std::string& source) {
-  for (auto& observer : diagnostics_observation_list_)
+  for (auto& observer : diagnostics_observation_list_) {
     observer.OnRefreshTokenUpdatedForAccountFromSource(
         account_id, is_refresh_token_valid, source);
+  }
 }
 
 void IdentityManager::OnRefreshTokenRevokedFromSource(
     const CoreAccountId& account_id,
     const std::string& source) {
-  for (auto& observer : diagnostics_observation_list_)
+  for (auto& observer : diagnostics_observation_list_) {
     observer.OnRefreshTokenRemovedForAccountFromSource(account_id, source);
+  }
 }
 
 void IdentityManager::OnAccountUpdated(const AccountInfo& info) {
@@ -713,8 +718,28 @@ void IdentityManager::OnAccountUpdated(const AccountInfo& info) {
 }
 
 void IdentityManager::OnAccountRemoved(const AccountInfo& info) {
-  for (auto& observer : observer_list_)
+#if (BUILDFLAG(IS_ANDROID))
+  account_fetcher_service_->DestroyFetchers(info.account_id);
+#endif
+  for (auto& observer : observer_list_) {
     observer.OnExtendedAccountInfoRemoved(info);
+  }
 }
 
+#if BUILDFLAG(IS_IOS)
+void IdentityManager::BatchOfPrimaryAccountChangesDone() {
+  CHECK(batch_of_primary_account_changes_in_progress_,
+        base::NotFatalUntil::M140);
+  batch_of_primary_account_changes_in_progress_ = false;
+  FireOnEndBatchOfPrimaryAccountChanges();
+}
+
+void IdentityManager::FireOnEndBatchOfPrimaryAccountChanges() {
+  CHECK(!batch_of_primary_account_changes_in_progress_,
+        base::NotFatalUntil::M140);
+  for (auto& observer : observer_list_) {
+    observer.OnEndBatchOfPrimaryAccountChanges();
+  }
+}
+#endif  // BUILDFLAG(IS_IOS)
 }  // namespace signin

@@ -8,7 +8,8 @@
 // "fin" is received by the native page. Refer to
 // ios/web/webui/web_ui_mojo_inttest.mm for testing code.
 
-var pageImpl, browserProxy;
+let pageImpl;
+let browserProxy;
 
 /** @constructor */
 function TestPageImpl() {
@@ -18,10 +19,14 @@ function TestPageImpl() {
 TestPageImpl.prototype = {
   /** @override */
   handleNativeMessage: function(result) {
-    if (result.message == 'ack') {
-      // Native code has replied with "ack", send "fin" to complete the
-      // test.
-      browserProxy.handleJsMessage('fin');
+    if (result.message === 'ack') {
+      // Expect "ack2" reply to syn2 via the callback.
+      browserProxy.handleJsMessageWithCallback('syn2').then((r) => {
+        if (r.result.message === 'ack2') {
+          // Send "fin" to complete the test.
+          browserProxy.handleJsMessage('fin');
+        }
+      });
     }
   },
 };
@@ -42,7 +47,7 @@ function main() {
                        mojo.makeRequest(browserProxy).handle);
 
     pageImpl = new TestPageImpl();
-    var pagePtr = new web.mojom.TestPagePtr();
+    const pagePtr = new web.mojom.TestPagePtr();
     pageImpl.binding.bind(mojo.makeRequest(pagePtr));
     browserProxy.setClientPage(pagePtr);
 

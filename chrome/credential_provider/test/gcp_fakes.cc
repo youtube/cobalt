@@ -2,16 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/credential_provider/test/gcp_fakes.h"
 
 #include <windows.h>
 
-#include <lm.h>
-#include <process.h>
-#include <sddl.h>
-
 #include <atlcomcli.h>
 #include <atlconv.h>
+#include <lm.h>
+#include <ntstatus.h>
+#include <process.h>
+#include <sddl.h>
 
 #include <string>
 
@@ -23,6 +28,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
+#include "base/win/ntsecapi_shim.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_process_information.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
@@ -31,6 +37,7 @@
 #include "chrome/credential_provider/gaiacp/logging.h"
 #include "chrome/credential_provider/gaiacp/mdm_utils.h"
 #include "chrome/credential_provider/gaiacp/reg_utils.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace credential_provider {
@@ -83,8 +90,9 @@ HRESULT FakeOSProcessManager::GetTokenLogonSID(
     const base::win::ScopedHandle& token,
     PSID* sid) {
   // Make sure the token is valid, but otherwise ignore it.
-  if (!token.IsValid())
+  if (!token.IsValid()) {
     return E_INVALIDARG;
+  }
 
   return CreateArbitrarySid(++next_rid_, sid);
 }
@@ -134,8 +142,9 @@ FakeOSUserManager::~FakeOSUserManager() {
 
 HRESULT FakeOSUserManager::GenerateRandomPassword(wchar_t* password,
                                                   int length) {
-  if (length < kMinPasswordLength)
+  if (length < kMinPasswordLength) {
     return E_INVALIDARG;
+  }
 
   // Make sure to generate a different password each time.  Actually randomness
   // is not important for tests.
@@ -167,8 +176,9 @@ HRESULT FakeOSUserManager::AddUser(const wchar_t* username,
 
   DCHECK(sid);
 
-  if (error)
+  if (error) {
     *error = 0;
+  }
 
   if (failure_reasons_.find(FAILEDOPERATIONS::ADD_USER) !=
       failure_reasons_.end()) {
@@ -177,8 +187,9 @@ HRESULT FakeOSUserManager::AddUser(const wchar_t* username,
 
   // Username or password cannot be empty.
   if (username == nullptr || !username[0] || password == nullptr ||
-      !password[0])
+      !password[0]) {
     return E_FAIL;
+  }
 
   bool user_found = username_to_info_.count(username) > 0;
 
@@ -189,8 +200,9 @@ HRESULT FakeOSUserManager::AddUser(const wchar_t* username,
 
   PSID psid = nullptr;
   HRESULT hr = CreateNewSID(&psid);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return hr;
+  }
 
   wchar_t* sidstr = nullptr;
   bool ok = ::ConvertSidToStringSid(psid, &sidstr);
@@ -223,8 +235,9 @@ HRESULT FakeOSUserManager::ChangeUserPassword(const wchar_t* domain,
   }
 
   if (username_to_info_.count(username) > 0) {
-    if (username_to_info_[username].password != old_password)
+    if (username_to_info_[username].password != old_password) {
       return HRESULT_FROM_WIN32(ERROR_INVALID_PASSWORD);
+    }
 
     username_to_info_[username].password = new_password;
     return S_OK;
@@ -277,8 +290,9 @@ HRESULT FakeOSUserManager::IsWindowsPasswordValid(const wchar_t* domain,
 
   if (username_to_info_.count(username) > 0) {
     const UserInfo& info = username_to_info_[username];
-    if (info.domain != domain)
+    if (info.domain != domain) {
       return HRESULT_FROM_WIN32(NERR_UserNotFound);
+    }
 
     return info.password == password ? S_OK : S_FALSE;
   }
@@ -302,13 +316,15 @@ HRESULT FakeOSUserManager::CreateLogonToken(const wchar_t* domain,
   }
 
   const UserInfo& info = username_to_info_[username];
-  if (info.domain != domain)
+  if (info.domain != domain) {
     return HRESULT_FROM_WIN32(NERR_BadUsername);
+  }
 
   // Create a token with a dummy handle value.
   base::FilePath path;
-  if (!base::CreateTemporaryFile(&path))
+  if (!base::CreateTemporaryFile(&path)) {
     return HRESULT_FROM_WIN32(::GetLastError());
+  }
 
   token->Set(CreateFile(path.value().c_str(), GENERIC_READ | GENERIC_WRITE, 0,
                         nullptr, CREATE_ALWAYS,
@@ -330,8 +346,9 @@ HRESULT FakeOSUserManager::GetUserSID(const wchar_t* domain,
   if (username_to_info_.count(username) > 0) {
     const UserInfo& info = username_to_info_[username];
     if (info.domain == domain) {
-      if (!::ConvertStringSidToSid(info.sid.c_str(), sid))
+      if (!::ConvertStringSidToSid(info.sid.c_str(), sid)) {
         return HRESULT_FROM_WIN32(NERR_ProgNeedsExtraMem);
+      }
 
       return S_OK;
     }
@@ -348,18 +365,21 @@ HRESULT FakeOSUserManager::FindUserBySID(const wchar_t* sid,
   auto it = to_be_failed_find_user_sids_.find(sid);
   if (it != to_be_failed_find_user_sids_.end()) {
     to_be_failed_find_user_sids_[sid]--;
-    if (to_be_failed_find_user_sids_[sid] == 0)
+    if (to_be_failed_find_user_sids_[sid] == 0) {
       to_be_failed_find_user_sids_.erase(it);
+    }
 
     return E_FAIL;
   }
 
   for (auto& kv : username_to_info_) {
     if (kv.second.sid == sid) {
-      if (username)
+      if (username) {
         wcscpy_s(username, username_size, kv.first.c_str());
-      if (domain)
+      }
+      if (domain) {
         wcscpy_s(domain, domain_size, kv.second.domain.c_str());
+      }
       return S_OK;
     }
   }
@@ -425,11 +445,11 @@ FakeOSUserManager::UserInfo::UserInfo(const wchar_t* domain,
       comment(comment),
       sid(sid) {}
 
-FakeOSUserManager::UserInfo::UserInfo() {}
+FakeOSUserManager::UserInfo::UserInfo() = default;
 
 FakeOSUserManager::UserInfo::UserInfo(const UserInfo& other) = default;
 
-FakeOSUserManager::UserInfo::~UserInfo() {}
+FakeOSUserManager::UserInfo::~UserInfo() = default;
 
 bool FakeOSUserManager::UserInfo::operator==(const UserInfo& other) const {
   return domain == other.domain && password == other.password &&
@@ -452,7 +472,7 @@ HRESULT FakeOSUserManager::CreateTestOSUser(const std::wstring& username,
                                             const std::wstring& password,
                                             const std::wstring& fullname,
                                             const std::wstring& comment,
-                                            const std::wstring& gaia_id,
+                                            const GaiaId& gaia_id,
                                             const std::wstring& email,
                                             BSTR* sid) {
   return CreateTestOSUser(username, password, fullname, comment, gaia_id, email,
@@ -463,30 +483,35 @@ HRESULT FakeOSUserManager::CreateTestOSUser(const std::wstring& username,
                                             const std::wstring& password,
                                             const std::wstring& fullname,
                                             const std::wstring& comment,
-                                            const std::wstring& gaia_id,
+                                            const GaiaId& gaia_id,
                                             const std::wstring& email,
                                             const std::wstring& domain,
                                             BSTR* sid) {
   DWORD error;
   HRESULT hr = AddUser(username.c_str(), password.c_str(), fullname.c_str(),
                        comment.c_str(), true, domain.c_str(), sid, &error);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return hr;
+  }
 
   if (!gaia_id.empty()) {
-    hr = SetUserProperty(OLE2CW(*sid), kUserId, gaia_id);
-    if (FAILED(hr))
+    hr = SetUserProperty(OLE2CW(*sid), kUserId,
+                         base::UTF8ToWide(gaia_id.ToString()));
+    if (FAILED(hr)) {
       return hr;
+    }
 
     hr = SetUserProperty(OLE2CW(*sid), kUserTokenHandle, L"token_handle");
-    if (FAILED(hr))
+    if (FAILED(hr)) {
       return hr;
+    }
   }
 
   if (!email.empty()) {
     hr = SetUserProperty(OLE2CW(*sid), kUserEmail, email);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
       return hr;
+    }
   }
 
   return S_OK;
@@ -496,8 +521,9 @@ std::vector<std::pair<std::wstring, std::wstring>> FakeOSUserManager::GetUsers()
     const {
   std::vector<std::pair<std::wstring, std::wstring>> users;
 
-  for (auto& kv : username_to_info_)
+  for (auto& kv : username_to_info_) {
     users.emplace_back(std::make_pair(kv.second.sid, kv.first));
+  }
 
   return users;
 }
@@ -530,7 +556,7 @@ FakeScopedLsaPolicy::FakeScopedLsaPolicy(FakeScopedLsaPolicyFactory* factory)
   // running elevated.  That's OK, everything is faked out anyway.
 }
 
-FakeScopedLsaPolicy::~FakeScopedLsaPolicy() {}
+FakeScopedLsaPolicy::~FakeScopedLsaPolicy() = default;
 
 HRESULT FakeScopedLsaPolicy::StorePrivateData(const wchar_t* key,
                                               const wchar_t* value) {
@@ -546,12 +572,18 @@ HRESULT FakeScopedLsaPolicy::RemovePrivateData(const wchar_t* key) {
 HRESULT FakeScopedLsaPolicy::RetrievePrivateData(const wchar_t* key,
                                                  wchar_t* value,
                                                  size_t length) {
-  if (private_data().count(key) == 0)
-    return E_INVALIDARG;
+  if (private_data().count(key) == 0) {
+    if (wcscmp(key, kLsaKeyGaiaSid) == 0) {
+      return HRESULT_FROM_NT(STATUS_OBJECT_NAME_NOT_FOUND);
+    } else {
+      return E_INVALIDARG;
+    }
+  }
 
   errno_t err = wcscpy_s(value, length, private_data()[key].c_str());
-  if (err != 0)
+  if (err != 0) {
     return E_FAIL;
+  }
 
   return S_OK;
 }
@@ -605,11 +637,13 @@ FakeScopedUserProfile::FakeScopedUserProfile(const std::wstring& sid,
                   domain.c_str(), username.c_str(), password.c_str()) == S_OK;
 }
 
-FakeScopedUserProfile::~FakeScopedUserProfile() {}
+FakeScopedUserProfile::~FakeScopedUserProfile() = default;
 
-HRESULT FakeScopedUserProfile::SaveAccountInfo(const base::Value& properties) {
-  if (!is_valid_)
+HRESULT FakeScopedUserProfile::SaveAccountInfo(
+    const base::Value::Dict& properties) {
+  if (!is_valid_) {
     return E_INVALIDARG;
+  }
 
   std::wstring sid;
   std::wstring id;
@@ -619,14 +653,16 @@ HRESULT FakeScopedUserProfile::SaveAccountInfo(const base::Value& properties) {
 
   HRESULT hr = ExtractAssociationInformation(properties, &sid, &id, &email,
                                              &token_handle);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return hr;
+  }
 
   hr = RegisterAssociation(sid, id, email, token_handle,
                            last_successful_online_login_millis);
 
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return hr;
+  }
 
   return S_OK;
 }
@@ -643,7 +679,7 @@ FakeWinHttpUrlFetcherFactory::RequestData::RequestData(const RequestData& rhs)
 
 FakeWinHttpUrlFetcherFactory::RequestData::~RequestData() = default;
 
-FakeWinHttpUrlFetcherFactory::Response::Response() {}
+FakeWinHttpUrlFetcherFactory::Response::Response() = default;
 
 FakeWinHttpUrlFetcherFactory::Response::Response(const Response& rhs)
     : headers(rhs.headers),
@@ -712,15 +748,18 @@ void FakeWinHttpUrlFetcherFactory::SetFakeFailedResponse(const GURL& url,
 
 FakeWinHttpUrlFetcherFactory::RequestData
 FakeWinHttpUrlFetcherFactory::GetRequestData(size_t request_index) const {
-  if (request_index < requests_data_.size())
+  if (request_index < requests_data_.size()) {
     return requests_data_[request_index];
+  }
   return RequestData();
 }
 
 std::unique_ptr<WinHttpUrlFetcher> FakeWinHttpUrlFetcherFactory::Create(
     const GURL& url) {
-  if (fake_responses_.count(url) == 0 && failed_http_fetch_hr_.count(url) == 0)
+  if (fake_responses_.count(url) == 0 &&
+      failed_http_fetch_hr_.count(url) == 0) {
     return nullptr;
+  }
 
   FakeWinHttpUrlFetcher* fetcher = new FakeWinHttpUrlFetcher(url);
 
@@ -733,8 +772,9 @@ std::unique_ptr<WinHttpUrlFetcher> FakeWinHttpUrlFetcherFactory::Create(
 
     if (remove_fake_response_when_created_) {
       fake_responses_[url].pop_front();
-      if (fake_responses_[url].empty())
+      if (fake_responses_[url].empty()) {
         fake_responses_.erase(url);
+      }
     }
   } else {
     DCHECK(failed_http_fetch_hr_.count(url) > 0);
@@ -754,18 +794,20 @@ std::unique_ptr<WinHttpUrlFetcher> FakeWinHttpUrlFetcherFactory::Create(
 FakeWinHttpUrlFetcher::FakeWinHttpUrlFetcher(const GURL& url)
     : WinHttpUrlFetcher() {}
 
-FakeWinHttpUrlFetcher::~FakeWinHttpUrlFetcher() {}
+FakeWinHttpUrlFetcher::~FakeWinHttpUrlFetcher() = default;
 
 bool FakeWinHttpUrlFetcher::IsValid() const {
   return true;
 }
 
 HRESULT FakeWinHttpUrlFetcher::Fetch(std::vector<char>* response) {
-  if (FAILED(response_hr_))
+  if (FAILED(response_hr_)) {
     return response_hr_;
+  }
 
-  if (send_response_event_handle_ != INVALID_HANDLE_VALUE)
+  if (send_response_event_handle_ != INVALID_HANDLE_VALUE) {
     ::WaitForSingleObject(send_response_event_handle_, INFINITE);
+  }
 
   response->resize(response_.size());
   memcpy(response->data(), response_.c_str(), response->size());
@@ -778,21 +820,24 @@ HRESULT FakeWinHttpUrlFetcher::Close() {
 
 HRESULT FakeWinHttpUrlFetcher::SetRequestHeader(const char* name,
                                                 const char* value) {
-  if (request_data_)
+  if (request_data_) {
     request_data_->headers[name] = value;
+  }
   return S_OK;
 }
 
 HRESULT FakeWinHttpUrlFetcher::SetRequestBody(const char* body) {
-  if (request_data_)
+  if (request_data_) {
     request_data_->body = body;
+  }
   return S_OK;
 }
 
 HRESULT FakeWinHttpUrlFetcher::SetHttpRequestTimeout(
     const int timeout_in_millis) {
-  if (request_data_)
+  if (request_data_) {
     request_data_->timeout_in_millis = timeout_in_millis;
+  }
   return S_OK;
 }
 
@@ -1235,8 +1280,9 @@ void FakeUserPoliciesManager::SetUserPolicyStaleOrMissing(
 
 bool FakeUserPoliciesManager::IsUserPolicyStaleOrMissing(
     const std::wstring& sid) const {
-  if (user_policies_stale_.find(sid) != user_policies_stale_.end())
+  if (user_policies_stale_.find(sid) != user_policies_stale_.end()) {
     return user_policies_stale_.at(sid);
+  }
 
   return true;
 }
@@ -1337,8 +1383,9 @@ DWORD FakeOSServiceManager::StartServiceCtrlDispatcher(
 
     // This is a custom control to end the service process main when service is
     // supposed to stop.
-    if (control_request == 100)
+    if (control_request == 100) {
       break;
+    }
 
     service_lookup_from_name_[extension::kGCPWExtensionServiceName]
         .control_handler_cb_(control_request);
@@ -1375,8 +1422,9 @@ DWORD FakeOSServiceManager::SetServiceStatus(
   service_lookup_from_name_[extension::kGCPWExtensionServiceName]
       .service_status_ = service;
 
-  if (service.dwCurrentState == SERVICE_STOPPED)
+  if (service.dwCurrentState == SERVICE_STOPPED) {
     SendControlRequestForTesting(100);
+  }
   return ERROR_SUCCESS;
 }
 

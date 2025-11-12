@@ -105,13 +105,13 @@ struct InitGlobals {
 
     // Disable noisy logging as per "libFuzzer in Chrome" documentation:
     // testing/libfuzzer/getting_started.md#Disable-noisy-error-message-logging.
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
 
     // Re-using this buffer for write operations may technically be against
     // IOBuffer rules but it shouldn't cause any actual problems.
-    buffer_ =
-        base::MakeRefCounted<net::IOBuffer>(static_cast<size_t>(kMaxEntrySize));
-    CacheTestFillBuffer(buffer_->data(), kMaxEntrySize, false);
+    buffer_ = base::MakeRefCounted<net::IOBufferWithSize>(
+        static_cast<size_t>(kMaxEntrySize));
+    CacheTestFillBuffer(buffer_->span(), false);
 
 #define CREATE_IO_CALLBACK(IO_TYPE) \
   io_callbacks_.push_back(base::BindRepeating(&IOCallback, #IO_TYPE));
@@ -154,8 +154,7 @@ class DiskCacheLPMFuzzer {
     EntryInfo(const EntryInfo&) = delete;
     EntryInfo& operator=(const EntryInfo&) = delete;
 
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #addr-of, #constexpr-ctor-field-initializer
+    // RAW_PTR_EXCLUSION: #addr-of
     RAW_PTR_EXCLUSION disk_cache::Entry* entry_ptr = nullptr;
     std::unique_ptr<TestEntryResultCompletionCallback> tcb;
   };
@@ -188,10 +187,14 @@ class DiskCacheLPMFuzzer {
   // Closes any non-nullptr entries in open_cache_entries_.
   void CloseAllRemainingEntries();
 
-  void HandleSetMaxSize(const disk_cache_fuzzer::SetMaxSize&);
+  // Fully shuts down and cleans up the cache backend.
+  void ShutdownBackend();
+
+  int64_t ComputeMaxSize(const disk_cache_fuzzer::SetMaxSize* maybe_max_size);
   void CreateBackend(
       disk_cache_fuzzer::FuzzCommands::CacheBackend cache_backend,
       uint32_t mask,
+      const disk_cache_fuzzer::SetMaxSize* maybe_max_size,
       net::CacheType type,
       bool simple_cache_wait_for_index);
 
@@ -206,9 +209,6 @@ class DiskCacheLPMFuzzer {
   std::unique_ptr<disk_cache::SimpleFileTracker> simple_file_tracker_;
   raw_ptr<disk_cache::SimpleBackendImpl> simple_cache_impl_ = nullptr;
   raw_ptr<disk_cache::MemBackendImpl> mem_cache_ = nullptr;
-
-  // Maximum size of the cache, that we have currently set.
-  uint32_t max_size_ = kMaxSize;
 
   // This "consistent hash table" keeys track of the keys we've added to the
   // backend so far. This should always be indexed by a "key_id" from a
@@ -272,16 +272,13 @@ net::CacheType GetCacheTypeAndPrint(
     case disk_cache_fuzzer::FuzzCommands::APP_CACHE:
       MAYBE_PRINT << "Cache type = APP_CACHE." << std::endl;
       return net::CacheType::APP_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::REMOVED_MEDIA_CACHE:
       // Media cache no longer in use; handle as HTTP_CACHE
       MAYBE_PRINT << "Cache type = REMOVED_MEDIA_CACHE." << std::endl;
       return net::CacheType::DISK_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::SHADER_CACHE:
       MAYBE_PRINT << "Cache type = SHADER_CACHE." << std::endl;
       return net::CacheType::SHADER_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::PNACL_CACHE:
       // Simple cache won't handle PNACL_CACHE.
       if (backend == disk_cache_fuzzer::FuzzCommands::SIMPLE) {
@@ -290,19 +287,15 @@ net::CacheType GetCacheTypeAndPrint(
       }
       MAYBE_PRINT << "Cache type = PNACL_CACHE." << std::endl;
       return net::CacheType::PNACL_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::GENERATED_BYTE_CODE_CACHE:
       MAYBE_PRINT << "Cache type = GENERATED_BYTE_CODE_CACHE." << std::endl;
       return net::CacheType::GENERATED_BYTE_CODE_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::GENERATED_NATIVE_CODE_CACHE:
       MAYBE_PRINT << "Cache type = GENERATED_NATIVE_CODE_CACHE." << std::endl;
       return net::CacheType::GENERATED_NATIVE_CODE_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::DISK_CACHE:
       MAYBE_PRINT << "Cache type = DISK_CACHE." << std::endl;
       return net::CacheType::DISK_CACHE;
-      break;
   }
 }
 
@@ -456,13 +449,11 @@ void DiskCacheLPMFuzzer::RunCommands(
       commands.has_set_mask() ? (commands.set_mask() ? 0x1 : 0xf) : 0;
   net::CacheType type =
       GetCacheTypeAndPrint(commands.cache_type(), commands.cache_backend());
-  CreateBackend(commands.cache_backend(), mask, type,
-                commands.simple_cache_wait_for_index());
+  CreateBackend(
+      commands.cache_backend(), mask,
+      commands.has_set_max_size() ? &commands.set_max_size() : nullptr, type,
+      commands.simple_cache_wait_for_index());
   MAYBE_PRINT << "CreateBackend()" << std::endl;
-
-  if (commands.has_set_max_size()) {
-    HandleSetMaxSize(commands.set_max_size());
-  }
 
   {
     base::Time curr_time = base::Time::Now();
@@ -478,10 +469,6 @@ void DiskCacheLPMFuzzer::RunCommands(
     init_globals->task_environment_->RunUntilIdle();
 
     switch (command.fuzz_command_oneof_case()) {
-      case disk_cache_fuzzer::FuzzCommand::kSetMaxSize: {
-        HandleSetMaxSize(command.set_max_size());
-        break;
-      }
       case disk_cache_fuzzer::FuzzCommand::kCreateEntry: {
         if (!cache_)
           continue;
@@ -705,8 +692,7 @@ void DiskCacheLPMFuzzer::RunCommands(
         uint32_t offset = wd.offset() % kMaxEntrySize;
         size_t size = wd.size() % kMaxEntrySize;
         bool async = wd.async();
-        scoped_refptr<net::IOBuffer> buffer =
-            base::MakeRefCounted<net::IOBuffer>(size);
+        auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
 
         net::TestCompletionCallback tcb;
         net::CompletionOnceCallback cb =
@@ -769,8 +755,7 @@ void DiskCacheLPMFuzzer::RunCommands(
           offset %= kMaxEntrySize;
         size_t size = rsd.size() % kMaxEntrySize;
         bool async = rsd.async();
-        scoped_refptr<net::IOBuffer> buffer =
-            base::MakeRefCounted<net::IOBuffer>(size);
+        auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
 
         net::TestCompletionCallback tcb;
         net::CompletionOnceCallback cb =
@@ -1113,6 +1098,19 @@ void DiskCacheLPMFuzzer::RunCommands(
         cache_.reset();
         break;
       }
+      case disk_cache_fuzzer::FuzzCommand::kRecreateWithSize: {
+        if (!cache_) {
+          continue;
+        }
+        MAYBE_PRINT << "RecreateWithSize("
+                    << command.recreate_with_size().size() << ")" << std::endl;
+        ShutdownBackend();
+        // re-create backend with same config but (potentially) different size.
+        CreateBackend(commands.cache_backend(), mask,
+                      &command.recreate_with_size(), type,
+                      commands.simple_cache_wait_for_index());
+        break;
+      }
       case disk_cache_fuzzer::FuzzCommand::kAddRealDelay: {
         if (!command.add_real_delay().actually_delay())
           continue;
@@ -1123,39 +1121,54 @@ void DiskCacheLPMFuzzer::RunCommands(
       }
       case disk_cache_fuzzer::FuzzCommand::FUZZ_COMMAND_ONEOF_NOT_SET: {
         continue;
-        break;
       }
     }
   }
 }
 
-void DiskCacheLPMFuzzer::HandleSetMaxSize(
-    const disk_cache_fuzzer::SetMaxSize& sms) {
-  if (!cache_)
-    return;
+int64_t DiskCacheLPMFuzzer::ComputeMaxSize(
+    const disk_cache_fuzzer::SetMaxSize* maybe_max_size) {
+  if (!maybe_max_size) {
+    return 0;  // tell backend to use default.
+  }
 
-  max_size_ = sms.size();
-  max_size_ %= kMaxSizeKB;
-  max_size_ *= 1024;
-  MAYBE_PRINT << "SetMaxSize(" << max_size_ << ")" << std::endl;
-  if (simple_cache_impl_)
-    CHECK_EQ(true, simple_cache_impl_->SetMaxSize(max_size_));
-
-  if (block_impl_)
-    CHECK_EQ(true, block_impl_->SetMaxSize(max_size_));
-
-  if (mem_cache_)
-    CHECK_EQ(true, mem_cache_->SetMaxSize(max_size_));
+  int64_t max_size = maybe_max_size->size();
+  max_size %= kMaxSizeKB;
+  max_size *= 1024;
+  MAYBE_PRINT << "ComputeMaxSize(" << max_size << ")" << std::endl;
+  return max_size;
 }
 
 void DiskCacheLPMFuzzer::CreateBackend(
     disk_cache_fuzzer::FuzzCommands::CacheBackend cache_backend,
     uint32_t mask,
+    const disk_cache_fuzzer::SetMaxSize* maybe_max_size,
     net::CacheType type,
     bool simple_cache_wait_for_index) {
+  scoped_refptr<disk_cache::BackendCleanupTracker> cleanup_tracker;
+
+  if (cache_backend != disk_cache_fuzzer::FuzzCommands::IN_MEMORY) {
+    // Make sure nothing is still messing with the directory.
+    int count = 0;
+    while (true) {
+      ++count;
+      CHECK_LT(count, 1000);
+
+      base::RunLoop run_dir_ready;
+      cleanup_tracker = disk_cache::BackendCleanupTracker::TryCreate(
+          cache_path_, run_dir_ready.QuitClosure());
+      if (cleanup_tracker) {
+        break;
+      } else {
+        run_dir_ready.Run();
+      }
+    }
+  }
+
   if (cache_backend == disk_cache_fuzzer::FuzzCommands::IN_MEMORY) {
     MAYBE_PRINT << "Using in-memory cache." << std::endl;
-    auto cache = std::make_unique<disk_cache::MemBackendImpl>(nullptr);
+    auto cache = disk_cache::MemBackendImpl::CreateBackend(
+        ComputeMaxSize(maybe_max_size), /*net_log=*/nullptr);
     mem_cache_ = cache.get();
     cache_ = std::move(cache);
     CHECK(cache_);
@@ -1168,9 +1181,9 @@ void DiskCacheLPMFuzzer::CreateBackend(
       simple_file_tracker_ =
           std::make_unique<disk_cache::SimpleFileTracker>(kMaxFdsSimpleCache);
     auto simple_backend = std::make_unique<disk_cache::SimpleBackendImpl>(
-        /*file_operations=*/nullptr, cache_path_,
-        /*cleanup_tracker=*/nullptr, simple_file_tracker_.get(), max_size_,
-        type, /*net_log=*/nullptr);
+        /*file_operations=*/nullptr, cache_path_, std::move(cleanup_tracker),
+        simple_file_tracker_.get(), ComputeMaxSize(maybe_max_size), type,
+        /*net_log=*/nullptr);
     simple_backend->Init(cb.callback());
     CHECK_EQ(cb.WaitForResult(), net::OK);
     simple_cache_impl_ = simple_backend.get();
@@ -1192,16 +1205,18 @@ void DiskCacheLPMFuzzer::CreateBackend(
       MAYBE_PRINT << ", mask = " << mask << std::endl;
       cache = std::make_unique<disk_cache::BackendImpl>(
           cache_path_, mask,
+          /* cleanup_tracker = */ std::move(cleanup_tracker),
           /* runner = */ nullptr, type,
           /* net_log = */ nullptr);
     } else {
       MAYBE_PRINT << "." << std::endl;
       cache = std::make_unique<disk_cache::BackendImpl>(
           cache_path_,
-          /* cleanup_tracker = */ nullptr,
+          /* cleanup_tracker = */ std::move(cleanup_tracker),
           /* runner = */ nullptr, type,
           /* net_log = */ nullptr);
     }
+    cache->SetMaxSize(ComputeMaxSize(maybe_max_size));
     block_impl_ = cache.get();
     cache_ = std::move(cache);
     CHECK(cache_);
@@ -1228,7 +1243,7 @@ void DiskCacheLPMFuzzer::CloseAllRemainingEntries() {
   }
 }
 
-DiskCacheLPMFuzzer::~DiskCacheLPMFuzzer() {
+void DiskCacheLPMFuzzer::ShutdownBackend() {
   // |block_impl_| leaks a lot more if we don't close entries before destructing
   // the backend.
   if (block_impl_) {
@@ -1274,6 +1289,10 @@ DiskCacheLPMFuzzer::~DiskCacheLPMFuzzer() {
   if (simple_cache_impl_)
     CHECK(simple_file_tracker_->IsEmptyForTesting());
   base::RunLoop().RunUntilIdle();
+}
+
+DiskCacheLPMFuzzer::~DiskCacheLPMFuzzer() {
+  ShutdownBackend();
 
   DeleteCache(cache_path_);
 }

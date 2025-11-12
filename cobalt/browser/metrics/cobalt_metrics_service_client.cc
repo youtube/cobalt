@@ -15,6 +15,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/logging.h"
 #include "base/notreached.h"
@@ -43,6 +44,7 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
 
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());
   log_uploader_ = CreateLogUploaderInternal();
@@ -212,7 +214,7 @@ std::unique_ptr<metrics::MetricsLogUploader>
 CobaltMetricsServiceClient::CreateUploader(
     const GURL& server_url,
     const GURL& insecure_server_url,
-    base::StringPiece mime_type,
+    std::string_view mime_type,
     metrics::MetricsLogUploader::MetricServiceType service_type,
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

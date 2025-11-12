@@ -23,22 +23,21 @@ class DrainableIOBuffer;
 class DrainableIOBuffer;
 class GrowableIOBuffer;
 class IOBuffer;
-class Socket;
 }  // namespace net
 
 namespace cast_channel {
 
-using ::cast::channel::CastMessage;
+using ::openscreen::cast::proto::CastMessage;
 class MessageFramer;
 
 class CastTransport {
  public:
-  virtual ~CastTransport() {}
+  virtual ~CastTransport();
 
   // Object to be informed of incoming messages and read errors.
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate();
 
     // Called once Transport is successfully initialized and started.
     // Owned read delegates are Start()ed automatically.
@@ -79,7 +78,7 @@ class CastTransportImpl : public CastTransport {
   // Interface to read/write data from a socket to ease unit-testing.
   class Channel {
    public:
-    virtual ~Channel() {}
+    virtual ~Channel();
     virtual void Read(net::IOBuffer* buffer,
                       int bytes,
                       net::CompletionOnceCallback callback) = 0;

@@ -13,13 +13,8 @@
 #include "base/path_service.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/common/chrome_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_FUCHSIA)
-#include "base/fuchsia/file_utils.h"
-#endif
 
 namespace chrome {
 
@@ -32,12 +27,6 @@ TEST(ChromePaths, UserCacheDir) {
 #if BUILDFLAG(IS_WIN)
   test_profile_dir = base::FilePath(FILE_PATH_LITERAL("C:\\Users\\Foo\\Bar"));
   expected_cache_dir = base::FilePath(FILE_PATH_LITERAL("C:\\Users\\Foo\\Bar"));
-#elif BUILDFLAG(IS_FUCHSIA)
-  // Fuchsia uses the Component's cache directory as the base.
-  expected_cache_dir = base::FilePath(base::kPersistedCacheDirectoryPath);
-  test_profile_dir =
-      base::FilePath(base::kPersistedDataDirectoryPath).Append("foobar");
-  expected_cache_dir = expected_cache_dir.Append("foobar");
 #elif BUILDFLAG(IS_MAC)
   ASSERT_TRUE(base::PathService::Get(base::DIR_APP_DATA, &test_profile_dir));
   test_profile_dir = test_profile_dir.Append("foobar");
@@ -54,12 +43,7 @@ TEST(ChromePaths, UserCacheDir) {
   // Note: we assume XDG_CACHE_HOME/XDG_CONFIG_HOME are at their
   // default settings.
   test_profile_dir = homedir.Append(".config/foobar");
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Chrome OS doesn't allow special cache overrides like desktop Linux.
-  expected_cache_dir = homedir.Append(".config/foobar");
-#else
   expected_cache_dir = homedir.Append(".cache/foobar");
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 #else
 #error Unsupported platform
 #endif  // BUILDFLAG(IS_WIN)
@@ -86,21 +70,23 @@ TEST(ChromePaths, UserCacheDir) {
 }
 
 // Chrome OS doesn't use any of the desktop linux configuration.
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS_LACROS) && \
-    !BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_LINUX)
 TEST(ChromePaths, DefaultUserDataDir) {
   std::unique_ptr<base::Environment> env(base::Environment::Create());
-  std::string orig_chrome_config_home;
-  bool chrome_config_home_was_set =
-      env->GetVar("CHROME_CONFIG_HOME", &orig_chrome_config_home);
-  if (chrome_config_home_was_set)
+
+  std::optional<std::string> orig_chrome_config_home =
+      env->GetVar("CHROME_CONFIG_HOME");
+  if (orig_chrome_config_home.has_value()) {
     env->UnSetVar("CHROME_CONFIG_HOME");
+  }
 
   base::FilePath home_dir;
   base::PathService::Get(base::DIR_HOME, &home_dir);
 
   std::string expected_branding;
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#if BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)
+  std::string data_dir_basename = "google-chrome-for-testing";
+#elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // TODO(skobes): Test channel suffixes with $CHROME_VERSION_EXTRA.
   expected_branding = "google-chrome";
 #else
@@ -119,14 +105,15 @@ TEST(ChromePaths, DefaultUserDataDir) {
   // TODO(skobes): It would be nice to test $CHROME_USER_DATA_DIR here too, but
   // it's handled by ChromeMainDelegate instead of GetDefaultUserDataDirectory.
 
-  if (chrome_config_home_was_set)
-    env->SetVar("CHROME_CONFIG_HOME", orig_chrome_config_home);
-  else
+  if (orig_chrome_config_home.has_value()) {
+    env->SetVar("CHROME_CONFIG_HOME", orig_chrome_config_home.value());
+  } else {
     env->UnSetVar("CHROME_CONFIG_HOME");
+  }
 }
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST(ChromePaths, UserMediaDirectories) {
   base::FilePath path;
   // Chrome OS does not support custom media directories.
@@ -135,5 +122,15 @@ TEST(ChromePaths, UserMediaDirectories) {
   EXPECT_FALSE(GetUserVideosDirectory(&path));
 }
 #endif
+
+TEST(ChromePaths, DefaultUserDataDirectory) {
+  EXPECT_TRUE(IsUsingDefaultDataDirectory().value());
+
+  SetUsingDefaultUserDataDirectoryForTesting(false);
+  EXPECT_FALSE(IsUsingDefaultDataDirectory().value());
+
+  SetUsingDefaultUserDataDirectoryForTesting(std::nullopt);
+  EXPECT_TRUE(IsUsingDefaultDataDirectory().value());
+}
 
 }  // namespace chrome

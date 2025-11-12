@@ -5,30 +5,33 @@
 #include "components/content_settings/browser/page_specific_content_settings.h"
 
 #include <list>
+#include <variant>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/functional/overloaded.h"
 #include "base/lazy_instance.h"
+#include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/observer_list.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "components/browsing_data/content/cache_storage_helper.h"
 #include "components/browsing_data/content/cookie_helper.h"
-#include "components/browsing_data/content/database_helper.h"
-#include "components/browsing_data/content/file_system_helper.h"
-#include "components/browsing_data/content/indexed_db_helper.h"
-#include "components/browsing_data/content/local_storage_helper.h"
-#include "components/browsing_data/content/service_worker_helper.h"
-#include "components/browsing_data/content/shared_worker_helper.h"
 #include "components/content_settings/common/content_settings_agent.mojom.h"
 #include "components/content_settings/core/browser/content_settings_info.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
 #include "components/content_settings/core/browser/content_settings_utils.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_pattern_parser.h"
+#include "components/content_settings/core/common/content_settings_types.h"
+#include "components/content_settings/core/common/content_settings_types.mojom-shared.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
-#include "components/prefs/pref_service.h"
+#include "components/content_settings/core/common/features.h"
 #include "components/privacy_sandbox/canonical_topic.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "content/public/browser/browser_thread.h"
@@ -45,14 +48,14 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "content/public/common/content_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/base/schemeful_site.h"
+#include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/navigation/navigation_params.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/navigation/renderer_content_settings.mojom.h"
+#include "url/gurl.h"
 #include "url/origin.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "components/page_info/core/features.h"
-#endif
 
 using content::BrowserThread;
 using StorageType =
@@ -61,6 +64,25 @@ using LifecycleState = content::RenderFrameHost::LifecycleState;
 
 namespace content_settings {
 namespace {
+
+// A delay before the media indicator disappears if they were previously used
+// longer than `kMediaIndicatorMinimumHoldDuration`.
+constexpr auto kMediaIndicatorHoldAfterUseDuration = base::Seconds(1);
+// A minimum delay before media indicator disappears.
+constexpr auto kMediaIndicatorMinimumHoldDuration = base::Seconds(5);
+constexpr auto kMediaIndicatorMinimumHoldDurationPhase2 = base::Seconds(4);
+// A delay before blocked media indicator disappears.
+constexpr auto kBlockedMediaIndicatorDismissDelay = base::Minutes(1);
+constexpr auto kBlockedMediaIndicatorDismissDelayPhase2 = base::Seconds(4);
+#if BUILDFLAG(IS_CHROMEOS)
+// A delay before in-use indicator for device (currently only smart cards)
+// disappears.
+constexpr auto kDeviceInUseIndicatorHideDelay = base::Seconds(15);
+#endif
+
+// Determines which taxonomy is used to generate sample topics for the Topics
+// API.
+constexpr int kTopicsAPISampleDataTaxonomy = 1;
 
 bool WillNavigationCreateNewPageSpecificContentSettingsOnCommit(
     content::NavigationHandle* navigation_handle) {
@@ -87,6 +109,10 @@ class InflightNavigationContentSettings
   std::vector<content::TrustTokenAccessDetails> trust_token_accesses;
   std::vector<std::pair<GURL, content::AllowServiceWorkerResult>>
       service_worker_accesses;
+  std::vector<network::mojom::SharedDictionaryAccessDetailsPtr>
+      shared_dictionary_accesses;
+  std::vector<net::device_bound_sessions::SessionAccess>
+      device_bound_session_accesses;
 
  private:
   explicit InflightNavigationContentSettings(
@@ -118,7 +144,8 @@ class WebContentsHandler
   void RemoveSiteDataObserver(SiteDataObserver* observer);
 
   // Notifies all registered |SiteDataObserver|s.
-  void NotifySiteDataObservers();
+  void NotifySiteDataObservers(const AccessDetails& access_details);
+  void NotifyStatefulBounceObservers();
 
   // Queues update sent while the navigation is still in progress. The update
   // is run after the navigation completes (DidFinishNavigation).
@@ -164,6 +191,19 @@ class WebContentsHandler
       content::RenderFrameHost* frame,
       const GURL& scope,
       content::AllowServiceWorkerResult allowed) override;
+  void OnSharedDictionaryAccessed(
+      content::NavigationHandle* navigation,
+      const network::mojom::SharedDictionaryAccessDetails& details) override;
+  void OnSharedDictionaryAccessed(
+      content::RenderFrameHost* rfh,
+      const network::mojom::SharedDictionaryAccessDetails& details) override;
+  void OnDeviceBoundSessionAccessed(
+      content::NavigationHandle* navigation,
+      const net::device_bound_sessions::SessionAccess& details) override;
+  void OnDeviceBoundSessionAccessed(
+      content::RenderFrameHost* rfh,
+      const net::device_bound_sessions::SessionAccess& details) override;
+  void WebContentsDestroyed() override;
 
   std::unique_ptr<Delegate> delegate_;
 
@@ -202,6 +242,12 @@ bool DelayUntilCommitIfNecessary(content::RenderFrameHost* rfh,
   return false;
 }
 
+bool IsThirdPartyCookieDetails(const content::CookieAccessDetails& details) {
+  return !net::SchemefulSite::IsSameSite(details.url,
+                                         details.first_party_url) ||
+         !details.site_for_cookies.IsFirstParty(details.url);
+}
+
 }  // namespace
 
 InflightNavigationContentSettings::InflightNavigationContentSettings(
@@ -224,10 +270,7 @@ WebContentsHandler::WebContentsHandler(content::WebContents* web_contents,
       web_contents->GetPrimaryPage(), delegate_.get());
 }
 
-WebContentsHandler::~WebContentsHandler() {
-  for (SiteDataObserver& observer : observer_list_)
-    observer.WebContentsDestroyed();
-}
+WebContentsHandler::~WebContentsHandler() = default;
 
 void WebContentsHandler::TransferNavigationContentSettingsToCommittedDocument(
     const InflightNavigationContentSettings& navigation_settings,
@@ -243,6 +286,14 @@ void WebContentsHandler::TransferNavigationContentSettingsToCommittedDocument(
        navigation_settings.service_worker_accesses) {
     OnServiceWorkerAccessed(rfh, service_worker_access.first,
                             service_worker_access.second);
+  }
+  for (const auto& shared_dictionary_access :
+       navigation_settings.shared_dictionary_accesses) {
+    OnSharedDictionaryAccessed(rfh, *shared_dictionary_access);
+  }
+  for (const auto& device_bound_session_access :
+       navigation_settings.device_bound_session_accesses) {
+    OnDeviceBoundSessionAccessed(rfh, device_bound_session_access);
   }
 }
 
@@ -267,8 +318,9 @@ void WebContentsHandler::OnCookiesAccessed(
     content::RenderFrameHost* rfh,
     const content::CookieAccessDetails& details) {
   auto* pscs = PageSpecificContentSettings::GetForPage(rfh->GetPage());
-  if (pscs)
+  if (pscs) {
     pscs->OnCookiesAccessed(details);
+  }
 }
 
 void WebContentsHandler::OnTrustTokensAccessed(
@@ -307,8 +359,8 @@ void WebContentsHandler::OnServiceWorkerAccessed(
     auto* inflight_navigation_settings =
         content::NavigationHandleUserData<InflightNavigationContentSettings>::
             GetOrCreateForNavigationHandle(*navigation);
-    inflight_navigation_settings->service_worker_accesses.emplace_back(
-        std::make_pair(scope, allowed));
+    inflight_navigation_settings->service_worker_accesses.emplace_back(scope,
+                                                                       allowed);
     return;
   }
   // All accesses during main frame navigations should enter the block above and
@@ -324,8 +376,64 @@ void WebContentsHandler::OnServiceWorkerAccessed(
     const GURL& scope,
     content::AllowServiceWorkerResult allowed) {
   auto* pscs = PageSpecificContentSettings::GetForPage(frame->GetPage());
-  if (pscs)
-    pscs->OnServiceWorkerAccessed(scope, allowed);
+  if (pscs) {
+    pscs->OnServiceWorkerAccessed(scope, frame->GetStorageKey(), allowed);
+  }
+}
+
+void WebContentsHandler::OnSharedDictionaryAccessed(
+    content::NavigationHandle* navigation,
+    const network::mojom::SharedDictionaryAccessDetails& details) {
+  if (WillNavigationCreateNewPageSpecificContentSettingsOnCommit(navigation)) {
+    auto* inflight_navigation_settings =
+        content::NavigationHandleUserData<InflightNavigationContentSettings>::
+            GetOrCreateForNavigationHandle(*navigation);
+    inflight_navigation_settings->shared_dictionary_accesses.emplace_back(
+        details.Clone());
+    return;
+  }
+  // All accesses during main frame navigations should enter the block above and
+  // not reach here. We also don't expect any accesses to be made during page
+  // activations or same-document navigations.
+  DCHECK(navigation->GetParentFrame());
+  OnSharedDictionaryAccessed(navigation->GetParentFrame()->GetMainFrame(),
+                             details);
+}
+
+void WebContentsHandler::OnSharedDictionaryAccessed(
+    content::RenderFrameHost* rfh,
+    const network::mojom::SharedDictionaryAccessDetails& details) {
+  PageSpecificContentSettings::BrowsingDataAccessed(
+      rfh, details.isolation_key,
+      BrowsingDataModel::StorageType::kSharedDictionary, details.is_blocked);
+}
+
+void WebContentsHandler::OnDeviceBoundSessionAccessed(
+    content::NavigationHandle* navigation,
+    const net::device_bound_sessions::SessionAccess& details) {
+  if (WillNavigationCreateNewPageSpecificContentSettingsOnCommit(navigation)) {
+    auto* inflight_navigation_settings =
+        content::NavigationHandleUserData<InflightNavigationContentSettings>::
+            GetOrCreateForNavigationHandle(*navigation);
+    inflight_navigation_settings->device_bound_session_accesses.emplace_back(
+        details);
+    return;
+  }
+  // All accesses during main frame navigations should enter the block above and
+  // not reach here. We also don't expect any accesses to be made during page
+  // activations or same-document navigations.
+  DCHECK(navigation->GetParentFrame());
+  OnDeviceBoundSessionAccessed(navigation->GetParentFrame()->GetMainFrame(),
+                               details);
+}
+
+void WebContentsHandler::OnDeviceBoundSessionAccessed(
+    content::RenderFrameHost* rfh,
+    const net::device_bound_sessions::SessionAccess& details) {
+  PageSpecificContentSettings::BrowsingDataAccessed(
+      rfh, details.session_key,
+      BrowsingDataModel::StorageType::kDeviceBoundSession,
+      /*blocked=*/false);
 }
 
 void WebContentsHandler::ReadyToCommitNavigation(
@@ -338,17 +446,50 @@ void WebContentsHandler::ReadyToCommitNavigation(
   const GURL& primary_url =
       navigation_handle->GetParentFrameOrOuterDocument()
           ? navigation_handle->GetParentFrameOrOuterDocument()
+                ->GetOutermostMainFrame()
                 ->GetLastCommittedURL()
           : navigation_handle->GetURL();
+
   rules.FilterRulesByOutermostMainFrameURL(primary_url);
 
   mojo::AssociatedRemote<content_settings::mojom::ContentSettingsAgent> agent;
   rfh->GetRemoteAssociatedInterfaces()->GetInterface(&agent);
-  // TODO(crbug.com/1187618): We shouldn't be sending the primary patterns here
+  // TODO(crbug.com/40172977): We shouldn't be sending the primary patterns here
   // because: a) we have already filtered based on them and they are not needed
   // in the renderer, and b) they could leak the embedder origin to embedded
   // pages like fenced frames.
   agent->SendRendererContentSettingRules(std::move(rules));
+
+  const GURL& secondary_url = navigation_handle->GetURL();
+
+  auto content_settings = blink::CreateDefaultRendererContentSettings();
+  // The `Delegate` may have use cases for allowing JavaScript in a frame,
+  // regardless of the content setting.
+  content_settings->allow_script =
+      delegate()->IsFrameAllowlistedForJavaScript(rfh) ||
+      map_->GetContentSetting(primary_url, secondary_url,
+                              ContentSettingsType::JAVASCRIPT) ==
+          CONTENT_SETTING_ALLOW;
+  content_settings->allow_popup =
+      map_->GetContentSetting(primary_url, secondary_url,
+                              ContentSettingsType::POPUPS) ==
+      CONTENT_SETTING_ALLOW;
+#if !BUILDFLAG(IS_IOS)
+  content_settings->allow_mixed_content =
+      map_->GetContentSetting(primary_url, secondary_url,
+                              ContentSettingsType::MIXEDSCRIPT) ==
+      CONTENT_SETTING_ALLOW;
+  content_settings->allow_image =
+      map_->GetContentSetting(primary_url, secondary_url,
+                              ContentSettingsType::IMAGES) ==
+      CONTENT_SETTING_ALLOW;
+  content_settings->allow_controlled_frame =
+      map_->GetContentSetting(primary_url, secondary_url,
+                              ContentSettingsType::CONTROLLED_FRAME) ==
+      CONTENT_SETTING_ALLOW;
+#endif
+
+  navigation_handle->SetContentSettings(std::move(content_settings));
 }
 
 void WebContentsHandler::DidFinishNavigation(
@@ -400,9 +541,16 @@ void WebContentsHandler::RemoveSiteDataObserver(SiteDataObserver* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
-void WebContentsHandler::NotifySiteDataObservers() {
+void WebContentsHandler::NotifySiteDataObservers(
+    const AccessDetails& access_details) {
   for (SiteDataObserver& observer : observer_list_)
-    observer.OnSiteDataAccessed();
+    observer.OnSiteDataAccessed(access_details);
+}
+
+void WebContentsHandler::NotifyStatefulBounceObservers() {
+  for (SiteDataObserver& observer : observer_list_) {
+    observer.OnStatefulBounceDetected();
+  }
 }
 
 void WebContentsHandler::AddPendingCommitUpdate(
@@ -416,7 +564,34 @@ void WebContentsHandler::AddPendingCommitUpdate(
   pending_commit_updates_[id].push_back(std::move(update));
 }
 
+void WebContentsHandler::WebContentsDestroyed() {
+  for (SiteDataObserver& observer : observer_list_) {
+    observer.WebContentsDestroyed();
+  }
+}
+
 WEB_CONTENTS_USER_DATA_KEY_IMPL(WebContentsHandler);
+
+AccessDetails::AccessDetails() = default;
+AccessDetails::AccessDetails(SiteDataType site_data_type,
+                             AccessType access_type,
+                             GURL url,
+                             bool blocked_by_policy,
+                             bool is_from_primary_page)
+    : site_data_type(site_data_type),
+      access_type(access_type),
+      url(url),
+      blocked_by_policy(blocked_by_policy),
+      is_from_primary_page(is_from_primary_page) {}
+
+AccessDetails::~AccessDetails() = default;
+
+bool AccessDetails::operator<(const AccessDetails& other) const {
+  return std::tie(site_data_type, access_type, url, blocked_by_policy,
+                  is_from_primary_page) <
+         std::tie(other.site_data_type, other.access_type, other.url,
+                  other.blocked_by_policy, other.is_from_primary_page);
+}
 
 PageSpecificContentSettings::SiteDataObserver::SiteDataObserver(
     content::WebContents* web_contents)
@@ -424,8 +599,11 @@ PageSpecificContentSettings::SiteDataObserver::SiteDataObserver(
   // Make sure the handler was attached to the WebContents as some UT might skip
   // this.
   auto* handler = WebContentsHandler::FromWebContents(web_contents_);
-  if (handler)
+  if (handler) {
     handler->AddSiteDataObserver(this);
+  } else {
+    web_contents_ = nullptr;
+  }
 }
 
 PageSpecificContentSettings::SiteDataObserver::~SiteDataObserver() {
@@ -437,6 +615,10 @@ PageSpecificContentSettings::SiteDataObserver::~SiteDataObserver() {
 }
 
 void PageSpecificContentSettings::SiteDataObserver::WebContentsDestroyed() {
+  auto* handler = WebContentsHandler::FromWebContents(web_contents_);
+  if (handler) {
+    handler->RemoveSiteDataObserver(this);
+  }
   web_contents_ = nullptr;
 }
 
@@ -449,30 +631,12 @@ PageSpecificContentSettings::PageSpecificContentSettings(content::Page& page,
     : content::PageUserData<PageSpecificContentSettings>(page),
       delegate_(delegate),
       map_(delegate_->GetSettingsMap()),
-      allowed_local_shared_objects_(
-          GetWebContents()->GetPrimaryMainFrame()->GetStoragePartition(),
-#if !BUILDFLAG(IS_ANDROID)
-          // TODO(crbug.com/1404234): Remove the async local storage pathway
-          // completely when the new dialog has launched.
-          /*ignore_empty_localstorage=*/
-          !base::FeatureList::IsEnabled(page_info::kPageSpecificSiteDataDialog),
-#else
-          /*ignore_empty_localstorage=*/true,
-#endif
-          delegate_->GetAdditionalFileSystemTypes(),
-          delegate_->GetIsDeletionDisabledCallback()),
-      blocked_local_shared_objects_(
-          GetWebContents()->GetPrimaryMainFrame()->GetStoragePartition(),
-          /*ignore_empty_localstorage=*/false,
-          delegate_->GetAdditionalFileSystemTypes(),
-          delegate_->GetIsDeletionDisabledCallback()),
       allowed_browsing_data_model_(BrowsingDataModel::BuildEmpty(
           GetWebContents()->GetPrimaryMainFrame()->GetStoragePartition(),
           delegate_->CreateBrowsingDataModelDelegate())),
       blocked_browsing_data_model_(BrowsingDataModel::BuildEmpty(
           GetWebContents()->GetPrimaryMainFrame()->GetStoragePartition(),
-          delegate_->CreateBrowsingDataModelDelegate())),
-      microphone_camera_state_(MICROPHONE_CAMERA_NOT_ACCESSED) {
+          delegate_->CreateBrowsingDataModelDelegate())) {
   observation_.Observe(map_.get());
   if (page.GetMainDocument().GetLifecycleState() ==
       LifecycleState::kPrerendering) {
@@ -480,7 +644,22 @@ PageSpecificContentSettings::PageSpecificContentSettings(content::Page& page,
   }
 }
 
-PageSpecificContentSettings::~PageSpecificContentSettings() = default;
+PageSpecificContentSettings::~PageSpecificContentSettings() {
+  for (auto last_used_entry : last_used_time_) {
+    switch (last_used_entry.first) {
+      case ContentSettingsType::MEDIASTREAM_MIC:
+      case ContentSettingsType::MEDIASTREAM_CAMERA:
+      case ContentSettingsType::SMART_CARD_GUARD:
+        map_->UpdateLastUsedTime(media_stream_access_origin_,
+                                 media_stream_access_origin_,
+                                 last_used_entry.first, last_used_entry.second);
+        break;
+      default:
+        // Currently, only camera and mic permissions are supported.
+        NOTREACHED();
+    }
+  }
+}
 
 // static
 void PageSpecificContentSettings::CreateForWebContents(
@@ -521,21 +700,62 @@ PageSpecificContentSettings::GetDelegateForWebContents(
 }
 
 // static
-void PageSpecificContentSettings::StorageAccessed(StorageType storage_type,
-                                                  int render_process_id,
-                                                  int render_frame_id,
-                                                  const GURL& url,
-                                                  bool blocked_by_policy) {
+void PageSpecificContentSettings::StorageAccessed(
+    StorageType storage_type,
+    std::variant<content::GlobalRenderFrameHostToken,
+                 content::GlobalRenderFrameHostId> frame_id,
+    const blink::StorageKey& storage_key,
+    bool blocked_by_policy) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  content::RenderFrameHost* rfh =
-      content::RenderFrameHost::FromID(render_process_id, render_frame_id);
+  content::RenderFrameHost* rfh = std::visit(
+      base::Overloaded{
+          [](const content::GlobalRenderFrameHostToken& frame_token) {
+            return content::RenderFrameHost::FromFrameToken(frame_token);
+          },
+          [](const content::GlobalRenderFrameHostId& id) {
+            return content::RenderFrameHost::FromID(id);
+          },
+      },
+      frame_id);
+
   if (DelayUntilCommitIfNecessary(
           rfh, &PageSpecificContentSettings::StorageAccessed, storage_type,
-          render_process_id, render_frame_id, url, blocked_by_policy))
+          frame_id, storage_key, blocked_by_policy)) {
     return;
+  }
   PageSpecificContentSettings* settings = GetForFrame(rfh);
-  if (settings)
-    settings->OnStorageAccessed(storage_type, url, blocked_by_policy);
+  if (settings) {
+    auto bdm_storage_type = ([storage_type]() {
+      switch (storage_type) {
+        case StorageType::LOCAL_STORAGE:
+          return BrowsingDataModel::StorageType::kLocalStorage;
+        case StorageType::SESSION_STORAGE:
+          return BrowsingDataModel::StorageType::kSessionStorage;
+        case StorageType::FILE_SYSTEM:
+        case StorageType::INDEXED_DB:
+        case StorageType::CACHE:
+        case StorageType::WEB_LOCKS:
+          return BrowsingDataModel::StorageType::kQuotaStorage;
+      }
+    })();
+    if (storage_type == StorageType::SESSION_STORAGE) {
+      auto* web_contents = content::WebContents::FromRenderFrameHost(rfh);
+      const auto& session_storage_namespace_map =
+          web_contents->GetController().GetSessionStorageNamespaceMap();
+      const auto& storage_partition_config =
+          web_contents->GetSiteInstance()->GetStoragePartitionConfig();
+      const auto& namespace_id =
+          session_storage_namespace_map.at(storage_partition_config);
+
+      content::SessionStorageUsageInfo session_storage_usage_info{
+          storage_key, namespace_id->id()};
+      settings->OnBrowsingDataAccessed(session_storage_usage_info,
+                                       bdm_storage_type, blocked_by_policy);
+    } else {
+      settings->OnBrowsingDataAccessed(storage_key, bdm_storage_type,
+                                       blocked_by_policy);
+    }
+  }
 }
 
 // static
@@ -546,23 +766,26 @@ void PageSpecificContentSettings::BrowsingDataAccessed(
     bool blocked) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   PageSpecificContentSettings* settings = GetForFrame(rfh);
-  if(settings)
+  if (settings) {
     settings->OnBrowsingDataAccessed(data_key, storage_type, blocked);
+  }
 }
 
 // static
-void PageSpecificContentSettings::ContentBlocked(int render_process_id,
-                                                 int render_frame_id,
-                                                 ContentSettingsType type) {
+void PageSpecificContentSettings::ContentBlocked(
+    const content::GlobalRenderFrameHostToken& frame_token,
+    ContentSettingsType type) {
   content::RenderFrameHost* rfh =
-      content::RenderFrameHost::FromID(render_process_id, render_frame_id);
+      content::RenderFrameHost::FromFrameToken(frame_token);
   if (DelayUntilCommitIfNecessary(rfh,
                                   &PageSpecificContentSettings::ContentBlocked,
-                                  render_process_id, render_frame_id, type))
+                                  frame_token, type)) {
     return;
+  }
   PageSpecificContentSettings* settings = GetForFrame(rfh);
-  if (settings)
+  if (settings) {
     settings->OnContentBlocked(type);
+  }
 }
 
 // static
@@ -572,13 +795,17 @@ void PageSpecificContentSettings::SharedWorkerAccessed(
     const GURL& worker_url,
     const std::string& name,
     const blink::StorageKey& storage_key,
+    const blink::mojom::SharedWorkerSameSiteCookies same_site_cookies,
     bool blocked_by_policy) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   PageSpecificContentSettings* settings = GetForFrame(
       content::RenderFrameHost::FromID(render_process_id, render_frame_id));
-  if (settings)
-    settings->OnSharedWorkerAccessed(worker_url, name, storage_key,
-                                     blocked_by_policy);
+  if (settings) {
+    settings->OnBrowsingDataAccessed(
+        browsing_data::SharedWorkerInfo{worker_url, name, storage_key,
+                                        same_site_cookies},
+        BrowsingDataModel::StorageType::kSharedWorker, blocked_by_policy);
+  }
 }
 
 // static
@@ -588,8 +815,9 @@ void PageSpecificContentSettings::InterestGroupJoined(
     bool blocked_by_policy) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   PageSpecificContentSettings* settings = GetForFrame(rfh);
-  if (settings)
+  if (settings) {
     settings->OnInterestGroupJoined(api_origin, blocked_by_policy);
+  }
 }
 
 // static
@@ -600,8 +828,24 @@ void PageSpecificContentSettings::TopicAccessed(
     privacy_sandbox::CanonicalTopic topic) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   PageSpecificContentSettings* settings = GetForFrame(rfh);
-  if (settings)
+  if (settings) {
     settings->OnTopicAccessed(api_origin, blocked_by_policy, topic);
+  }
+}
+
+// static
+void PageSpecificContentSettings::NotificationsAccessed(
+    content::RenderFrameHost* rfh,
+    bool blocked) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  PageSpecificContentSettings* settings = GetForFrame(rfh);
+  if (settings) {
+    if (blocked) {
+      settings->OnContentBlocked(ContentSettingsType::NOTIFICATIONS);
+    } else {
+      settings->OnContentAllowed(ContentSettingsType::NOTIFICATIONS);
+    }
+  }
 }
 
 // static
@@ -613,11 +857,10 @@ PageSpecificContentSettings::GetWebContentsObserverForTest(
 
 bool PageSpecificContentSettings::IsContentBlocked(
     ContentSettingsType content_type) const {
-  DCHECK_NE(ContentSettingsType::NOTIFICATIONS, content_type)
-      << "Notifications settings handled by "
-      << "ContentSettingsNotificationsImageModel";
   DCHECK_NE(ContentSettingsType::AUTOMATIC_DOWNLOADS, content_type)
       << "Automatic downloads handled by DownloadRequestLimiter";
+  CHECK_NE(ContentSettingsType::STORAGE_ACCESS, content_type)
+      << "StorageAccess handled by GetTwoOriginRequests";
 
   if (content_type == ContentSettingsType::IMAGES ||
       content_type == ContentSettingsType::JAVASCRIPT ||
@@ -631,10 +874,12 @@ bool PageSpecificContentSettings::IsContentBlocked(
       content_type == ContentSettingsType::SOUND ||
       content_type == ContentSettingsType::CLIPBOARD_READ_WRITE ||
       content_type == ContentSettingsType::SENSORS ||
-      content_type == ContentSettingsType::GEOLOCATION) {
+      content_type == ContentSettingsType::GEOLOCATION ||
+      content_type == ContentSettingsType::NOTIFICATIONS) {
     const auto& it = content_settings_status_.find(content_type);
-    if (it != content_settings_status_.end())
+    if (it != content_settings_status_.end()) {
       return it->second.blocked;
+    }
   }
 
   return false;
@@ -644,6 +889,8 @@ bool PageSpecificContentSettings::IsContentAllowed(
     ContentSettingsType content_type) const {
   DCHECK_NE(ContentSettingsType::AUTOMATIC_DOWNLOADS, content_type)
       << "Automatic downloads handled by DownloadRequestLimiter";
+  CHECK_NE(ContentSettingsType::STORAGE_ACCESS, content_type)
+      << "StorageAccess handled by GetTwoOriginRequests";
 
   // This method currently only returns meaningful values for the types listed
   // below.
@@ -653,22 +900,45 @@ bool PageSpecificContentSettings::IsContentAllowed(
       content_type != ContentSettingsType::MIDI_SYSEX &&
       content_type != ContentSettingsType::CLIPBOARD_READ_WRITE &&
       content_type != ContentSettingsType::SENSORS &&
-      content_type != ContentSettingsType::GEOLOCATION) {
+      content_type != ContentSettingsType::GEOLOCATION &&
+      content_type != ContentSettingsType::NOTIFICATIONS) {
     return false;
   }
 
   const auto& it = content_settings_status_.find(content_type);
-  if (it != content_settings_status_.end())
+  if (it != content_settings_status_.end()) {
     return it->second.allowed;
+  }
   return false;
+}
+
+std::map<net::SchemefulSite, /*is_allowed*/ bool>
+PageSpecificContentSettings::GetTwoSiteRequests(
+    ContentSettingsType content_type) {
+  return content_settings_two_site_requests_[content_type];
+}
+
+void PageSpecificContentSettings::
+    SetNotificationsWasDeniedBecauseOfSystemPermission() {
+  if (notifications_was_denied_because_of_system_permission_) {
+    return;
+  }
+  notifications_was_denied_because_of_system_permission_ = true;
+  MaybeUpdateLocationBar();
 }
 
 void PageSpecificContentSettings::OnContentBlocked(ContentSettingsType type) {
   DCHECK(type != ContentSettingsType::MEDIASTREAM_MIC &&
          type != ContentSettingsType::MEDIASTREAM_CAMERA)
       << "Media stream settings handled by OnMediaStreamPermissionSet";
-  if (!content_settings::ContentSettingsRegistry::GetInstance()->Get(type))
+
+  if (freeze_indicators_) {
     return;
+  }
+
+  if (!content_settings::ContentSettingsRegistry::GetInstance()->Get(type)) {
+    return;
+  }
 
   ContentSettingsStatus& status = content_settings_status_[type];
   if (!status.blocked) {
@@ -701,15 +971,18 @@ void PageSpecificContentSettings::OnContentAllowed(ContentSettingsType type) {
   // access was previously allowed but the last decision was to block.
   // Reset the blocked flag so that the UI will properly indicate that the
   // last decision here instead was to allow sensor access.
-  if (type == ContentSettingsType::SENSORS)
+  if (type == ContentSettingsType::SENSORS) {
     must_reset_blocked_status = true;
+  }
 
-  // If this content settings is for the PiP window, must reset |blocked| status
-  // since it will not be updated in OnContentSettingChanged() like the normal
-  // browser window. We need the status to be precise to display the UI.
+  // If this content settings is for the PiP window, must reset |blocked|
+  // status since it will not be updated in OnContentSettingChanged() like the
+  // normal browser window. We need the status to be precise to display the
+  // UI.
   auto* synced_pccs = MaybeGetSyncedSettingsForPictureInPicture();
-  if (synced_pccs)
+  if (synced_pccs) {
     must_reset_blocked_status = true;
+  }
 
 #if BUILDFLAG(IS_ANDROID)
   // content_settings_status_[type].allowed is always set to true in
@@ -740,158 +1013,138 @@ void PageSpecificContentSettings::OnContentAllowed(ContentSettingsType type) {
   }
 }
 
-namespace {
-void AddToContainer(browsing_data::LocalSharedObjectsContainer& container,
-                    StorageType storage_type,
-                    const GURL& url) {
-  url::Origin origin = url::Origin::Create(url);
-  switch (storage_type) {
-    case StorageType::DATABASE:
-      container.databases()->Add(origin);
-      return;
-    case StorageType::LOCAL_STORAGE:
-      // TODO(https://crbug.com/1199077): Pass the real StorageKey into this
-      // function directly.
-      container.local_storages()->Add(
-          blink::StorageKey::CreateFirstParty(origin));
-      return;
-    case StorageType::SESSION_STORAGE:
-      // TODO(https://crbug.com/1199077): Pass the real StorageKey into this
-      // function directly.
-      container.session_storages()->Add(
-          blink::StorageKey::CreateFirstParty(origin));
-      return;
-    case StorageType::INDEXED_DB:
-      // TODO(https://crbug.com/1199077): Pass the real StorageKey into this
-      // function directly.
-      container.indexed_dbs()->Add(blink::StorageKey::CreateFirstParty(origin));
-      return;
-    case StorageType::CACHE:
-      container.cache_storages()->Add(
-          blink::StorageKey::CreateFirstParty(origin));
-      return;
-    case StorageType::FILE_SYSTEM:
-      container.file_systems()->Add(origin);
-      return;
-    case StorageType::WEB_LOCKS:
-      NOTREACHED();
-      return;
-  }
-}
-}  // namespace
+void PageSpecificContentSettings::OnTwoSitePermissionChanged(
+    ContentSettingsType type,
+    net::SchemefulSite requesting_site,
+    ContentSetting content_setting) {
+  bool access_changed = false;
 
-void PageSpecificContentSettings::OnStorageAccessed(
-    StorageType storage_type,
-    const GURL& url,
-    bool blocked_by_policy,
-    content::Page* originating_page) {
-  originating_page = originating_page ? originating_page : &page();
-  if (blocked_by_policy) {
-    AddToContainer(blocked_local_shared_objects_, storage_type, url);
-    OnContentBlocked(ContentSettingsType::COOKIES);
-  } else {
-    AddToContainer(allowed_local_shared_objects_, storage_type, url);
-    NotifyDelegate(&Delegate::OnStorageAccessAllowed, storage_type,
-                   url::Origin::Create(url), std::ref(*originating_page));
-    OnContentAllowed(ContentSettingsType::COOKIES);
+  auto& site_map = content_settings_two_site_requests_[type];
+
+  switch (content_setting) {
+    case CONTENT_SETTING_ASK:
+    case CONTENT_SETTING_DEFAULT:
+      if (site_map.contains(requesting_site)) {
+        site_map.erase(requesting_site);
+        access_changed = true;
+      }
+      break;
+    case CONTENT_SETTING_ALLOW:
+    case CONTENT_SETTING_BLOCK: {
+      bool is_allowed = content_setting == CONTENT_SETTING_ALLOW;
+      if (!site_map.contains(requesting_site) ||
+          site_map[requesting_site] != is_allowed) {
+        site_map[requesting_site] = is_allowed;
+        access_changed = true;
+      }
+      break;
+    }
+    default:
+      NOTREACHED() << content_setting;
   }
 
-  MaybeUpdateParent(&PageSpecificContentSettings::OnStorageAccessed,
-                    storage_type, url, blocked_by_policy, originating_page);
-  MaybeNotifySiteDataObservers();
+  if (access_changed) {
+    MaybeUpdateLocationBar();
+  }
 }
 
 void PageSpecificContentSettings::OnCookiesAccessed(
     const content::CookieAccessDetails& details,
     content::Page* originating_page) {
   originating_page = originating_page ? originating_page : &page();
-  if (details.cookie_list.empty())
+  if (details.cookie_access_result_list.empty()) {
     return;
+  }
+
+  bool blocked = details.blocked_by_policy;
+  auto& model =
+      blocked ? blocked_browsing_data_model_ : allowed_browsing_data_model_;
+  for (const auto& cookie_with_access_result :
+       details.cookie_access_result_list) {
+    // The size isn't relevant here and won't be displayed in the UI.
+    model->AddBrowsingData(cookie_with_access_result.cookie,
+                           BrowsingDataModel::StorageType::kCookie,
+                           /*storage_size=*/0,
+                           /*cookie_count=*/1,
+                           /*blocked_third_party=*/
+                           (blocked && IsThirdPartyCookieDetails(details)));
+  }
+
   if (details.blocked_by_policy) {
-    blocked_local_shared_objects_.cookies()->AddCookies(details);
     OnContentBlocked(ContentSettingsType::COOKIES);
   } else {
-    allowed_local_shared_objects_.cookies()->AddCookies(details);
     OnContentAllowed(ContentSettingsType::COOKIES);
-    NotifyDelegate(&Delegate::OnCookieAccessAllowed, details.cookie_list,
-                   std::ref(*originating_page));
   }
 
   MaybeUpdateParent(&PageSpecificContentSettings::OnCookiesAccessed, details,
                     originating_page);
-  MaybeNotifySiteDataObservers();
+
+  AccessDetails access_details{
+      SiteDataType::kCookies,
+      details.type == network::mojom::CookieAccessDetails::Type::kChange
+          ? AccessType::kWrite
+          : AccessType::kRead,
+      details.url, details.blocked_by_policy, originating_page->IsPrimary()};
+
+  MaybeNotifySiteDataObservers(access_details);
 }
 
 void PageSpecificContentSettings::OnServiceWorkerAccessed(
     const GURL& scope,
-    content::AllowServiceWorkerResult allowed,
+    const blink::StorageKey& storage_key,
+    content::AllowServiceWorkerResult allowed_result,
     content::Page* originating_page) {
   DCHECK(scope.is_valid());
   originating_page = originating_page ? originating_page : &page();
-  if (allowed) {
-    allowed_local_shared_objects_.service_workers()->Add(
-        url::Origin::Create(scope));
-    NotifyDelegate(&Delegate::OnServiceWorkerAccessAllowed,
-                   url::Origin::Create(scope), std::ref(*originating_page));
-  } else {
-    blocked_local_shared_objects_.service_workers()->Add(
-        url::Origin::Create(scope));
-  }
+  auto& model = allowed_result ? allowed_browsing_data_model_
+                               : blocked_browsing_data_model_;
+  // The size isn't relevant here and won't be displayed in the UI.
+  model->AddBrowsingData(storage_key,
+                         BrowsingDataModel::StorageType::kQuotaStorage,
+                         /*storage_size=*/0);
 
-  if (allowed.javascript_blocked_by_policy()) {
+  if (allowed_result.javascript_blocked_by_policy()) {
     OnContentBlocked(ContentSettingsType::JAVASCRIPT);
   } else {
     OnContentAllowed(ContentSettingsType::JAVASCRIPT);
   }
-  if (allowed.cookies_blocked_by_policy()) {
+  if (allowed_result.cookies_blocked_by_policy()) {
     OnContentBlocked(ContentSettingsType::COOKIES);
   } else {
     OnContentAllowed(ContentSettingsType::COOKIES);
   }
 
   MaybeUpdateParent(&PageSpecificContentSettings::OnServiceWorkerAccessed,
-                    scope, allowed, originating_page);
-}
-
-void PageSpecificContentSettings::OnSharedWorkerAccessed(
-    const GURL& worker_url,
-    const std::string& name,
-    const blink::StorageKey& storage_key,
-    bool blocked_by_policy) {
-  DCHECK(worker_url.is_valid());
-  if (blocked_by_policy) {
-    blocked_local_shared_objects_.shared_workers()->AddSharedWorker(
-        worker_url, name, storage_key);
-    OnContentBlocked(ContentSettingsType::COOKIES);
-  } else {
-    allowed_local_shared_objects_.shared_workers()->AddSharedWorker(
-        worker_url, name, storage_key);
-    OnContentAllowed(ContentSettingsType::COOKIES);
-  }
-  MaybeUpdateParent(&PageSpecificContentSettings::OnSharedWorkerAccessed,
-                    worker_url, name, storage_key, blocked_by_policy);
+                    scope, storage_key, allowed_result, originating_page);
 }
 
 void PageSpecificContentSettings::OnInterestGroupJoined(
     const url::Origin& api_origin,
     bool blocked_by_policy) {
   if (blocked_by_policy) {
+    // TODO(crbug.com/40066162): Report the COOKIES content setting type as
+    // having been blocked when the UI is updated to better reflect site data.
     blocked_interest_group_api_.push_back(api_origin);
-    OnContentBlocked(ContentSettingsType::COOKIES);
   } else {
     allowed_interest_group_api_.push_back(api_origin);
     OnContentAllowed(ContentSettingsType::COOKIES);
   }
+
   MaybeUpdateParent(&PageSpecificContentSettings::OnInterestGroupJoined,
                     api_origin, blocked_by_policy);
-  MaybeNotifySiteDataObservers();
+
+  // Joining an interest is by default modifying data so this is considered an
+  // `AccessType::kWrite`.
+  AccessDetails access_details{SiteDataType::kInterestGroup, AccessType::kWrite,
+                               api_origin.GetURL(), blocked_by_policy, false};
+  MaybeNotifySiteDataObservers(access_details);
 }
 
 void PageSpecificContentSettings::OnTopicAccessed(
     const url::Origin& api_origin,
     bool blocked_by_policy,
     privacy_sandbox::CanonicalTopic topic) {
-  // TODO(crbug.com/1286276): Add URL and Topic to local_shared_objects?
+  // TODO(crbug.com/40210776): Add URL and Topic to local_shared_objects?
   accessed_topics_.insert(topic);
   MaybeUpdateParent(&PageSpecificContentSettings::OnTopicAccessed, api_origin,
                     blocked_by_policy, topic);
@@ -900,40 +1153,54 @@ void PageSpecificContentSettings::OnTopicAccessed(
 void PageSpecificContentSettings::OnTrustTokenAccessed(
     const url::Origin& api_origin,
     bool blocked) {
-  // The size isn't relevant here and won't be displayed in the UI.
-  const int kTrustTokenSize = 0;
-  auto& model =
-      blocked ? blocked_browsing_data_model_ : allowed_browsing_data_model_;
-  model->AddBrowsingData(api_origin,
-                         BrowsingDataModel::StorageType::kTrustTokens,
-                         kTrustTokenSize);
-  if (blocked) {
-    OnContentBlocked(ContentSettingsType::COOKIES);
-  } else {
-    OnContentAllowed(ContentSettingsType::COOKIES);
-  }
-  MaybeUpdateParent(&PageSpecificContentSettings::OnTrustTokenAccessed,
-                    api_origin, blocked);
-  MaybeNotifySiteDataObservers();
+  OnBrowsingDataAccessed(api_origin,
+                         BrowsingDataModel::StorageType::kTrustTokens, blocked);
 }
 
 void PageSpecificContentSettings::OnBrowsingDataAccessed(
     BrowsingDataModel::DataKey data_key,
     BrowsingDataModel::StorageType storage_type,
-    bool blocked) {
+    bool blocked,
+    content::Page* originating_page) {
+  originating_page = originating_page ? originating_page : &page();
   auto& model =
       blocked ? blocked_browsing_data_model_ : allowed_browsing_data_model_;
 
   // The size isn't relevant here and won't be displayed in the UI.
   model->AddBrowsingData(data_key, storage_type, /*storage_size=*/0);
+
   if (blocked) {
-    OnContentBlocked(ContentSettingsType::COOKIES);
+    // Reduce the set of items reported for block to things that are obviously
+    // related to cookies, as that is the icon that is displayed.
+    // TODO(crbug.com/40066162): When the COOKIES content setting Omnibox entry
+    // correctly reflects site data, reconsider limiting the types.
+    if (model->IsStorageTypeCookieLike(storage_type)) {
+      OnContentBlocked(ContentSettingsType::COOKIES);
+    }
   } else {
     OnContentAllowed(ContentSettingsType::COOKIES);
   }
   MaybeUpdateParent(&PageSpecificContentSettings::OnBrowsingDataAccessed,
-                    data_key, storage_type, blocked);
-  MaybeNotifySiteDataObservers();
+                    data_key, storage_type, blocked, originating_page);
+
+  // TODO(njeunje): Look into populating an actual url for this access details.
+  // Could be obtained from the `data_key`.
+  GURL accessing_url =
+      std::holds_alternative<blink::StorageKey>(data_key)
+          ? std::get<blink::StorageKey>(data_key).origin().GetURL()
+          : GURL();
+
+  // Session storage uses a different DataKey than other storage types.
+  if (storage_type == BrowsingDataModel::StorageType::kSessionStorage) {
+    accessing_url = std::get<content::SessionStorageUsageInfo>(data_key)
+                        .storage_key.origin()
+                        .GetURL();
+  }
+
+  AccessDetails access_details{SiteDataType::kStorage, AccessType::kUnknown,
+                               accessing_url, blocked,
+                               originating_page->IsPrimary()};
+  MaybeNotifySiteDataObservers(access_details);
 }
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
@@ -950,41 +1217,44 @@ void PageSpecificContentSettings::OnProtectedMediaIdentifierPermissionSet(
 
 PageSpecificContentSettings::MicrophoneCameraState
 PageSpecificContentSettings::GetMicrophoneCameraState() const {
-  return microphone_camera_state_ | delegate_->GetMicrophoneCameraState();
+  return Union(microphone_camera_state_, delegate_->GetMicrophoneCameraState());
 }
 
 bool PageSpecificContentSettings::IsMicrophoneCameraStateChanged() const {
-  if ((microphone_camera_state_ & MICROPHONE_ACCESSED) &&
-      ((microphone_camera_state_ & MICROPHONE_BLOCKED)
+  if (microphone_camera_state_.Has(kMicrophoneAccessed) &&
+      (microphone_camera_state_.Has(kMicrophoneBlocked)
            ? !IsContentBlocked(ContentSettingsType::MEDIASTREAM_MIC)
-           : !IsContentAllowed(ContentSettingsType::MEDIASTREAM_MIC)))
+           : !IsContentAllowed(ContentSettingsType::MEDIASTREAM_MIC))) {
     return true;
+  }
 
-  if ((microphone_camera_state_ & CAMERA_ACCESSED) &&
-      ((microphone_camera_state_ & CAMERA_BLOCKED)
+  if (microphone_camera_state_.Has(kCameraAccessed) &&
+      (microphone_camera_state_.Has(kCameraBlocked)
            ? !IsContentBlocked(ContentSettingsType::MEDIASTREAM_CAMERA)
-           : !IsContentAllowed(ContentSettingsType::MEDIASTREAM_CAMERA)))
+           : !IsContentAllowed(ContentSettingsType::MEDIASTREAM_CAMERA))) {
     return true;
+  }
 
-  return delegate_->IsMicrophoneCameraStateChanged(
-      microphone_camera_state_, media_stream_selected_audio_device(),
-      media_stream_selected_video_device());
+  return false;
 }
 
 void PageSpecificContentSettings::OnMediaStreamPermissionSet(
     const GURL& request_origin,
-    MicrophoneCameraState new_microphone_camera_state,
-    const std::string& media_stream_selected_audio_device,
-    const std::string& media_stream_selected_video_device,
-    const std::string& media_stream_requested_audio_device,
-    const std::string& media_stream_requested_video_device) {
+    MicrophoneCameraState new_microphone_camera_state) {
   DCHECK(!IsEmbeddedPage());
+
+  // Camera and/or Mic permission request could auto-ignore in case of a page
+  // refresh. In this case `OnMediaStreamPermissionSet` should not store media
+  // stream state and it should not update activity indicators.
+  if (freeze_indicators_ && (new_microphone_camera_state.HasAny(
+                                {kMicrophoneBlocked, kCameraBlocked}))) {
+    return;
+  }
+
   media_stream_access_origin_ = request_origin;
 
-  if (new_microphone_camera_state & MICROPHONE_ACCESSED) {
-    media_stream_requested_audio_device_ = media_stream_requested_audio_device;
-    media_stream_selected_audio_device_ = media_stream_selected_audio_device;
-    bool mic_blocked = (new_microphone_camera_state & MICROPHONE_BLOCKED) != 0;
+  if (new_microphone_camera_state.Has(kMicrophoneAccessed)) {
+    bool mic_blocked = new_microphone_camera_state.Has(kMicrophoneBlocked);
     ContentSettingsStatus& status =
         content_settings_status_[ContentSettingsType::MEDIASTREAM_MIC];
     if (!status.allowed && !mic_blocked) {
@@ -995,10 +1265,8 @@ void PageSpecificContentSettings::OnMediaStreamPermissionSet(
     status.blocked = mic_blocked;
   }
 
-  if (new_microphone_camera_state & CAMERA_ACCESSED) {
-    media_stream_requested_video_device_ = media_stream_requested_video_device;
-    media_stream_selected_video_device_ = media_stream_selected_video_device;
-    bool cam_blocked = (new_microphone_camera_state & CAMERA_BLOCKED) != 0;
+  if (new_microphone_camera_state.Has(kCameraAccessed)) {
+    bool cam_blocked = new_microphone_camera_state.Has(kCameraBlocked);
     ContentSettingsStatus& status =
         content_settings_status_[ContentSettingsType::MEDIASTREAM_CAMERA];
     if (!status.allowed && !cam_blocked) {
@@ -1010,20 +1278,47 @@ void PageSpecificContentSettings::OnMediaStreamPermissionSet(
   }
 
   if (microphone_camera_state_ != new_microphone_camera_state) {
-    microphone_camera_state_ = new_microphone_camera_state;
     if (!is_updating_synced_pscs_) {
       base::AutoReset<bool> auto_reset(&is_updating_synced_pscs_, true);
       if (auto* synced_pccs = MaybeGetSyncedSettingsForPictureInPicture()) {
-        synced_pccs->OnMediaStreamPermissionSet(
-            request_origin, new_microphone_camera_state,
-            media_stream_selected_audio_device,
-            media_stream_selected_video_device,
-            media_stream_requested_audio_device,
-            media_stream_requested_video_device);
+        synced_pccs->OnMediaStreamPermissionSet(request_origin,
+                                                new_microphone_camera_state);
       }
     }
+
+    if (base::FeatureList::IsEnabled(
+            content_settings::features::kLeftHandSideActivityIndicators)) {
+      // Microphone and Camera share an activity indicator view. If a blocked
+      // indicator is displayed, there is no need to re-show it and it will be
+      // reset automatically. An in-use indicator will be shown/hidden in
+      // `OnCapturingStateChanged`.
+      if (microphone_camera_state_.HasAny(
+              {kCameraAccessed, kMicrophoneAccessed})) {
+        return;
+      }
+    }
+
+    microphone_camera_state_ = new_microphone_camera_state;
+
     MaybeUpdateLocationBar();
   }
+
+    // Camera and/or Mic is blocked, start a blocked indicator's dismiss timer.
+    if (microphone_camera_state_.Has(kMicrophoneBlocked)) {
+      StartBlockedIndicatorTimer(ContentSettingsType::MEDIASTREAM_MIC);
+    }
+    if (microphone_camera_state_.Has(kCameraBlocked)) {
+      StartBlockedIndicatorTimer(ContentSettingsType::MEDIASTREAM_CAMERA);
+    }
+}
+
+void PageSpecificContentSettings::AddPermissionUsageObserver(
+    PermissionUsageObserver* observer) {
+  permission_usage_observers_.AddObserver(observer);
+}
+void PageSpecificContentSettings::RemovePermissionUsageObserver(
+    PermissionUsageObserver* observer) {
+  permission_usage_observers_.RemoveObserver(observer);
 }
 
 void PageSpecificContentSettings::ClearPopupsBlocked() {
@@ -1043,6 +1338,12 @@ void PageSpecificContentSettings::OnAudioBlocked() {
   OnContentBlocked(ContentSettingsType::SOUND);
 }
 
+void PageSpecificContentSettings::IncrementStatefulBounceCount() {
+  stateful_bounce_count_++;
+  WebContentsHandler::FromWebContents(GetWebContents())
+      ->NotifyStatefulBounceObservers();
+}
+
 void PageSpecificContentSettings::OnContentSettingChanged(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern,
@@ -1051,8 +1352,14 @@ void PageSpecificContentSettings::OnContentSettingChanged(
     return;
 
   const GURL current_url = page().GetMainDocument().GetLastCommittedURL();
-  if (!primary_pattern.Matches(current_url)) {
-    return;
+  if (content_type == ContentSettingsType::STORAGE_ACCESS) {
+    if (!secondary_pattern.Matches(current_url)) {
+      return;
+    }
+  } else {
+    if (!primary_pattern.Matches(current_url)) {
+      return;
+    }
   }
 
   ContentSettingsStatus& status = content_settings_status_[content_type];
@@ -1080,10 +1387,21 @@ void PageSpecificContentSettings::OnContentSettingChanged(
     case ContentSettingsType::GEOLOCATION: {
       ContentSetting geolocation_setting =
           map_->GetContentSetting(current_url, current_url, content_type);
-      if (geolocation_setting == CONTENT_SETTING_ALLOW)
+      if (geolocation_setting == CONTENT_SETTING_ALLOW) {
         geolocation_was_just_granted_on_site_level_ = true;
+      } else if (geolocation_setting == CONTENT_SETTING_ASK) {
+        // On manual permission revocation as well as automatic permission
+        // revocation (e.g. due to content setting expiry), the content setting
+        // icon for the permission needs to be hidden, hence a location bar
+        // update may be required.
+        MaybeUpdateLocationBar();
+      }
+
       [[fallthrough]];
     }
+    case ContentSettingsType::NOTIFICATIONS:
+      MaybeUpdateLocationBar();
+      [[fallthrough]];
     case ContentSettingsType::IMAGES:
     case ContentSettingsType::JAVASCRIPT:
     case ContentSettingsType::COOKIES:
@@ -1109,6 +1427,23 @@ void PageSpecificContentSettings::OnContentSettingChanged(
       }
       break;
     }
+    case ContentSettingsType::STORAGE_ACCESS: {
+      GURL requesting_url = primary_pattern.ToRepresentativeUrl();
+      if (!requesting_url.is_valid()) {
+        return;
+      }
+      // Only forward updates for sites which we are already tracking.
+      net::SchemefulSite requesting_site(requesting_url);
+      if (!content_settings_two_site_requests_[content_type].contains(
+              requesting_site)) {
+        return;
+      }
+
+      ContentSetting setting =
+          map_->GetContentSetting(requesting_url, current_url, content_type);
+      OnTwoSitePermissionChanged(content_type, requesting_site, setting);
+      break;
+    }
     default:
       break;
   }
@@ -1131,15 +1466,10 @@ void PageSpecificContentSettings::BlockAllContentForTesting() {
 
   // Media must be blocked separately, as the generic
   // PageSpecificContentSettings::OnContentBlocked does not apply to them.
-  MicrophoneCameraStateFlags media_blocked =
-      static_cast<MicrophoneCameraStateFlags>(
-          PageSpecificContentSettings::MICROPHONE_ACCESSED |
-          PageSpecificContentSettings::MICROPHONE_BLOCKED |
-          PageSpecificContentSettings::CAMERA_ACCESSED |
-          PageSpecificContentSettings::CAMERA_BLOCKED);
+  MicrophoneCameraState media_blocked{kMicrophoneAccessed, kMicrophoneBlocked,
+                                      kCameraAccessed, kCameraBlocked};
   OnMediaStreamPermissionSet(page().GetMainDocument().GetLastCommittedURL(),
-                             media_blocked, std::string(), std::string(),
-                             std::string(), std::string());
+                             media_blocked);
 }
 
 void PageSpecificContentSettings::ContentSettingChangedViaPageInfo(
@@ -1160,18 +1490,13 @@ bool PageSpecificContentSettings::HasAccessedTopics() const {
 std::vector<privacy_sandbox::CanonicalTopic>
 PageSpecificContentSettings::GetAccessedTopics() const {
   if (accessed_topics_.empty() &&
-      (privacy_sandbox::kPrivacySandboxSettings3ShowSampleDataForTesting
-           .Get() ||
-       privacy_sandbox::kPrivacySandboxSettings4ShowSampleDataForTesting
-           .Get()) &&
+      privacy_sandbox::kPrivacySandboxSettings4ShowSampleDataForTesting.Get() &&
       page().GetMainDocument().GetLastCommittedURL().host() == "example.com") {
-    // TODO(crbug.com/1286276): Remove sample topic when API is ready.
-    return {privacy_sandbox::CanonicalTopic(
-                browsing_topics::Topic(3),
-                privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY),
-            privacy_sandbox::CanonicalTopic(
-                browsing_topics::Topic(4),
-                privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY)};
+    // TODO(crbug.com/40210776): Remove sample topic when API is ready.
+    return {privacy_sandbox::CanonicalTopic(browsing_topics::Topic(3),
+                                            kTopicsAPISampleDataTaxonomy),
+            privacy_sandbox::CanonicalTopic(browsing_topics::Topic(4),
+                                            kTopicsAPISampleDataTaxonomy)};
   }
   return {accessed_topics_.begin(), accessed_topics_.end()};
 }
@@ -1202,22 +1527,262 @@ void PageSpecificContentSettings::OnPrerenderingPageActivation() {
   }
 
   if (updates_queued_during_prerender_->site_data_accessed) {
+    // TODO(crbug.com/40269100): Re-attribute the
+    // `access_details.is_from_primary_page`.
     WebContentsHandler::FromWebContents(GetWebContents())
-        ->NotifySiteDataObservers();
+        ->NotifySiteDataObservers(
+            updates_queued_during_prerender_->access_details);
   }
 
   updates_queued_during_prerender_.reset();
 }
 
-void PageSpecificContentSettings::MaybeNotifySiteDataObservers() {
+void PageSpecificContentSettings::OnCapturingStateChanged(
+    ContentSettingsType type,
+    bool is_capturing) {
+  DCHECK(type == ContentSettingsType::MEDIASTREAM_MIC ||
+         type == ContentSettingsType::MEDIASTREAM_CAMERA);
+
+  // If `is_capturing` is true, we should not hide an indicator. Erasing an
+  // entry from `indicators_hiding_delay_timer_` will stop a dedicated timer.
+  if (indicators_hiding_delay_timer_.contains(type) && is_capturing) {
+    indicators_hiding_delay_timer_.erase(type);
+  }
+
+  // Check if media indicators should be hidden.
+  if (is_capturing) {
+    if (media_indicator_time_ == base::TimeTicks()) {
+      media_indicator_time_ = base::TimeTicks::Now();
+    }
+    OnCapturingStateChangedInternal(type, is_capturing);
+  } else {
+    // When audio/video capturing is over, save a time so it can be stored in
+    // HCSM.
+    last_used_time_[type] = base::Time::Now();
+
+    // Add a delay before the media indicator disappears.
+    if ((type == ContentSettingsType::MEDIASTREAM_CAMERA &&
+         !microphone_camera_state_.Has(kMicrophoneAccessed)) ||
+        (type == ContentSettingsType::MEDIASTREAM_MIC &&
+         !microphone_camera_state_.Has(kCameraAccessed))) {
+      base::TimeDelta indicator_display_time =
+          base::TimeTicks::Now() - media_indicator_time_;
+      base::TimeDelta delay;
+      base::TimeDelta min_delay;
+
+      // A total duration of an indicator should never be less than
+      // `kMediaIndicatorMinimumHoldDuration`.
+      if (base::FeatureList::IsEnabled(
+              content_settings::features::kLeftHandSideActivityIndicators)) {
+        min_delay = kMediaIndicatorMinimumHoldDurationPhase2;
+      } else {
+        min_delay = kMediaIndicatorMinimumHoldDuration;
+      }
+
+      if (indicator_display_time < min_delay) {
+        delay = min_delay - indicator_display_time;
+        // `delay` should not be smaller than
+        // `kMediaIndicatorHoldAfterUseDuration`.
+        delay = std::max(min_delay - indicator_display_time,
+                         kMediaIndicatorHoldAfterUseDuration);
+      } else {
+        delay = kMediaIndicatorHoldAfterUseDuration;
+      }
+
+      indicators_hiding_delay_timer_[type].Start(
+          FROM_HERE, delay,
+          base::BindOnce(
+              &PageSpecificContentSettings::OnCapturingStateChangedInternal,
+              weak_factory_.GetWeakPtr(), type, /*is_capturing=*/false));
+    } else {
+      OnCapturingStateChangedInternal(type, /*is_capturing=*/false);
+    }
+  }
+}
+
+#if BUILDFLAG(IS_CHROMEOS)
+void PageSpecificContentSettings::OnDeviceUsed(ContentSettingsType type) {
+  // For now, only smart card permissions are supported.
+  CHECK_EQ(ContentSettingsType::SMART_CARD_GUARD, type);
+  last_used_time_[type] = base::Time::Now();
+  if (in_use_.insert(type).second) {
+    MaybeUpdateLocationBar();
+  }
+}
+
+void PageSpecificContentSettings::OnLastDeviceConnectionLost(
+    ContentSettingsType type) {
+  // For now, only smart card permissions are supported.
+  CHECK_EQ(mojom::ContentSettingsType::SMART_CARD_GUARD, type);
+  in_use_.erase(type);
+
+  // The indicator should remain for `kDeviceInUseIndicatorHideDelay` seconds
+  // after the connection has died in order to also make user aware of very
+  // rapid connections.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&PageSpecificContentSettings::MaybeUpdateLocationBar,
+                     weak_factory_.GetWeakPtr()),
+      kDeviceInUseIndicatorHideDelay);
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+bool PageSpecificContentSettings::IsInUse(ContentSettingsType type) const {
+  return in_use_.contains(type);
+}
+
+#if BUILDFLAG(IS_CHROMEOS)
+bool PageSpecificContentSettings::ShouldShowDeviceInUseIndicator(
+    ContentSettingsType type) const {
+  return IsInUse(type) ||
+         GetLastUsedTime(type) >
+             base::Time::Now() - kDeviceInUseIndicatorHideDelay;
+  ;
+}
+#endif
+
+void PageSpecificContentSettings::OnCapturingStateChangedInternal(
+    ContentSettingsType type,
+    bool is_capturing) {
+  MicrophoneCameraStateFlags state =
+      type == ContentSettingsType::MEDIASTREAM_MIC ? kMicrophoneAccessed
+                                                   : kCameraAccessed;
+
+  if (is_capturing) {
+    microphone_camera_state_.Put(state);
+    in_use_.insert(type);
+
+    // Camera and Microphone share the same activity indicator view. If one of
+    // them is in use, reset a blocked state for another as we cannot display
+    // in-use and blocked indicator at once.
+    // If permission is blocked on the system level, it should be reset as well
+    // as the in use indicator has higher priority.
+    auto t = type == ContentSettingsType::MEDIASTREAM_CAMERA
+                 ? ContentSettingsType::MEDIASTREAM_MIC
+                 : ContentSettingsType::MEDIASTREAM_CAMERA;
+    if (media_blocked_indicator_timer_.contains(t) ||
+        delegate_->IsBlockedOnSystemLevel(t)) {
+      ResetMediaBlockedState(t, /*update_indicators=*/false);
+    }
+  } else {
+    microphone_camera_state_.Remove(state);
+    in_use_.erase(type);
+  }
+
+  // If `kMicrophoneAccessed` and `kCameraAccessed` not set, reset
+  // `microphone_camera_state_`.
+  if (!microphone_camera_state_.HasAny(
+          {kMicrophoneAccessed, kCameraAccessed})) {
+    microphone_camera_state_.Clear();
+    media_indicator_time_ = base::TimeTicks();
+  }
+
+  MaybeUpdateLocationBar();
+}
+
+const base::Time PageSpecificContentSettings::GetLastUsedTime(
+    ContentSettingsType type) const {
+  auto it = last_used_time_.find(type);
+  if (it != last_used_time_.end()) {
+    // After a recent usage HCSM will not have an updated last used time. HCSM
+    // will be update in PSCS dtor.
+    return it->second;
+  }
+
+  content_settings::SettingInfo info;
+  map_->GetContentSetting(GetWebContents()->GetLastCommittedURL(),
+                          GetWebContents()->GetLastCommittedURL(), type, &info);
+
+  return info.metadata.last_used();
+}
+
+void PageSpecificContentSettings::OnActivityIndicatorBubbleOpened(
+    ContentSettingsType type) {
+  if (indicators_hiding_delay_timer_.contains(type) &&
+      indicators_hiding_delay_timer_[type].IsRunning()) {
+    indicators_hiding_delay_timer_[type].Stop();
+  } else if (media_blocked_indicator_timer_.contains(type) &&
+             media_blocked_indicator_timer_[type].IsRunning()) {
+    media_blocked_indicator_timer_[type].Stop();
+  }
+}
+
+void PageSpecificContentSettings::OnActivityIndicatorBubbleClosed(
+    ContentSettingsType type) {
+  if (indicators_hiding_delay_timer_.contains(type)) {
+    // In use indicator timer was stopped, relaunch.
+    indicators_hiding_delay_timer_[type].Start(
+        FROM_HERE, kMediaIndicatorHoldAfterUseDuration,
+        base::BindOnce(
+            &PageSpecificContentSettings::OnCapturingStateChangedInternal,
+            weak_factory_.GetWeakPtr(), type, /*is_capturing=*/false));
+  } else if (media_blocked_indicator_timer_.contains(type)) {
+    // Blocked indicator timer was stopped, relaunch.
+    StartBlockedIndicatorTimer(type);
+  }
+}
+
+bool PageSpecificContentSettings::IsIndicatorVisible(
+    ContentSettingsType type) const {
+  return visible_indicators_.contains(type);
+}
+
+void PageSpecificContentSettings::OnPermissionIndicatorShown(
+    ContentSettingsType type) {
+  visible_indicators_.insert(type);
+}
+
+void PageSpecificContentSettings::OnPermissionIndicatorHidden(
+    ContentSettingsType type) {
+  visible_indicators_.erase(type);
+}
+
+void PageSpecificContentSettings::StartBlockedIndicatorTimer(
+    ContentSettingsType type) {
+  base::TimeDelta blocked_indicator_delay;
+  if (base::FeatureList::IsEnabled(
+          content_settings::features::kLeftHandSideActivityIndicators)) {
+    blocked_indicator_delay = kBlockedMediaIndicatorDismissDelayPhase2;
+  } else {
+    blocked_indicator_delay = kBlockedMediaIndicatorDismissDelay;
+  }
+  media_blocked_indicator_timer_[type].Start(
+      FROM_HERE, blocked_indicator_delay,
+      base::BindOnce(&PageSpecificContentSettings::ResetMediaBlockedState,
+                     weak_factory_.GetWeakPtr(), type,
+                     /*update_indicators=*/true));
+}
+
+void PageSpecificContentSettings::ResetMediaBlockedState(
+    ContentSettingsType type,
+    bool update_indicators) {
+  media_blocked_indicator_timer_.erase(type);
+
+  if (type == ContentSettingsType::MEDIASTREAM_MIC) {
+    microphone_camera_state_.Remove(kMicrophoneBlocked);
+    microphone_camera_state_.Remove(kMicrophoneAccessed);
+
+  } else {
+    microphone_camera_state_.Remove(kCameraBlocked);
+    microphone_camera_state_.Remove(kCameraAccessed);
+  }
+
+  if (update_indicators) {
+    MaybeUpdateLocationBar();
+  }
+}
+
+void PageSpecificContentSettings::MaybeNotifySiteDataObservers(
+    const AccessDetails& access_details) {
   if (IsEmbeddedPage())
     return;
   if (IsPagePrerendering()) {
     updates_queued_during_prerender_->site_data_accessed = true;
+    updates_queued_during_prerender_->access_details = access_details;
     return;
   }
   WebContentsHandler::FromWebContents(GetWebContents())
-      ->NotifySiteDataObservers();
+      ->NotifySiteDataObservers(access_details);
 }
 
 void PageSpecificContentSettings::MaybeUpdateLocationBar() {
@@ -1226,6 +1791,10 @@ void PageSpecificContentSettings::MaybeUpdateLocationBar() {
   if (IsPagePrerendering())
     return;
   delegate_->UpdateLocationBar();
+
+  for (PermissionUsageObserver& observer : permission_usage_observers_) {
+    observer.OnPermissionUsageChange();
+  }
 }
 
 content::WebContents* PageSpecificContentSettings::GetWebContents() const {

@@ -9,6 +9,7 @@
 #include "components/version_info/channel.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/features/feature_channel.h"
+#include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/common/mojom/event_dispatcher.mojom.h"
 #include "extensions/common/mojom/frame.mojom.h"
 #include "extensions/renderer/bindings/api_binding_test_util.h"
@@ -27,14 +28,14 @@ using StorageAreaTest = NativeExtensionBindingsSystemUnittest;
 // (with a helpful error message).
 TEST_F(StorageAreaTest, TestUnboundedUse) {
   scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermission("storage").Build();
+      ExtensionBuilder("foo").AddAPIPermission("storage").Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -56,14 +57,14 @@ TEST_F(StorageAreaTest, TestUnboundedUse) {
 
 TEST_F(StorageAreaTest, TestUseAfterInvalidation) {
   scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermission("storage").Build();
+      ExtensionBuilder("foo").AddAPIPermission("storage").Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -88,14 +89,14 @@ TEST_F(StorageAreaTest, TestUseAfterInvalidation) {
 
 TEST_F(StorageAreaTest, InvalidInvocationError) {
   scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermission("storage").Build();
+      ExtensionBuilder("foo").AddAPIPermission("storage").Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -121,7 +122,7 @@ TEST_F(StorageAreaTest, InvalidInvocationError) {
 TEST_F(StorageAreaTest, HasOnChanged) {
   scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
                                                  .SetManifestVersion(3)
-                                                 .AddPermission("storage")
+                                                 .AddAPIPermission("storage")
                                                  .Build();
   RegisterExtension(extension);
 
@@ -129,7 +130,7 @@ TEST_F(StorageAreaTest, HasOnChanged) {
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -161,7 +162,7 @@ TEST_F(StorageAreaTest, HasOnChanged) {
 TEST_F(StorageAreaTest, PromiseBasedFunctionsForManifestV3) {
   scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
                                                  .SetManifestVersion(3)
-                                                 .AddPermission("storage")
+                                                 .AddAPIPermission("storage")
                                                  .Build();
   RegisterExtension(extension);
 
@@ -169,7 +170,7 @@ TEST_F(StorageAreaTest, PromiseBasedFunctionsForManifestV3) {
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -210,7 +211,7 @@ TEST_F(StorageAreaTest, PromiseBasedFunctionsForManifestV3) {
 TEST_F(StorageAreaTest, PromiseBasedFunctionsDisallowedForManifestV2) {
   scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
                                                  .SetManifestVersion(2)
-                                                 .AddPermission("storage")
+                                                 .AddAPIPermission("storage")
                                                  .Build();
   RegisterExtension(extension);
 
@@ -218,7 +219,7 @@ TEST_F(StorageAreaTest, PromiseBasedFunctionsDisallowedForManifestV2) {
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);

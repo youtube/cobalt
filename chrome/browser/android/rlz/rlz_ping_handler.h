@@ -6,11 +6,14 @@
 #define CHROME_BROWSER_ANDROID_RLZ_RLZ_PING_HANDLER_H_
 
 #include <jni.h>
+
 #include <memory>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+
+class Profile;
 
 namespace network {
 class SimpleURLLoader;
@@ -23,7 +26,7 @@ namespace android {
 // JNI bridge for   RlzPingHandler.java
 class RlzPingHandler {
  public:
-  explicit RlzPingHandler(const base::android::JavaRef<jobject>& jprofile);
+  explicit RlzPingHandler(Profile* profile);
 
   RlzPingHandler(const RlzPingHandler&) = delete;
   RlzPingHandler& operator=(const RlzPingHandler&) = delete;

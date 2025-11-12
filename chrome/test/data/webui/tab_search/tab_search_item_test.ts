@@ -2,26 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
-import {RecentlyClosedTab, Tab, TabAlertState, TabData, TabGroup, TabGroupColor, TabItemType, TabSearchItem} from 'chrome://tab-search.top-chrome/tab_search.js';
-import {assertDeepEquals, assertEquals, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import type {RecentlyClosedTab, Tab, TabGroup, TabSearchItemElement} from 'chrome://tab-search.top-chrome/tab_search.js';
+import {TabAlertState, TabData, TabGroupColor, TabItemType} from 'chrome://tab-search.top-chrome/tab_search.js';
+import {assertDeepEquals, assertEquals, assertNotEquals, assertNotReached} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createTab, sampleToken} from './tab_search_test_data.js';
 
 suite('TabSearchItemTest', () => {
-  let tabSearchItem: TabSearchItem;
+  let tabSearchItem: TabSearchItemElement;
 
-  async function setupTest(data: TabData) {
+  function setupTest(data: TabData) {
     tabSearchItem = document.createElement('tab-search-item');
     tabSearchItem.data = data;
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     document.body.appendChild(tabSearchItem);
-    await flushTasks();
   }
 
-  async function assertTabSearchItemHighlights(
+  function assertTabSearchItemHighlights(
       text: string,
       fieldHighlightRanges: Array<{start: number, length: number}>|null,
       expected: string[]) {
@@ -39,7 +37,7 @@ suite('TabSearchItemTest', () => {
         hostname: fieldHighlightRanges,
       };
     }
-    await setupTest(data);
+    setupTest(data);
 
     assertHighlight(tabSearchItem.$['primaryText'], expected);
     assertHighlight(tabSearchItem.$['secondaryText'], expected);
@@ -52,22 +50,20 @@ suite('TabSearchItemTest', () => {
             .map(e => e ? e.textContent : ''));
   }
 
-  test('Highlight', async () => {
+  test('Highlight', () => {
     const text = 'Make work better';
-    await assertTabSearchItemHighlights(text, null, []);
-    await assertTabSearchItemHighlights(
+    assertTabSearchItemHighlights(text, null, []);
+    assertTabSearchItemHighlights(
         text, [{start: 0, length: text.length}], ['Make work better']);
-    await assertTabSearchItemHighlights(
-        text, [{start: 0, length: 4}], ['Make']);
-    await assertTabSearchItemHighlights(
+    assertTabSearchItemHighlights(text, [{start: 0, length: 4}], ['Make']);
+    assertTabSearchItemHighlights(
         text, [{start: 0, length: 4}, {start: 10, length: 6}],
         ['Make', 'better']);
-    await assertTabSearchItemHighlights(
-        text, [{start: 5, length: 4}], ['work']);
+    assertTabSearchItemHighlights(text, [{start: 5, length: 4}], ['work']);
   });
 
-  test('CloseButtonPresence', async () => {
-    await setupTest(new TabData(
+  test('CloseButtonPresence', () => {
+    setupTest(new TabData(
         createTab({
           active: true,
           isDefaultFavicon: true,
@@ -76,10 +72,10 @@ suite('TabSearchItemTest', () => {
         TabItemType.OPEN_TAB, 'example'));
 
     let tabSearchItemCloseButton =
-        tabSearchItem.shadowRoot!.querySelector('cr-icon-button');
+        tabSearchItem.shadowRoot.querySelector('cr-icon-button');
     assertNotEquals(null, tabSearchItemCloseButton);
 
-    await setupTest(new TabData(
+    setupTest(new TabData(
         {
           tabId: 0,
           title: 'Example.com site',
@@ -90,11 +86,11 @@ suite('TabSearchItemTest', () => {
         TabItemType.RECENTLY_CLOSED_TAB, 'example'));
 
     tabSearchItemCloseButton =
-        tabSearchItem.shadowRoot!.querySelector('cr-icon-button');
+        tabSearchItem.shadowRoot.querySelector('cr-icon-button');
     assertEquals(null, tabSearchItemCloseButton);
   });
 
-  test('GroupDetailsPresence', async () => {
+  test('GroupDetailsPresence', () => {
     const token = sampleToken(1n, 1n);
     const tab: Tab = createTab({
       active: true,
@@ -111,21 +107,21 @@ suite('TabSearchItemTest', () => {
 
     const tabData = new TabData(tab, TabItemType.OPEN_TAB, 'example');
     tabData.tabGroup = tabGroup;
-    await setupTest(tabData);
+    setupTest(tabData);
 
     const groupDotElement =
-        tabSearchItem.shadowRoot!.querySelector('#groupDot')!;
+        tabSearchItem.shadowRoot.querySelector('#groupDot')!;
     assertNotEquals(null, groupDotElement);
-    const groupDotComputedStyle = getComputedStyle(groupDotElement!);
+    const groupDotComputedStyle = getComputedStyle(groupDotElement);
     assertEquals(
         groupDotComputedStyle.getPropertyValue('--tab-group-color-blue'),
         groupDotComputedStyle.getPropertyValue('--group-dot-color'));
 
     assertNotEquals(
-        null, tabSearchItem.shadowRoot!.querySelector('#groupTitle'));
+        null, tabSearchItem.shadowRoot.querySelector('#groupTitle'));
   });
 
-  test('MediaAlertIndicatorPresence', async () => {
+  test('MediaAlertIndicatorPresence', () => {
     const token = sampleToken(1n, 1n);
     const tab: Tab = createTab({
       active: true,
@@ -135,12 +131,41 @@ suite('TabSearchItemTest', () => {
       groupId: token,
     });
 
-    await setupTest(new TabData(tab, TabItemType.OPEN_TAB, 'example'));
+    setupTest(new TabData(tab, TabItemType.OPEN_TAB, 'example'));
 
     const recordingMediaAlert =
-        tabSearchItem.shadowRoot!.querySelector<HTMLElement>('#mediaAlert');
+        tabSearchItem.shadowRoot.querySelector<HTMLElement>('#mediaAlert');
     assertNotEquals(null, recordingMediaAlert);
     assertEquals('media-recording', recordingMediaAlert!.getAttribute('class'));
   });
 
+  // Regression test for crbug.com/344481686.
+  test('RerendersWithoutErrorWhenDataChanges', async () => {
+    function createTabInTabGroup(title: string): TabData {
+      const tabGroup: TabGroup = {
+        id: sampleToken(1n, 1n),
+        color: TabGroupColor.kBlue,
+        title,
+      };
+
+      const tabData = new TabData(
+          createTab({groupId: tabGroup.id}), TabItemType.OPEN_TAB, title);
+      tabData.tabGroup = tabGroup;
+
+      return tabData;
+    }
+
+    setupTest(createTabInTabGroup('Group1'));
+    await microtasksFinished();
+
+    tabSearchItem.data = createTabInTabGroup('Group2');
+    try {
+      await tabSearchItem.updateComplete;
+    } catch (e) {
+      // Ensure that the following error is not thrown anymore.
+      // TypeError: Cannot set properties of null (setting 'data')"
+      assertNotReached(
+          `Should not have thrown error: '${(e as Error).message}`);
+    }
+  });
 });

@@ -8,6 +8,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <optional>
+#include <string>
+#include <vector>
+
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
@@ -42,9 +46,10 @@ bool AdvanceEnumeratorWithStat(base::FileEnumerator* traversal,
 }  // namespace
 
 // Recursively delete a folder and its contents, returning `true` on success.
-bool DeleteFolder(const absl::optional<base::FilePath>& installed_path) {
-  if (!installed_path)
+bool DeleteFolder(std::optional<base::FilePath> installed_path) {
+  if (!installed_path) {
     return false;
+  }
   if (!base::DeletePathRecursively(*installed_path)) {
     PLOG(ERROR) << "Deleting " << *installed_path << " failed";
     return false;
@@ -54,11 +59,6 @@ bool DeleteFolder(const absl::optional<base::FilePath>& installed_path) {
 
 bool DeleteCandidateInstallFolder(UpdaterScope scope) {
   return DeleteFolder(GetVersionedInstallDirectory(scope));
-}
-
-base::FilePath GetUpdaterFolderName() {
-  return base::FilePath(COMPANY_SHORTNAME_STRING)
-      .AppendASCII(PRODUCT_FULLNAME_STRING);
 }
 
 bool CopyDir(const base::FilePath& from_path,
@@ -75,7 +75,7 @@ bool CopyDir(const base::FilePath& from_path,
   base::FilePath from_path_base = from_path.DirName();
 
   base::stat_wrapper_t from_stat = {};
-  if (base::File::Stat(from_path.value().c_str(), &from_stat) < 0) {
+  if (base::File::Stat(from_path, &from_stat) < 0) {
     DPLOG(ERROR) << "Can't stat source directory: " << from_path;
     return false;
   }
@@ -162,6 +162,11 @@ bool CopyDir(const base::FilePath& from_path,
 
 bool WrongUser(UpdaterScope scope) {
   return (scope == UpdaterScope::kSystem) != (geteuid() == 0);
+}
+
+bool EulaAccepted(const std::vector<std::string>& app_ids) {
+  // On POSIX, there does not exist a way for apps to mark EULA acceptance.
+  return false;
 }
 
 }  // namespace updater

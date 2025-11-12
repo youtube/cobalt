@@ -4,10 +4,13 @@
 
 #include "chrome/browser/profiles/profile_destroyer.h"
 
+#include <array>
 #include <vector>
+
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
@@ -74,7 +77,8 @@ class ProfileDestroyerTest : public testing::Test,
   content::RenderProcessHost* CreatedRendererProcessHost(Profile* profile) {
     site_instances_.emplace_back(content::SiteInstance::Create(profile));
 
-    content::RenderProcessHost* rph = site_instances_.back()->GetProcess();
+    content::RenderProcessHost* rph =
+        site_instances_.back()->GetOrCreateProcess();
     EXPECT_TRUE(rph);
     rph->SetIsUsed();
     return rph;
@@ -87,7 +91,7 @@ class ProfileDestroyerTest : public testing::Test,
   // Destroying profile is still not universally supported. We need to disable
   // some tests, because it isn't possible to start destroying the profile.
   bool IsScopedProfileKeepAliveSupported() {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
     return false;
 #else
     return base::FeatureList::IsEnabled(
@@ -98,12 +102,12 @@ class ProfileDestroyerTest : public testing::Test,
  protected:
   const bool is_primary_otr_ = GetParam();
 
+  raw_ptr<TestingProfile> original_profile_;
+  std::vector<raw_ptr<TestingProfile>> otr_profiles_;
+
   content::BrowserTaskEnvironment task_environment_;
   TestingProfileManager profile_manager_{TestingBrowserProcess::GetGlobal()};
   content::RenderViewHostTestEnabler rvh_test_enabler_;
-
-  raw_ptr<TestingProfile> original_profile_;
-  std::vector<raw_ptr<TestingProfile>> otr_profiles_;
 
   std::unique_ptr<ScopedProfileKeepAlive> original_profile_keep_alive_;
   std::vector<scoped_refptr<content::SiteInstance>> site_instances_;
@@ -355,7 +359,7 @@ TEST_P(ProfileDestroyerTest, MultipleOTRPRofile) {
   CreateOTRProfile();
 
   // Create a renderer process associated with every OTR profiles.
-  content::RenderProcessHost* render_process_host[3] = {
+  std::array<content::RenderProcessHost*, 3> render_process_host = {
       CreatedRendererProcessHost(OtrProfile(0)),
       CreatedRendererProcessHost(OtrProfile(1)),
       CreatedRendererProcessHost(OtrProfile(2)),

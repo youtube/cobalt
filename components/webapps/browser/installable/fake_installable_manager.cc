@@ -19,9 +19,10 @@ namespace webapps {
 FakeInstallableManager::FakeInstallableManager(
     content::WebContents* web_contents)
     : InstallableManager(web_contents),
-      manifest_(blink::mojom::Manifest::New()) {}
+      manifest_(blink::mojom::Manifest::New()),
+      web_page_metadata_(mojom::WebPageMetadata::New()) {}
 
-FakeInstallableManager::~FakeInstallableManager() {}
+FakeInstallableManager::~FakeInstallableManager() = default;
 
 void FakeInstallableManager::GetData(const InstallableParams& params,
                                      InstallableCallback callback) {
@@ -59,20 +60,19 @@ FakeInstallableManager::CreateForWebContentsWithManifest(
   installable_manager->manifest_url_ = manifest_url;
   installable_manager->manifest_ = std::move(manifest);
 
-  const bool has_worker = true;
   std::vector<InstallableStatusCode> errors;
 
   // Not used:
   const std::unique_ptr<SkBitmap> icon;
 
-  if (installable_code != NO_ERROR_DETECTED)
+  if (installable_code != InstallableStatusCode::NO_ERROR_DETECTED) {
     errors.push_back(installable_code);
+  }
 
   auto installable_data = std::make_unique<InstallableData>(
       std::move(errors), installable_manager->manifest_url_,
-      *installable_manager->manifest_, GURL::EmptyGURL(), icon.get(), false,
-      GURL::EmptyGURL(), icon.get(), false, std::vector<Screenshot>(),
-      valid_manifest, has_worker);
+      *installable_manager->manifest_, *installable_manager->web_page_metadata_,
+      GURL(), icon.get(), false, std::vector<Screenshot>(), valid_manifest);
 
   installable_manager->data_ = std::move(installable_data);
 

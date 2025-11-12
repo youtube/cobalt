@@ -177,7 +177,7 @@ void DeclarativeContentPageUrlConditionTracker::TrackForWebContents(
     content::WebContents* contents) {
   per_web_contents_tracker_[contents] = std::make_unique<PerWebContentsTracker>(
       contents, &url_matcher_,
-      base::BindRepeating(&Delegate::RequestEvaluation,
+      base::BindRepeating(&Delegate::NotifyPredicateStateUpdated,
                           base::Unretained(delegate_)),
       base::BindOnce(&DeclarativeContentPageUrlConditionTracker::
                          DeletePerWebContentsTracker,
@@ -203,7 +203,7 @@ bool DeclarativeContentPageUrlConditionTracker::EvaluatePredicate(
   const DeclarativeContentPageUrlPredicate* typed_predicate =
       static_cast<const DeclarativeContentPageUrlPredicate*>(predicate);
   auto loc = per_web_contents_tracker_.find(tab);
-  DCHECK(loc != per_web_contents_tracker_.end());
+  CHECK(loc != per_web_contents_tracker_.end());
   const std::set<base::MatcherStringPattern::ID>& web_contents_id_matches =
       loc->second->matches();
   return base::Contains(web_contents_id_matches,

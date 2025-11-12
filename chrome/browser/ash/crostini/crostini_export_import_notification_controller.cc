@@ -8,16 +8,17 @@
 #include "ash/constants/url_constants.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/resources/vector_icons/vector_icons.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "chrome/browser/ash/crostini/crostini_export_import.h"
+#include "chrome/browser/ash/crostini/crostini_export_import_factory.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/grit/generated_resources.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/message_center/public/cpp/notification.h"
@@ -37,8 +38,9 @@ CrostiniExportImportClickCloseDelegate::CrostiniExportImportClickCloseDelegate()
           HandleNotificationClickDelegate::ButtonClickCallback()) {}
 
 void CrostiniExportImportClickCloseDelegate::Close(bool by_user) {
-  if (!close_closure_.is_null())
+  if (!close_closure_.is_null()) {
     close_closure_.Run();
+  }
 }
 
 CrostiniExportImportClickCloseDelegate::
@@ -63,11 +65,7 @@ CrostiniExportImportNotificationController::
   message_center::RichNotificationData rich_notification_data;
   rich_notification_data.vector_small_image = &ash::kNotificationLinuxIcon;
 
-  if (chromeos::features::IsJellyEnabled()) {
-    rich_notification_data.accent_color_id = cros_tokens::kCrosSysOnPrimary;
-  } else {
-    rich_notification_data.accent_color = ash::kSystemNotificationColorNormal;
-  }
+  rich_notification_data.accent_color_id = cros_tokens::kCrosSysPrimary;
 
   notification_ = std::make_unique<message_center::Notification>(
       message_center::NOTIFICATION_TYPE_PROGRESS, notification_id,
@@ -89,7 +87,7 @@ CrostiniExportImportNotificationController::
 void CrostiniExportImportNotificationController::ForceRedisplay() {
   hidden_ = false;
 
-  NotificationDisplayService::GetForProfile(profile_)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::TRANSIENT, *notification_,
       /*metadata=*/nullptr);
 }
@@ -102,24 +100,21 @@ void CrostiniExportImportNotificationController::SetStatusRunningUI(
 
   delegate_->SetCallback(base::BindRepeating(
       [](Profile* profile, ExportImportType type,
-         guest_os::GuestId container_id, absl::optional<int> button_index) {
+         guest_os::GuestId container_id, std::optional<int> button_index) {
         if (!button_index.has_value()) {
           return;
         }
         DCHECK_EQ(0, *button_index);
-        CrostiniExportImport::GetForProfile(profile)->CancelOperation(
+        CrostiniExportImportFactory::GetForProfile(profile)->CancelOperation(
             type, container_id);
       },
       profile_, type(), container_id_));
 
   notification_->set_type(message_center::NOTIFICATION_TYPE_PROGRESS);
-  if (chromeos::features::IsJellyEnabled()) {
-    notification_->set_accent_color_id(cros_tokens::kCrosSysOnPrimary);
-  } else {
-    notification_->set_accent_color(ash::kSystemNotificationColorNormal);
-  }
+  notification_->set_accent_color_id(cros_tokens::kCrosSysPrimary);
   notification_->set_title(l10n_util::GetStringUTF16(
-      type() == ExportImportType::EXPORT
+      (type() == ExportImportType::EXPORT ||
+       type() == ExportImportType::EXPORT_DISK_IMAGE)
           ? IDS_CROSTINI_EXPORT_NOTIFICATION_TITLE_RUNNING
           : IDS_CROSTINI_IMPORT_NOTIFICATION_TITLE_RUNNING));
   notification_->set_message(
@@ -142,13 +137,10 @@ void CrostiniExportImportNotificationController::SetStatusCancellingUI() {
       CrostiniExportImportClickCloseDelegate::ButtonClickCallback());
 
   notification_->set_type(message_center::NOTIFICATION_TYPE_PROGRESS);
-  if (chromeos::features::IsJellyEnabled()) {
-    notification_->set_accent_color_id(cros_tokens::kCrosSysOnPrimary);
-  } else {
-    notification_->set_accent_color(ash::kSystemNotificationColorNormal);
-  }
+  notification_->set_accent_color_id(cros_tokens::kCrosSysPrimary);
   notification_->set_title(l10n_util::GetStringUTF16(
-      type() == ExportImportType::EXPORT
+      (type() == ExportImportType::EXPORT ||
+       type() == ExportImportType::EXPORT_DISK_IMAGE)
           ? IDS_CROSTINI_EXPORT_NOTIFICATION_TITLE_CANCELLING
           : IDS_CROSTINI_IMPORT_NOTIFICATION_TITLE_CANCELLING));
   notification_->set_message({});
@@ -161,7 +153,8 @@ void CrostiniExportImportNotificationController::SetStatusCancellingUI() {
 }
 
 void CrostiniExportImportNotificationController::SetStatusDoneUI() {
-  if (type() == ExportImportType::EXPORT) {
+  if (type() == ExportImportType::EXPORT ||
+      type() == ExportImportType::EXPORT_DISK_IMAGE) {
     delegate_->SetCallback(base::BindRepeating(
         [](Profile* profile, base::FilePath path) {
           platform_util::ShowItemInFolder(profile, path);
@@ -173,31 +166,29 @@ void CrostiniExportImportNotificationController::SetStatusDoneUI() {
   }
 
   notification_->set_type(message_center::NOTIFICATION_TYPE_SIMPLE);
-  if (chromeos::features::IsJellyEnabled()) {
-    notification_->set_accent_color_id(cros_tokens::kCrosSysOnPrimary);
-  } else {
-    notification_->set_accent_color(ash::kSystemNotificationColorNormal);
-  }
-  notification_->set_title(l10n_util::GetStringUTF16(
-      type() == ExportImportType::EXPORT
-          ? IDS_CROSTINI_EXPORT_NOTIFICATION_TITLE_DONE
-          : IDS_CROSTINI_IMPORT_NOTIFICATION_TITLE_DONE));
-  notification_->set_message(l10n_util::GetStringUTF16(
-      type() == ExportImportType::EXPORT
-          ? IDS_CROSTINI_EXPORT_NOTIFICATION_MESSAGE_DONE
-          : IDS_CROSTINI_IMPORT_NOTIFICATION_MESSAGE_DONE));
-  notification_->set_buttons({});
-  notification_->set_never_timeout(false);
-  notification_->set_pinned(false);
+    notification_->set_accent_color_id(cros_tokens::kCrosSysPrimary);
+    notification_->set_title(l10n_util::GetStringUTF16(
+        (type() == ExportImportType::EXPORT ||
+         type() == ExportImportType::EXPORT_DISK_IMAGE)
+            ? IDS_CROSTINI_EXPORT_NOTIFICATION_TITLE_DONE
+            : IDS_CROSTINI_IMPORT_NOTIFICATION_TITLE_DONE));
+    notification_->set_message(l10n_util::GetStringUTF16(
+        (type() == ExportImportType::EXPORT ||
+         type() == ExportImportType::EXPORT_DISK_IMAGE)
+            ? IDS_CROSTINI_EXPORT_NOTIFICATION_MESSAGE_DONE
+            : IDS_CROSTINI_IMPORT_NOTIFICATION_MESSAGE_DONE));
+    notification_->set_buttons({});
+    notification_->set_never_timeout(false);
+    notification_->set_pinned(false);
 
-  ForceRedisplay();
+    ForceRedisplay();
 }
 
 void CrostiniExportImportNotificationController::SetStatusCancelledUI() {
   delegate_->SetCallback(
       CrostiniExportImportClickCloseDelegate::ButtonClickCallback());
 
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT, notification_->id());
 }
 
@@ -242,14 +233,10 @@ void CrostiniExportImportNotificationController::SetStatusFailedWithMessageUI(
   }
 
   notification_->set_type(message_center::NOTIFICATION_TYPE_SIMPLE);
-  if (chromeos::features::IsJellyEnabled()) {
-    notification_->set_accent_color_id(cros_tokens::kCrosSysError);
-  } else {
-    notification_->set_accent_color(
-        ash::kSystemNotificationColorCriticalWarning);
-  }
+  notification_->set_accent_color_id(cros_tokens::kCrosSysError);
   notification_->set_title(l10n_util::GetStringUTF16(
-      type() == ExportImportType::EXPORT
+      (type() == ExportImportType::EXPORT ||
+       type() == ExportImportType::EXPORT_DISK_IMAGE)
           ? IDS_CROSTINI_EXPORT_NOTIFICATION_TITLE_FAILED
           : IDS_CROSTINI_IMPORT_NOTIFICATION_TITLE_FAILED));
   notification_->set_message(message);

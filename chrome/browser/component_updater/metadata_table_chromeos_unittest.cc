@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/component_updater/metadata_table_chromeos.h"
+
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -18,16 +19,6 @@ constexpr char kComponent[2][11] = {"component1", "component2"};
 }  // namespace
 
 class CrOSComponentInstallerMetadataTest : public testing::Test {
- public:
-  CrOSComponentInstallerMetadataTest() = default;
-
-  CrOSComponentInstallerMetadataTest(
-      const CrOSComponentInstallerMetadataTest&) = delete;
-  CrOSComponentInstallerMetadataTest& operator=(
-      const CrOSComponentInstallerMetadataTest&) = delete;
-
-  ~CrOSComponentInstallerMetadataTest() override = default;
-
  protected:
   content::BrowserTaskEnvironment task_environment_;
 };

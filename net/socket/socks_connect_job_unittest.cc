@@ -30,6 +30,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "net/url_request/static_http_user_agent_settings.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -53,18 +54,23 @@ class SOCKSConnectJobTest : public testing::Test, public WithTaskEnvironment {
         common_connect_job_params_(
             &client_socket_factory_,
             &host_resolver_,
-            nullptr /* http_auth_cache */,
-            nullptr /* http_auth_handler_factory */,
-            nullptr /* spdy_session_pool */,
-            nullptr /* quic_supported_versions */,
-            nullptr /* quic_stream_factory */,
-            nullptr /* proxy_delegate */,
-            nullptr /* http_user_agent_settings */,
-            nullptr /* ssl_client_context */,
-            nullptr /* socket_performance_watcher_factory */,
-            nullptr /* network_quality_estimator */,
+            /*http_auth_cache=*/nullptr,
+            /*http_auth_handler_factory=*/nullptr,
+            /*spdy_session_pool=*/nullptr,
+            /*quic_supported_versions=*/nullptr,
+            /*quic_session_pool=*/nullptr,
+            /*proxy_delegate=*/nullptr,
+            &http_user_agent_settings_,
+            /*ssl_client_context=*/nullptr,
+            /*socket_performance_watcher_factory=*/nullptr,
+            /*network_quality_estimator=*/nullptr,
             NetLog::Get(),
-            nullptr /* websocket_endpoint_lock_manager */) {}
+            /*websocket_endpoint_lock_manager=*/nullptr,
+            /*http_server_properties=*/nullptr,
+            /*alpn_protos=*/nullptr,
+            /*application_settings=*/nullptr,
+            /*ignore_certificate_errors=*/nullptr,
+            /*early_data_enabled=*/nullptr) {}
 
   ~SOCKSConnectJobTest() override = default;
 
@@ -72,10 +78,10 @@ class SOCKSConnectJobTest : public testing::Test, public WithTaskEnvironment {
       SOCKSVersion socks_version,
       SecureDnsPolicy secure_dns_policy = SecureDnsPolicy::kAllow) {
     return base::MakeRefCounted<SOCKSSocketParams>(
-        base::MakeRefCounted<TransportSocketParams>(
+        ConnectJobParams(base::MakeRefCounted<TransportSocketParams>(
             HostPortPair(kProxyHostName, kProxyPort), NetworkAnonymizationKey(),
             secure_dns_policy, OnHostResolutionCallback(),
-            /*supported_alpns=*/base::flat_set<std::string>()),
+            /*supported_alpns=*/base::flat_set<std::string>())),
         socks_version == SOCKSVersion::V5,
         socks_version == SOCKSVersion::V4
             ? HostPortPair(kSOCKS4TestHost, kSOCKS4TestPort)
@@ -87,6 +93,8 @@ class SOCKSConnectJobTest : public testing::Test, public WithTaskEnvironment {
   MockHostResolver host_resolver_{/*default_result=*/MockHostResolverBase::
                                       RuleResolver::GetLocalhostResult()};
   MockTaggingClientSocketFactory client_socket_factory_;
+  const StaticHttpUserAgentSettings http_user_agent_settings_ = {"*",
+                                                                 "test-ua"};
   const CommonConnectJobParams common_connect_job_params_;
 };
 
@@ -121,11 +129,11 @@ TEST_F(SOCKSConnectJobTest, HostResolutionFailureSOCKS4Endpoint) {
 
     scoped_refptr<SOCKSSocketParams> socket_params =
         base::MakeRefCounted<SOCKSSocketParams>(
-            base::MakeRefCounted<TransportSocketParams>(
+            ConnectJobParams(base::MakeRefCounted<TransportSocketParams>(
                 HostPortPair(kProxyHostName, kProxyPort),
                 NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
                 OnHostResolutionCallback(),
-                /*supported_alpns=*/base::flat_set<std::string>()),
+                /*supported_alpns=*/base::flat_set<std::string>())),
             false /* socks_v5 */, HostPortPair(hostname, kSOCKS4TestPort),
             NetworkAnonymizationKey(), TRAFFIC_ANNOTATION_FOR_TESTS);
 
@@ -368,8 +376,9 @@ TEST_F(SOCKSConnectJobTest, Priority) {
     for (int new_priority = MINIMUM_PRIORITY; new_priority <= MAXIMUM_PRIORITY;
          ++new_priority) {
       // Don't try changing priority to itself, as APIs may not allow that.
-      if (new_priority == initial_priority)
+      if (new_priority == initial_priority) {
         continue;
+      }
       TestConnectJobDelegate test_delegate;
       SOCKSConnectJob socks_connect_job(
           static_cast<RequestPriority>(initial_priority), SocketTag(),
@@ -540,6 +549,92 @@ TEST_F(SOCKSConnectJobTest, CancelDuringHandshake) {
   // Socket should have been destroyed.
   EXPECT_FALSE(sequenced_socket_data.socket());
   EXPECT_TRUE(sequenced_socket_data.AllWriteDataConsumed());
+}
+
+TEST_F(SOCKSConnectJobTest,
+       SOCKS5_OnDestinationDnsAliasesResolved_ShouldNotBeInvoked) {
+  host_resolver_.set_synchronous_mode(true);
+
+  MockWrite writes[] = {
+      MockWrite(SYNCHRONOUS, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength, 0),
+      MockWrite(SYNCHRONOUS, kSOCKS5OkRequest, kSOCKS5OkRequestLength, 2),
+  };
+
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength,
+               1),
+      MockRead(SYNCHRONOUS, kSOCKS5OkResponse, kSOCKS5OkResponseLength, 3),
+  };
+
+  SequencedSocketData sequenced_socket_data(reads, writes);
+  sequenced_socket_data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
+  client_socket_factory_.AddSocketDataProvider(&sequenced_socket_data);
+
+  TestConnectJobDelegate test_delegate;
+
+  std::vector<std::string> aliases({"alias1", "alias2", kProxyHostName});
+  std::vector<std::string> dest_aliases(
+      {"dest-alias1", "dest-alias2", kSOCKS5TestHost});
+
+  // Add IP literal rule for proxy.
+  host_resolver_.rules()->AddIPLiteralRuleWithDnsAliases(
+      kProxyHostName, "2.2.2.2", std::move(aliases));
+  // Add IP literal rule for destination.
+  host_resolver_.rules()->AddIPLiteralRuleWithDnsAliases(
+      kSOCKS5TestHost, "3.3.3.3", std::move(dest_aliases));
+
+  std::unique_ptr<SOCKSConnectJob> socks_connect_job =
+      std::make_unique<SOCKSConnectJob>(DEFAULT_PRIORITY, SocketTag(),
+                                        &common_connect_job_params_,
+                                        CreateSOCKSParams(SOCKSVersion::V5),
+                                        &test_delegate, nullptr /* net_log */);
+  test_delegate.StartJobExpectingResult(socks_connect_job.get(), OK,
+                                        /*expect_sync_result=*/true);
+
+  EXPECT_FALSE(test_delegate.on_dns_aliases_resolved_called());
+  EXPECT_TRUE(test_delegate.dns_aliases().empty());
+}
+
+TEST_F(SOCKSConnectJobTest,
+       SOCKS4_OnDestinationDnsAliasesResolved_ShouldNotBeInvoked) {
+  host_resolver_.set_synchronous_mode(true);
+
+  MockWrite writes[] = {
+      MockWrite(SYNCHRONOUS, kSOCKS4OkRequestLocalHostPort80,
+                kSOCKS4OkRequestLocalHostPort80Length, 0),
+  };
+
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, kSOCKS4OkReply, kSOCKS4OkReplyLength, 1),
+  };
+
+  SequencedSocketData sequenced_socket_data(reads, writes);
+  sequenced_socket_data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
+  client_socket_factory_.AddSocketDataProvider(&sequenced_socket_data);
+
+  TestConnectJobDelegate test_delegate;
+
+  std::vector<std::string> aliases({"alias1", "alias2", kProxyHostName});
+  std::vector<std::string> dest_aliases(
+      {"dest-alias1", "dest-alias2", kSOCKS5TestHost});
+
+  // Add IP literal rule for proxy.
+  host_resolver_.rules()->AddIPLiteralRuleWithDnsAliases(
+      kProxyHostName, "2.2.2.2", std::move(aliases));
+  // Add IP literal rule for destination.
+  host_resolver_.rules()->AddIPLiteralRuleWithDnsAliases(
+      kSOCKS5TestHost, "3.3.3.3", std::move(dest_aliases));
+
+  std::unique_ptr<SOCKSConnectJob> socks_connect_job =
+      std::make_unique<SOCKSConnectJob>(DEFAULT_PRIORITY, SocketTag(),
+                                        &common_connect_job_params_,
+                                        CreateSOCKSParams(SOCKSVersion::V4),
+                                        &test_delegate, nullptr /* net_log */);
+  test_delegate.StartJobExpectingResult(socks_connect_job.get(), OK,
+                                        /*expect_sync_result=*/true);
+
+  EXPECT_FALSE(test_delegate.on_dns_aliases_resolved_called());
+  EXPECT_TRUE(test_delegate.dns_aliases().empty());
 }
 
 }  // namespace

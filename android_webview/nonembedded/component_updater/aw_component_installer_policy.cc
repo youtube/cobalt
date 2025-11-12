@@ -12,7 +12,6 @@
 
 #include "android_webview/common/aw_paths.h"
 #include "android_webview/nonembedded/component_updater/aw_component_update_service.h"
-#include "android_webview/nonembedded/nonembedded_jni_headers/ComponentsProviderPathUtil_jni.h"
 #include "base/android/jni_string.h"
 #include "base/android/path_utils.h"
 #include "base/files/file_path.h"
@@ -76,12 +75,8 @@ void AwComponentInstallerPolicy::ComponentReady(
     base::Value::Dict manifest) {
   base::FilePath cps_component_base_path =
       GetComponentsProviderServiceDirectory();
-
-  JNIEnv* env = base::android::AttachCurrentThread();
   int highest_sequence_number =
-      Java_ComponentsProviderPathUtil_getTheHighestSequenceNumber(
-          env, base::android::ConvertUTF8ToJavaString(
-                   env, cps_component_base_path.MaybeAsASCII()));
+      GetHighestSequenceNumber(cps_component_base_path);
 
   // Do nothing, if the highest sequence number refers to the same `version`.
   if (base::PathExists(cps_component_base_path.AppendASCII(
@@ -108,7 +103,7 @@ void AwComponentInstallerPolicy::ComponentReady(
       GetVersionDirName(highest_sequence_number + 1, version.GetString());
   const base::FilePath temp_copy_path =
       temp_dir.GetPath().AppendASCII(new_sequence_version_string);
-  // TODO(crbug.com/1176335) use file links to optimize copies number.
+  // TODO(crbug.com/40747851) use file links to optimize copies number.
   if (!base::CopyDirectory(install_dir, temp_copy_path,
                            /* recursive= */ true)) {
     LOG(ERROR) << "Error copying from " << install_dir << " to "
@@ -136,15 +131,14 @@ base::FilePath
 AwComponentInstallerPolicy::GetComponentsProviderServiceDirectory() {
   std::vector<uint8_t> hash;
   GetHash(&hash);
-  std::string component_id = update_client::GetCrxIdFromPublicKeyHash(hash);
+  return AwComponentUpdateService::GetInstance()
+      ->GetComponentsProviderServiceDirectory(hash);
+}
 
-  JNIEnv* env = base::android::AttachCurrentThread();
-  return base::FilePath(
-             base::android::ConvertJavaStringToUTF8(
-                 env,
-                 Java_ComponentsProviderPathUtil_getComponentsServingDirectoryPath(
-                     env)))
-      .AppendASCII(component_id);
+int AwComponentInstallerPolicy::GetHighestSequenceNumber(
+    base::FilePath cps_component_base_path) {
+  return AwComponentUpdateService::GetInstance()->GetHighestSequenceNumber(
+      cps_component_base_path);
 }
 
 }  // namespace android_webview

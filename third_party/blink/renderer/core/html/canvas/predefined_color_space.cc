@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_canvas_smpte_st_2086_metadata.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_predefined_color_space.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/skia/include/core/SkData.h"
 
 namespace blink {
 
@@ -68,35 +69,40 @@ V8PredefinedColorSpace PredefinedColorSpaceToV8(
 
 void ParseCanvasHighDynamicRangeOptions(
     const CanvasHighDynamicRangeOptions* options,
-    gfx::HDRMode& hdr_mode,
-    absl::optional<gfx::HDRMetadata>& hdr_metadata) {
-  hdr_mode = gfx::HDRMode::kDefault;
-  hdr_metadata = absl::nullopt;
+    gfx::HDRMetadata& hdr_metadata) {
+  hdr_metadata = gfx::HDRMetadata();
   if (!options) {
     return;
   }
   if (options->hasMode()) {
     switch (options->mode().AsEnum()) {
       case V8CanvasHighDynamicRangeMode::Enum::kDefault:
-        hdr_mode = gfx::HDRMode::kDefault;
         break;
       case V8CanvasHighDynamicRangeMode::Enum::kExtended:
-        hdr_mode = gfx::HDRMode::kExtended;
+        hdr_metadata.extended_range.emplace(
+            /*current_headroom=*/gfx::HdrMetadataExtendedRange::
+                kDefaultHdrHeadroom,
+            /*desired_headroom=*/gfx::HdrMetadataExtendedRange::
+                kDefaultHdrHeadroom);
         break;
     }
   }
   if (options->hasSmpteSt2086Metadata()) {
-    hdr_metadata = gfx::HDRMetadata();
-    auto& color_volume_metadata = hdr_metadata->color_volume_metadata;
+    auto& smpte_st_2086 = hdr_metadata.smpte_st_2086.emplace();
     const auto* v8_metadata = options->smpteSt2086Metadata();
-    color_volume_metadata.primaries = {
+    smpte_st_2086.primaries = {
         v8_metadata->redPrimaryX(),   v8_metadata->redPrimaryY(),
         v8_metadata->greenPrimaryX(), v8_metadata->greenPrimaryY(),
         v8_metadata->bluePrimaryX(),  v8_metadata->bluePrimaryY(),
         v8_metadata->whitePointX(),   v8_metadata->whitePointY(),
     };
-    color_volume_metadata.luminance_min = v8_metadata->minimumLuminance();
-    color_volume_metadata.luminance_max = v8_metadata->maximumLuminance();
+    smpte_st_2086.luminance_min = v8_metadata->minimumLuminance();
+    smpte_st_2086.luminance_max = v8_metadata->maximumLuminance();
+  }
+  if (options->hasAgtm()) {
+    auto span = options->agtm().RawByteSpan();
+    auto data = SkData::MakeWithCopy(span.data(), span.size());
+    hdr_metadata.agtm.emplace(std::move(data));
   }
 }
 

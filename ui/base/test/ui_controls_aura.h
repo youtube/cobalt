@@ -7,7 +7,6 @@
 
 #include "base/functional/callback_forward.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/native_widget_types.h"
@@ -29,7 +28,8 @@ class UIControlsAura {
                                            ui::KeyboardCode key,
                                            int key_event_types,
                                            base::OnceClosure task,
-                                           int accelerator_state) = 0;
+                                           int accelerator_state,
+                                           KeyEventType wait_for) = 0;
 
   // Simulate a mouse move. (x,y) are absolute screen coordinates.
   virtual bool SendMouseMove(int x, int y) = 0;

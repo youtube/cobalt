@@ -7,15 +7,12 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/quic_random.h"
-#include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
-#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
@@ -26,15 +23,14 @@ class QuicChaosProtectorTest;
 
 // QuicChaosProtector will take a crypto frame and an amount of padding and
 // build a data packet that will parse to something equivalent.
-class QUIC_EXPORT_PRIVATE QuicChaosProtector
-    : public QuicStreamFrameDataProducer {
+class QUICHE_EXPORT QuicChaosProtector {
  public:
-  // |framer| and |random| must be valid for the lifetime of QuicChaosProtector.
-  explicit QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
-                              int num_padding_bytes, size_t packet_size,
+  // |framer| and |random| must be valid for the lifetime of
+  // QuicChaosProtector.
+  explicit QuicChaosProtector(size_t packet_size, EncryptionLevel level,
                               QuicFramer* framer, QuicRandom* random);
 
-  ~QuicChaosProtector() override;
+  ~QuicChaosProtector();
 
   QuicChaosProtector(const QuicChaosProtector&) = delete;
   QuicChaosProtector(QuicChaosProtector&&) = delete;
@@ -42,25 +38,15 @@ class QUIC_EXPORT_PRIVATE QuicChaosProtector
   QuicChaosProtector& operator=(QuicChaosProtector&&) = delete;
 
   // Attempts to build a data packet with chaos protection. If an error occurs,
-  // then absl::nullopt is returned. Otherwise returns the serialized length.
-  absl::optional<size_t> BuildDataPacket(const QuicPacketHeader& header,
-                                         char* buffer);
-
-  // From QuicStreamFrameDataProducer.
-  WriteStreamDataResult WriteStreamData(QuicStreamId id,
-                                        QuicStreamOffset offset,
-                                        QuicByteCount data_length,
-                                        QuicDataWriter* /*writer*/) override;
-  bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
-                       QuicByteCount data_length,
-                       QuicDataWriter* writer) override;
+  // then std::nullopt is returned. Otherwise returns the serialized length.
+  std::optional<size_t> BuildDataPacket(const QuicPacketHeader& header,
+                                        const QuicFrames& frames, char* buffer);
 
  private:
   friend class test::QuicChaosProtectorTest;
 
-  // Allocate the crypto data buffer, create the CRYPTO frame and write the
-  // crypto data to our buffer.
-  bool CopyCryptoDataToLocalBuffer();
+  // Ingest the frames to be chaos protected.
+  bool IngestFrames(const QuicFrames& frames);
 
   // Split the CRYPTO frame in |frames_| into one or more CRYPTO frames that
   // collectively represent the same data. Adjusts padding to compensate.
@@ -76,16 +62,16 @@ class QUIC_EXPORT_PRIVATE QuicChaosProtector
   void SpreadPadding();
 
   // Serialize |frames_| using |framer_|.
-  absl::optional<size_t> BuildPacket(const QuicPacketHeader& header,
-                                     char* buffer);
+  std::optional<size_t> BuildPacket(const QuicPacketHeader& header,
+                                    char* buffer);
 
   size_t packet_size_;
   std::unique_ptr<char[]> crypto_frame_buffer_;
   const char* crypto_data_buffer_ = nullptr;
-  QuicByteCount crypto_data_length_;
-  QuicStreamOffset crypto_buffer_offset_;
+  QuicByteCount crypto_data_length_ = 0;
+  QuicStreamOffset crypto_buffer_offset_ = 0;
   EncryptionLevel level_;
-  int remaining_padding_bytes_;
+  int remaining_padding_bytes_ = 0;
   QuicFrames frames_;   // Inner frames owned, will be deleted by destructor.
   QuicFramer* framer_;  // Unowned.
   QuicRandom* random_;  // Unowned.

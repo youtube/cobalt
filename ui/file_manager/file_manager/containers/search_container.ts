@@ -2,26 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import 'chrome://resources/ash/common/cr_elements/cr_input/cr_input.js';
 
+import type {CrInputElement} from 'chrome://resources/ash/common/cr_elements/cr_input/cr_input.js';
+
+import type {VolumeManager} from '../background/js/volume_manager.js';
+import {isModal} from '../common/js/dialog_type.js';
 import {queryRequiredElement} from '../common/js/dom_utils.js';
-import {str, util} from '../common/js/util.js';
-import {VolumeManagerCommon} from '../common/js/volume_manager_types.js';
-import {CurrentDirectory, PropStatus, SearchData, SearchLocation, SearchOptions, SearchRecency, State} from '../externs/ts/state.js';
-import {VolumeManager} from '../externs/volume_manager.js';
+import {isInsideDrive} from '../common/js/entry_utils.js';
+import type {FakeEntry} from '../common/js/files_app_entry_types.js';
+import {recordEnum, recordUserAction} from '../common/js/metrics.js';
+import {str, strf} from '../common/js/translations.js';
+import {RootType} from '../common/js/volume_manager_types.js';
 import {PathComponent} from '../foreground/js/path_component.js';
-import {SearchAutocompleteList} from '../foreground/js/ui/search_autocomplete_list.js';
-import {clearSearch, updateSearch} from '../state/actions/search.js';
-import {getDefaultSearchOptions, getStore, Store} from '../state/store.js';
-import {XfPathDisplayElement} from '../widgets/xf_path_display.js';
-import {OptionKind, SEARCH_OPTIONS_CHANGED, SearchOptionsChangedEvent, XfSearchOptionsElement} from '../widgets/xf_search_options.js';
-import {XfOption} from '../widgets/xf_select.js';
-
-/**
- * @fileoverview
- * This file is checked via TS, so we suppress Closure checks.
- * @suppress {checkTypes}
- */
+import type {A11yAnnounce} from '../foreground/js/ui/a11y_announce.js';
+import {changeDirectory} from '../state/ducks/current_directory.js';
+import {clearSearch, getDefaultSearchOptions, isSearchEmpty, updateSearch} from '../state/ducks/search.js';
+import type {FileKey} from '../state/file_key.js';
+import {type CurrentDirectory, PropStatus, type SearchData, SearchLocation, type SearchOptions, SearchRecency, type State} from '../state/state.js';
+import {getStore, type Store} from '../state/store.js';
+import {type BreadcrumbClickedEvent, XfBreadcrumb} from '../widgets/xf_breadcrumb.js';
+import type {XfSearchOptionsElement} from '../widgets/xf_search_options.js';
+import {OptionKind, SEARCH_OPTIONS_CHANGED, type SearchOptionsChangedEvent} from '../widgets/xf_search_options.js';
+import type {XfOption} from '../widgets/xf_select.js';
 
 /**
  * Defines the possible states of the query input widget. This is a widget with
@@ -31,9 +34,13 @@ import {XfOption} from '../widgets/xf_select.js';
  */
 enum SearchInputState {
   CLOSED = 'closed',
-  OPENING = 'opening',
   OPEN = 'open',
-  CLOSING = 'closing',
+}
+
+enum SearchRootType {
+  UNKNOWN = 'Unknown',
+  STANDALONE = 'Standalone',
+  PICKER = 'Picker',
 }
 
 /**
@@ -41,7 +48,151 @@ enum SearchInputState {
  * directory.
  */
 function isInRecent(dir: CurrentDirectory|undefined): boolean {
-  return dir?.rootType == VolumeManagerCommon.RootType.RECENT;
+  return dir?.rootType === RootType.RECENT;
+}
+
+/**
+ * Creates location options. These always consist of 'Everywhere' and the
+ * local folder. However, if the local folder has a parent, that is different
+ * from it, we also add the parent between Everywhere and the local folder.
+ */
+function createLocationOptions(state: State): XfOption[] {
+  const dir = state.currentDirectory;
+  const dirPath = dir?.pathComponents || [];
+  const options: XfOption[] = [
+    {
+      value: SearchLocation.EVERYWHERE,
+      text: str('SEARCH_OPTIONS_LOCATION_EVERYWHERE'),
+      default: !dirPath,
+    },
+  ];
+  if (dirPath.length > 0) {
+    if (dir && isInsideDrive(dir)) {
+      // For Google Drive we currently do not have the ability to search a
+      // specific folder. Thus the only options shown, when the user is
+      // triggering search from a location in Drive, is Everywhere (set up
+      // above) and Drive.
+      options.push({
+        value: SearchLocation.ROOT_FOLDER,
+        text: str('DRIVE_DIRECTORY_LABEL'),
+        default: true,
+      });
+    } else if (isInRecent(dir)) {
+      options.push({
+        value: SearchLocation.THIS_FOLDER,
+        text: dirPath[dirPath.length - 1]?.label ||
+            str('SEARCH_OPTIONS_LOCATION_THIS_FOLDER'),
+        default: true,
+      });
+    } else {
+      options.push({
+        value: dirPath.length > 1 ? SearchLocation.ROOT_FOLDER :
+                                    SearchLocation.THIS_FOLDER,
+        text: dirPath[0]?.label || str('SEARCH_OPTIONS_LOCATION_THIS_VOLUME'),
+        default: dirPath.length === 1,
+      });
+      if (dirPath.length > 1) {
+        options.push({
+          value: SearchLocation.THIS_FOLDER,
+          text: dirPath[dirPath.length - 1]?.label ||
+              str('SEARCH_OPTIONS_LOCATION_THIS_FOLDER'),
+          default: true,
+        });
+      }
+    }
+  }
+  return options;
+}
+
+/**
+ * Creates Recency options. Depending on the current directory these have either
+ * ANYTIME or LAST_MONTH selected as the default.
+ */
+function createRecencyOptions(state: State): XfOption[] {
+  const recencyOptions: XfOption[] = [
+    {
+      value: SearchRecency.ANYTIME,
+      text: str('SEARCH_OPTIONS_RECENCY_ALL_TIME'),
+    },
+    {
+      value: SearchRecency.TODAY,
+      text: str('SEARCH_OPTIONS_RECENCY_TODAY'),
+    },
+    {
+      value: SearchRecency.YESTERDAY,
+      text: str('SEARCH_OPTIONS_RECENCY_YESTERDAY'),
+    },
+    {
+      value: SearchRecency.LAST_WEEK,
+      text: str('SEARCH_OPTIONS_RECENCY_LAST_WEEK'),
+    },
+    {
+      value: SearchRecency.LAST_MONTH,
+      text: str('SEARCH_OPTIONS_RECENCY_LAST_MONTH'),
+    },
+    {
+      value: SearchRecency.LAST_YEAR,
+      text: str('SEARCH_OPTIONS_RECENCY_LAST_YEAR'),
+    },
+  ];
+  const index = isInRecent(state.currentDirectory) ? 4 : 0;
+  recencyOptions[index]!.default = true;
+  return recencyOptions;
+}
+
+/**
+ * Creates file category option. Uses the state to find out if we are in the
+ * Recent view. If so, it sets the default based on the Recent view selectors.
+ */
+function createFileCategoryOptions(state: State): XfOption[] {
+  let fileCategory = chrome.fileManagerPrivate.FileCategory.ALL;
+  if (isInRecent(state.currentDirectory)) {
+    const entry =
+        state.allEntries[state.currentDirectory!.key]!.entry as FakeEntry;
+    fileCategory = entry.fileCategory!;
+  }
+  return [
+    {
+      value: chrome.fileManagerPrivate.FileCategory.ALL,
+      text: str('SEARCH_OPTIONS_TYPES_ALL_TYPES'),
+      default: fileCategory === chrome.fileManagerPrivate.FileCategory.ALL,
+    },
+    {
+      value: chrome.fileManagerPrivate.FileCategory.AUDIO,
+      text: str('SEARCH_OPTIONS_TYPES_AUDIO'),
+      default: fileCategory === chrome.fileManagerPrivate.FileCategory.AUDIO,
+    },
+    {
+      value: chrome.fileManagerPrivate.FileCategory.DOCUMENT,
+      text: str('SEARCH_OPTIONS_TYPES_DOCUMENTS'),
+      default: fileCategory === chrome.fileManagerPrivate.FileCategory.DOCUMENT,
+    },
+    {
+      value: chrome.fileManagerPrivate.FileCategory.IMAGE,
+      text: str('SEARCH_OPTIONS_TYPES_IMAGES'),
+      default: fileCategory === chrome.fileManagerPrivate.FileCategory.IMAGE,
+    },
+    {
+      value: chrome.fileManagerPrivate.FileCategory.VIDEO,
+      text: str('SEARCH_OPTIONS_TYPES_VIDEOS'),
+      default: fileCategory === chrome.fileManagerPrivate.FileCategory.VIDEO,
+    },
+  ];
+}
+
+/**
+ * Updates visibility of recency options based on the current directory.
+ */
+function updateRecencyOptionsVisibility(
+    state: State, element: XfSearchOptionsElement, options: SearchOptions) {
+  if (isInRecent(state.currentDirectory)) {
+    const recencySelector = element.getRecencySelector();
+    if (options.location === SearchLocation.EVERYWHERE) {
+      recencySelector.toggleAttribute('hidden', false);
+    } else {
+      recencySelector.toggleAttribute('hidden', true);
+    }
+  }
 }
 
 /**
@@ -63,9 +214,6 @@ export class SearchContainer extends EventTarget {
   private searchWrapper_: HTMLElement;
   // The current state of the search widget elements.
   private inputState_: SearchInputState = SearchInputState.CLOSED;
-  // A component that shows potential matches for the text the user typed so
-  // far.
-  private autocompleteList_: SearchAutocompleteList;
   // The current value of search options, initialized to some sensible default.
   private currentOptions_: SearchOptions = getDefaultSearchOptions();
   // The store which updates us about state changes.
@@ -84,9 +232,14 @@ export class SearchContainer extends EventTarget {
   // The container used to display the path of the currently selected file.
   private pathContainer_: HTMLElement;
   // The element that shows the path of the currently selected file.
-  private pathDisplay_: XfPathDisplayElement|null = null;
+  private breadcrumb_: XfBreadcrumb|null = null;
+  // The parts of the path of the selected result or empty.
+  private pathComponents_: FileKey[] = [];
   // Volume manager, used by us to resolve paths of selected entries.
   private volumeManager_: VolumeManager;
+  // The accessibility interface that is used to announce the outcomes of file
+  // searches.
+  private a11y_: A11yAnnounce;
 
 
   /**
@@ -101,7 +254,8 @@ export class SearchContainer extends EventTarget {
    */
   constructor(
       volumeManager: VolumeManager, searchWrapper: HTMLElement,
-      optionsContainer: HTMLElement, pathContainer: HTMLElement) {
+      optionsContainer: HTMLElement, pathContainer: HTMLElement,
+      a11y: A11yAnnounce) {
     super();
     this.volumeManager_ = volumeManager;
     // The "box" around the search button, query input, and clear button.
@@ -119,18 +273,16 @@ export class SearchContainer extends EventTarget {
 
     // Text input element where the user enters the query.
     this.inputElement_ =
-        this.searchBox_.querySelector('cr-input') as CrInputElement;
+        this.searchBox_.querySelector<CrInputElement>('cr-input')!;
 
     // The button that allows the user to clear the query.
-    this.clearButton_ = this.searchBox_.querySelector('.clear') as HTMLElement;
-
-    // The list showing possible matches to the current query.
-    this.autocompleteList_ =
-        new SearchAutocompleteList(this.searchBox_.ownerDocument);
-    this.searchWrapper_.parentNode!.appendChild(this.autocompleteList_);
+    this.clearButton_ = this.searchBox_.querySelector<HTMLElement>('.clear')!;
+    // Hide clear button when created.
+    this.updateClearButton_('');
 
     this.optionsContainer_ = optionsContainer;
     this.pathContainer_ = pathContainer;
+    this.a11y_ = a11y;
     this.store_ = getStore();
     this.store_.subscribe(this);
 
@@ -158,15 +310,6 @@ export class SearchContainer extends EventTarget {
     const value = this.inputElement_.value;
     if (value !== '') {
       this.inputElement_.value = '';
-      if (!util.isSearchV2Enabled()) {
-        // Force query change flow only if V2 search is not enabled. This
-        // is due to the fact that in the legacy search we listen to input
-        // events from the text field, which are not posted when the value
-        // is directly assigned a value. In the V2 search we listen to store
-        // change events that cause the code path that handles clearing of
-        // search to be executed.
-        this.onQueryChanged_();
-      }
       requestAnimationFrame(() => {
         this.closeSearch();
       });
@@ -174,59 +317,11 @@ export class SearchContainer extends EventTarget {
   }
 
   /**
-   * Sets the new query. This method does not post events, even if the query
-   * changed as a result.
-   */
-  setQuery(query: string) {
-    this.inputElement_.value = query;
-    this.openSearch();
-  }
-
-  /**
    * Returns the user entered search query. This method trims white spaces from
    * the left side of the query.
    */
   getQuery(): string {
-    return this.inputElement_.value.trimLeft();
-  }
-
-  /**
-   * Clears all suggestion
-   */
-  clearSuggestions() {
-    this.autocompleteList_.suggestions = [];
-  }
-
-  /**
-   * Sets the first suggestion in the autocomplete list. This typically should
-   * be a header item that indicates what is being searched and where.
-   */
-  setHeaderItem(item: SearchItem) {
-    if (!this.autocompleteList_.dataModel ||
-        this.autocompleteList_.dataModel.length == 0) {
-      this.autocompleteList_.suggestions = [item];
-    } else {
-      // Updates only the head item to prevent a flickering on typing.
-      this.autocompleteList_.dataModel.splice(0, 1, item);
-    }
-    this.autocompleteList_.syncWidthAndPositionToInput();
-  }
-
-  /**
-   * Sets the given search items as autocomplete suggestion. This method
-   * overrides all suggestions, so if you need to keep the header item, you
-   * should pass it as the first item in the list.
-   */
-  setSuggestions(items: SearchItem[]) {
-    this.autocompleteList_.suggestions = items;
-    this.autocompleteList_.syncWidthAndPositionToInput();
-  }
-
-  /**
-   * Returns the currently selected search item on the autocomplete list.
-   */
-  getSelectedItem(): SearchItem {
-    return this.autocompleteList_.selectedItem;
+    return this.inputElement_.value.trimStart();
   }
 
   /**
@@ -249,20 +344,32 @@ export class SearchContainer extends EventTarget {
       return;
     }
     // Cache the last received search state for future comparisons.
-    this.searchState_ = search;
-    if (!search) {
+    const lastSearch = this.searchState_;
+    this.searchState_ = state.search;
+
+    if (lastSearch?.query && search && search.query === undefined) {
+      this.a11y_.speakA11yMessage(str('SEARCH_A11Y_CLEAR_SEARCH'));
+    }
+    if (!search || isSearchEmpty(search)) {
       this.closeSearch();
       return;
     }
+
     const query = search.query;
     if (query !== undefined && query !== this.getQuery()) {
-      this.setQuery(query);
+      this.inputElement_.value = query;
+      this.openSearch();
     }
-    if (util.isSearchV2Enabled()) {
-      if (search.status === PropStatus.STARTED && query) {
-        this.showOptions_(state);
-        this.showPathDisplay_();
-      }
+    if (search.status === PropStatus.STARTED && query) {
+      this.showOptionsElement_(state);
+      this.showBreadcrumbElement_();
+    }
+    if (search.status === PropStatus.SUCCESS && query) {
+      const content = state.currentDirectory?.content;
+      const count = content ? content.keys.length : 0;
+      const messageId =
+          count === 0 ? 'SEARCH_A11Y_NO_RESULT' : 'SEARCH_A11Y_RESULT';
+      this.a11y_.speakA11yMessage(strf(messageId, query));
     }
   }
 
@@ -271,42 +378,47 @@ export class SearchContainer extends EventTarget {
    * to set the path of the currently selected element.
    */
   private handleSelectionState_(state: State) {
-    if (!this.pathDisplay_) {
+    const search = state.search;
+    if (!search || !search.query) {
       return;
     }
-    const path = this.getSelectedPath_(state);
+    if (!this.breadcrumb_) {
+      this.showBreadcrumbElement_();
+    }
+    const parts = this.getPathComponentsOfSelectedEntry_(state);
+    const path = parts.map(p => p.name).join('/');
+    this.pathComponents_ = parts.map(p => p.getKey());
     if (path) {
-      this.pathDisplay_.removeAttribute('hidden');
-      this.pathDisplay_.path = path;
+      this.breadcrumb_!.removeAttribute('hidden');
+      this.breadcrumb_!.path = path;
     } else {
-      this.pathDisplay_.path = '';
-      this.pathDisplay_.setAttribute('hidden', '');
+      this.breadcrumb_!.path = '';
+      this.breadcrumb_!.setAttribute('hidden', '');
     }
   }
 
   /**
-   * Helper function that converts information stored in State
-   * a path of the selected file or directory.
+   * Helper function that converts information stored in State to an array
+   * of PathComponents of the selected entry. If there are multiple entries
+   * selected or no entries selected, this method returns an empty array.
    */
-  private getSelectedPath_(state: State): string {
+  private getPathComponentsOfSelectedEntry_(state: State): PathComponent[] {
     const keys = state.currentDirectory?.selection?.keys;
     if (!keys || keys.length !== 1) {
-      return '';
+      return [];
     }
     const entry = state.allEntries[keys[0]!]?.entry;
     if (!entry) {
-      return '';
+      return [];
     }
     // TODO(b:274559834): Improve efficiency of these computations.
-    const parts: PathComponent[] =
-        PathComponent.computeComponentsFromEntry(entry, this.volumeManager_);
-    return parts.map(p => p.name).join('/');
+    return PathComponent.computeComponentsFromEntry(entry, this.volumeManager_);
   }
 
   /**
    * Hides the element that allows users to manipulate search options.
    */
-  private hideOptions_() {
+  private hideOptionsElement_() {
     if (this.searchOptions_) {
       this.searchOptions_.remove();
       this.searchOptions_ = null;
@@ -317,7 +429,7 @@ export class SearchContainer extends EventTarget {
    * Shows or creates the element that allows the user to manipulate search
    * options.
    */
-  private showOptions_(state: State) {
+  private showOptionsElement_(state: State) {
     let element = this.getSearchOptionsElement_();
     if (!element) {
       element = this.createSearchOptionsElement_(state);
@@ -325,37 +437,59 @@ export class SearchContainer extends EventTarget {
     element.hidden = false;
   }
 
-  private hidePathDisplay_() {
-    const element = this.getPathDisplayElement_();
+  private hideBreadcrumbElement_() {
+    const element = this.getBreadcrumbElement_();
     if (element) {
       element.hidden = true;
     }
   }
 
-  private showPathDisplay_() {
-    let element = this.getPathDisplayElement_();
+  private showBreadcrumbElement_() {
+    let element = this.getBreadcrumbElement_();
     if (!element) {
-      element = this.createPathDisplayElement_();
+      element = this.createBreadcrumbElement_();
     }
     element.hidden = false;
   }
 
   /**
-   * Returns the path display element by either retuning the cached instance,
+   * Returns the breadcrumb element by either retuning the cached instance,
    * or fetching it by its tag. May return null.
    */
-  private getPathDisplayElement_(): XfPathDisplayElement|null {
-    if (!this.pathDisplay_) {
-      this.pathDisplay_ = document.querySelector('xf-path-display');
+  private getBreadcrumbElement_(): XfBreadcrumb|null {
+    if (!this.breadcrumb_) {
+      this.breadcrumb_ = document.querySelector('xf-breadcumb');
     }
-    return this.pathDisplay_;
+    return this.breadcrumb_;
   }
 
-  private createPathDisplayElement_(): XfPathDisplayElement {
-    const element = document.createElement('xf-path-display');
+  private createBreadcrumbElement_(): XfBreadcrumb {
+    const element = new XfBreadcrumb();
+    // Increase the default maxPathParts to allow for longer path display.
+    element.maxPathParts = 100;
+    element.id = 'search-breadcrumb';
+    element.small = true;
+    element.addEventListener(
+        XfBreadcrumb.events.BREADCRUMB_CLICKED,
+        this.breadcrumbClick_.bind(this));
     this.pathContainer_.appendChild(element);
-    this.pathDisplay_ = element;
+    this.breadcrumb_ = element;
     return element;
+  }
+
+  private breadcrumbClick_(event: BreadcrumbClickedEvent) {
+    const index = Number(event.detail.partIndex);
+    if (isNaN(index) || index < 0) {
+      return;
+    }
+    // The leaf path isn't clickable.
+    if (index >= this.pathComponents_.length - 1) {
+      return;
+    }
+
+    this.store_.dispatch(
+        changeDirectory({toKey: this.pathComponents_[index] as FileKey}));
+    recordUserAction('ClickBreadcrumbs');
   }
 
   /**
@@ -369,116 +503,14 @@ export class SearchContainer extends EventTarget {
     return this.searchOptions_;
   }
 
-  /**
-   * Creates location options. These always consist of 'Everywhere' and the
-   * local folder. However, if the local folder has a parent, that is different
-   * from it, we also add the parent between Everywhere and the local folder.
-   */
-  private createLocationOptions_(state: State): XfOption[] {
-    const dir = state.currentDirectory;
-    const dirPath = dir?.pathComponents || [];
-    const options: XfOption[] = [
-      {
-        value: SearchLocation.EVERYWHERE,
-        text: str('SEARCH_OPTIONS_LOCATION_EVERYWHERE'),
-        default: !dirPath,
-      },
-    ];
-    if (dirPath) {
-      if (dir?.rootType === VolumeManagerCommon.RootType.DRIVE) {
-        // For Google Drive we currently do not have the ability to search a
-        // specific folder. Thus the only options shown, when the user is
-        // triggering search from a location in Drive, is Everywhere (set up
-        // above) and Drive.
-        options.push({
-          value: SearchLocation.ROOT_FOLDER,
-          text: str('DRIVE_DIRECTORY_LABEL'),
-          default: true,
-        });
-      } else if (isInRecent(dir)) {
-        options.push({
-          value: SearchLocation.THIS_FOLDER,
-          text: dirPath[dirPath.length - 1]?.label ||
-              str('SEARCH_OPTIONS_LOCATION_THIS_FOLDER'),
-          default: true,
-        });
-      } else {
-        options.push({
-          value: dirPath.length > 1 ? SearchLocation.ROOT_FOLDER :
-                                      SearchLocation.THIS_FOLDER,
-          text: dirPath[0]?.label || str('SEARCH_OPTIONS_LOCATION_THIS_VOLUME'),
-          default: dirPath.length === 1,
-        });
-        if (dirPath.length > 1) {
-          options.push({
-            value: SearchLocation.THIS_FOLDER,
-            text: dirPath[dirPath.length - 1]?.label ||
-                str('SEARCH_OPTIONS_LOCATION_THIS_FOLDER'),
-            default: true,
-          });
-        }
-      }
-    }
-    return options;
-  }
-
   private createSearchOptionsElement_(state: State): XfSearchOptionsElement {
     const element = document.createElement('xf-search-options');
     this.optionsContainer_.appendChild(element);
     element.id = 'search-options';
-    element.getLocationSelector().options = this.createLocationOptions_(state);
-    if (isInRecent(state.currentDirectory)) {
-      element.getRecencySelector().setAttribute('hidden', '');
-    } else {
-      element.getRecencySelector().options = [
-        {
-          value: SearchRecency.ANYTIME,
-          text: str('SEARCH_OPTIONS_RECENCY_ALL_TIME'),
-        },
-        {
-          value: SearchRecency.TODAY,
-          text: str('SEARCH_OPTIONS_RECENCY_TODAY'),
-        },
-        {
-          value: SearchRecency.YESTERDAY,
-          text: str('SEARCH_OPTIONS_RECENCY_YESTERDAY'),
-        },
-        {
-          value: SearchRecency.LAST_WEEK,
-          text: str('SEARCH_OPTIONS_RECENCY_LAST_WEEK'),
-        },
-        {
-          value: SearchRecency.LAST_MONTH,
-          text: str('SEARCH_OPTIONS_RECENCY_LAST_MONTH'),
-        },
-        {
-          value: SearchRecency.LAST_YEAR,
-          text: str('SEARCH_OPTIONS_RECENCY_LAST_YEAR'),
-        },
-      ];
-    }
-    element.getFileTypeSelector().options = [
-      {
-        value: chrome.fileManagerPrivate.FileCategory.ALL,
-        text: str('SEARCH_OPTIONS_TYPES_ALL_TYPES'),
-      },
-      {
-        value: chrome.fileManagerPrivate.FileCategory.AUDIO,
-        text: str('SEARCH_OPTIONS_TYPES_AUDIO'),
-      },
-      {
-        value: chrome.fileManagerPrivate.FileCategory.DOCUMENT,
-        text: str('SEARCH_OPTIONS_TYPES_DOCUMENTS'),
-      },
-      {
-        value: chrome.fileManagerPrivate.FileCategory.IMAGE,
-        text: str('SEARCH_OPTIONS_TYPES_IMAGES'),
-      },
-      {
-        value: chrome.fileManagerPrivate.FileCategory.VIDEO,
-        text: str('SEARCH_OPTIONS_TYPES_VIDEOS'),
-      },
-    ];
+    element.getLocationSelector().options = createLocationOptions(state);
+    element.getRecencySelector().options = createRecencyOptions(state);
+    element.getFileTypeSelector().options = createFileCategoryOptions(state);
+    this.updateSearchOptions_(state);
     element.addEventListener(
         SEARCH_OPTIONS_CHANGED, this.onOptionsChanged_.bind(this));
     this.searchOptions_ = element;
@@ -488,12 +520,13 @@ export class SearchContainer extends EventTarget {
   private onOptionsChanged_(event: SearchOptionsChangedEvent) {
     const kind = event.detail.kind;
     const value = event.detail.value;
+    const state = this.store_.getState();
     switch (kind) {
       case OptionKind.LOCATION: {
         const location = value as unknown as SearchLocation;
         if (location !== this.currentOptions_.location) {
           this.currentOptions_.location = location;
-          this.updateSearchOptions_();
+          this.updateSearchOptions_(state);
         }
         break;
       }
@@ -501,7 +534,7 @@ export class SearchContainer extends EventTarget {
         const recency = value as unknown as SearchRecency;
         if (recency !== this.currentOptions_.recency) {
           this.currentOptions_.recency = recency;
-          this.updateSearchOptions_();
+          this.updateSearchOptions_(state);
         }
         break;
       }
@@ -510,7 +543,7 @@ export class SearchContainer extends EventTarget {
             value as unknown as chrome.fileManagerPrivate.FileCategory;
         if (category !== this.currentOptions_.fileCategory) {
           this.currentOptions_.fileCategory = category;
-          this.updateSearchOptions_();
+          this.updateSearchOptions_(state);
         }
         break;
       }
@@ -523,14 +556,14 @@ export class SearchContainer extends EventTarget {
   /**
    * Updates search options in the store.
    */
-  private updateSearchOptions_() {
-    if (util.isSearchV2Enabled()) {
-      this.store_.dispatch(updateSearch({
-        query: this.getQuery(),
-        status: undefined,  // do not change
-        options: this.currentOptions_,
-      }));
-    }
+  private updateSearchOptions_(state: State) {
+    updateRecencyOptionsVisibility(
+        state, this.getSearchOptionsElement_()!, this.currentOptions_);
+    this.store_.dispatch(updateSearch({
+      query: this.getQuery(),
+      status: undefined,  // do not change
+      options: this.currentOptions_,
+    }));
   }
 
   /**
@@ -544,8 +577,6 @@ export class SearchContainer extends EventTarget {
         this.openSearch();
       } else if (this.inputState_ === SearchInputState.OPEN) {
         this.closeSearch();
-      } else {
-        console.warn('Search UI is transitioning', this.inputState_);
       }
     });
     this.inputElement_.addEventListener('input', () => {
@@ -555,17 +586,12 @@ export class SearchContainer extends EventTarget {
       if (!this.inputElement_.value) {
         if (event.key === 'Escape') {
           this.closeSearch();
+          this.searchButton_.focus();
         }
         if (event.key === 'Tab') {
           this.closeSearch();
         }
       }
-    });
-    this.inputElement_.addEventListener('focus', () => {
-      this.autocompleteList_.attachToInput(this.inputElement_);
-    });
-    this.inputElement_.addEventListener('blur', () => {
-      this.autocompleteList_.detach();
     });
     this.clearButton_.addEventListener('click', () => {
       this.clear();
@@ -585,10 +611,14 @@ export class SearchContainer extends EventTarget {
         }
       }
     });
-    this.autocompleteList_.handleEnterKeydown =
-        this.postItemChangedEvent.bind(this);
-    this.autocompleteList_.addEventListener(
-        'mousedown', this.postItemChangedEvent.bind(this));
+  }
+
+  /**
+   * Returns whether the search container is open. In the open state the user
+   * may enter a search query, interact with options, etc.
+   */
+  isOpen() {
+    return this.inputState_ === SearchInputState.OPEN;
   }
 
   /**
@@ -600,17 +630,27 @@ export class SearchContainer extends EventTarget {
     // Do not initiate open transition if we are not closed. This would leave us
     // in the OPENING state, without ever getting to OPEN state.
     if (this.inputState_ === SearchInputState.CLOSED) {
-      this.inputState_ = SearchInputState.OPENING;
+      this.inputState_ = SearchInputState.OPEN;
+      this.inputElement_.addEventListener('transitionend', () => {
+        this.searchWrapper_.removeAttribute('collapsed');
+      }, {once: true, passive: true, capture: true});
       this.inputElement_.disabled = false;
       this.inputElement_.tabIndex = 0;
       this.inputElement_.focus();
-      this.inputElement_.addEventListener('transitionend', () => {
-        this.inputState_ = SearchInputState.OPEN;
-        this.searchWrapper_.removeAttribute('collapsed');
-      }, {once: true, passive: true, capture: true});
       this.searchWrapper_.classList.add('has-cursor', 'has-text');
       this.searchBox_.classList.add('has-cursor', 'has-text');
       this.searchButton_.tabIndex = -1;
+      this.updateClearButton_(this.getQuery());
+      const dialogType = this.store_.getState().launchParams.dialogType;
+      const rootType: SearchRootType = dialogType ?
+          (isModal(dialogType) ? SearchRootType.PICKER :
+                                 SearchRootType.STANDALONE) :
+          SearchRootType.UNKNOWN;
+      recordEnum('Search.RootType', rootType, [
+        SearchRootType.UNKNOWN,
+        SearchRootType.STANDALONE,
+        SearchRootType.PICKER,
+      ]);
     }
   }
 
@@ -623,17 +663,17 @@ export class SearchContainer extends EventTarget {
     // Do not initiate close transition if we are not open. This would leave us
     // in the CLOSING state, without ever getting to CLOSED state.
     if (this.inputState_ === SearchInputState.OPEN) {
-      this.hideOptions_();
-      this.hidePathDisplay_();
+      this.inputState_ = SearchInputState.CLOSED;
+      this.inputElement_.addEventListener('transitionend', () => {
+        this.searchWrapper_.setAttribute('collapsed', '');
+      }, {once: true, passive: true, capture: true});
+      this.hideOptionsElement_();
+      this.hideBreadcrumbElement_();
       this.store_.dispatch(clearSearch());
-      this.inputState_ = SearchInputState.CLOSING;
       this.inputElement_.tabIndex = -1;
       this.inputElement_.disabled = true;
       this.inputElement_.blur();
-      this.inputElement_.addEventListener('transitionend', () => {
-        this.inputState_ = SearchInputState.CLOSED;
-        this.searchWrapper_.setAttribute('collapsed', '');
-      }, {once: true, passive: true, capture: true});
+      this.inputElement_.value = '';
       this.searchWrapper_.classList.remove('has-cursor', 'has-text');
       this.searchBox_.classList.remove('has-cursor', 'has-text');
       this.searchButton_.tabIndex = 0;
@@ -642,68 +682,23 @@ export class SearchContainer extends EventTarget {
   }
 
   /**
+   * Updates the visibility of clear button.
+   */
+  private updateClearButton_(query: string) {
+    this.clearButton_.hidden = (query.length <= 0);
+  }
+
+  /**
    * Generates a custom event with the current value of the input element as the
    * search query.
    */
   private onQueryChanged_() {
     const query = this.inputElement_.value.trimStart();
-    this.dispatchEvent(new CustomEvent(SEARCH_QUERY_CHANGED, {
-      bubbles: true,
-      composed: true,
-      detail: {
-        query: query,
-      },
-    }));
+    this.updateClearButton_(query);
     this.store_.dispatch(updateSearch({
       query: query,
-      status: undefined,   // do not change
-      options: undefined,  // do not change
+      status: undefined,  // do not change
+      options: this.currentOptions_,
     }));
-  }
-
-  private postItemChangedEvent() {
-    this.dispatchEvent(new CustomEvent(SEARCH_ITEM_CHANGED, {
-      bubbles: true,
-      composed: true,
-      detail: {
-        item: this.getSelectedItem(),
-      },
-    }));
-  }
-}
-
-/**
- * The name of the event posted when the search query changes.
- */
-export const SEARCH_QUERY_CHANGED = 'search-query-changed';
-
-/**
- * The name of the event posted when a new autocomplete item is selected.
- */
-export const SEARCH_ITEM_CHANGED = 'search-item-changed';
-
-export interface QueryChange {
-  query: string;
-}
-
-export interface ItemChange {
-  item: SearchItem;
-}
-
-/**
- * A custom event that informs listeners that the query has changed.
- */
-export type SearchQueryChangedEvent = CustomEvent<QueryChange>;
-
-/**
- * A custom event that informs the listeners that an item in the autocomplete
- * list has been selected.
- */
-export type SearchItemChangedEvent = CustomEvent<ItemChange>;
-
-declare global {
-  interface HTMLElementEventMap {
-    [SEARCH_QUERY_CHANGED]: SearchQueryChangedEvent;
-    [SEARCH_ITEM_CHANGED]: SearchItemChangedEvent;
   }
 }

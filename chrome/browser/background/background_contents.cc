@@ -8,10 +8,9 @@
 
 #include "chrome/browser/background/background_contents_service.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/renderer_preferences_util.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
-#include "chrome/browser/ui/webui/chrome_web_ui_controller_factory.h"
 #include "chrome/common/url_constants.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -23,6 +22,8 @@
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/view_type_utils.h"
 #include "extensions/common/mojom/view_type.mojom.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
 #include "ui/gfx/geometry/rect.h"
 
 using content::SiteInstance;
@@ -42,11 +43,11 @@ BackgroundContents::BackgroundContents(
       site_instance->GetBrowserContext());
 
   WebContents::CreateParams create_params(profile_, std::move(site_instance));
+  create_params.is_never_composited = true;
   create_params.opener_render_process_id =
-      opener ? opener->GetProcess()->GetID() : MSG_ROUTING_NONE;
+      opener ? opener->GetProcess()->GetDeprecatedID() : MSG_ROUTING_NONE;
   create_params.opener_render_frame_id =
       opener ? opener->GetRoutingID() : MSG_ROUTING_NONE;
-  create_params.is_never_visible = true;
 
   if (session_storage_namespace) {
     content::SessionStorageNamespaceMap session_storage_namespace_map;
@@ -57,6 +58,7 @@ BackgroundContents::BackgroundContents(
   } else {
     web_contents_ = WebContents::Create(create_params);
   }
+  web_contents_->SetOwnerLocationForDebug(FROM_HERE);
   extensions::SetViewType(web_contents_.get(),
                           extensions::mojom::ViewType::kBackgroundContents);
   web_contents_->SetDelegate(this);
@@ -107,7 +109,7 @@ void BackgroundContents::PrimaryPageChanged(content::Page& page) {
 }
 
 // Forward requests to add a new WebContents to our delegate.
-void BackgroundContents::AddNewContents(
+WebContents* BackgroundContents::AddNewContents(
     WebContents* source,
     std::unique_ptr<WebContents> new_contents,
     const GURL& target_url,
@@ -117,12 +119,7 @@ void BackgroundContents::AddNewContents(
     bool* was_blocked) {
   delegate_->AddWebContents(std::move(new_contents), target_url, disposition,
                             window_features, was_blocked);
-}
-
-bool BackgroundContents::IsNeverComposited(content::WebContents* web_contents) {
-  DCHECK_EQ(extensions::mojom::ViewType::kBackgroundContents,
-            extensions::GetViewType(web_contents));
-  return true;
+  return nullptr;
 }
 
 void BackgroundContents::PrimaryMainFrameRenderProcessGone(
@@ -132,7 +129,14 @@ void BackgroundContents::PrimaryMainFrameRenderProcessGone(
 }
 
 void BackgroundContents::CreateRendererNow() {
-  web_contents()->GetController().LoadURL(initial_url_, content::Referrer(),
-                                          ui::PAGE_TRANSITION_LINK,
-                                          std::string());
+  base::WeakPtr<content::NavigationHandle> handle =
+      web_contents()->GetController().LoadURL(initial_url_, content::Referrer(),
+                                              ui::PAGE_TRANSITION_LINK,
+                                              std::string());
+  if (handle) {
+    ukm::builders::Extensions_BackgroundContentsCreated(
+        handle->GetNextPageUkmSourceId())
+        .SetSeen(true)
+        .Record(ukm::UkmRecorder::Get());
+  }
 }

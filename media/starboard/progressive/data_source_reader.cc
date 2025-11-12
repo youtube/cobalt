@@ -14,7 +14,7 @@
 
 #include "media/starboard/progressive/data_source_reader.h"
 
-#include "starboard/types.h"
+#include <cstdint>
 
 namespace media {
 

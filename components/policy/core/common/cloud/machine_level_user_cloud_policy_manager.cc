@@ -4,6 +4,7 @@
 
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -31,16 +32,18 @@ MachineLevelUserCloudPolicyManager::MachineLevelUserCloudPolicyManager(
     const base::FilePath& policy_dir,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     network::NetworkConnectionTrackerGetter network_connection_tracker_getter)
-    : CloudPolicyManager(GetMachineLevelUserCloudPolicyTypeForCurrentOS(),
+    : CloudPolicyManager(dm_protocol::kChromeMachineLevelUserCloudPolicyType,
                          std::string(),
-                         store.get(),
+                         std::move(store),
                          task_runner,
                          std::move(network_connection_tracker_getter)),
-      store_(std::move(store)),
+      user_store_(static_cast<MachineLevelUserCloudPolicyStore*>(
+          CloudPolicyManager::store())),
       external_data_manager_(std::move(external_data_manager)),
       policy_dir_(policy_dir) {}
 
-MachineLevelUserCloudPolicyManager::~MachineLevelUserCloudPolicyManager() {}
+MachineLevelUserCloudPolicyManager::~MachineLevelUserCloudPolicyManager() =
+    default;
 
 void MachineLevelUserCloudPolicyManager::Connect(
     PrefService* local_state,
@@ -85,10 +88,10 @@ void MachineLevelUserCloudPolicyManager::DisconnectAndRemovePolicy() {
   // component policies are also empty at CheckAndPublishPolicy().
   ClearAndDestroyComponentCloudPolicyService();
 
-  // When the |store_| is cleared, it informs the |external_data_manager_| that
-  // all external data references have been removed, causing the
+  // When the |user_store_| is cleared, it informs the |external_data_manager_|
+  // that all external data references have been removed, causing the
   // |external_data_manager_| to clear its cache as well.
-  store_->Clear();
+  user_store_->Clear();
 }
 
 void MachineLevelUserCloudPolicyManager::Init(SchemaRegistry* registry) {

@@ -4,33 +4,67 @@
 
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 
+#include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "components/supervised_user/core/common/pref_names.h"
 
 namespace supervised_user {
+
+const int kHistogramFilteringBehaviorSpacing = 100;
+const int kSupervisedUserURLFilteringResultHistogramMax = 800;
+
 namespace {
-
-GURL KidsManagementBaseURL() {
-  return GURL("https://kidsmanagement-pa.googleapis.com/kidsmanagement/v1/");
-}
-
-const char kGetFamilyProfileURL[] = "families/mine?alt=json";
-const char kGetFamilyMembersURL[] = "families/mine/members?alt=json";
-const char kPermissionRequestsURL[] = "people/me/permissionRequests";
-const char kClassifyURLRequestURL[] = "people/me:classifyUrl";
-
+const int kHistogramPageTransitionMaxKnownValue =
+    static_cast<int>(ui::PAGE_TRANSITION_KEYWORD_GENERATED);
+const int kHistogramPageTransitionFallbackValue =
+    kHistogramFilteringBehaviorSpacing - 1;
 }  // namespace
 
-const char kAuthorizationHeaderFormat[] = "Bearer %s";
+static_assert(kHistogramPageTransitionMaxKnownValue <
+                  kHistogramPageTransitionFallbackValue,
+              "HistogramPageTransition MaxKnownValue must be < FallbackValue");
+static_assert(FILTERING_BEHAVIOR_MAX * kHistogramFilteringBehaviorSpacing +
+                      kHistogramPageTransitionFallbackValue <
+                  kSupervisedUserURLFilteringResultHistogramMax,
+              "Invalid kSupervisedUserURLFilteringResultHistogramMax value");
+
+std::string WebFilterTypeToDisplayString(WebFilterType web_filter_type) {
+  switch (web_filter_type) {
+    case WebFilterType::kAllowAllSites:
+      return "allow_all_sites";
+    case WebFilterType::kCertainSites:
+      return "allow_certain_sites";
+    case WebFilterType::kTryToBlockMatureSites:
+      return "block_mature_sites";
+    case WebFilterType::kDisabled:
+      return "disabled";
+    case WebFilterType::kMixed:
+      NOTREACHED();
+  }
+}
+
+int GetHistogramValueForTransitionType(ui::PageTransition transition_type) {
+  int value =
+      static_cast<int>(ui::PageTransitionStripQualifier(transition_type));
+  if (0 <= value && value <= kHistogramPageTransitionMaxKnownValue) {
+    return value;
+  }
+  NOTREACHED();
+}
+
+const char kAuthorizationHeader[] = "Bearer";
 const char kCameraMicDisabled[] = "CameraMicDisabled";
 const char kContentPackDefaultFilteringBehavior[] =
     "ContentPackDefaultFilteringBehavior";
 const char kContentPackManualBehaviorHosts[] = "ContentPackManualBehaviorHosts";
 const char kContentPackManualBehaviorURLs[] = "ContentPackManualBehaviorURLs";
 const char kCookiesAlwaysAllowed[] = "CookiesAlwaysAllowed";
-const char kForceSafeSearch[] = "ForceSafeSearch";
 const char kGeolocationDisabled[] = "GeolocationDisabled";
 const char kSafeSitesEnabled[] = "SafeSites";
 const char kSigninAllowed[] = "SigninAllowed";
+const char kSigninAllowedOnNextStartup[] = "kSigninAllowedOnNextStartup";
+const char kSkipParentApprovalToInstallExtensions[] =
+    "SkipParentApprovalToInstallExtensions";
 
 const char kChildAccountSUID[] = "ChildAccountSUID";
 
@@ -58,20 +92,54 @@ const base::FilePath::CharType kSupervisedUserSettingsFilename[] =
 const char kSyncGoogleDashboardURL[] =
     "https://www.google.com/settings/chrome/sync";
 
-GURL KidsManagementGetFamilyProfileURL() {
-  return KidsManagementBaseURL().Resolve(kGetFamilyProfileURL);
-}
+const char kFamilyLinkUserLogSegmentHistogramName[] =
+    "FamilyLinkUser.LogSegment";
 
-GURL KidsManagementGetFamilyMembersURL() {
-  return KidsManagementBaseURL().Resolve(kGetFamilyMembersURL);
-}
+const char kFamilyLinkUserLogSegmentWebFilterHistogramName[] =
+    "FamilyUser.WebFilterType.PerRecord";
 
-GURL KidsManagementPermissionRequestsURL() {
-  return KidsManagementBaseURL().Resolve(kPermissionRequestsURL);
-}
+extern const char kSitesMayRequestCameraMicLocationHistogramName[] =
+    "SupervisedUsers.SitesMayRequestCameraMicLocation.PerRecord";
 
-GURL KidsManagementClassifyURLRequestURL() {
-  return KidsManagementBaseURL().Resolve(kClassifyURLRequestURL);
-}
+const char kSkipParentApprovalToInstallExtensionsHistogramName[] =
+    "SupervisedUsers.SkipParentApprovalToInstallExtensions.PerRecord";
 
+const char kSupervisedUserURLFilteringResultHistogramName[] =
+    "ManagedUsers.FilteringResult";
+
+const char kSupervisedUserTopLevelURLFilteringResultHistogramName[] =
+    "ManagedUsers.TopLevelFilteringResult";
+const char kSupervisedUserTopLevelURLFilteringResult2HistogramName[] =
+    "ManagedUsers.TopLevelFilteringResult2";
+
+const char kLocalWebApprovalResultHistogramName[] =
+    "FamilyLinkUser.LocalWebApprovalResult";
+
+const char kManagedByParentUiMoreInfoUrl[] =
+    "https://familylink.google.com/setting/resource/94";
+
+const char kFamilyManagementUrl[] =
+    "https://myaccount.google.com/family/details";
+
+const char kDefaultEmptyFamilyMemberRole[] = "not_in_family";
+
+// LINT.IfChange
+const char kFamilyMemberRoleFeedbackTag[] = "Family_Member_Role";
+// LINT.ThenChange(//chrome/browser/feedback/android/java/src/org/chromium/chrome/browser/feedback/FamilyInfoFeedbackSource.java)
+
+const char kClassifiedEarlierThanContentResponseHistogramName[] =
+    "SupervisedUsers.ClassifyUrlThrottle.EarlierThanContentResponse";
+const char kClassifiedLaterThanContentResponseHistogramName[] =
+    "SupervisedUsers.ClassifyUrlThrottle.LaterThanContentResponse";
+extern const char kClassifyUrlThrottleStatusHistogramName[] =
+    "SupervisedUsers.ClassifyUrlThrottle.Status";
+extern const char kClassifyUrlThrottleFinalStatusHistogramName[] =
+    "SupervisedUsers.ClassifyUrlThrottle.FinalStatus";
+extern const char kClassifyUrlThrottleUseCaseHistogramName[] =
+    "SupervisedUsers.ClassifyUrlThrottle.UseCase";
+
+const char kLocalWebApprovalDurationMillisecondsHistogramName[] =
+    "FamilyLinkUser.LocalWebApprovalCompleteRequestTotalDuration";
+const char kLocalWebApprovalErrorTypeHistogramName[] =
+    "FamilyLinkUser.LocalWebApprovalErrorType";
 }  // namespace supervised_user

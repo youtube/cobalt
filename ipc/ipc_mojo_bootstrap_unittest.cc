@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ipc/ipc_mojo_bootstrap.h"
 
 #include <cstdint>
@@ -206,8 +211,8 @@ MULTIPROCESS_TEST_MAIN_WITH_SETUP(
   auto& sender = connection.GetSender();
 
   uint8_t data = 0;
-  sender->Receive(IPC::MessageView(base::make_span(&data, 0u),
-                                   absl::nullopt /* handles */));
+  sender->Receive(
+      IPC::MessageView(base::span(&data, 0u), std::nullopt /* handles */));
 
   base::RunLoop run_loop;
   PeerPidReceiver impl(std::move(receiver), run_loop.QuitClosure());

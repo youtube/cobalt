@@ -5,33 +5,59 @@
 #include "ash/app_list/app_list_item_util.h"
 
 #include <string>
+#include <vector>
 
+#include "base/json/values_util.h"
 #include "base/no_destructor.h"
 #include "base/pickle.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 
 namespace ash {
 
+DraggableAppItemInfo::DraggableAppItemInfo(const std::string& app_id,
+                                           const DraggableAppType type)
+    : app_id(app_id), type(type) {}
+
+DraggableAppItemInfo::~DraggableAppItemInfo() = default;
+
+DraggableAppItemInfo::DraggableAppItemInfo(const DraggableAppItemInfo& other) =
+    default;
+
+DraggableAppItemInfo::DraggableAppItemInfo(DraggableAppItemInfo&& other) =
+    default;
+
+DraggableAppItemInfo& DraggableAppItemInfo::operator=(
+    const DraggableAppItemInfo& other) = default;
+
+bool DraggableAppItemInfo::IsValid() const {
+  return app_id.empty();
+}
+
 const ui::ClipboardFormatType& GetAppItemFormatType() {
   static const base::NoDestructor<ui::ClipboardFormatType> format(
-      ui::ClipboardFormatType::GetType("ash/x-app-item-id"));
+      ui::ClipboardFormatType::CustomPlatformType("ash/x-app-item-id"));
 
   return *format;
 }
 
-absl::optional<std::string> GetAppIdFromDropData(
+std::optional<DraggableAppItemInfo> GetAppInfoFromDropDataForAppType(
     const ui::OSExchangeData& data) {
-  base::Pickle data_pickle;
-  if (!data.GetPickledData(GetAppItemFormatType(), &data_pickle)) {
-    return absl::nullopt;
+  std::optional<base::Pickle> data_pickle =
+      data.GetPickledData(GetAppItemFormatType());
+  if (!data_pickle.has_value()) {
+    return std::nullopt;
   }
 
   std::string app_id;
-  base::PickleIterator iter(data_pickle);
-  if (!iter.ReadString(&app_id)) {
-    return absl::nullopt;
+  int type_value = -1;
+  base::PickleIterator iter(data_pickle.value());
+  if (!iter.ReadString(&app_id) || !iter.ReadInt(&type_value) ||
+      type_value < 0 || type_value > static_cast<int>(DraggableAppType::kMax)) {
+    return std::nullopt;
   }
-
-  return app_id;
+  return DraggableAppItemInfo(app_id,
+                              static_cast<DraggableAppType>(type_value));
 }
 
 }  // namespace ash

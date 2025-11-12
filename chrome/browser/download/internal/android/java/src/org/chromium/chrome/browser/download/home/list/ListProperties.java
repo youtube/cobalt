@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.util.Pair;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.components.offline_items_collection.OfflineItemVisuals;
 import org.chromium.components.offline_items_collection.VisualsCallback;
@@ -22,6 +23,7 @@ import java.util.Date;
  * download manager: (1) A set of properties that act directly on the list view itself. (2) A set of
  * properties that are effectively shared across all list items like callbacks.
  */
+@NullMarked
 public interface ListProperties {
     /** A helper interface to support retrieving {@link OfflineItemVisuals} asynchronously. */
     @FunctionalInterface
@@ -100,8 +102,21 @@ public interface ListProperties {
     WritableObjectPropertyKey<Callback<Pair<Date, String>>> CALLBACK_GROUP_PAGINATION_CLICK =
             new WritableObjectPropertyKey<>();
 
-    PropertyKey[] ALL_KEYS = new PropertyKey[] {ENABLE_ITEM_ANIMATIONS, CALLBACK_OPEN,
-            CALLBACK_PAUSE, CALLBACK_RESUME, CALLBACK_CANCEL, CALLBACK_SHARE, CALLBACK_REMOVE,
-            CALLBACK_RENAME, PROVIDER_VISUALS, PROVIDER_FAVICON, CALLBACK_SELECTION,
-            SELECTION_MODE_ACTIVE, CALLBACK_PAGINATION_CLICK, CALLBACK_GROUP_PAGINATION_CLICK};
+    PropertyKey[] ALL_KEYS =
+            new PropertyKey[] {
+                ENABLE_ITEM_ANIMATIONS,
+                CALLBACK_OPEN,
+                CALLBACK_PAUSE,
+                CALLBACK_RESUME,
+                CALLBACK_CANCEL,
+                CALLBACK_SHARE,
+                CALLBACK_REMOVE,
+                CALLBACK_RENAME,
+                PROVIDER_VISUALS,
+                PROVIDER_FAVICON,
+                CALLBACK_SELECTION,
+                SELECTION_MODE_ACTIVE,
+                CALLBACK_PAGINATION_CLICK,
+                CALLBACK_GROUP_PAGINATION_CLICK
+            };
 }

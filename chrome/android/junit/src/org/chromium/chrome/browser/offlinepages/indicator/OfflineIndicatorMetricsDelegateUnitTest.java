@@ -17,9 +17,7 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.UmaRecorderHolder;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Unit tests for {@link OfflineIndicatorMetricsDelegate}.
- */
+/** Unit tests for {@link OfflineIndicatorMetricsDelegate}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public final class OfflineIndicatorMetricsDelegateUnitTest {
@@ -59,7 +57,7 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
 
         UmaRecorderHolder.resetForTesting();
 
-        resetMetricsDelegate(/*isOffline=*/false, /*isForeground=*/true);
+        resetMetricsDelegate(/* isOffline= */ false, /* isForeground= */ true);
     }
 
     /**
@@ -83,13 +81,6 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
         checkUniqueSample(
                 OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2, 1000);
-        checkUniqueSample(
-                OfflineIndicatorMetricsDelegate
-                        .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED,
-                1000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                0);
     }
 
     /**
@@ -120,14 +111,6 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
         checkUniqueSample(
                 OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2, 7000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                1);
-
-        assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        OfflineIndicatorMetricsDelegate
-                                .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED));
     }
 
     /**
@@ -162,16 +145,9 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
         // Check that we have stopped tracking a shown duration, and we record the expected values
         // to the histograms.
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
-        checkUniqueSample(OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2,
+        checkUniqueSample(
+                OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2,
                 2000 * numStateChanges + 1000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                numStateChanges);
-
-        assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        OfflineIndicatorMetricsDelegate
-                                .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED));
     }
 
     /**
@@ -199,7 +175,7 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
 
         // Simulate Chrome starting up, while still offline. Check that we read values from Prefs
         // and are still tracking a shown duration.
-        resetMetricsDelegate(/*isOffline=*/true, /*isForeground=*/true);
+        resetMetricsDelegate(/* isOffline= */ true, /* isForeground= */ true);
         assertTrue(mMetricsDelegate.isTrackingShownDuration());
 
         // Finally simulate the indicator being hidden.
@@ -211,14 +187,6 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
         checkUniqueSample(
                 OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2, 15000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                1);
-
-        assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        OfflineIndicatorMetricsDelegate
-                                .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED));
     }
 
     /**
@@ -246,23 +214,13 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
 
         // Simulate Chrome starting up, while now online. In this case, we should immediately record
         // the persisted metrics and stop tracking the shown duration..
-        resetMetricsDelegate(/*isOffline=*/false, /*isForeground=*/true);
+        resetMetricsDelegate(/* isOffline= */ false, /* isForeground= */ true);
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
         checkUniqueSample(
                 OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2, 7000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                1);
-
-        assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        OfflineIndicatorMetricsDelegate
-                                .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED));
     }
 
-    /**
-     * Tests that we clear the persisted state from prefs correctly after tracking a shown duration.
-     */
+    /** Tests that we clear the persisted state from prefs correctly after tracking a shown duration. */
     @Test
     public void testMetricsCleared() {
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
@@ -281,14 +239,6 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
 
         checkUniqueSample(
                 OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2, 7000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                1);
-
-        assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        OfflineIndicatorMetricsDelegate
-                                .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED));
 
         // After checking the histograms, clear them, so our next check only looks at new data.
         UmaRecorderHolder.resetForTesting();
@@ -297,7 +247,7 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
         // tracking a shown duration.
         mMetricsDelegate = null;
         mFakeClock.advanceCurrentTimeMillis(8000);
-        resetMetricsDelegate(/*isOffline=*/false, /*isForeground=*/true);
+        resetMetricsDelegate(/* isOffline= */ false, /* isForeground= */ true);
         mFakeClock.advanceCurrentTimeMillis(16000);
         assertFalse(mMetricsDelegate.isTrackingShownDuration());
 
@@ -311,13 +261,6 @@ public final class OfflineIndicatorMetricsDelegateUnitTest {
 
         checkUniqueSample(
                 OfflineIndicatorMetricsDelegate.OFFLINE_INDICATOR_SHOWN_DURATION_V2, 32000);
-        checkUniqueSample(
-                OfflineIndicatorMetricsDelegate
-                        .OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED,
-                32000);
-        checkUniqueSample(OfflineIndicatorMetricsDelegate
-                                  .OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED,
-                0);
     }
 
     /**

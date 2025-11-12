@@ -15,29 +15,42 @@
  */
 
 #include "src/trace_processor/util/profile_builder.h"
+
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <deque>
-#include <iostream>
+#include <functional>
 #include <iterator>
+#include <memory>
 #include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "perfetto/base/logging.h"
 #include "perfetto/ext/base/string_utils.h"
 #include "perfetto/ext/base/string_view.h"
+#include "perfetto/ext/base/utils.h"
 #include "perfetto/ext/trace_processor/demangle.h"
+#include "perfetto/protozero/packed_repeated_fields.h"
+#include "perfetto/protozero/proto_utils.h"
+#include "perfetto/protozero/scattered_heap_buffer.h"
 #include "src/trace_processor/containers/null_term_string_view.h"
 #include "src/trace_processor/containers/string_pool.h"
+#include "src/trace_processor/db/column/types.h"
 #include "src/trace_processor/storage/trace_storage.h"
+#include "src/trace_processor/tables/profiler_tables_py.h"
 #include "src/trace_processor/types/trace_processor_context.h"
 #include "src/trace_processor/util/annotated_callsites.h"
 
-namespace perfetto {
-namespace trace_processor {
+#include "protos/third_party/pprof/profile.pbzero.h"
+
+namespace perfetto::trace_processor {
 namespace {
 
 using protos::pbzero::Stack;
+using third_party::perftools::profiles::pbzero::Profile;
+using third_party::perftools::profiles::pbzero::Sample;
 
 base::StringView ToString(CallsiteAnnotation annotation) {
   switch (annotation) {
@@ -195,13 +208,47 @@ int64_t GProfileBuilder::Mapping::ComputeMainBinaryScore() const {
   return score;
 }
 
+bool GProfileBuilder::SampleAggregator::AddSample(
+    const protozero::PackedVarInt& location_ids,
+    const std::vector<int64_t>& values) {
+  SerializedLocationId key(location_ids.data(),
+                           location_ids.data() + location_ids.size());
+  std::vector<int64_t>* agg_values = samples_.Find(key);
+  if (!agg_values) {
+    samples_.Insert(std::move(key), values);
+    return true;
+  }
+  // All samples must have the same number of values.
+  if (values.size() != agg_values->size()) {
+    return false;
+  }
+  std::transform(values.begin(), values.end(), agg_values->begin(),
+                 agg_values->begin(), std::plus<int64_t>());
+  return true;
+}
+
+void GProfileBuilder::SampleAggregator::WriteTo(Profile& profile) {
+  protozero::PackedVarInt values;
+  for (auto it = samples_.GetIterator(); it; ++it) {
+    values.Reset();
+    for (int64_t value : it.value()) {
+      values.Append(value);
+    }
+    Sample* sample = profile.add_sample();
+    sample->set_value(values);
+    // Map key is the serialized varint. Just append the bytes.
+    sample->AppendBytes(Sample::kLocationIdFieldNumber, it.key().data(),
+                        it.key().size());
+  }
+}
+
 GProfileBuilder::GProfileBuilder(const TraceProcessorContext* context,
                                  const std::vector<ValueType>& sample_types)
     : context_(*context),
       string_table_(&result_, &context->storage->string_pool()),
       annotations_(context) {
-  // Make sure the empty function always gets id 0 which will be ignored when
-  // writing the proto file.
+  // Make sure the empty function always gets id 0 which will be ignored
+  // when writing the proto file.
   functions_.insert(
       {Function{kEmptyStringIndex, kEmptyStringIndex, kEmptyStringIndex},
        kNullFunctionId});
@@ -218,28 +265,16 @@ void GProfileBuilder::WriteSampleTypes(
         string_table_.InternString(base::StringView(value_type.type));
     int64_t unit =
         string_table_.InternString(base::StringView(value_type.unit));
-    // Add message later, remember protozero does not allow you to interleave
-    // these write calls.
+    // Add message later, remember protozero does not allow you to
+    // interleave these write calls.
     auto* sample_type = result_->add_sample_type();
     sample_type->set_type(type);
     sample_type->set_unit(unit);
   }
 }
 
-bool GProfileBuilder::AddSample(const protozero::PackedVarInt& location_ids,
-                                const protozero::PackedVarInt& values) {
-  PERFETTO_CHECK(!finalized_);
-  if (location_ids.size() == 0) {
-    return false;
-  }
-  auto* sample = result_->add_sample();
-  sample->set_value(values);
-  sample->set_location_id(location_ids);
-  return true;
-}
-
 bool GProfileBuilder::AddSample(const Stack::Decoder& stack,
-                                const protozero::PackedVarInt& values) {
+                                const std::vector<int64_t>& values) {
   PERFETTO_CHECK(!finalized_);
 
   auto it = stack.entries();
@@ -256,7 +291,7 @@ bool GProfileBuilder::AddSample(const Stack::Decoder& stack,
       uint32_t callsite_id = entry.has_callsite_id()
                                  ? entry.callsite_id()
                                  : entry.annotated_callsite_id();
-      return AddSample(
+      return samples_.AddSample(
           GetLocationIdsForCallsite(CallsiteId(callsite_id), annotated),
           values);
     }
@@ -277,7 +312,7 @@ bool GProfileBuilder::AddSample(const Stack::Decoder& stack,
                                  : entry.annotated_callsite_id();
       const protozero::PackedVarInt& ids =
           GetLocationIdsForCallsite(CallsiteId(callsite_id), annotated);
-      for (auto* p = ids.data(); p < ids.data() + ids.size();) {
+      for (const uint8_t* p = ids.data(); p < ids.data() + ids.size();) {
         uint64_t location_id;
         p = protozero::proto_utils::ParseVarInt(p, ids.data() + ids.size(),
                                                 &location_id);
@@ -288,7 +323,7 @@ bool GProfileBuilder::AddSample(const Stack::Decoder& stack,
                                                 CallsiteAnnotation::kNone));
     }
   }
-  return AddSample(location_ids, values);
+  return samples_.AddSample(location_ids, values);
 }
 
 void GProfileBuilder::Finalize() {
@@ -298,6 +333,7 @@ void GProfileBuilder::Finalize() {
   WriteMappings();
   WriteFunctions();
   WriteLocations();
+  samples_.WriteTo(*result_.get());
   finalized_ = true;
 }
 
@@ -350,7 +386,7 @@ uint64_t GProfileBuilder::WriteLocationIfNeeded(FrameId frame_id,
     return it->second;
   }
 
-  auto& frames = context_.storage->stack_profile_frame_table();
+  const auto& frames = context_.storage->stack_profile_frame_table();
   auto frame = *frames.FindById(key.frame_id);
 
   const auto& mappings = context_.storage->stack_profile_mapping_table();
@@ -412,8 +448,14 @@ std::vector<GProfileBuilder::Line> GProfileBuilder::GetLines(
     const tables::StackProfileFrameTable::ConstRowReference& frame,
     CallsiteAnnotation annotation,
     uint64_t mapping_id) {
-  std::vector<Line> lines =
-      GetLinesForSymbolSetId(frame.symbol_set_id(), annotation, mapping_id);
+  std::vector<Line> lines;
+
+  lines = GetLinesForJitFrame(frame, annotation, mapping_id);
+  if (!lines.empty()) {
+    return lines;
+  }
+
+  lines = GetLinesForSymbolSetId(frame.symbol_set_id(), annotation, mapping_id);
   if (!lines.empty()) {
     return lines;
   }
@@ -427,6 +469,138 @@ std::vector<GProfileBuilder::Line> GProfileBuilder::GetLines(
   return lines;
 }
 
+namespace {
+template <typename Table>
+std::optional<typename Table::ConstRowReference> GetByConstraint(
+    const Table& table,
+    Constraint&& c) {
+  Query q;
+  q.constraints = {c};
+  q.limit = 1;
+  auto row_map = table.QueryToRowMap(q);
+  if (row_map.empty())
+    return {};
+  return table[row_map.Get(0)];
+}
+}  // namespace
+
+std::vector<GProfileBuilder::Line> GProfileBuilder::GetLinesForJitFrame(
+    const tables::StackProfileFrameTable::ConstRowReference& frame,
+    CallsiteAnnotation annotation,
+    uint64_t mapping_id) {
+  // Execute the equivalent of the SQL logic in callstacks/stack_profile.sql,
+  // namely
+  //
+  // ```
+  // COALESCE(
+  //     'JS: ' || IIF(jsf.name = "", "(anonymous)", jsf.name) || ':' ||
+  //     jsf.line || ':' || jsf.col || ' [' || LOWER(jsc.tier) || ']', 'WASM: '
+  //     || wc.function_name || ' [' || LOWER(wc.tier) || ']', 'REGEXP: ' ||
+  //     rc.pattern, 'V8: ' || v8c.function_name, 'JIT: ' || jc.function_name
+  //   ) AS name,
+  // FROM _callstack_spc_raw_forest c
+  // JOIN stack_profile_frame f ON c.frame_id = f.id
+  // LEFT JOIN _v8_js_code jsc USING(jit_code_id)
+  // LEFT JOIN v8_js_function jsf USING(v8_js_function_id)
+  // LEFT JOIN _v8_internal_code v8c USING(jit_code_id)
+  // LEFT JOIN _v8_wasm_code wc USING(jit_code_id)
+  // LEFT JOIN _v8_regexp_code rc USING(jit_code_id)
+  // LEFT JOIN __intrinsic_jit_code jc ON c.jit_code_id = jc.id
+  // ```
+  //
+  // TODO(leszeks): Unify these manual table lookups with the SQL
+  // implementation, e.g. by calling _callstacks_for_callsites in
+  // GProfileBuilder.
+
+  const auto& jit_frames = context_.storage->jit_frame_table();
+  auto maybe_jf =
+      GetByConstraint(jit_frames, jit_frames.frame_id().eq(frame.id().value));
+  if (!maybe_jf) {
+    return {};
+  }
+  auto jf = *maybe_jf;
+
+  const auto& v8_js_code = context_.storage->v8_js_code_table();
+  auto maybe_jsc = GetByConstraint(
+      v8_js_code, v8_js_code.jit_code_id().eq(jf.jit_code_id().value));
+  if (maybe_jsc) {
+    auto jsc = *maybe_jsc;
+
+    const auto& v8_js_funcs = context_.storage->v8_js_function_table();
+    auto maybe_jsf = v8_js_funcs.FindById(jsc.v8_js_function_id());
+    if (maybe_jsf) {
+      auto jsf = *maybe_jsf;
+      auto jsf_name = context_.storage->string_pool().Get(jsf.name());
+      auto jsf_tier = context_.storage->string_pool().Get(jsc.tier());
+      base::StackString<64> name(
+          "JS: %s:%u:%u [%s]",
+          jsf_name.empty() ? "(anonymous)" : jsf_name.c_str(),
+          jsf.line().value_or(0), jsf.col().value_or(0), jsf_tier.c_str());
+
+      const auto& v8_js_scripts = context_.storage->v8_js_script_table();
+      auto maybe_jss = v8_js_scripts.FindById(jsf.v8_js_script_id());
+
+      return {
+          Line{WriteFunctionIfNeeded(
+                   name.string_view(),
+                   maybe_jss.has_value() ? maybe_jss->name() : kNullStringId,
+                   annotation, mapping_id),
+               jsf.line().value_or(0)}};
+    }
+  }
+
+  const auto& v8_wasm_code = context_.storage->v8_wasm_code_table();
+  auto maybe_wc = GetByConstraint(
+      v8_wasm_code, v8_wasm_code.jit_code_id().eq(jf.jit_code_id().value));
+  if (maybe_wc) {
+    auto wc = *maybe_wc;
+    std::string name =
+        "WASM: " +
+        context_.storage->GetString(wc.function_name()).ToStdString();
+    return {Line{WriteFunctionIfNeeded(base::StringView(name), kNullStringId,
+                                       annotation, mapping_id),
+                 0}};
+  }
+
+  const auto& v8_regexp_code = context_.storage->v8_regexp_code_table();
+  auto maybe_rc = GetByConstraint(
+      v8_regexp_code, v8_regexp_code.jit_code_id().eq(jf.jit_code_id().value));
+  if (maybe_rc) {
+    auto rc = *maybe_rc;
+    std::string name =
+        "REGEXP: " + context_.storage->GetString(rc.pattern()).ToStdString();
+    return {Line{WriteFunctionIfNeeded(base::StringView(name), kNullStringId,
+                                       annotation, mapping_id),
+                 0}};
+  }
+
+  const auto& v8_internal_code = context_.storage->v8_internal_code_table();
+  auto maybe_v8c = GetByConstraint(
+      v8_internal_code,
+      v8_internal_code.jit_code_id().eq(jf.jit_code_id().value));
+  if (maybe_v8c) {
+    auto v8c = *maybe_v8c;
+    std::string name =
+        "V8: " + context_.storage->GetString(v8c.function_name()).ToStdString();
+    return {Line{WriteFunctionIfNeeded(base::StringView(name), kNullStringId,
+                                       annotation, mapping_id),
+                 0}};
+  }
+
+  const auto& jit_code = context_.storage->jit_code_table();
+  auto maybe_jc = jit_code.FindById(jf.jit_code_id());
+  if (maybe_jc) {
+    auto jc = *maybe_jc;
+    std::string name =
+        "JIT: " + context_.storage->GetString(jc.function_name()).ToStdString();
+    return {Line{WriteFunctionIfNeeded(base::StringView(name), kNullStringId,
+                                       annotation, mapping_id),
+                 0}};
+  }
+
+  return {};
+}
+
 std::vector<GProfileBuilder::Line> GProfileBuilder::GetLinesForSymbolSetId(
     std::optional<uint32_t> symbol_set_id,
     CallsiteAnnotation annotation,
@@ -435,14 +609,14 @@ std::vector<GProfileBuilder::Line> GProfileBuilder::GetLinesForSymbolSetId(
     return {};
   }
 
-  auto& symbols = context_.storage->symbol_table();
+  const auto& symbols = context_.storage->symbol_table();
 
   using RowRef =
       perfetto::trace_processor::tables::SymbolTable::ConstRowReference;
   std::vector<RowRef> symbol_set;
-  for (auto it = symbols.FilterToIterator(
-           {symbols.symbol_set_id().eq(*symbol_set_id)});
-       it; ++it) {
+  Query q;
+  q.constraints = {symbols.symbol_set_id().eq(*symbol_set_id)};
+  for (auto it = symbols.FilterToIterator(q); it; ++it) {
     symbol_set.push_back(it.row_reference());
   }
 
@@ -454,7 +628,7 @@ std::vector<GProfileBuilder::Line> GProfileBuilder::GetLinesForSymbolSetId(
     if (uint64_t function_id =
             WriteFunctionIfNeeded(symbol, annotation, mapping_id);
         function_id != kNullFunctionId) {
-      lines.push_back({function_id, symbol.line_number()});
+      lines.push_back({function_id, symbol.line_number().value_or(0)});
     }
   }
 
@@ -471,12 +645,40 @@ uint64_t GProfileBuilder::WriteFakeFunctionIfNeeded(int64_t name_id) {
   return ins.first->second;
 }
 
+uint64_t GProfileBuilder::WriteFunctionIfNeeded(base::StringView name,
+                                                StringPool::Id filename,
+                                                CallsiteAnnotation annotation,
+                                                uint64_t mapping_id) {
+  int64_t name_id = string_table_.GetAnnotatedString(name, annotation);
+  int64_t filename_id = !filename.is_null()
+                            ? string_table_.InternString(filename)
+                            : kEmptyStringIndex;
+
+  auto ins =
+      functions_.insert({Function{name_id, kEmptyStringIndex, filename_id},
+                         functions_.size() + 1});
+  uint64_t id = ins.first->second;
+
+  if (ins.second) {
+    if (name_id != kEmptyStringIndex) {
+      GetMapping(mapping_id).debug_info.has_functions = true;
+    }
+    if (filename_id != kEmptyStringIndex) {
+      GetMapping(mapping_id).debug_info.has_filenames = true;
+    }
+  }
+
+  return id;
+}
+
 uint64_t GProfileBuilder::WriteFunctionIfNeeded(
     const tables::SymbolTable::ConstRowReference& symbol,
     CallsiteAnnotation annotation,
     uint64_t mapping_id) {
   int64_t name = string_table_.GetAnnotatedString(symbol.name(), annotation);
-  int64_t filename = string_table_.InternString(symbol.source_file());
+  int64_t filename = symbol.source_file().has_value()
+                         ? string_table_.InternString(*symbol.source_file())
+                         : kEmptyStringIndex;
 
   auto ins = functions_.insert(
       {Function{name, kEmptyStringIndex, filename}, functions_.size() + 1});
@@ -576,8 +778,8 @@ uint64_t GProfileBuilder::WriteMappingIfNeeded(
       {MappingKey(mapping_ref, string_table_), mapping_keys_.size() + 1});
 
   if (ins.second) {
-    mappings_.push_back(
-        Mapping(mapping_ref, context_.storage->string_pool(), string_table_));
+    mappings_.emplace_back(mapping_ref, context_.storage->string_pool(),
+                           string_table_);
   }
 
   return ins.first->second;
@@ -585,7 +787,7 @@ uint64_t GProfileBuilder::WriteMappingIfNeeded(
 
 void GProfileBuilder::WriteMapping(uint64_t mapping_id) {
   const Mapping& mapping = GetMapping(mapping_id);
-  auto m = result_->add_mapping();
+  auto* m = result_->add_mapping();
   m->set_id(mapping_id);
   m->set_memory_start(mapping.memory_start);
   m->set_memory_limit(mapping.memory_limit);
@@ -599,8 +801,8 @@ void GProfileBuilder::WriteMapping(uint64_t mapping_id) {
 }
 
 void GProfileBuilder::WriteMappings() {
-  // The convention in pprof files is to write the mapping for the main binary
-  // first. So lets do just that.
+  // The convention in pprof files is to write the mapping for the main
+  // binary first. So lets do just that.
   std::optional<uint64_t> main_mapping_id = GuessMainBinary();
   if (main_mapping_id) {
     WriteMapping(*main_mapping_id);
@@ -617,6 +819,7 @@ void GProfileBuilder::WriteMappings() {
 
 std::optional<uint64_t> GProfileBuilder::GuessMainBinary() const {
   std::vector<int64_t> mapping_scores;
+  mapping_scores.reserve(mappings_.size());
 
   for (const auto& mapping : mappings_) {
     mapping_scores.push_back(mapping.ComputeMainBinaryScore());
@@ -631,5 +834,4 @@ std::optional<uint64_t> GProfileBuilder::GuessMainBinary() const {
   return static_cast<uint64_t>(std::distance(mapping_scores.begin(), it) + 1);
 }
 
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor

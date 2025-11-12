@@ -1,5 +1,5 @@
 # Keep in sync with chromeos.msan.browser_tests.oobe_negative.filter.
-# TODO(crbug.com/1071693): Remove this filter when it's safe to do so.
+# TODO(crbug.com/40126889): Remove this filter when it's safe to do so.
 AccessibilityManagerLoginTest.*
 ActiveDirectoryJoinTest.*
 ActiveDirectoryLoginAutocompleteTest.*
@@ -75,7 +75,6 @@ EnableDebuggingTestBase.*
 EncryptionMigrationTest.*
 EnrollmentLocalPolicyServerBase.*
 EnrollmentRecoveryTest.*
-EnrollmentScreenChromadMigrationTest.*
 EnrollmentScreenHandsOffTest.*
 EnrollmentScreenTest.*
 EnterpriseEnrollmentTest.*
@@ -176,7 +175,6 @@ WebviewDeviceOwnedLoginTest.*
 WebviewLoginTest.*
 WebviewProxyAuthLoginTest.*
 WelcomeScreenBrowserTest.*
-WelcomeScreenChromadMigrationBrowserTest.*
 WelcomeScreenChromeVoxHintTest.*
 WelcomeScreenHandsOffBrowserTest.*
 WelcomeScreenInternationalChromeVoxHintTest.*

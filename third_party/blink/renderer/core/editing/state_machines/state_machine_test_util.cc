@@ -5,6 +5,8 @@
 #include "third_party/blink/renderer/core/editing/state_machines/state_machine_test_util.h"
 
 #include <algorithm>
+#include <array>
+
 #include "third_party/blink/renderer/core/editing/state_machines/backward_grapheme_boundary_state_machine.h"
 #include "third_party/blink/renderer/core/editing/state_machines/forward_grapheme_boundary_state_machine.h"
 #include "third_party/blink/renderer/core/editing/state_machines/text_segmentation_machine_state.h"
@@ -14,16 +16,15 @@ namespace blink {
 
 namespace {
 char MachineStateToChar(TextSegmentationMachineState state) {
-  static const char kIndicators[] = {
+  static const std::array<char, 4> kIndicators = {
       'I',  // Invalid
       'R',  // NeedMoreCodeUnit (Repeat)
       'S',  // NeedFollowingCodeUnit (Switch)
       'F',  // Finished
   };
-  auto* const it = std::begin(kIndicators) + static_cast<size_t>(state);
-  DCHECK_GE(it, std::begin(kIndicators)) << "Unknown backspace value";
-  DCHECK_LT(it, std::end(kIndicators)) << "Unknown backspace value";
-  return *it;
+  DCHECK_LT(static_cast<size_t>(state), kIndicators.size())
+      << "Unknown backspace value";
+  return kIndicators[static_cast<size_t>(state)];
 }
 
 Vector<UChar> CodePointsToCodeUnits(const Vector<UChar32>& code_points) {

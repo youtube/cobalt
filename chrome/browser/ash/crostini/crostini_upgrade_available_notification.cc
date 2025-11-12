@@ -6,20 +6,23 @@
 
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/ash/crostini/crostini_manager.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/webui/ash/crostini_upgrader/crostini_upgrader_dialog.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/gfx/paint_vector_icon.h"
 
 namespace crostini {
 
@@ -44,8 +47,8 @@ class CrostiniUpgradeAvailableNotificationDelegate
   CrostiniUpgradeAvailableNotificationDelegate& operator=(
       const CrostiniUpgradeAvailableNotificationDelegate&) = delete;
 
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override {
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override {
     disposition_ =
         CrostiniUpgradeAvailableNotificationClosed::kNotificationBody;
     if (button_index && button_index.value() == 0) {
@@ -87,7 +90,7 @@ class CrostiniUpgradeAvailableNotificationDelegate
 
   CrostiniUpgradeAvailableNotificationClosed disposition_ =
       CrostiniUpgradeAvailableNotificationClosed::kUnknown;
-  raw_ptr<Profile, ExperimentalAsh> profile_;  // Not owned.
+  raw_ptr<Profile> profile_;  // Not owned.
   base::WeakPtr<CrostiniUpgradeAvailableNotification> notification_;
   base::OnceClosure closure_;
 
@@ -109,11 +112,7 @@ CrostiniUpgradeAvailableNotification::CrostiniUpgradeAvailableNotification(
   message_center::RichNotificationData rich_notification_data;
   rich_notification_data.small_image = gfx::Image(gfx::CreateVectorIcon(
       vector_icons::kFileDownloadIcon, 64, gfx::kGoogleBlue800));
-  if (chromeos::features::IsJellyEnabled()) {
-    rich_notification_data.accent_color_id = cros_tokens::kCrosSysOnPrimary;
-  } else {
-    rich_notification_data.accent_color = ash::kSystemNotificationColorNormal;
-  }
+  rich_notification_data.accent_color_id = cros_tokens::kCrosSysPrimary;
 
   rich_notification_data.buttons.emplace_back(
       message_center::ButtonInfo(l10n_util::GetStringUTF16(
@@ -141,7 +140,7 @@ CrostiniUpgradeAvailableNotification::CrostiniUpgradeAvailableNotification(
 
 CrostiniUpgradeAvailableNotification::~CrostiniUpgradeAvailableNotification() {
   if (notification_ && !profile_->ShutdownStarted()) {
-    NotificationDisplayService::GetForProfile(profile_)->Close(
+    NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
         NotificationHandler::Type::TRANSIENT, notification_->id());
   }
 }
@@ -154,7 +153,7 @@ void CrostiniUpgradeAvailableNotification::UpgradeDialogShown() {
 }
 
 void CrostiniUpgradeAvailableNotification::ForceRedisplay() {
-  NotificationDisplayService::GetForProfile(profile_)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::TRANSIENT, *notification_,
       /*metadata=*/nullptr);
 }

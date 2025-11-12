@@ -23,9 +23,9 @@ proto::OutputConfig CreateOutputConfigForAdaptiveToolbar(Config* config) {
   DCHECK(config->segments.size() >= 1);
   proto::SegmentationModelMetadata model_metadata;
   MetadataWriter writer(&model_metadata);
-  writer.AddOutputConfigForMultiClassClassifier(
-      kAdaptiveToolbarModelLabels.begin(), kAdaptiveToolbarModelLabels.size(),
-      /*top_k_outputs=*/1, /*threshold=*/1);
+  writer.AddOutputConfigForMultiClassClassifier(kAdaptiveToolbarModelLabels,
+                                                /*top_k_outputs=*/1,
+                                                /*threshold=*/1);
 
   writer.AddPredictedResultTTLInOutputConfig(
       /*top_label_to_ttl_list=*/{},
@@ -67,7 +67,8 @@ proto::ClientResult CreateClientResultForAdaptiveToolbar(
   std::vector<float> model_scores =
       PopulateModelScoresForAdaptiveToolbar(config, old_result);
   proto::PredictionResult pred_result = metadata_utils::CreatePredictionResult(
-      model_scores, output_config, /*timestamp=*/base::Time::Now());
+      model_scores, output_config, /*timestamp=*/base::Time::Now(),
+      /*model_version=*/1);
   return metadata_utils::CreateClientResultFromPredResult(
       pred_result, old_result.selection_time);
 }

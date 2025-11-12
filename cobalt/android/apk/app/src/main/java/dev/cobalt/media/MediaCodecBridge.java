@@ -40,9 +40,9 @@ import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard")
@@ -685,6 +685,14 @@ class MediaCodecBridge {
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
+
+    // We skip calling stop() on Android 11, as this version has a race condition
+    // if an error occurs during stop(). See b/369372033 for details.
+    if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
+      Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+      return;
+    }
+
     try {
       mMediaCodec.get().stop();
     } catch (Exception e) {
@@ -697,7 +705,9 @@ class MediaCodecBridge {
     MediaFormat format = null;
     try {
       format = mMediaCodec.get().getOutputFormat();
-    } catch (IllegalStateException e) {
+    // Catches `RuntimeException` to handle any undocumented exceptions.
+    // See http://b/445694177#comment4 for details.
+    } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
       return null;
     }

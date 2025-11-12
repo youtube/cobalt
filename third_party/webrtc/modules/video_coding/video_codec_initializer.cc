@@ -14,10 +14,18 @@
 #include <string.h>
 
 #include <algorithm>
+#include <optional>
+#include <vector>
 
-#include "absl/types/optional.h"
+#include "api/field_trials_view.h"
 #include "api/scoped_refptr.h"
 #include "api/units/data_rate.h"
+#include "api/video/video_codec_constants.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/simulcast_stream.h"
+#include "api/video_codecs/spatial_layer.h"
+#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "modules/video_coding/codecs/av1/av1_svc_config.h"
 #include "modules/video_coding/codecs/vp8/vp8_scalability.h"
@@ -28,29 +36,28 @@
 #include "rtc_base/experiments/min_video_bitrate_experiment.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
+namespace {
 
-bool VideoCodecInitializer::SetupCodec(const VideoEncoderConfig& config,
-                                       const std::vector<VideoStream>& streams,
-                                       VideoCodec* codec) {
-  if (config.codec_type == kVideoCodecMultiplex) {
-    VideoEncoderConfig associated_config = config.Copy();
-    associated_config.codec_type = kVideoCodecVP9;
-    if (!SetupCodec(associated_config, streams, codec)) {
-      RTC_LOG(LS_ERROR) << "Failed to create stereo encoder configuration.";
-      return false;
+constexpr ScalabilityMode kH265SupportedScalabilityModes[] = {
+    ScalabilityMode::kL1T1, ScalabilityMode::kL1T2, ScalabilityMode::kL1T3};
+
+bool H265SupportsScalabilityMode(ScalabilityMode scalability_mode) {
+  for (const auto& entry : kH265SupportedScalabilityModes) {
+    if (entry == scalability_mode) {
+      return true;
     }
-    codec->codecType = kVideoCodecMultiplex;
-    return true;
   }
-
-  *codec = VideoEncoderConfigToVideoCodec(config, streams);
-  return true;
+  return false;
 }
 
+}  // namespace
+
 // TODO(sprang): Split this up and separate the codec specific parts.
-VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
+VideoCodec VideoCodecInitializer::SetupCodec(
+    const FieldTrialsView& field_trials,
     const VideoEncoderConfig& config,
     const std::vector<VideoStream>& streams) {
   static const int kEncoderMinBitrateKbps = 30;
@@ -96,8 +103,7 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
 
   int max_framerate = 0;
 
-  absl::optional<ScalabilityMode> scalability_mode =
-      streams[0].scalability_mode;
+  std::optional<ScalabilityMode> scalability_mode = streams[0].scalability_mode;
   for (size_t i = 0; i < streams.size(); ++i) {
     SimulcastStream* sim_stream = &video_codec.simulcastStream[i];
     RTC_DCHECK_GT(streams[i].width, 0);
@@ -236,18 +242,9 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
       if (!config.spatial_layers.empty()) {
         // Layering is set explicitly.
         spatial_layers = config.spatial_layers;
-      } else if (scalability_mode.has_value()) {
+      } else if (video_codec.GetScalabilityMode().has_value()) {
         // Layering is set via scalability mode.
         spatial_layers = GetVp9SvcConfig(video_codec);
-        if (spatial_layers.empty())
-          break;
-        // Use codec bitrate limits if spatial layering is not requested.
-        if (video_codec.numberOfSimulcastStreams <= 1 &&
-            ScalabilityModeToNumSpatialLayers(*scalability_mode) == 1) {
-          spatial_layers.back().minBitrate = video_codec.minBitrate;
-          spatial_layers.back().targetBitrate = video_codec.maxBitrate;
-          spatial_layers.back().maxBitrate = video_codec.maxBitrate;
-        }
       } else {
         size_t first_active_layer = 0;
         for (size_t spatial_idx = 0;
@@ -325,6 +322,14 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
                           streams.back().num_temporal_layers.value_or(1),
                           /*num_spatial_layers=*/
                           std::max<int>(config.spatial_layers.size(), 1))) {
+        // If min bitrate is set via RtpEncodingParameters, use this value on
+        // lowest spatial layer.
+        if (!config.simulcast_layers.empty() &&
+            config.simulcast_layers[0].min_bitrate_bps > 0) {
+          video_codec.spatialLayers[0].minBitrate = std::min(
+              config.simulcast_layers[0].min_bitrate_bps / 1000,
+              static_cast<int>(video_codec.spatialLayers[0].targetBitrate));
+        }
         for (size_t i = 0; i < config.spatial_layers.size(); ++i) {
           video_codec.spatialLayers[i].active = config.spatial_layers[i].active;
         }
@@ -344,6 +349,28 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
                     kMaxTemporalStreams);
       break;
     }
+    case kVideoCodecH265:
+      RTC_DCHECK(!config.encoder_specific_settings) << "No encoder-specific "
+                                                       "settings for H.265.";
+
+      // Validate specified scalability modes. If some layer has an unsupported
+      // mode, store it as the top-level scalability mode, which will make
+      // InitEncode fail with an appropriate error.
+      for (const auto& stream : streams) {
+        if (stream.scalability_mode.has_value() &&
+            !H265SupportsScalabilityMode(*stream.scalability_mode)) {
+          RTC_LOG(LS_WARNING)
+              << "Invalid scalability mode for H.265: "
+              << ScalabilityModeToString(*stream.scalability_mode);
+          video_codec.SetScalabilityMode(*stream.scalability_mode);
+          break;
+        }
+      }
+      video_codec.spatialLayers[0].minBitrate = video_codec.minBitrate;
+      video_codec.spatialLayers[0].targetBitrate = video_codec.maxBitrate;
+      video_codec.spatialLayers[0].maxBitrate = video_codec.maxBitrate;
+      video_codec.spatialLayers[0].active = codec_active;
+      break;
     default:
       // TODO(pbos): Support encoder_settings codec-agnostically.
       RTC_DCHECK(!config.encoder_specific_settings)
@@ -351,14 +378,18 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
       break;
   }
 
-  const absl::optional<DataRate> experimental_min_bitrate =
-      GetExperimentalMinVideoBitrate(video_codec.codecType);
+  const std::optional<DataRate> experimental_min_bitrate =
+      GetExperimentalMinVideoBitrate(field_trials, video_codec.codecType);
   if (experimental_min_bitrate) {
     const int experimental_min_bitrate_kbps =
-        rtc::saturated_cast<int>(experimental_min_bitrate->kbps());
+        saturated_cast<int>(experimental_min_bitrate->kbps());
     video_codec.minBitrate = experimental_min_bitrate_kbps;
     video_codec.simulcastStream[0].minBitrate = experimental_min_bitrate_kbps;
-    if (video_codec.codecType == kVideoCodecVP9) {
+    if (video_codec.codecType == kVideoCodecVP9 ||
+#ifdef RTC_ENABLE_H265
+        video_codec.codecType == kVideoCodecH265 ||
+#endif
+        video_codec.codecType == kVideoCodecAV1) {
       video_codec.spatialLayers[0].minBitrate = experimental_min_bitrate_kbps;
     }
   }

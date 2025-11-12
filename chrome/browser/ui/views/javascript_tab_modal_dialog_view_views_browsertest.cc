@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
+
 #include "base/functional/bind.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -49,6 +50,7 @@ IN_PROC_BROWSER_TEST_F(JavaScriptTabModalDialogViewViewsBrowserTest,
   // accessibility tree ("ignored").
   auto* bubble_frame_view = static_cast<views::BubbleFrameView*>(
       dialog_views->GetWidget()->non_client_view()->frame_view());
-  if (auto* close_button = bubble_frame_view->GetCloseButtonForTesting())
-    EXPECT_TRUE(close_button->GetViewAccessibility().IsIgnored());
+  if (auto* close_button = bubble_frame_view->close_button()) {
+    EXPECT_TRUE(close_button->GetViewAccessibility().GetIsIgnored());
+  }
 }

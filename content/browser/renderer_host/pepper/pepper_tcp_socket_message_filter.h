@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/renderer_host/pepper/browser_ppapi_host_impl.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -37,7 +37,6 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "services/network/public/mojom/tls_socket.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ppapi {
 class SocketOptionData;
@@ -126,8 +125,8 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
   // network::mojom::ResolveHostClient overrides.
   void OnComplete(int result,
                   const net::ResolveErrorInfo& resolve_error_info,
-                  const absl::optional<net::AddressList>& resolved_addresses,
-                  const absl::optional<net::HostResolverEndpointResults>&
+                  const std::optional<net::AddressList>& resolved_addresses,
+                  const std::optional<net::HostResolverEndpointResults>&
                       endpoint_results_with_metadata) override;
 
   // network::mojom::SocketObserver overrides.
@@ -177,7 +176,7 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
 
   void OnResolveCompleted(
       int net_result,
-      const absl::optional<net::AddressList>& resolved_addresses);
+      const std::optional<net::AddressList>& resolved_addresses);
 
   // Attempts to connect to all addresses in |address_list| in order.
   void StartConnect(const ppapi::host::ReplyMessageContext& context,
@@ -185,8 +184,8 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
 
   void OnConnectCompleted(const ppapi::host::ReplyMessageContext& context,
                           int net_result,
-                          const absl::optional<net::IPEndPoint>& local_addr,
-                          const absl::optional<net::IPEndPoint>& peer_addr,
+                          const std::optional<net::IPEndPoint>& local_addr,
+                          const std::optional<net::IPEndPoint>& peer_addr,
                           mojo::ScopedDataPipeConsumerHandle receive_stream,
                           mojo::ScopedDataPipeProducerHandle send_stream);
 
@@ -195,21 +194,21 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
       int net_result,
       mojo::ScopedDataPipeConsumerHandle receive_stream,
       mojo::ScopedDataPipeProducerHandle send_stream,
-      const absl::optional<net::SSLInfo>& ssl_info);
+      const std::optional<net::SSLInfo>& ssl_info);
 
   void OnListenCompleted(const ppapi::host::ReplyMessageContext& context,
                          int net_result);
 
   void OnBindCompleted(const ppapi::host::ReplyMessageContext& context,
                        int net_result,
-                       const absl::optional<net::IPEndPoint>& local_addr);
+                       const std::optional<net::IPEndPoint>& local_addr);
 
   void OnAcceptCompleted(
       const ppapi::host::ReplyMessageContext& context,
       mojo::PendingReceiver<network::mojom::SocketObserver>
           socket_observer_receiver,
       int net_result,
-      const absl::optional<net::IPEndPoint>& remote_addr,
+      const std::optional<net::IPEndPoint>& remote_addr,
       mojo::PendingRemote<network::mojom::TCPConnectedSocket> connected_socket,
       mojo::ScopedDataPipeConsumerHandle receive_stream,
       mojo::ScopedDataPipeProducerHandle send_stream);
@@ -249,7 +248,7 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
                         int32_t pp_error);
   void SendSSLHandshakeReply(const ppapi::host::ReplyMessageContext& context,
                              int32_t pp_result,
-                             const absl::optional<net::SSLInfo>& ssl_info);
+                             const std::optional<net::SSLInfo>& ssl_info);
   // The read and write reply messages use the |pending_*_context_| fields, and
   // clear fields related to the pending read / write request as needed.
   void SendReadReply(int32_t pp_result, const std::string& data);
@@ -292,7 +291,8 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
   // Non-owning ptr.
   raw_ptr<BrowserPpapiHostImpl, DanglingUntriaged> host_;
   // Non-owning ptr.
-  raw_ptr<ContentBrowserPepperHostFactory, DanglingUntriaged> factory_;
+  raw_ptr<ContentBrowserPepperHostFactory, AcrossTasksDanglingUntriaged>
+      factory_;
   PP_Instance instance_;
 
   // The following fields are used only on the UI thread.
@@ -350,7 +350,7 @@ class CONTENT_EXPORT PepperTCPSocketMessageFilter
 
   bool pending_accept_;
 
-  uint32_t pending_read_size_;
+  size_t pending_read_size_;
   ppapi::host::ReplyMessageContext pending_read_context_;
   // This is set to an error other than PP_OK_COMPLETIONPENDING when a read
   // error is received through the SocketObserver interface. If the

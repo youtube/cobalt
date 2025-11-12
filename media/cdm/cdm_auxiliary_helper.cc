@@ -9,8 +9,9 @@
 #include "media/cdm/cdm_helpers.h"
 
 #if BUILDFLAG(IS_WIN)
+#include <optional>
+
 #include "media/cdm/media_foundation_cdm_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace media {
@@ -27,6 +28,8 @@ cdm::FileIO* CdmAuxiliaryHelper::CreateCdmFileIO(cdm::FileIOClient* client) {
 url::Origin CdmAuxiliaryHelper::GetCdmOrigin() {
   return url::Origin();
 }
+
+void CdmAuxiliaryHelper::RecordUkm(const CdmMetricsData& cdm_metrics_data) {}
 
 cdm::Buffer* CdmAuxiliaryHelper::CreateCdmBuffer(size_t capacity) {
   return nullptr;
@@ -59,7 +62,7 @@ void CdmAuxiliaryHelper::GetStorageId(uint32_t version, StorageIdCB callback) {
 void CdmAuxiliaryHelper::GetMediaFoundationCdmData(
     GetMediaFoundationCdmDataCB callback) {
   std::move(callback).Run(std::make_unique<MediaFoundationCdmData>(
-      base::UnguessableToken::Null(), absl::nullopt, base::FilePath()));
+      base::UnguessableToken::Null(), std::nullopt, base::FilePath()));
 }
 
 void CdmAuxiliaryHelper::SetCdmClientToken(

@@ -17,7 +17,7 @@ namespace ui {
 // character and a word boundary.
 AXEmbeddedObjectBehavior g_ax_embedded_object_behavior =
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(USE_ATK)
-    AXEmbeddedObjectBehavior::kExposeCharacter;
+    AXEmbeddedObjectBehavior::kExposeCharacterForHypertext;
 #else
     AXEmbeddedObjectBehavior::kSuppressCharacter;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(USE_ATK)
@@ -39,7 +39,7 @@ std::string ToString(const AXPositionKind kind) {
            {AXPositionKind::TREE_POSITION, "TreePosition"},
            {AXPositionKind::TEXT_POSITION, "TextPosition"}});
 
-  const auto* iter = kKindToString.find(kind);
+  const auto iter = kKindToString.find(kind);
   if (iter == std::end(kKindToString))
     return std::string();
   return iter->second;
@@ -53,7 +53,6 @@ AXNodePosition::AXPositionInstance AXNodePosition::CreatePosition(
   if (!node.tree())
     return CreateNullPosition();
 
-  AXTreeID tree_id = node.tree()->GetAXTreeID();
   if (IsTextPositionAnchor(node)) {
     // TODO(accessibility) It is a mistake for the to caller try to create a
     // text position with BEFORE_TEXT as the text offset. Correct the callers
@@ -118,8 +117,7 @@ AXNodePosition::AXNodePosition() = default;
 
 AXNodePosition::~AXNodePosition() = default;
 
-AXNodePosition::AXNodePosition(const AXNodePosition& other)
-    : AXPosition<AXNodePosition, AXNode>(other) {}
+AXNodePosition::AXNodePosition(const AXNodePosition& other) = default;
 
 AXNodePosition::AXPositionInstance AXNodePosition::Clone() const {
   return AXPositionInstance(new AXNodePosition(*this));

@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/webui/flags/flags_ui.h"
-
 #include "build/build_config.h"
-#include "components/flags_ui/feature_entry.h"
-#include "components/flags_ui/flags_state.h"
+#include "chrome/browser/ui/webui/flags/flags_ui.h"
+#include "components/webui/flags/feature_entry.h"
+#include "components/webui/flags/flags_state.h"
 #include "content/public/browser/web_ui_message_handler.h"
 
 #ifndef CHROME_BROWSER_UI_WEBUI_FLAGS_FLAGS_UI_HANDLER_H_
@@ -32,16 +31,13 @@ class FlagsUIHandler : public content::WebUIMessageHandler {
             flags_ui::FlagAccess access);
 
   // Sends experimental features lists to the UI.
-  void SendExperimentalFeatures();
-
-  // Configures the handler to return either all features or deprecated
-  // features only.
-  void set_deprecated_features_only(bool deprecatedFeaturesOnly) {
-    deprecated_features_only_ = deprecatedFeaturesOnly;
-  }
+  void SendExperimentalFeatures(bool deprecated_features_only);
 
   // WebUIMessageHandler implementation.
   void RegisterMessages() override;
+
+  // Callback for the "requestDeprecatedFeatures" message.
+  void HandleRequestDeprecatedFeatures(const base::Value::List& args);
 
   // Callback for the "requestExperimentFeatures" message.
   void HandleRequestExperimentalFeatures(const base::Value::List& args);
@@ -52,22 +48,20 @@ class FlagsUIHandler : public content::WebUIMessageHandler {
   // Callback for the "setOriginListFlag" message.
   void HandleSetOriginListFlagMessage(const base::Value::List& args);
 
+  // Callback for the "setStringFlag" message.
+  void HandleSetStringFlagMessage(const base::Value::List& args);
+
   // Callback for the "restartBrowser" message. Restores all tabs on restart.
   void HandleRestartBrowser(const base::Value::List& args);
 
   // Callback for the "resetAllFlags" message.
   void HandleResetAllFlags(const base::Value::List& args);
 
-#if BUILDFLAG(IS_CHROMEOS)
-  // Callback for the "CrosUrlFlagsRedirect" message.
-  void HandleCrosUrlFlagsRedirect(const base::Value::List& args);
-#endif
-
  private:
   std::unique_ptr<flags_ui::FlagsStorage> flags_storage_;
   flags_ui::FlagAccess access_;
   std::string experimental_features_callback_id_;
-  bool deprecated_features_only_;
+  std::string deprecated_features_callback_id_;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_FLAGS_FLAGS_UI_HANDLER_H_

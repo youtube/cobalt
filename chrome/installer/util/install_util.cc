@@ -7,11 +7,14 @@
 
 #include "chrome/installer/util/install_util.h"
 
+#include <windows.h>
+
 #include <shellapi.h>
 #include <shlobj.h>
 
 #include <algorithm>
 #include <iterator>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/check_op.h"
@@ -334,6 +337,27 @@ bool InstallUtil::IsStartMenuShortcutWithActivatorGuidInstalled() {
 }
 
 // static
+bool InstallUtil::IsRunningAsInteractiveUser() {
+  // Get the SID for interactive user.
+  DWORD sid_size = SECURITY_MAX_SID_SIZE;
+  uint8_t sid_bytes[SECURITY_MAX_SID_SIZE] = {};
+  SID* interactive_sid = reinterpret_cast<SID*>(sid_bytes);
+  if (!::CreateWellKnownSid(WinInteractiveSid, nullptr, interactive_sid,
+                            &sid_size)) {
+    PLOG(ERROR) << "Failed to create well known SID";
+    return false;
+  }
+
+  BOOL is_member = FALSE;
+  if (!::CheckTokenMembership(nullptr, interactive_sid, &is_member)) {
+    PLOG(ERROR) << "Failed to check token membership for WinInteractiveSid";
+    return false;
+  }
+
+  return is_member;
+}
+
+// static
 std::wstring InstallUtil::GetToastActivatorRegistryPath() {
   return L"Software\\Classes\\CLSID\\" +
          base::win::WStringFromGUID(install_static::GetToastActivatorClsid());
@@ -389,7 +413,7 @@ void InstallUtil::AppendModeAndChannelSwitches(
 // static
 std::wstring InstallUtil::GetCurrentDate() {
   static const wchar_t kDateFormat[] = L"yyyyMMdd";
-  wchar_t date_str[std::size(kDateFormat)] = {0};
+  wchar_t date_str[std::size(kDateFormat)] = {};
   int len = GetDateFormatW(LOCALE_INVARIANT, 0, nullptr, kDateFormat, date_str,
                            std::size(date_str));
   if (len) {
@@ -402,7 +426,7 @@ std::wstring InstallUtil::GetCurrentDate() {
 }
 
 // static
-absl::optional<base::Version> InstallUtil::GetDowngradeVersion() {
+std::optional<base::Version> InstallUtil::GetDowngradeVersion() {
   RegKey key;
   std::wstring downgrade_version;
   if (key.Open(install_static::IsSystemInstall() ? HKEY_LOCAL_MACHINE
@@ -412,11 +436,11 @@ absl::optional<base::Version> InstallUtil::GetDowngradeVersion() {
       key.ReadValue(installer::kRegDowngradeVersion, &downgrade_version) !=
           ERROR_SUCCESS ||
       downgrade_version.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   base::Version version(base::WideToASCII(downgrade_version));
   if (!version.IsValid())
-    return absl::nullopt;
+    return std::nullopt;
   return version;
 }
 
@@ -460,8 +484,8 @@ InstallUtil::GetCloudManagementDmTokenLocation(
 
   base::win::RegKey key;
   if (read_only) {
-    key.Open(HKEY_LOCAL_MACHINE, key_path.c_str(),
-             KEY_QUERY_VALUE | wow_access);
+    (void)key.Open(HKEY_LOCAL_MACHINE, key_path.c_str(),
+                   KEY_QUERY_VALUE | wow_access);
   } else {
     auto result = key.Create(HKEY_LOCAL_MACHINE, key_path.c_str(),
                              KEY_SET_VALUE | wow_access);
@@ -486,8 +510,8 @@ InstallUtil::GetDeviceTrustSigningKeyLocation(ReadOnly read_only) {
       .append(L"\\DeviceTrust");
   base::win::RegKey key;
   if (read_only) {
-    key.Open(HKEY_LOCAL_MACHINE, key_path.c_str(),
-             KEY_QUERY_VALUE | KEY_WOW64_64KEY);
+    (void)key.Open(HKEY_LOCAL_MACHINE, key_path.c_str(),
+                   KEY_QUERY_VALUE | KEY_WOW64_64KEY);
   } else {
     auto result = key.Create(HKEY_LOCAL_MACHINE, key_path.c_str(),
                              KEY_SET_VALUE | KEY_WOW64_64KEY);
@@ -579,10 +603,10 @@ std::wstring InstallUtil::GetLongAppDescription() {
 }
 
 // static
-std::wstring InstallUtil::GuidToSquid(base::WStringPiece guid) {
+std::wstring InstallUtil::GuidToSquid(std::wstring_view guid) {
   std::wstring squid;
   squid.reserve(32);
-  auto* input = guid.begin();
+  auto input = guid.begin();
   auto output = std::back_inserter(squid);
 
   // Reverse-copy relevant characters, skipping separators.

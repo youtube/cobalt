@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
 
+#include <array>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -127,36 +129,28 @@ TEST(AffineTransformTest, MultiplySelf) {
 }
 
 TEST(AffineTransformTest, ValidRangedMatrix) {
-  double entries[][2] = {
+  constexpr std::array entries = {
       // The first entry is initial matrix value.
       // The second entry is a factor to use transformation operations.
-      {std::numeric_limits<double>::max(),
-       std::numeric_limits<double>::infinity()},
-      {1, std::numeric_limits<double>::infinity()},
-      {-1, std::numeric_limits<double>::infinity()},
-      {1, -std::numeric_limits<double>::infinity()},
-      {
-          std::numeric_limits<double>::max(),
-          std::numeric_limits<double>::max(),
-      },
-      {
-          std::numeric_limits<double>::lowest(),
-          -std::numeric_limits<double>::infinity(),
-      },
-  };
+      std::array{std::numeric_limits<double>::max(),
+                 std::numeric_limits<double>::infinity()},
+      std::array{1.0, std::numeric_limits<double>::infinity()},
+      std::array{-1.0, std::numeric_limits<double>::infinity()},
+      std::array{1.0, -std::numeric_limits<double>::infinity()},
+      std::array{std::numeric_limits<double>::max(),
+                 std::numeric_limits<double>::max()},
+      std::array{std::numeric_limits<double>::lowest(),
+                 -std::numeric_limits<double>::infinity()}};
 
-  for (double* entry : entries) {
-    const double mv = entry[0];
-    const double factor = entry[1];
-
-    auto is_valid_point = [&](const gfx::PointF& p) -> bool {
+  for (const auto& [mv, factor] : entries) {
+    auto is_valid_point = [](const gfx::PointF& p) {
       return std::isfinite(p.x()) && std::isfinite(p.y());
     };
-    auto is_valid_rect = [&](const gfx::RectF& r) -> bool {
+    auto is_valid_rect = [&](const gfx::RectF& r) {
       return is_valid_point(r.origin()) && std::isfinite(r.width()) &&
              std::isfinite(r.height());
     };
-    auto is_valid_quad = [&](const gfx::QuadF& q) -> bool {
+    auto is_valid_quad = [&](const gfx::QuadF& q) {
       return is_valid_point(q.p1()) && is_valid_point(q.p2()) &&
              is_valid_point(q.p3()) && is_valid_point(q.p4());
     };

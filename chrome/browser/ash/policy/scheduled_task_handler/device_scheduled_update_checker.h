@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_POLICY_SCHEDULED_TASK_HANDLER_DEVICE_SCHEDULED_UPDATE_CHECKER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
@@ -13,11 +14,10 @@
 #include "chrome/browser/ash/policy/scheduled_task_handler/scheduled_task_executor.h"
 #include "chrome/browser/ash/policy/scheduled_task_handler/scoped_wake_lock.h"
 #include "chrome/browser/ash/policy/scheduled_task_handler/task_executor_with_retries.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "services/device/public/mojom/wake_lock.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 namespace policy {
@@ -81,13 +81,13 @@ class DeviceScheduledUpdateChecker
   void ResetState();
 
   // Used to retrieve Chrome OS settings. Not owned.
-  const raw_ptr<ash::CrosSettings, ExperimentalAsh> cros_settings_;
+  const raw_ptr<ash::CrosSettings> cros_settings_;
 
   // Subscription for callback when settings change.
   base::CallbackListSubscription cros_settings_subscription_;
 
   // Currently active scheduled update check policy.
-  absl::optional<ScheduledTaskExecutor::ScheduledTaskData>
+  std::optional<ScheduledTaskExecutor::ScheduledTaskData>
       scheduled_update_check_data_;
 
   // Used to run and retry |StartUpdateCheckTimer| if it fails.
@@ -103,18 +103,19 @@ class DeviceScheduledUpdateChecker
 namespace update_checker_internal {
 
 // The tag associated to register |update_check_executor_|.
-constexpr char kUpdateCheckTimerTag[] = "DeviceScheduledUpdateChecker";
+inline constexpr char kUpdateCheckTimerTag[] = "DeviceScheduledUpdateChecker";
 
 // The timeout after which an OS and policies update is aborted.
-constexpr base::TimeDelta kOsAndPoliciesUpdateCheckHardTimeout =
+inline constexpr base::TimeDelta kOsAndPoliciesUpdateCheckHardTimeout =
     base::Minutes(40);
 
 // The maximum iterations allowed to start an update check timer if the
 // operation fails.
-constexpr int kMaxStartUpdateCheckTimerRetryIterations = 5;
+inline constexpr int kMaxStartUpdateCheckTimerRetryIterations = 5;
 
 // Time to call |StartUpdateCheckTimer| again in case it failed.
-constexpr base::TimeDelta kStartUpdateCheckTimerRetryTime = base::Minutes(1);
+inline constexpr base::TimeDelta kStartUpdateCheckTimerRetryTime =
+    base::Minutes(1);
 
 }  // namespace update_checker_internal
 

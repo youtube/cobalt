@@ -7,7 +7,9 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-source_set("public") {
+component("public") {
+  defines = [ "IS_COMPONENTS_DOWNLOAD_PUBLIC_TASK_IMPL" ]
+
   sources = [
     "empty_task_scheduler.cc",
     "empty_task_scheduler.h",
@@ -22,10 +24,12 @@ source_set("public") {
     ":task_type",
     "//base",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 source_set("task_type") {
   sources = [ "download_task_types.h" ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 if (is_android) {

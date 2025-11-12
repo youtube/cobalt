@@ -36,10 +36,11 @@ class MockNearbyProcessManager : public NearbyProcessManager {
                 (),
                 (const, override));
 
-    MOCK_METHOD(const mojo::SharedRemote<sharing::mojom::NearbySharingDecoder>&,
-                GetNearbySharingDecoder,
-                (),
-                (const, override));
+    MOCK_METHOD(
+        const mojo::SharedRemote<::sharing::mojom::NearbySharingDecoder>&,
+        GetNearbySharingDecoder,
+        (),
+        (const, override));
 
     MOCK_METHOD(
         const mojo::SharedRemote<ash::quick_start::mojom::QuickStartDecoder>&,
@@ -57,6 +58,8 @@ class MockNearbyProcessManager : public NearbyProcessManager {
               GetNearbyProcessReference,
               (NearbyProcessStoppedCallback on_process_stopped_callback),
               (override));
+
+  MOCK_METHOD(void, ShutDownProcess, (), (override));
 };
 
 }  // namespace nearby

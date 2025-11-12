@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
@@ -13,6 +18,7 @@
 #include "chrome/browser/ui/startup/credential_provider_signin_dialog_win_test_data.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
 #include "chrome/credential_provider/gaiacp/gcp_utils.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -61,10 +67,9 @@ class GcpUsingChromeTest : public ::testing::Test {
     signin_token_response_ = response;
   }
 
-  std::string MakeInlineSigninCompletionScript(
-      const std::string& email,
-      const std::string& password,
-      const std::string& gaia_id) const;
+  std::string MakeInlineSigninCompletionScript(const std::string& email,
+                                               const std::string& password,
+                                               const GaiaId& gaia_id) const;
 
   std::string RunChromeAndExtractOutput() const;
   base::CommandLine GetCommandLineForChromeGls(
@@ -202,7 +207,7 @@ std::string GcpUsingChromeTest::RunProcessAndExtractOutput(
 std::string GcpUsingChromeTest::MakeInlineSigninCompletionScript(
     const std::string& email,
     const std::string& password,
-    const std::string& gaia_id) const {
+    const GaiaId& gaia_id) const {
   // Script that sends the two messages needed by inline_signin in order to
   // continue with the signin flow.
   return "<script>"
@@ -227,7 +232,7 @@ std::string GcpUsingChromeTest::MakeInlineSigninCompletionScript(
          email +
          "',"
          "    'gaiaId' : '" +
-         gaia_id +
+         gaia_id.ToString() +
          "',"
          "    'services' : []"
          "    };"
@@ -270,7 +275,7 @@ GcpUsingChromeTest::GaiaHtmlResponseHandler(
     content += MakeInlineSigninCompletionScript(
         test_data_storage_.GetSuccessEmail(),
         test_data_storage_.GetSuccessPassword(),
-        test_data_storage_.GetSuccessId());
+        GaiaId(test_data_storage_.GetSuccessId()));
   }
   content += "</head></html>";
   http_response->set_content(content);
@@ -328,7 +333,7 @@ GcpUsingChromeTest::GoogleApisHtmlResponseHandler(
   return std::move(http_response);
 }
 
-// TODO(crbug.com/909722): Enable tests again once they are all passing.
+// TODO(crbug.com/41428735): Enable tests again once they are all passing.
 // Currently, all tests are flaky on all bots except win-asan.
 TEST_F(GcpUsingChromeTest, DISABLED_VerifyMissingSigninInfoOutput) {
   SetPasswordForSignin(std::string());

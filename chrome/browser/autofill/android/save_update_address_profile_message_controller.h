@@ -9,8 +9,8 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "components/autofill/core/browser/autofill_client.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/messages/android/message_enums.h"
 #include "components/messages/android/message_wrapper.h"
 #include "content/public/browser/web_contents.h"
@@ -70,12 +70,12 @@ class SaveUpdateAddressProfileMessageController {
   void DismissMessage();
 
   void RunSaveAddressProfileCallback(
-      AutofillClient::SaveAddressProfileOfferUserDecision decision);
+      AutofillClient::AddressPromptUserDecision decision);
 
   bool UserSignedIn() const;
   std::u16string GetTitle();
   std::u16string GetDescription();
-  std::u16string GetSourceNotice();
+  std::u16string GetRecordTypeNotice();
   std::u16string GetPrimaryButtonText();
 
   raw_ptr<content::WebContents> web_contents_ = nullptr;
@@ -85,7 +85,7 @@ class SaveUpdateAddressProfileMessageController {
   // migrated to their Google Account.
   bool is_migration_to_account_;
   // The profile which is being confirmed by the user.
-  AutofillProfile profile_;
+  std::optional<AutofillProfile> profile_;
   // The profile (if exists) which will be updated if the user confirms.
   raw_ptr<const AutofillProfile> original_profile_;
   // The callback to run once the user makes the final decision.

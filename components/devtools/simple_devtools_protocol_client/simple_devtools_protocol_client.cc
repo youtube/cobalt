@@ -5,6 +5,8 @@
 #include "components/devtools/simple_devtools_protocol_client/simple_devtools_protocol_client.h"
 
 #include <algorithm>
+#include <optional>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -17,7 +19,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using content::DevToolsAgentHost;
 
@@ -90,7 +91,7 @@ void SimpleDevToolsProtocolClient::DispatchProtocolMessage(
     base::span<const uint8_t> json_message) {
   DCHECK_EQ(agent_host, agent_host_);
 
-  base::StringPiece str_message(
+  std::string_view str_message(
       reinterpret_cast<const char*>(json_message.data()), json_message.size());
   base::Value message_value = *base::JSONReader::Read(str_message);
   base::Value::Dict& message = message_value.GetDict();
@@ -126,7 +127,7 @@ void SimpleDevToolsProtocolClient::DispatchProtocolMessageTask(
   VLOG(kVLogLevel) << "\n[CDP RECV] " << message.DebugString();
 
   // Handle response message shutting down the host if it's unexpected.
-  if (absl::optional<int> id = message.FindInt(kId)) {
+  if (std::optional<int> id = message.FindInt(kId)) {
     auto it = pending_response_map_.find(*id);
     if (it == pending_response_map_.cend()) {
       LOG(ERROR) << "Unexpected message id=" << *id;
@@ -178,8 +179,7 @@ void SimpleDevToolsProtocolClient::SendProtocolMessage(
 
   std::string json_message;
   base::JSONWriter::Write(base::Value(std::move(message)), &json_message);
-  agent_host_->DispatchProtocolMessage(
-      this, base::as_bytes(base::make_span(json_message)));
+  agent_host_->DispatchProtocolMessage(this, base::as_byte_span(json_message));
 }
 
 void SimpleDevToolsProtocolClient::SendCommand(

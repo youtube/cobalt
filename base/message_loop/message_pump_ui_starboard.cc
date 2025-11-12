@@ -76,13 +76,10 @@ void MessagePumpUIStarboard::RunUntilIdle() {
     if (attempt_more_work)
       continue;
 
-    attempt_more_work = delegate_->DoIdleWork();
+    delegate_->DoIdleWork();
 
     if (should_quit())
       break;
-
-    if (attempt_more_work)
-      continue;
 
     // If there is delayed work.
     if (!next_work_info.delayed_run_time.is_max()) {

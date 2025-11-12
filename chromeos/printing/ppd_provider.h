@@ -8,20 +8,18 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/component_export.h"
 #include "base/functional/callback.h"
-#include "base/strings/string_piece.h"
 #include "base/version.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "chromeos/printing/usb_printer_id.h"
 
-namespace network {
-namespace mojom {
+namespace network::mojom {
 class URLLoaderFactory;
-}
 }
 
 namespace chromeos {
@@ -29,6 +27,7 @@ namespace chromeos {
 class PpdCache;
 class PrinterConfigCache;
 class PpdMetadataManager;
+class RemotePpdFetcher;
 
 // Everything we might know about a printer when looking for a
 // driver for it.  All of the default values for fields in this struct
@@ -105,7 +104,7 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdProvider
     // Minimum milestone for ChromeOS build
     base::Version min_milestone = base::Version("0.0");
 
-    // Maximum milestone for ChomeOS build
+    // Maximum milestone for ChromeOS build
     base::Version max_milestone = base::Version("0.0");
   };
 
@@ -180,10 +179,13 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdProvider
       const base::Version& current_version,
       scoped_refptr<PpdCache> cache,
       std::unique_ptr<PpdMetadataManager> metadata_manager,
-      std::unique_ptr<PrinterConfigCache> config_cache);
+      std::unique_ptr<PrinterConfigCache> config_cache,
+      std::unique_ptr<RemotePpdFetcher> remote_ppd_fetcher);
 
-  // Get all manufacturers for which we have drivers.  Keys of the map will be
-  // localized in the default browser locale or the closest available fallback.
+  // Return a printable name for |code|.
+  static std::string_view CallbackResultCodeName(CallbackResultCode code);
+
+  // Get all manufacturers for which we have drivers.
   //
   // |cb| will be called on the invoking thread, and will be sequenced.
   //
@@ -193,8 +195,7 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdProvider
   // queue length at which this occurs is unspecified.
   virtual void ResolveManufacturers(ResolveManufacturersCallback cb) = 0;
 
-  // Get all models from a given manufacturer, localized in the
-  // default browser locale or the closest available fallback.
+  // Get all models from a given manufacturer.
   // |manufacturer| must be a value returned from a successful
   // ResolveManufacturers() call performed from this PpdProvider
   // instance.
@@ -221,7 +222,7 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdProvider
   // the PpdIndex will be fetched in order to retrieve the associated license.
   //
   // |cb| will be called on the invoking thread, and will be sequenced.
-  virtual void ResolvePpdLicense(base::StringPiece effective_make_and_model,
+  virtual void ResolvePpdLicense(std::string_view effective_make_and_model,
                                  ResolvePpdLicenseCallback cb) = 0;
 
   // For a given PpdReference, retrieve the make and model strings used to
@@ -241,7 +242,7 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdProvider
 
   // Used to "dereference" the PPD previously named by the cache key from
   // Printer::PpdReference::effective_make_and_model.
-  static std::string PpdBasenameToCacheKey(base::StringPiece ppd_basename);
+  static std::string PpdBasenameToCacheKey(std::string_view ppd_basename);
 
  protected:
   friend class base::RefCounted<PpdProvider>;

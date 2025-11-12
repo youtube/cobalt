@@ -21,10 +21,6 @@ namespace aura {
 class Window;
 }
 
-namespace gfx {
-class Rect;
-}
-
 namespace wm {
 class TooltipObserver;
 }
@@ -50,14 +46,14 @@ class VIEWS_EXPORT TooltipStateManager {
 
   int GetMaxWidth(const gfx::Point& location) const;
 
-  // Hide the tooltip, clear timers, and reset controller states.
+  // Hides the tooltip, clears timers, and resets controller states.
   void HideAndReset();
 
   bool IsVisible() const { return tooltip_->IsVisible(); }
 
-  // Update the tooltip state attributes and start timer to show the tooltip. If
-  // `hide_timeout` is greater than 0, set a timer to hide it after a specific
-  // delay. Otherwise, show indefinitely.
+  // Updates the tooltip state attributes and starts timer to show the tooltip.
+  // If `hide_delay` is greater than 0, sets a timer to hide it after a specific
+  // delay. Otherwise, shows the tooltip indefinitely.
   void Show(aura::Window* window,
             const std::u16string& tooltip_text,
             const gfx::Point& position,
@@ -76,26 +72,17 @@ class VIEWS_EXPORT TooltipStateManager {
   }
   TooltipTrigger tooltip_trigger() const { return tooltip_trigger_; }
 
-  // Update the 'position_' if we're about to show the tooltip. This is to
+  // Updates the 'position_' if we're about to show the tooltip. This is to
   // ensure that the tooltip's position is aligned with either the latest cursor
   // location for a cursor triggered tooltip or the most recent position
   // received for a keyboard triggered tooltip.
   void UpdatePositionIfNeeded(const gfx::Point& position,
                               TooltipTrigger trigger);
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Called when tooltip is shown/hidden on server.
-  // Only used by Lacros.
-  void OnTooltipShownOnServer(aura::Window* window,
-                              const std::u16string& text,
-                              const gfx::Rect& bounds);
-  void OnTooltipHiddenOnServer();
-#endif
-
  private:
   friend class test::TooltipControllerTestHelper;
 
-  // Called once the |will_show_timer_| fires to show the tooltip.
+  // Called once the `will_show_tooltip_timer_` fires to show the tooltip.
   void ShowNow(const std::u16string& trimmed_text,
                const base::TimeDelta hide_delay);
 
@@ -113,13 +100,14 @@ class VIEWS_EXPORT TooltipStateManager {
   }
 
   // The current position of the tooltip. This position is relative to the
-  // `tooltip_window_` and in that window's coordinate space.
+  // `tooltip_parent_window_` and in that window's coordinate space.
   gfx::Point position_;
 
   std::unique_ptr<Tooltip> tooltip_;
 
   // The pointer to the view for which the tooltip is set.
-  raw_ptr<const void> tooltip_id_ = nullptr;
+  // TODO(crbug.com/40285438) - Fix this dangling pointer.
+  raw_ptr<const void, DanglingUntriaged> tooltip_id_ = nullptr;
 
   // The text value used at the last tooltip update.
   std::u16string tooltip_text_;
@@ -131,8 +119,6 @@ class VIEWS_EXPORT TooltipStateManager {
 
   // Two timers for the tooltip: one to hide an on-screen tooltip after a delay,
   // and one to display the tooltip when the timer fires.
-  // Timers are always not running on Lacros using server side tooltip since
-  // they are handled on Ash side.
   base::OneShotTimer will_hide_tooltip_timer_;
   base::OneShotTimer will_show_tooltip_timer_;
 

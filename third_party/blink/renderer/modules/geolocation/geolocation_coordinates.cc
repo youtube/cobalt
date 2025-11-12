@@ -25,30 +25,20 @@
 
 #include "third_party/blink/renderer/modules/geolocation/geolocation_coordinates.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
+
 namespace blink {
 
-absl::optional<double> GeolocationCoordinates::altitude() const {
-  if (can_provide_altitude_)
-    return altitude_;
-  return absl::nullopt;
-}
-
-absl::optional<double> GeolocationCoordinates::altitudeAccuracy() const {
-  if (can_provide_altitude_accuracy_)
-    return altitude_accuracy_;
-  return absl::nullopt;
-}
-
-absl::optional<double> GeolocationCoordinates::heading() const {
-  if (can_provide_heading_)
-    return heading_;
-  return absl::nullopt;
-}
-
-absl::optional<double> GeolocationCoordinates::speed() const {
-  if (can_provide_speed_)
-    return speed_;
-  return absl::nullopt;
+ScriptObject GeolocationCoordinates::toJSON(ScriptState* script_state) const {
+  V8ObjectBuilder builder(script_state);
+  builder.AddNumber("accuracy", accuracy_);
+  builder.AddNumber("latitude", latitude_);
+  builder.AddNumber("longitude", longitude_);
+  builder.AddNumberOrNull("altitude", altitude_);
+  builder.AddNumberOrNull("altitudeAccuracy", altitude_accuracy_);
+  builder.AddNumberOrNull("heading", heading_);
+  builder.AddNumberOrNull("speed", speed_);
+  return builder.ToScriptObject();
 }
 
 }  // namespace blink

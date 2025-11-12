@@ -26,7 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import argparse
 from collections import OrderedDict
 import sys
 
@@ -144,8 +143,6 @@ class CreateCommitMessage(Step):
       # gerrit. Keep BUG= for now for backwards-compatibility.
       msg_pieces.append("BUG=%s\n" % bug_aggregate)
 
-    msg_pieces.append("NOTRY=true\nNOPRESUBMIT=true\nNOTREECHECKS=true\n")
-
     self["new_commit_msg"] = "".join(msg_pieces)
 
 
@@ -196,7 +193,7 @@ class MergeToBranch(ScriptsBase):
   def _Description(self):
     return ("Performs the necessary steps to merge revisions from "
             "main to release branches like 4.5. This script does not "
-            "version the commit. See http://goo.gl/9ke2Vw for more "
+            "version the commit. See https://v8.dev/docs/merge-patch for more "
             "information.")
 
   def _PrepareOptions(self, parser):

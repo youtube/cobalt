@@ -67,6 +67,8 @@ class PLATFORM_EXPORT MIMETypeRegistry {
   // resource.
   static bool IsSupportedJavaScriptMIMEType(const String& mime_type);
 
+  static bool IsWasmMIMEType(const String& mime_type);
+
   // https://mimesniff.spec.whatwg.org/#json-mime-type
   static bool IsJSONMimeType(const String& mime_type);
 
@@ -106,19 +108,13 @@ class PLATFORM_EXPORT MIMETypeRegistry {
   // Checks to see if a mime type is suitable for being loaded as a text track.
   static bool IsSupportedTextTrackMIMEType(const String& mime_type);
 
-  // Checks to see if a mime type is an image type with lossy compression, whose
-  // size will be restricted via the 'lossy-images-max-bpp' document
-  // policy. (JPEG)
-  static bool IsLossyImageMIMEType(const String& mime_type);
-
-  // Checks to see if a mime type is an image type with lossless (or no)
-  // compression, whose size may be restricted via the
-  // 'lossless-images-max-bpp' document policy. (BMP, GIF, PNG, WEBP)
-  static bool IsLosslessImageMIMEType(const String& mime_type);
-
   // Checks to see if a mime type is suitable for being loaded as XML.
   // https://mimesniff.spec.whatwg.org/#xml-mime-type
   static bool IsXMLMIMEType(const String& mime_type);
+
+  // Returns true if the MIME type is suitable for loading as a XML external
+  // entity.
+  static bool IsXMLExternalEntityMIMEType(const String& mime_type);
 
   // Checks to see if a mime type is suitable for being loaded as plain text.
   static bool IsPlainTextMIMEType(const String& mime_type);

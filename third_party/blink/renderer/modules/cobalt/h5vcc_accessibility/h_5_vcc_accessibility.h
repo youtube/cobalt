@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
 
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -30,13 +30,9 @@ namespace blink {
 
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccAccessibility final
-    // TODO: EventTargetWithInlineData should be replaced with EventTarget
-    // after Chromium base version update, see
-    // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient {
   DEFINE_WRAPPERTYPEINFO();
@@ -80,4 +76,4 @@ class MODULES_EXPORT H5vccAccessibility final
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_

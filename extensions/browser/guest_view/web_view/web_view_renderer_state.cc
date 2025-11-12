@@ -2,37 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/public/browser/browser_thread.h"
 #include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
+
+#include "base/containers/contains.h"
+#include "content/public/browser/browser_thread.h"
 
 using content::BrowserThread;
 
 namespace extensions {
 
-WebViewRendererState::WebViewInfo::WebViewInfo() {
-}
+WebViewRendererState::WebViewInfo::WebViewInfo() = default;
 
 WebViewRendererState::WebViewInfo::WebViewInfo(const WebViewInfo& other) =
     default;
 
-WebViewRendererState::WebViewInfo::~WebViewInfo() {
-}
+WebViewRendererState::WebViewInfo::~WebViewInfo() = default;
 
 // static
 WebViewRendererState* WebViewRendererState::GetInstance() {
   return base::Singleton<WebViewRendererState>::get();
 }
 
-WebViewRendererState::WebViewRendererState() {
-}
+WebViewRendererState::WebViewRendererState() = default;
 
-WebViewRendererState::~WebViewRendererState() {
-}
+WebViewRendererState::~WebViewRendererState() = default;
 
 bool WebViewRendererState::IsGuest(int render_process_id) const {
   base::AutoLock auto_lock(web_view_partition_id_map_lock_);
-  return web_view_partition_id_map_.find(render_process_id) !=
-         web_view_partition_id_map_.end();
+  return base::Contains(web_view_partition_id_map_, render_process_id);
 }
 
 void WebViewRendererState::AddGuest(int guest_process_id,
@@ -45,8 +42,9 @@ void WebViewRendererState::AddGuest(int guest_process_id,
   bool updating =
       web_view_info_map_.find(global_routing_id) != web_view_info_map_.end();
   web_view_info_map_[global_routing_id] = web_view_info;
-  if (updating)
+  if (updating) {
     return;
+  }
 
   auto iter = web_view_partition_id_map_.find(guest_process_id);
   if (iter != web_view_partition_id_map_.end()) {
@@ -67,8 +65,9 @@ void WebViewRendererState::RemoveGuest(int guest_process_id,
   // this case, ensure that the refcount in web_view_partition_id_map_ isn't
   // double-decremented.  In particular, this can happen when a <webview>'s
   // process is terminated and then reloaded.
-  if (web_view_info_map_.erase(global_routing_id) == 0)
+  if (web_view_info_map_.erase(global_routing_id) == 0) {
     return;
+  }
 
   auto iter = web_view_partition_id_map_.find(guest_process_id);
   if (iter != web_view_partition_id_map_.end() &&
@@ -102,10 +101,12 @@ bool WebViewRendererState::GetOwnerInfo(int guest_process_id,
   // WebViewInfo.
   for (const auto& info : web_view_info_map_) {
     if (info.first.child_id == guest_process_id) {
-      if (owner_process_id)
-        *owner_process_id = info.second.embedder_process_id;
-      if (owner_host)
+      if (owner_process_id) {
+        *owner_process_id = info.second.embedder_process_id.value();
+      }
+      if (owner_host) {
         *owner_host = info.second.owner_host;
+      }
       return true;
     }
   }
@@ -132,7 +133,7 @@ void WebViewRendererState::AddContentScriptIDs(
 
   for (auto& render_id_info : web_view_info_map_) {
     WebViewInfo& info = render_id_info.second;
-    if (info.embedder_process_id == embedder_process_id &&
+    if (info.embedder_process_id.value() == embedder_process_id &&
         info.instance_id == view_instance_id) {
       info.content_script_ids.insert(script_ids.begin(), script_ids.end());
       // Note that it's important not to return early here, as there could be
@@ -150,7 +151,7 @@ void WebViewRendererState::RemoveContentScriptIDs(
 
   for (auto& render_id_info : web_view_info_map_) {
     WebViewInfo& info = render_id_info.second;
-    if (info.embedder_process_id == embedder_process_id &&
+    if (info.embedder_process_id.value() == embedder_process_id &&
         info.instance_id == view_instance_id) {
       for (const std::string& id : script_ids)
         info.content_script_ids.erase(id);

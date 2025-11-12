@@ -23,10 +23,17 @@
  * DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/modules/webaudio/realtime_analyser.h"
 
 #include <limits.h>
+
 #include <algorithm>
+#include <bit>
 #include <complex>
 
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
@@ -78,8 +85,7 @@ bool RealtimeAnalyser::SetFftSize(uint32_t size) {
   DCHECK(IsMainThread());
 
   // Only allow powers of two within the allowed range.
-  if (size > kMaxFFTSize || size < kMinFFTSize ||
-      !audio_utilities::IsPowerOfTwo(size)) {
+  if (size > kMaxFFTSize || size < kMinFFTSize || !std::has_single_bit(size)) {
     return false;
   }
 

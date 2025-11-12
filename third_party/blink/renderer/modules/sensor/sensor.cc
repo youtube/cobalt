@@ -4,12 +4,12 @@
 
 #include "third_party/blink/renderer/modules/sensor/sensor.h"
 
+#include <algorithm>
 #include <utility>
 
-#include "base/ranges/algorithm.h"
 #include "services/device/public/cpp/generic_sensor/sensor_traits.h"
 #include "services/device/public/mojom/sensor.mojom-blink.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom-blink.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -28,9 +28,9 @@ const double kWaitingIntervalThreshold = 0.01;
 
 bool AreFeaturesEnabled(
     ExecutionContext* context,
-    const Vector<mojom::blink::PermissionsPolicyFeature>& features) {
-  return base::ranges::all_of(
-      features, [context](mojom::blink::PermissionsPolicyFeature feature) {
+    const Vector<network::mojom::PermissionsPolicyFeature>& features) {
+  return std::ranges::all_of(
+      features, [context](network::mojom::PermissionsPolicyFeature feature) {
         return context->IsFeatureEnabled(feature,
                                          ReportOptions::kReportOnFailure);
       });
@@ -42,7 +42,7 @@ Sensor::Sensor(ExecutionContext* execution_context,
                const SensorOptions* sensor_options,
                ExceptionState& exception_state,
                device::mojom::blink::SensorType type,
-               const Vector<mojom::blink::PermissionsPolicyFeature>& features)
+               const Vector<network::mojom::PermissionsPolicyFeature>& features)
     : ActiveScriptWrappable<Sensor>({}),
       ExecutionContextLifecycleObserver(execution_context),
       frequency_(0.0),
@@ -81,7 +81,7 @@ Sensor::Sensor(ExecutionContext* execution_context,
                const SpatialSensorOptions* options,
                ExceptionState& exception_state,
                device::mojom::blink::SensorType sensor_type,
-               const Vector<mojom::blink::PermissionsPolicyFeature>& features)
+               const Vector<network::mojom::PermissionsPolicyFeature>& features)
     : Sensor(execution_context,
              static_cast<const SensorOptions*>(options),
              exception_state,
@@ -120,15 +120,15 @@ bool Sensor::hasReading() const {
   return sensor_proxy_->GetReading().timestamp() != 0.0;
 }
 
-absl::optional<DOMHighResTimeStamp> Sensor::timestamp(
+std::optional<DOMHighResTimeStamp> Sensor::timestamp(
     ScriptState* script_state) const {
   if (!hasReading()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   LocalDOMWindow* window = LocalDOMWindow::From(script_state);
   if (!window) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   WindowPerformance* performance = DOMWindowPerformance::performance(*window);
@@ -144,7 +144,7 @@ void Sensor::Trace(Visitor* visitor) const {
   visitor->Trace(sensor_proxy_);
   ActiveScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 bool Sensor::HasPendingActivity() const {
@@ -186,8 +186,14 @@ void Sensor::InitSensorProxyIfNeeded() {
 }
 
 void Sensor::ContextDestroyed() {
-  if (!IsIdleOrErrored())
+  // We do not use IsIdleOrErrored() here because we also want to call
+  // Deactivate() if |pending_error_notification_| is active (see
+  // https://crbug.com/324301018).
+  if (state_ != SensorState::kIdle) {
     Deactivate();
+  }
+
+  state_ = SensorState::kIdle;
 
   if (sensor_proxy_)
     sensor_proxy_->Detach();

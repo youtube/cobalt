@@ -19,6 +19,8 @@ static_library("media_util") {
     "//starboard/shared/starboard/media/avc_util.h",
     "//starboard/shared/starboard/media/codec_util.cc",
     "//starboard/shared/starboard/media/codec_util.h",
+    "//starboard/shared/starboard/media/iamf_util.cc",
+    "//starboard/shared/starboard/media/iamf_util.h",
     "//starboard/shared/starboard/media/key_system_supportability_cache.cc",
     "//starboard/shared/starboard/media/key_system_supportability_cache.h",
     "//starboard/shared/starboard/media/media_support_internal.h",

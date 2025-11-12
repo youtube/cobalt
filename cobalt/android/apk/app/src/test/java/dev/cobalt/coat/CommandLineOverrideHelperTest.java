@@ -63,7 +63,6 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultBlinkEnableFeatureOverridesList() {
         String overrides =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
-        assertThat(overrides.contains("MediaSourceNewAbortAndDuration")).isTrue();
         assertThat(overrides.contains("PreciseMemoryInfo")).isTrue();
     }
 
@@ -73,8 +72,6 @@ public class CommandLineOverrideHelperTest {
 
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
-        Assert.assertTrue(
-            CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
@@ -108,7 +105,7 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {"--enable-features=TestFeature1;TestFeature2"};
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                true, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String actual = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -127,7 +124,7 @@ public class CommandLineOverrideHelperTest {
         };
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                true, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -154,7 +151,7 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {"--some-other-switch=value"};
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                true, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("some-other-switch"));
@@ -169,7 +166,7 @@ public class CommandLineOverrideHelperTest {
         };
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                true, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -190,7 +187,7 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {"--enable-features=TestFeature1=value1;TestFeature2=value2"};
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-                false, true, commandLineArgs);
+                true, commandLineArgs);
         CommandLineOverrideHelper.getFlagOverrides(params);
 
         String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");

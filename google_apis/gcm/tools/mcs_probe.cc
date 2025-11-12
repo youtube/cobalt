@@ -66,7 +66,7 @@
 #include "url/scheme_host_port.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 // This is a simple utility that initializes an mcs client and
@@ -298,8 +298,8 @@ void MCSProbe::Start() {
       base::SingleThreadTaskRunner::GetCurrentDefault(), &recorder_,
       network_connection_tracker_.get());
   gcm_store_ = std::make_unique<GCMStoreImpl>(
-      gcm_store_path_, /*remove_account_mappings_with_email_key=*/true,
-      file_thread_.task_runner(), std::make_unique<FakeEncryptor>());
+      gcm_store_path_, file_thread_.task_runner(),
+      std::make_unique<FakeEncryptor>());
 
   mcs_client_ = std::make_unique<MCSClient>(
       "probe", &clock_, connection_factory_.get(), gcm_store_.get(),
@@ -377,7 +377,7 @@ void MCSProbe::InitializeNetworkState() {
   auto url_loader_factory_params =
       network::mojom::URLLoaderFactoryParams::New();
   url_loader_factory_params->process_id = network::mojom::kBrowserProcessId;
-  url_loader_factory_params->is_corb_enabled = false;
+  url_loader_factory_params->is_orb_enabled = false;
   network_context_->CreateURLLoaderFactory(
       url_loader_factory_.BindNewPipeAndPassReceiver(),
       std::move(url_loader_factory_params));
@@ -407,7 +407,6 @@ void MCSProbe::CheckIn() {
   chrome_build_proto.set_chrome_version(kChromeVersion);
 
   CheckinRequest::RequestInfo request_info(0, 0,
-                                           std::map<std::string, std::string>(),
                                            std::string(), chrome_build_proto);
 
   checkin_request_ = std::make_unique<CheckinRequest>(

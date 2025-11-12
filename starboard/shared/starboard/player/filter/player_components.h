@@ -69,7 +69,7 @@ class PlayerComponents {
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const CreationParameters& that);
+      CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
       void reset_audio_codec() {

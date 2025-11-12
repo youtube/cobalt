@@ -18,12 +18,11 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
 import org.chromium.chrome.test.util.ByteBufferTestUtils;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,8 +30,8 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Tests relating to {@link LevelDBPersistedTabDataStorage}
- * TODO(crbug.com/1146803) investigate batching tests
+ * Tests relating to {@link LevelDBPersistedTabDataStorage} TODO(crbug.com/40156392) investigate
+ * batching tests
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
@@ -64,15 +63,20 @@ public class LevelDBPersistedTabDataStorageTest {
 
     @Before
     public void setUp() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPersistedTabDataStorage =
-                    new LevelDBPersistedTabDataStorage(Profile.getLastUsedRegularProfile());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPersistedTabDataStorage =
+                            new LevelDBPersistedTabDataStorage(
+                                    ProfileManager.getLastUsedRegularProfile());
+                });
     }
 
     @After
     public void tearDown() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mPersistedTabDataStorage.destroy(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPersistedTabDataStorage.destroy();
+                });
     }
 
     @SmallTest
@@ -190,24 +194,34 @@ public class LevelDBPersistedTabDataStorageTest {
     private void save(int tabId, String dataId, byte[] data) throws TimeoutException {
         CallbackHelper ch = new CallbackHelper();
         int chCount = ch.getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPersistedTabDataStorage.saveForTesting(tabId, dataId, data, new Runnable() {
-                @Override
-                public void run() {
-                    ch.notifyCalled();
-                }
-            });
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPersistedTabDataStorage.saveForTesting(
+                            tabId,
+                            dataId,
+                            data,
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    ch.notifyCalled();
+                                }
+                            });
+                });
         ch.waitForCallback(chCount);
     }
 
     private void performMaintenance(List<Integer> tabIds, String dataId) throws TimeoutException {
         CallbackHelper ch = new CallbackHelper();
         int chCount = ch.getCallCount();
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            mPersistedTabDataStorage.performMaintenanceForTesting(
-                    tabIds, dataId, () -> { ch.notifyCalled(); });
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPersistedTabDataStorage.performMaintenanceForTesting(
+                            tabIds,
+                            dataId,
+                            () -> {
+                                ch.notifyCalled();
+                            });
+                });
         ch.waitForCallback(chCount);
     }
 
@@ -215,9 +229,15 @@ public class LevelDBPersistedTabDataStorageTest {
             throws TimeoutException {
         LoadCallbackHelper ch = new LoadCallbackHelper();
         int chCount = ch.getCallCount();
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            mPersistedTabDataStorage.restore(tabId, dataId, (res) -> { ch.notifyCalled(res); });
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPersistedTabDataStorage.restore(
+                            tabId,
+                            dataId,
+                            (res) -> {
+                                ch.notifyCalled(res);
+                            });
+                });
         ch.waitForCallback(chCount);
         ByteBufferTestUtils.verifyByteBuffer(expected, ch.getRes());
     }
@@ -225,15 +245,18 @@ public class LevelDBPersistedTabDataStorageTest {
     private void delete(int tabId, String dataId) throws TimeoutException {
         CallbackHelper ch = new CallbackHelper();
         int chCount = ch.getCallCount();
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            mPersistedTabDataStorage.deleteForTesting(tabId, dataId, new Runnable() {
-                @Override
-                public void run() {
-                    ch.notifyCalled();
-                }
-            });
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPersistedTabDataStorage.deleteForTesting(
+                            tabId,
+                            dataId,
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    ch.notifyCalled();
+                                }
+                            });
+                });
         ch.waitForCallback(chCount);
     }
-
 }

@@ -21,6 +21,7 @@ class MockSyncInvalidationsService : public SyncInvalidationsService {
   MOCK_METHOD(void, StopListening, ());
   MOCK_METHOD(void, StopListeningPermanently, ());
   MOCK_METHOD(void, AddListener, (InvalidationsListener * listener));
+  MOCK_METHOD(bool, HasListener, (InvalidationsListener * listener));
   MOCK_METHOD(void, RemoveListener, (InvalidationsListener * listener));
   MOCK_METHOD(void,
               AddTokenObserver,
@@ -28,18 +29,12 @@ class MockSyncInvalidationsService : public SyncInvalidationsService {
   MOCK_METHOD(void,
               RemoveTokenObserver,
               (FCMRegistrationTokenObserver * observer));
-  MOCK_METHOD(absl::optional<std::string>,
-              GetFCMRegistrationToken,
-              (),
-              (const));
+  MOCK_METHOD(std::optional<std::string>, GetFCMRegistrationToken, (), (const));
   MOCK_METHOD(void,
               SetInterestedDataTypesHandler,
               (InterestedDataTypesHandler * handler));
-  MOCK_METHOD(absl::optional<ModelTypeSet>,
-              GetInterestedDataTypes,
-              (),
-              (const));
-  MOCK_METHOD(void, SetInterestedDataTypes, (const ModelTypeSet& data_types));
+  MOCK_METHOD(std::optional<DataTypeSet>, GetInterestedDataTypes, (), (const));
+  MOCK_METHOD(void, SetInterestedDataTypes, (const DataTypeSet& data_types));
   MOCK_METHOD(void,
               SetCommittedAdditionalInterestedDataTypesCallback,
               (InterestedDataTypesAppliedCallback callback));

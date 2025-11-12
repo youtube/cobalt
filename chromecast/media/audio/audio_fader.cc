@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/audio/audio_fader.h"
 
 #include <algorithm>
@@ -31,7 +36,7 @@ AudioFader::AudioFader(AudioProvider* provider,
                        double playback_rate)
     : provider_(provider),
       // Ensure that fade_frames_ is a multiple of 4 to keep correct alignment.
-      fade_frames_(base::bits::AlignUp(fade_frames, 4)),
+      fade_frames_(base::bits::AlignUpDeprecatedDoNotUse(fade_frames, 4)),
       num_channels_(provider_->num_channels()),
       sample_rate_(provider_->sample_rate()),
       playback_rate_(playback_rate) {

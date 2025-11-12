@@ -41,7 +41,7 @@ use_udev = false
 use_glib = false
 
 # Disable the Qt backend
-use_qt = false
+use_qt5 = false
 
 # Disable xcbcommon
 use_xkbcommon = false
@@ -67,7 +67,6 @@ include_transport_security_state_preload_list = false
 # Disable the chrome root store for linux/3P platforms.
 chrome_root_store_optional = false
 chrome_root_store_only = false
-trial_comparison_cert_verifier_supported = false
 
 # Disable linux audio APIs
 use_pulseaudio = false
@@ -82,11 +81,6 @@ use_pangocairo = false
 # TFLite is a part of the open-source machine-learning library TensorFlow.
 # We are not using tflite in cobalt currently.
 build_with_tflite_lib = false
-
-# Overriding from third_party/blink/renderer/modules/ml/webnn/features.gni:10
-# webnn is a machine learning related module: https://chromestatus.com/feature/5176273954144256
-# We are not using webnn in cobalt currently.
-build_webnn_with_xnnpack = false
 
 # Override from //third_party/angle/BUILD.gn
 # This flag uses the Use the PCI lib to collect GPU information on Linux.
@@ -113,3 +107,6 @@ icu_use_data_file = false
 
 # Disable the Pepper API (PPAPI) plugin support
 enable_ppapi = false
+
+# Enable the compiler size optimizations e.g. -Os.
+optimize_for_size = true

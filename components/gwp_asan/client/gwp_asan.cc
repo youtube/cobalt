@@ -7,70 +7,171 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <string>
-#include <tuple>
+#include <string_view>
 
-#include "base/allocator/buildflags.h"
 #include "base/allocator/partition_alloc_support.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/containers/flat_set.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
+#include "base/functional/function_ref.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/numerics/safe_math.h"
 #include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "build/build_config.h"
+#include "components/crash/core/common/crash_key.h"
+#include "components/gwp_asan/client/extreme_lightweight_detector_malloc_shims.h"
 #include "components/gwp_asan/client/guarded_page_allocator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/gwp_asan/client/gwp_asan_features.h"
+#include "components/gwp_asan/client/lightweight_detector/poison_metadata_recorder.h"
+#include "components/gwp_asan/client/sampling_helpers.h"
+#include "components/gwp_asan/common/crash_key_name.h"
+#include "partition_alloc/buildflags.h"
 
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+#include "components/gwp_asan/client/lightweight_detector/malloc_shims.h"
 #include "components/gwp_asan/client/sampling_malloc_shims.h"
-#endif  // BUILDFLAG(USE_ALLOCATOR_SHIM)
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 
-#if BUILDFLAG(USE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
+#include "components/gwp_asan/client/lightweight_detector/partitionalloc_shims.h"
 #include "components/gwp_asan/client/sampling_partitionalloc_shims.h"
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC)
 
 namespace gwp_asan {
 
 namespace internal {
 namespace {
 
+[[maybe_unused]] constexpr bool kCpuIs64Bit =
+#if defined(ARCH_CPU_64_BITS)
+    true;
+#else
+    false;
+#endif
+
+// GWP-ASAN's default parameters are as follows:
+// MaxAllocations determines the maximum number of simultaneous allocations
+// allocated from the GWP-ASAN region.
+//
+// MaxMetadata determines the number of slots in the GWP-ASAN region that have
+// associated metadata (e.g. alloc/dealloc stack traces).
+//
+// TotalPages determines the maximum number of slots used for allocations in the
+// GWP-ASAN region. The defaults below use MaxMetadata * 2 on 32-bit builds
+// (where OOMing due to lack of address space is a concern.)
+//
+// The allocation sampling frequency is calculated using the formula:
+// SamplingMultiplier * AllocationSamplingRange**rand
+// where rand is a random real number in the range [0,1).
+//
+// ProcessSamplingProbability is the probability of enabling GWP-ASAN in a new
+// process.
+//
+// ProcessSamplingBoost is the multiplier to increase the
+// ProcessSamplingProbability in scenarios where we want to perform additional
+// testing (e.g., on canary/dev builds).
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+constexpr int kDefaultMaxAllocations = 50;
+constexpr int kDefaultMaxMetadata = 210;
+constexpr int kDefaultTotalPages = kCpuIs64Bit ? 2048 : kDefaultMaxMetadata * 2;
+constexpr int kDefaultAllocationSamplingMultiplier = 1500;
+constexpr int kDefaultAllocationSamplingRange = 16;
+constexpr double kDefaultProcessSamplingProbability = 0.01;
+#elif BUILDFLAG(IS_ANDROID)
 constexpr int kDefaultMaxAllocations = 70;
 constexpr int kDefaultMaxMetadata = 255;
-
-#if defined(ARCH_CPU_64_BITS)
-constexpr int kDefaultTotalPages = 2048;
+constexpr int kDefaultTotalPages = 512;
+constexpr int kDefaultAllocationSamplingMultiplier = 2000;
+constexpr int kDefaultAllocationSamplingRange = 20;
+constexpr double kDefaultProcessSamplingProbability = 0.015;
 #else
-// Use much less virtual memory on 32-bit builds (where OOMing due to lack of
-// address space is a concern.)
-constexpr int kDefaultTotalPages = kDefaultMaxMetadata * 2;
-#endif
-
-// The allocation sampling frequency is calculated using the formula:
-// multiplier * range**rand
-// where rand is a random real number in the range [0,1).
+constexpr int kDefaultMaxAllocations = 70;
+constexpr int kDefaultMaxMetadata = 255;
+constexpr int kDefaultTotalPages = kCpuIs64Bit ? 2048 : kDefaultMaxMetadata * 2;
 constexpr int kDefaultAllocationSamplingMultiplier = 1000;
 constexpr int kDefaultAllocationSamplingRange = 16;
-
 constexpr double kDefaultProcessSamplingProbability = 0.015;
-// The multiplier to increase the ProcessSamplingProbability in scenarios where
-// we want to perform additional testing (e.g., on canary/dev builds).
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_FUCHSIA)
 constexpr int kDefaultProcessSamplingBoost2 = 10;
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-constexpr base::FeatureState kDefaultEnabled = base::FEATURE_ENABLED_BY_DEFAULT;
+#if defined(ARCH_CPU_64_BITS)
+// The aim is to have the same memory overhead as the default GWP-ASan mode,
+// which is:
+//   sizeof(SlotMetadata) * kDefaultMaxMetadata +
+//     sizeof(SystemPage) * kDefaultMaxAllocations
+// The memory overhead of Lightweight UAF detector is:
+//   sizeof(LightweightSlotMetadata) * kDefaultMaxLightweightMetadata
+constexpr int kDefaultMaxLightweightMetadata = 3000;
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+constexpr int kDefaultMaxTotalSize = 65536;
+
+// A set of parameters temporarily used by the random sampling LUD experiment.
+constexpr int kDefaultTotalSizeHighWaterMark = kDefaultMaxTotalSize * 0.8;
+constexpr int kDefaultTotalSizeLowWaterMark = kDefaultMaxTotalSize * 0.7;
+constexpr int kDefaultEvictionChunkSize = 128;
+constexpr int kDefaultEvictionTaskIntervalMs = 1000;
+
+constexpr int kMaxMaxTotalSize = 2 * 1024 * 1024;
+constexpr int kMaxEvictionChunkSize = 1024;
+constexpr int kMaxEvictionTaskIntervalMs = 10000;
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+#endif  // defined(ARCH_CPU_64_BITS)
+
+BASE_FEATURE(kLightweightUafDetector,
+             "LightweightUafDetector",
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
 #else
-constexpr base::FeatureState kDefaultEnabled =
-    base::FEATURE_DISABLED_BY_DEFAULT;
+             base::FEATURE_DISABLED_BY_DEFAULT
 #endif
+);
 
-[[maybe_unused]] constexpr bool kDefaultEnableLightweightDetector = false;
-constexpr int kDefaultMaxLightweightMetadata = 255;
+constexpr base::FeatureParam<LightweightDetectorMode>::Option
+    kLightweightUafDetectorModeOptions[] = {
+        {LightweightDetectorMode::kBrpQuarantine, "BrpQuarantine"},
+        {LightweightDetectorMode::kRandom, "Random"}};
 
-BASE_FEATURE(kGwpAsanMalloc, "GwpAsanMalloc", kDefaultEnabled);
-BASE_FEATURE(kGwpAsanPartitionAlloc, "GwpAsanPartitionAlloc", kDefaultEnabled);
+const base::FeatureParam<LightweightDetectorMode>
+    kLightweightUafDetectorModeParam{&kLightweightUafDetector, "Mode",
+                                     LightweightDetectorMode::kBrpQuarantine,
+                                     &kLightweightUafDetectorModeOptions};
+
+// Gets (integral) named `param` from `feature`,  defaulting to
+// `fallback` if unset. Invokes `failure_condition()` on the result to
+// validate that the value is acceptable.
+std::optional<int> GetIntParam(const base::Feature& feature,
+                               const std::string& param,
+                               int fallback,
+                               std::string_view process_type,
+                               base::FunctionRef<bool(int)> failure_condition) {
+  const std::optional<std::string_view> param_prefix =
+      ProcessString(process_type);
+
+  // Get the prefix-less parameter value first.
+  int param_int = GetFieldTrialParamByFeatureAsInt(feature, param, fallback);
+  if (param_prefix.has_value()) {
+    // If a process-specific override parameter exists, prefer that
+    // instead.
+    const std::string prefixed_param =
+        base::StrCat({param_prefix.value(), param});
+    param_int =
+        GetFieldTrialParamByFeatureAsInt(feature, prefixed_param, param_int);
+  }
+
+  if (param_int < 1 || failure_condition(param_int)) {
+    DLOG(ERROR) << feature.name << " " << param
+                << " is out-of-range: " << param_int;
+    return std::nullopt;
+  }
+  return param_int;
+}
 
 // Returns whether this process should be sampled to enable GWP-ASan.
 bool SampleProcess(const base::Feature& feature, bool boost_sampling) {
@@ -79,7 +180,8 @@ bool SampleProcess(const base::Feature& feature, bool boost_sampling) {
                                           kDefaultProcessSamplingProbability);
   if (process_sampling_probability < 0.0 ||
       process_sampling_probability > 1.0) {
-    DLOG(ERROR) << "GWP-ASan ProcessSamplingProbability is out-of-range: "
+    DLOG(ERROR) << feature.name
+                << " ProcessSamplingProbability is out-of-range: "
                 << process_sampling_probability;
     return false;
   }
@@ -87,7 +189,8 @@ bool SampleProcess(const base::Feature& feature, bool boost_sampling) {
   int process_sampling_boost = GetFieldTrialParamByFeatureAsInt(
       feature, "ProcessSamplingBoost2", kDefaultProcessSamplingBoost2);
   if (process_sampling_boost < 1) {
-    DLOG(ERROR) << "GWP-ASan ProcessSampling multiplier is out-of-range: "
+    DLOG(ERROR) << feature.name
+                << " ProcessSampling multiplier is out-of-range: "
                 << process_sampling_boost;
     return false;
   }
@@ -97,7 +200,7 @@ bool SampleProcess(const base::Feature& feature, bool boost_sampling) {
   if (boost_sampling)
     sampling_prob_mult *= process_sampling_boost;
   if (!sampling_prob_mult.IsValid()) {
-    DLOG(ERROR) << "GWP-ASan multiplier caused out-of-range multiply: "
+    DLOG(ERROR) << feature.name << " multiplier caused out-of-range multiply: "
                 << process_sampling_boost;
     return false;
   }
@@ -107,44 +210,73 @@ bool SampleProcess(const base::Feature& feature, bool boost_sampling) {
 }
 
 // Returns the allocation sampling frequency, or 0 on error.
-size_t AllocationSamplingFrequency(const base::Feature& feature) {
-  int multiplier =
-      GetFieldTrialParamByFeatureAsInt(feature, "AllocationSamplingMultiplier",
-                                       kDefaultAllocationSamplingMultiplier);
-  if (multiplier < 1) {
-    DLOG(ERROR) << "GWP-ASan AllocationSamplingMultiplier is out-of-range: "
-                << multiplier;
+size_t AllocationSamplingFrequency(const base::Feature& feature,
+                                   std::string_view process_type) {
+  std::optional<int> multiplier =
+      GetIntParam(feature, "AllocationSamplingMultiplier",
+                  kDefaultAllocationSamplingMultiplier, process_type,
+                  [](int /*unused*/) { return false; });
+  if (!multiplier.has_value()) {
     return 0;
   }
 
-  int range = GetFieldTrialParamByFeatureAsInt(
-      feature, "AllocationSamplingRange", kDefaultAllocationSamplingRange);
-  if (range < 1) {
-    DLOG(ERROR) << "GWP-ASan AllocationSamplingRange is out-of-range: "
-                << range;
+  std::optional<int> range = GetIntParam(
+      feature, "AllocationSamplingRange", kDefaultAllocationSamplingRange,
+      process_type, [](int _unused) { return false; });
+  if (!range.has_value()) {
     return 0;
   }
 
-  base::CheckedNumeric<size_t> frequency = multiplier;
-  frequency *= std::pow(range, base::RandDouble());
+  base::CheckedNumeric<size_t> frequency = multiplier.value();
+  frequency *= std::pow(range.value(), base::RandDouble());
   if (!frequency.IsValid()) {
-    DLOG(ERROR) << "Out-of-range multiply " << multiplier << " " << range;
+    DLOG(ERROR) << feature.name << "Out-of-range multiply "
+                << multiplier.value() << " " << range.value();
     return 0;
   }
 
   return frequency.ValueOrDie();
 }
 
+// Don't use both GWP-ASan and LUD at the same time for performance
+// reasons. When both features are enabled, we prefer GWP-ASan to
+// compensate for its lower sampling rate.
+bool IsMutuallyExclusiveFeatureAllowed(const base::Feature& feature) {
+  static base::NoDestructor<base::flat_set<const base::Feature*>>
+      disabled_features([]() {
+        constexpr double kGwpAsanPickProbability = 0.9;
+
+        base::flat_set<const base::Feature*> disabled_features;
+
+        bool gwp_asan_enabled =
+            base::FeatureList::IsEnabled(internal::kGwpAsanMalloc) ||
+            base::FeatureList::IsEnabled(internal::kGwpAsanPartitionAlloc);
+        bool lud_enabled =
+            base::FeatureList::IsEnabled(internal::kLightweightUafDetector);
+        if (gwp_asan_enabled && lud_enabled) {
+          if (base::RandDouble() <= kGwpAsanPickProbability) {
+            disabled_features.emplace(&internal::kLightweightUafDetector);
+          } else {
+            disabled_features.emplace(&internal::kGwpAsanMalloc);
+            disabled_features.emplace(&internal::kGwpAsanPartitionAlloc);
+          }
+        }
+
+        return disabled_features;
+      }());
+
+  return disabled_features->find(&feature) == disabled_features->end();
+}
+
 }  // namespace
 
 // Exported for testing.
-GWP_ASAN_EXPORT absl::optional<AllocatorSettings> GetAllocatorSettings(
+// Provides ungated access to the allocator settings that _would_
+// be assigned to the `feature`.
+GWP_ASAN_EXPORT std::optional<AllocatorSettings> GetAllocatorSettingsImpl(
     const base::Feature& feature,
     bool boost_sampling,
-    const char* process_type) {
-  if (!base::FeatureList::IsEnabled(feature))
-    return absl::nullopt;
-
+    std::string_view process_type) {
   static_assert(
       AllocatorState::kMaxRequestedSlots <= std::numeric_limits<int>::max(),
       "kMaxRequestedSlots out of range");
@@ -152,122 +284,334 @@ GWP_ASAN_EXPORT absl::optional<AllocatorSettings> GetAllocatorSettings(
       static_cast<int>(AllocatorState::kMaxRequestedSlots);
 
   static_assert(AllocatorState::kMaxMetadata <= std::numeric_limits<int>::max(),
-                "kMaxMetadata out of range");
+                "AllocatorState::kMaxMetadata out of range");
   constexpr int kMaxMetadata = static_cast<int>(AllocatorState::kMaxMetadata);
 
-  static_assert(AllocatorState::kMaxLightweightMetadata <=
-                    std::numeric_limits<int>::max(),
-                "kMaxMetadata out of range");
-  constexpr int kMaxLightweightMetadata =
-      static_cast<int>(AllocatorState::kMaxLightweightMetadata);
-
-  int total_pages = GetFieldTrialParamByFeatureAsInt(feature, "TotalPages",
-                                                     kDefaultTotalPages);
-  if (total_pages < 1 || total_pages > kMaxRequestedSlots) {
-    DLOG(ERROR) << "GWP-ASan TotalPages is out-of-range: " << total_pages;
-    return absl::nullopt;
+  const auto total_pages =
+      GetIntParam(feature, "TotalPages", kDefaultTotalPages, process_type,
+                  [](int param_int) { return param_int > kMaxRequestedSlots; });
+  if (!total_pages.has_value()) {
+    return std::nullopt;
   }
 
-  int max_metadata = GetFieldTrialParamByFeatureAsInt(feature, "MaxMetadata",
-                                                      kDefaultMaxMetadata);
-  if (max_metadata < 1 || max_metadata > std::min(total_pages, kMaxMetadata)) {
-    DLOG(ERROR) << "GWP-ASan MaxMetadata is out-of-range: " << max_metadata
-                << " with TotalPages = " << total_pages;
-    return absl::nullopt;
+  const auto max_metadata = GetIntParam(
+      feature, "MaxMetadata", kDefaultMaxMetadata, process_type,
+      [total_pages, kMaxMetadata](int param_int) {
+        return param_int > std::min(total_pages.value(), kMaxMetadata);
+      });
+  if (!max_metadata.has_value()) {
+    return std::nullopt;
   }
 
-  int max_allocations = GetFieldTrialParamByFeatureAsInt(
-      feature, "MaxAllocations", kDefaultMaxAllocations);
-  if (max_allocations < 1 || max_allocations > max_metadata) {
-    DLOG(ERROR) << "GWP-ASan MaxAllocations is out-of-range: "
-                << max_allocations << " with MaxMetadata = " << max_metadata;
-    return absl::nullopt;
+  const auto max_allocations = GetIntParam(
+      feature, "MaxAllocations", kDefaultMaxAllocations, process_type,
+      [max_metadata](int param_int) { return param_int > max_metadata; });
+  if (!max_allocations.has_value()) {
+    return std::nullopt;
   }
 
-  LightweightDetector::State lightweight_detector_state =
+  const auto sampling_min_size =
+      GetIntParam(feature, "SamplingMinSize", 1, process_type,
+                  [](int /*unused*/) { return false; });
+  if (!sampling_min_size.has_value()) {
+    return std::nullopt;
+  }
+  const auto sampling_max_size =
+      GetIntParam(feature, "SamplingMaxSize", std::numeric_limits<int>::max(),
+                  process_type, [sampling_min_size](int param_int) {
+                    return param_int <= sampling_min_size;
+                  });
+  if (!sampling_max_size.has_value()) {
+    return std::nullopt;
+  }
+
+  size_t alloc_sampling_freq =
+      AllocationSamplingFrequency(feature, process_type);
+  if (!alloc_sampling_freq)
+    return std::nullopt;
+
+  return AllocatorSettings{static_cast<size_t>(max_allocations.value()),
+                           static_cast<size_t>(max_metadata.value()),
+                           static_cast<size_t>(total_pages.value()),
+                           alloc_sampling_freq,
+                           static_cast<size_t>(sampling_min_size.value()),
+                           static_cast<size_t>(sampling_max_size.value())};
+}
+
+// Exported for testing.
+GWP_ASAN_EXPORT std::optional<AllocatorSettings> GetAllocatorSettings(
+    const base::Feature& feature,
+    bool boost_sampling,
+    std::string_view process_type) {
+  if (!base::FeatureList::IsEnabled(feature)) {
+    return std::nullopt;
+  }
+
+  if (!IsMutuallyExclusiveFeatureAllowed(feature)) {
+    return std::nullopt;
+  }
+
+  if (!SampleProcess(feature, boost_sampling)) {
+    return std::nullopt;
+  }
+
+  return GetAllocatorSettingsImpl(feature, boost_sampling, process_type);
+}
+
+bool MaybeEnableLightweightDetectorInternal(bool boost_sampling,
+                                            const char* process_type) {
 // The detector is not used on 32-bit systems because pointers there aren't big
 // enough to safely store metadata IDs.
 #if defined(ARCH_CPU_64_BITS)
-      // At the moment, BRP is the only client of the detector, and this extra
-      // check allows us to reduce the memory usage in BRP-disabled processes.
-      (base::allocator::PartitionAllocSupport::GetBrpConfiguration(process_type)
-           .enable_brp &&
-       GetFieldTrialParamByFeatureAsBool(feature, "EnableLightweightDetector",
-                                         kDefaultEnableLightweightDetector))
-          ? LightweightDetector::State::kEnabled
-          :
-#endif  // defined(ARCH_CPU_64_BITS)
-          LightweightDetector::State::kDisabled;
+  const auto& feature = kLightweightUafDetector;
 
-  int max_lightweight_metadata = 0;
-  if (lightweight_detector_state == LightweightDetector::State::kEnabled) {
-    max_lightweight_metadata = GetFieldTrialParamByFeatureAsInt(
-        feature, "MaxLightweightMetadata", kDefaultMaxLightweightMetadata);
-    if (max_lightweight_metadata < 1 ||
-        max_lightweight_metadata > kMaxLightweightMetadata) {
-      DLOG(ERROR) << "GWP-ASan MaxLightweightMetadata is out-of-range: "
-                  << max_lightweight_metadata;
-      return absl::nullopt;
-    }
+  if (!base::FeatureList::IsEnabled(feature)) {
+    return false;
   }
 
-  size_t alloc_sampling_freq = AllocationSamplingFrequency(feature);
-  if (!alloc_sampling_freq)
-    return absl::nullopt;
+  if (!IsMutuallyExclusiveFeatureAllowed(feature)) {
+    return false;
+  }
 
-  if (!SampleProcess(feature, boost_sampling))
-    return absl::nullopt;
+  if (!SampleProcess(feature, boost_sampling)) {
+    return false;
+  }
 
-  return AllocatorSettings{static_cast<size_t>(max_allocations),
-                           static_cast<size_t>(max_metadata),
-                           static_cast<size_t>(total_pages),
-                           alloc_sampling_freq,
-                           lightweight_detector_state,
-                           static_cast<size_t>(max_lightweight_metadata)};
+  static_assert(
+      LightweightDetectorState::kMaxMetadata <= std::numeric_limits<int>::max(),
+      "LightweightDetectorState::kMaxMetadata out of range");
+  constexpr int kMaxMetadata =
+      static_cast<int>(LightweightDetectorState::kMaxMetadata);
+
+  int max_metadata = GetFieldTrialParamByFeatureAsInt(
+      feature, "MaxMetadata", kDefaultMaxLightweightMetadata);
+  if (max_metadata < 1 || max_metadata > kMaxMetadata) {
+    DLOG(ERROR) << feature.name
+                << " MaxMetadata is out-of-range: " << max_metadata;
+    return false;
+  }
+
+  switch (kLightweightUafDetectorModeParam.Get()) {
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
+    case LightweightDetectorMode::kBrpQuarantine: {
+      if (!base::allocator::PartitionAllocSupport::GetBrpConfiguration(
+               process_type)
+               .enable_brp) {
+        return false;
+      }
+
+      lud::PoisonMetadataRecorder::Init(LightweightDetectorMode::kBrpQuarantine,
+                                        static_cast<size_t>(max_metadata));
+      static crash_reporter::CrashKeyString<24> crash_key(
+          kLightweightDetectorCrashKey);
+      crash_key.Set(lud::PoisonMetadataRecorder::Get()->GetCrashKey());
+      lud::InstallPartitionAllocHooks();
+      return true;
+    }
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC)
+
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+    case LightweightDetectorMode::kRandom: {
+      int max_allocations = GetFieldTrialParamByFeatureAsInt(
+          feature, "MaxAllocations", kDefaultMaxAllocations);
+      if (max_allocations < 1 || max_allocations > max_metadata) {
+        DLOG(ERROR) << feature.name
+                    << " MaxAllocations is out-of-range: " << max_allocations
+                    << " with MaxMetadata = " << max_metadata;
+        return false;
+      }
+
+      int max_total_size = GetFieldTrialParamByFeatureAsInt(
+          feature, "MaxTotalSize", kDefaultMaxTotalSize);
+      if (max_total_size < 1 || max_total_size > kMaxMaxTotalSize) {
+        DLOG(ERROR) << feature.name
+                    << " MaxTotalSize is out-of-range: " << max_total_size;
+        return false;
+      }
+
+      int total_size_high_water_mark = GetFieldTrialParamByFeatureAsInt(
+          feature, "TotalSizeHighWaterMark", kDefaultTotalSizeHighWaterMark);
+      if (total_size_high_water_mark < 1 ||
+          total_size_high_water_mark >= max_total_size) {
+        DLOG(ERROR) << feature.name
+                    << " TotalSizeHighWaterMark is out-of-range: "
+                    << total_size_high_water_mark;
+        return false;
+      }
+
+      int total_size_low_water_mark = GetFieldTrialParamByFeatureAsInt(
+          feature, "TotalSizeLowWaterMark", kDefaultTotalSizeLowWaterMark);
+      if (total_size_low_water_mark < 1 ||
+          total_size_low_water_mark >= total_size_high_water_mark) {
+        DLOG(ERROR) << feature.name
+                    << " TotalSizeLowWaterMark is out-of-range: "
+                    << total_size_low_water_mark;
+        return false;
+      }
+
+      int eviction_chunk_size = GetFieldTrialParamByFeatureAsInt(
+          feature, "EvictionChunkSize", kDefaultEvictionChunkSize);
+      if (eviction_chunk_size < 1 ||
+          eviction_chunk_size > kMaxEvictionChunkSize) {
+        DLOG(ERROR) << feature.name << " EvictionChunkSize is out-of-range: "
+                    << eviction_chunk_size;
+        return false;
+      }
+
+      int eviction_task_interval_ms = GetFieldTrialParamByFeatureAsInt(
+          feature, "EvictionTaskIntervalMs", kDefaultEvictionTaskIntervalMs);
+      if (eviction_task_interval_ms < 1 ||
+          eviction_task_interval_ms > kMaxEvictionTaskIntervalMs) {
+        DLOG(ERROR) << feature.name
+                    << " EvictionTaskIntervalMs is out-of-range: "
+                    << eviction_task_interval_ms;
+        return false;
+      }
+
+      // LUD (currently) does not vary its sampling frequency by process
+      // type, so we should avoid passing a valid process type to
+      // `AllocationSamplingFrequency()` (to force it not to fetch
+      // process-specific parameters).
+      constexpr std::string_view kDummyProcessType = "invalid process type";
+      size_t alloc_sampling_freq =
+          AllocationSamplingFrequency(feature, kDummyProcessType);
+      if (!alloc_sampling_freq) {
+        return false;
+      }
+
+      lud::PoisonMetadataRecorder::Init(LightweightDetectorMode::kRandom,
+                                        static_cast<size_t>(max_metadata));
+      static crash_reporter::CrashKeyString<24> crash_key(
+          kLightweightDetectorCrashKey);
+      crash_key.Set(lud::PoisonMetadataRecorder::Get()->GetCrashKey());
+      lud::InstallMallocHooks(static_cast<size_t>(max_allocations),
+                              static_cast<size_t>(max_total_size),
+                              static_cast<size_t>(total_size_high_water_mark),
+                              static_cast<size_t>(total_size_low_water_mark),
+                              static_cast<size_t>(eviction_chunk_size),
+                              static_cast<size_t>(eviction_task_interval_ms),
+                              alloc_sampling_freq);
+      return true;
+    }
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
+
+    default: {
+      DLOG(ERROR) << "Unsupported Lightweight UAF Detector mode.";
+      return false;
+    }
+  }
+#else   // defined(ARCH_CPU_64_BITS)
+  std::ignore = boost_sampling;
+  std::ignore = process_type;
+  std::ignore = kLightweightUafDetectorModeParam;
+  return false;
+#endif  // defined(ARCH_CPU_64_BITS)
 }
 
 }  // namespace internal
 
-void EnableForMalloc(bool boost_sampling, const char* process_type) {
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
+void EnableForMalloc(bool boost_sampling, std::string_view process_type) {
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   static bool init_once = [&]() -> bool {
-    auto settings = internal::GetAllocatorSettings(
+    const auto settings = internal::GetAllocatorSettings(
         internal::kGwpAsanMalloc, boost_sampling, process_type);
-    if (!settings)
-      return false;
+    bool activated_gwp_asan = false;
+    if (settings.has_value()) {
+      activated_gwp_asan = internal::InstallMallocHooks(
+          settings.value(),
+          internal::CreateOomCallback("Malloc", process_type,
+                                      settings->sampling_frequency));
+    }
+    internal::ReportGwpAsanActivated("Malloc", process_type,
+                                     activated_gwp_asan);
 
-    internal::InstallMallocHooks(
-        settings->max_allocated_pages, settings->num_metadata,
-        settings->total_pages, settings->sampling_frequency, base::DoNothing());
-    return true;
+    return activated_gwp_asan;
   }();
   std::ignore = init_once;
 #else
   std::ignore = internal::kGwpAsanMalloc;
   DLOG(WARNING) << "base::allocator shims are unavailable for GWP-ASan.";
-#endif  // BUILDFLAG(USE_ALLOCATOR_SHIM)
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 }
 
-void EnableForPartitionAlloc(bool boost_sampling, const char* process_type) {
-#if BUILDFLAG(USE_PARTITION_ALLOC)
+void EnableForPartitionAlloc(bool boost_sampling,
+                             std::string_view process_type) {
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
   static bool init_once = [&]() -> bool {
-    auto settings = internal::GetAllocatorSettings(
+    const auto settings = internal::GetAllocatorSettings(
         internal::kGwpAsanPartitionAlloc, boost_sampling, process_type);
-    if (!settings)
-      return false;
-
-    internal::InstallPartitionAllocHooks(
-        settings->max_allocated_pages, settings->num_metadata,
-        settings->total_pages, settings->sampling_frequency, base::DoNothing(),
-        settings->lightweight_detector_state,
-        settings->num_lightweight_metadata);
-    return true;
+    bool activated_gwp_asan = false;
+    if (settings.has_value()) {
+      activated_gwp_asan = internal::InstallPartitionAllocHooks(
+          settings.value(),
+          internal::CreateOomCallback("PartitionAlloc", process_type,
+                                      settings->sampling_frequency));
+    }
+    internal::ReportGwpAsanActivated("PartitionAlloc", process_type,
+                                     activated_gwp_asan);
+    return activated_gwp_asan;
   }();
   std::ignore = init_once;
 #else
   std::ignore = internal::kGwpAsanPartitionAlloc;
   DLOG(WARNING) << "PartitionAlloc hooks are unavailable for GWP-ASan.";
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC)
+}
+
+void MaybeEnableLightweightDetector(bool boost_sampling,
+                                    const char* process_type) {
+  [[maybe_unused]] static bool init_once =
+      internal::MaybeEnableLightweightDetectorInternal(boost_sampling,
+                                                       process_type);
+}
+
+void MaybeEnableExtremeLightweightDetector(bool boost_sampling,
+                                           std::string_view process_type) {
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  if (!base::FeatureList::IsEnabled(internal::kExtremeLightweightUAFDetector)) {
+    return;
+  }
+
+  using enum internal::ExtremeLightweightUAFDetectorTargetProcesses;
+  switch (internal::kExtremeLightweightUAFDetectorTargetProcesses.Get()) {
+    case kAllProcesses:
+      break;
+    case kBrowserProcessOnly:
+      if (!process_type.empty()) {
+        return;  // Non-empty process_type means a non-browser process.
+      }
+      break;
+    case kNonRendererProcesses:
+      if (process_type == "renderer") {
+        return;
+      }
+      break;
+  }
+
+  [[maybe_unused]] static bool init_once = [&]() -> bool {
+    size_t sampling_frequency = static_cast<size_t>(
+        internal::kExtremeLightweightUAFDetectorSamplingFrequency.Get());
+    size_t quarantine_capacity_for_small_objects_in_bytes = static_cast<size_t>(
+        internal::
+            kExtremeLightweightUAFDetectorQuarantineCapacityForSmallObjectsInBytes
+                .Get());
+    size_t quarantine_capacity_for_large_objects_in_bytes = static_cast<size_t>(
+        internal::
+            kExtremeLightweightUAFDetectorQuarantineCapacityForLargeObjectsInBytes
+                .Get());
+    size_t object_size_threshold_in_bytes = static_cast<size_t>(
+        internal::kExtremeLightweightUAFDetectorObjectSizeThresholdInBytes
+            .Get());
+    internal::InstallExtremeLightweightDetectorHooks(
+        {.sampling_frequency = sampling_frequency,
+         .quarantine_capacity_for_small_objects_in_bytes =
+             quarantine_capacity_for_small_objects_in_bytes,
+         .quarantine_capacity_for_large_objects_in_bytes =
+             quarantine_capacity_for_large_objects_in_bytes,
+         .object_size_threshold_in_bytes = object_size_threshold_in_bytes});
+    return true;
+  }();
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 }
 
 }  // namespace gwp_asan

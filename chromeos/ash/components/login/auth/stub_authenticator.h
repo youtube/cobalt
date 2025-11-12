@@ -14,6 +14,7 @@
 #include "chromeos/ash/components/login/auth/authenticator.h"
 #include "chromeos/ash/components/login/auth/public/auth_failure.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
+#include "components/user_manager/user_type.h"
 
 class AccountId;
 
@@ -32,23 +33,23 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) StubAuthenticator
   StubAuthenticator& operator=(const StubAuthenticator&) = delete;
 
   // Authenticator:
-  void CompleteLogin(std::unique_ptr<UserContext> user_context) override;
-  void AuthenticateToLogin(std::unique_ptr<UserContext> user_context) override;
+  void CompleteLogin(bool ephemeral,
+                     std::unique_ptr<UserContext> user_context) override;
+  void AuthenticateToLogin(bool ephemeral,
+                           std::unique_ptr<UserContext> user_context) override;
   void LoginOffTheRecord() override;
   void LoginAsPublicSession(const UserContext& user_context) override;
-  void AuthenticateToUnlock(std::unique_ptr<UserContext> user_context) override;
+  void AuthenticateToUnlock(bool ephemeral,
+                            std::unique_ptr<UserContext> user_context) override;
   void LoginAsKioskAccount(const AccountId& app_account_id,
                            bool ephemeral) override;
-  void LoginAsArcKioskAccount(const AccountId& app_account_id,
-                              bool ephemeral) override;
   void LoginAsWebKioskAccount(const AccountId& app_account_id,
+                              bool ephemeral) override;
+  void LoginAsIwaKioskAccount(const AccountId& app_account_id,
                               bool ephemeral) override;
   void LoginAuthenticated(std::unique_ptr<UserContext> user_context) override;
   void OnAuthSuccess() override;
   void OnAuthFailure(const AuthFailure& failure) override;
-  void RecoverEncryptedData(std::unique_ptr<UserContext> user_context,
-                            const std::string& old_password) override;
-  void ResyncEncryptedData(std::unique_ptr<UserContext> user_context) override;
 
   void SetExpectedCredentials(const UserContext& user_context);
 
@@ -65,6 +66,8 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) StubAuthenticator
 
   void OnPasswordChangeDetected();
   void OnOldEncryptionDetected();
+
+  void LoginAsKioskAccountStub(user_manager::UserType kiosk_type);
 
   UserContext expected_user_context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;

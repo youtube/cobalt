@@ -30,11 +30,11 @@ std::ostream& operator<<(std::ostream& os, CredentialType value) {
 CredentialInfo::CredentialInfo() = default;
 
 CredentialInfo::CredentialInfo(CredentialType type,
-                               absl::optional<std::u16string> id,
-                               absl::optional<std::u16string> name,
+                               std::optional<std::u16string> id,
+                               std::optional<std::u16string> name,
                                GURL icon,
-                               absl::optional<std::u16string> password,
-                               url::Origin federation)
+                               std::optional<std::u16string> password,
+                               url::SchemeHostPort federation)
     : type(type),
       id(std::move(id)),
       name(std::move(name)),
@@ -44,10 +44,10 @@ CredentialInfo::CredentialInfo(CredentialType type,
   switch (type) {
     case CredentialType::CREDENTIAL_TYPE_EMPTY:
       password = std::u16string();
-      federation = url::Origin();
+      federation = url::SchemeHostPort();
       break;
     case CredentialType::CREDENTIAL_TYPE_PASSWORD:
-      federation = url::Origin();
+      federation = url::SchemeHostPort();
       break;
     case CredentialType::CREDENTIAL_TYPE_FEDERATED:
       password = std::u16string();

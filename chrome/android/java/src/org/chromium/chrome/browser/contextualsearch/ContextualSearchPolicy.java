@@ -13,13 +13,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchPanelInterface;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
+import org.chromium.base.version_info.VersionInfo;
+import org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchPanel;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchInternalStateController.InternalState;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchSelectionController.SelectionType;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchUma.ContextualSearchPreference;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesState;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -29,12 +34,9 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
-import org.chromium.components.version_info.VersionInfo;
 import org.chromium.url.GURL;
 
-/**
- * Handles business decision policy for the {@code ContextualSearchManager}.
- */
+/** Handles business decision policy for the {@code ContextualSearchManager}. */
 class ContextualSearchPolicy {
     private static final String TAG = "ContextualSearch";
     private static final String DOMAIN_GOOGLE = "google";
@@ -48,10 +50,11 @@ class ContextualSearchPolicy {
     private static final String CONTEXTUAL_SEARCH_ENABLED = "true";
 
     private final SharedPreferencesManager mPreferencesManager;
+    private final Profile mProfile;
     private final ContextualSearchSelectionController mSelectionController;
     private final RelatedSearchesStamp mRelatedSearchesStamp;
     private ContextualSearchNetworkCommunicator mNetworkCommunicator;
-    private ContextualSearchPanelInterface mSearchPanel;
+    private ContextualSearchPanel mSearchPanel;
 
     // Members used only for testing purposes.
     private boolean mDidOverrideFullyEnabledForTesting;
@@ -59,32 +62,33 @@ class ContextualSearchPolicy {
     private Integer mTapTriggeredPromoLimitForTesting;
     private boolean mDidOverrideAllowSendingPageUrlForTesting;
     private boolean mAllowSendingPageUrlForTesting;
+    private Boolean mContextualSearchResolutionUrlValid;
 
-    /**
-     * ContextualSearchPolicy constructor.
-     */
-    public ContextualSearchPolicy(ContextualSearchSelectionController selectionController,
+    /** ContextualSearchPolicy constructor. */
+    public ContextualSearchPolicy(
+            Profile profile,
+            ContextualSearchSelectionController selectionController,
             ContextualSearchNetworkCommunicator networkCommunicator) {
-        mPreferencesManager = SharedPreferencesManager.getInstance();
+        mPreferencesManager = ChromeSharedPreferences.getInstance();
 
+        mProfile = profile;
         mSelectionController = selectionController;
         mNetworkCommunicator = networkCommunicator;
-        if (selectionController != null) selectionController.setPolicy(this);
         mRelatedSearchesStamp = new RelatedSearchesStamp(this);
     }
 
     /**
      * Sets the handle to the ContextualSearchPanel.
+     *
      * @param panel The ContextualSearchPanel.
      */
-    public void setContextualSearchPanel(ContextualSearchPanelInterface panel) {
+    public void setContextualSearchPanel(ContextualSearchPanel panel) {
         mSearchPanel = panel;
     }
 
     /**
      * @return The number of additional times to show the promo on tap, 0 if it should not be shown,
-     *         or a negative value if the counter has been disabled or the user has accepted
-     *         the promo.
+     *     or a negative value if the counter has been disabled or the user has accepted the promo.
      */
     int getPromoTapsRemaining() {
         if (!isUserUndecided()) return REMAINING_NOT_APPLICABLE;
@@ -121,10 +125,10 @@ class ContextualSearchPolicy {
 
     /**
      * @return whether or not the Contextual Search Result should be preloaded before the user
-     *         explicitly interacts with the feature.
+     *     explicitly interacts with the feature.
      */
     boolean shouldPrefetchSearchResult() {
-        if (PreloadPagesSettingsBridge.getState() == PreloadPagesState.NO_PRELOADING) {
+        if (PreloadPagesSettingsBridge.getState(mProfile) == PreloadPagesState.NO_PRELOADING) {
             return false;
         }
 
@@ -166,7 +170,8 @@ class ContextualSearchPolicy {
      */
     boolean isPromoAvailable() {
         // Only show promo card a limited number of times.
-        return isUserUndecided() && getContextualSearchPromoCardShownCount() < PROMO_DEFAULT_LIMIT;
+        return isUserUndecided()
+                && getContextualSearchPromoCardShownCount(mProfile) < PROMO_DEFAULT_LIMIT;
     }
 
     /**
@@ -179,9 +184,7 @@ class ContextualSearchPolicy {
         return false;
     }
 
-    /**
-     * Registers that a tap has taken place by incrementing tap-tracking counters.
-     */
+    /** Registers that a tap has taken place by incrementing tap-tracking counters. */
     void registerTap() {
         if (isPromoAvailable()) {
             DisableablePromoTapCounter promoTapCounter = getPromoTapCounter();
@@ -190,9 +193,7 @@ class ContextualSearchPolicy {
         }
     }
 
-    /**
-     * Updates all the counters to account for an open-action on the panel.
-     */
+    /** Updates all the counters to account for an open-action on the panel. */
     void updateCountersForOpen() {
         // Disable the "promo tap" counter, but only if we're using the Opt-out onboarding.
         // For Opt-in, we never disable the promo tap counter.
@@ -206,8 +207,7 @@ class ContextualSearchPolicy {
      *         is no existing request.
      */
     boolean shouldCreateVerbatimRequest() {
-        @SelectionType
-        int selectionType = mSelectionController.getSelectionType();
+        @SelectionType int selectionType = mSelectionController.getSelectionType();
         return (mSelectionController.getSelectedText() != null
                 && (selectionType == SelectionType.LONG_PRESS || !shouldPreviousGestureResolve()));
     }
@@ -221,11 +221,9 @@ class ContextualSearchPolicy {
         return !(VersionInfo.isStableBuild() || VersionInfo.isBetaBuild());
     }
 
-    /**
-     * Logs the current user's state, including preference, tap and open counters, etc.
-     */
+    /** Logs the current user's state, including preference, tap and open counters, etc. */
     void logCurrentState() {
-        ContextualSearchUma.logPreferenceState();
+        ContextualSearchUma.logPreferenceState(mProfile);
         RelatedSearchesUma.logRelatedSearchesPermissionsForAllUsers(
                 hasSendUrlPermissions(), canSendSurroundings());
     }
@@ -253,8 +251,7 @@ class ContextualSearchPolicy {
         if (!isContextualSearchFullyEnabled()) return false;
 
         // Ensure that the default search provider is Google.
-        if (!TemplateUrlServiceFactory.getForProfile(Profile.getLastUsedRegularProfile())
-                        .isDefaultSearchEngineGoogle()) {
+        if (!TemplateUrlServiceFactory.getForProfile(mProfile).isDefaultSearchEngineGoogle()) {
             return false;
         }
 
@@ -280,8 +277,7 @@ class ContextualSearchPolicy {
         // This is surfaced on the relatively new "Make searches and browsing better" user setting.
         // In case an experiment is active for the legacy UI call through the unified consent
         // service.
-        return UnifiedConsentServiceBridge.isUrlKeyedAnonymizedDataCollectionEnabled(
-                Profile.getLastUsedRegularProfile());
+        return UnifiedConsentServiceBridge.isUrlKeyedAnonymizedDataCollectionEnabled(mProfile);
     }
 
     /**
@@ -297,7 +293,8 @@ class ContextualSearchPolicy {
     boolean shouldRetryCurrentState(@InternalState int state) {
         // Make sure we don't get stuck in the IDLE state if the panel is still showing.
         // See https://crbug.com/1251774
-        return state == InternalState.IDLE && mSearchPanel != null
+        return state == InternalState.IDLE
+                && mSearchPanel != null
                 && (mSearchPanel.isShowing() || mSearchPanel.isActive());
     }
 
@@ -312,147 +309,164 @@ class ContextualSearchPolicy {
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search feature was disabled by the user explicitly.
      */
-    static boolean isContextualSearchDisabled() {
-        return getPrefService()
+    static boolean isContextualSearchDisabled(Profile profile) {
+        return UserPrefs.get(profile)
                 .getString(Pref.CONTEXTUAL_SEARCH_ENABLED)
                 .equals(CONTEXTUAL_SEARCH_DISABLED);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search feature was enabled by the user explicitly.
      */
-    static boolean isContextualSearchEnabled() {
-        return getPrefService()
+    static boolean isContextualSearchEnabled(Profile profile) {
+        return UserPrefs.get(profile)
                 .getString(Pref.CONTEXTUAL_SEARCH_ENABLED)
                 .equals(CONTEXTUAL_SEARCH_ENABLED);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search feature is uninitialized (preference unset by the
-     *         user).
+     *     user).
      */
-    static boolean isContextualSearchUninitialized() {
-        return getPrefService().getString(Pref.CONTEXTUAL_SEARCH_ENABLED).isEmpty();
+    static boolean isContextualSearchUninitialized(Profile profile) {
+        return UserPrefs.get(profile).getString(Pref.CONTEXTUAL_SEARCH_ENABLED).isEmpty();
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search fully privacy opt-in was disabled by the user
-     *         explicitly.
+     *     explicitly.
      */
-    static boolean isContextualSearchOptInDisabled() {
-        return !getPrefService().getBoolean(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED);
+    static boolean isContextualSearchOptInDisabled(Profile profile) {
+        return !UserPrefs.get(profile).getBoolean(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search fully privacy opt-in was enabled by the user
-     *         explicitly.
+     *     explicitly.
      */
-    static boolean isContextualSearchOptInEnabled() {
-        return getPrefService().getBoolean(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED);
+    static boolean isContextualSearchOptInEnabled(Profile profile) {
+        return UserPrefs.get(profile).getBoolean(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search fully privacy opt-in is uninitialized (preference unset
-     *         by the user).
+     *     by the user).
      */
-    static boolean isContextualSearchOptInUninitialized() {
-        return !getPrefService().hasPrefPath(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED);
+    static boolean isContextualSearchOptInUninitialized(Profile profile) {
+        return !UserPrefs.get(profile)
+                .hasPrefPath(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Count of times the promo card has been shown.
      */
-    static int getContextualSearchPromoCardShownCount() {
-        return getPrefService().getInteger(Pref.CONTEXTUAL_SEARCH_PROMO_CARD_SHOWN_COUNT);
+    static int getContextualSearchPromoCardShownCount(Profile profile) {
+        return UserPrefs.get(profile).getInteger(Pref.CONTEXTUAL_SEARCH_PROMO_CARD_SHOWN_COUNT);
     }
 
     /**
      * Sets Count of times the promo card has been shown.
+     *
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      */
-    private static void setContextualSearchPromoCardShownCount(int count) {
-        getPrefService().setInteger(Pref.CONTEXTUAL_SEARCH_PROMO_CARD_SHOWN_COUNT, count);
+    private static void setContextualSearchPromoCardShownCount(Profile profile, int count) {
+        UserPrefs.get(profile).setInteger(Pref.CONTEXTUAL_SEARCH_PROMO_CARD_SHOWN_COUNT, count);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search feature is disabled when the prefs service considers it
-     *         managed.
+     *     managed.
      */
-    static boolean isContextualSearchDisabledByPolicy() {
-        return getPrefService().isManagedPreference(Pref.CONTEXTUAL_SEARCH_ENABLED)
-                && isContextualSearchDisabled();
+    static boolean isContextualSearchDisabledByPolicy(Profile profile) {
+        return UserPrefs.get(profile).isManagedPreference(Pref.CONTEXTUAL_SEARCH_ENABLED)
+                && isContextualSearchDisabled(profile);
     }
 
     /**
      * Explicitly set whether Contextual Search is enabled or not, with the enabled state being
      * either fully or default-enabled based on previous state. 'enabled' is true - fully opt in or
      * default-enabled based on previous state. 'enabled' is false - the feature is disabled.
+     *
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @param enabled Whether Contextual Search should be enabled.
      */
-    static void setContextualSearchState(boolean enabled) {
+    static void setContextualSearchState(Profile profile, boolean enabled) {
         @ContextualSearchPreference
-        int onState = isContextualSearchOptInEnabled() ? ContextualSearchPreference.ENABLED
-                                                       : ContextualSearchPreference.UNINITIALIZED;
-        setContextualSearchStateInternal(enabled ? onState : ContextualSearchPreference.DISABLED);
+        int onState =
+                isContextualSearchOptInEnabled(profile)
+                        ? ContextualSearchPreference.ENABLED
+                        : ContextualSearchPreference.UNINITIALIZED;
+        setContextualSearchStateInternal(
+                profile, enabled ? onState : ContextualSearchPreference.DISABLED);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @return Whether the Contextual Search feature was fully opted in based on the preference
-     *         itself.
+     *     itself.
      */
-    static boolean isContextualSearchPrefFullyOptedIn() {
-        return isContextualSearchOptInUninitialized() ? isContextualSearchEnabled()
-                                                      : isContextualSearchOptInEnabled();
+    static boolean isContextualSearchPrefFullyOptedIn(Profile profile) {
+        return isContextualSearchOptInUninitialized(profile)
+                ? isContextualSearchEnabled(profile)
+                : isContextualSearchOptInEnabled(profile);
     }
 
     /**
-     * Sets whether the user is fully opted in for Contextual Search Privacy.
-     * 'enabled' is true - fully opt in.
-     * 'enabled' is false - remain undecided.
+     * Sets whether the user is fully opted in for Contextual Search Privacy. 'enabled' is true -
+     * fully opt in. 'enabled' is false - remain undecided.
+     *
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @param enabled Whether Contextual Search privacy is opted in.
      */
-    static void setContextualSearchFullyOptedIn(boolean enabled) {
-        getPrefService().setBoolean(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED, enabled);
-        setContextualSearchStateInternal(enabled ? ContextualSearchPreference.ENABLED
-                                                 : ContextualSearchPreference.UNINITIALIZED);
+    static void setContextualSearchFullyOptedIn(Profile profile, boolean enabled) {
+        UserPrefs.get(profile)
+                .setBoolean(Pref.CONTEXTUAL_SEARCH_WAS_FULLY_PRIVACY_ENABLED, enabled);
+        setContextualSearchStateInternal(
+                profile,
+                enabled
+                        ? ContextualSearchPreference.ENABLED
+                        : ContextualSearchPreference.UNINITIALIZED);
     }
 
     /** Notifies that a promo card has been shown. */
-    static void onPromoShown() {
-        int count = getContextualSearchPromoCardShownCount();
+    static void onPromoShown(Profile profile) {
+        int count = getContextualSearchPromoCardShownCount(profile);
         count++;
-        setContextualSearchPromoCardShownCount(count);
+        setContextualSearchPromoCardShownCount(profile, count);
         ContextualSearchUma.logRevisedPromoOpenCount(count);
     }
 
     /**
+     * @param profile The {@link Profile} associated with this Contextual Search session.
      * @param state The state for the Contextual Search.
      */
-    private static void setContextualSearchStateInternal(@ContextualSearchPreference int state) {
+    private static void setContextualSearchStateInternal(
+            Profile profile, @ContextualSearchPreference int state) {
+        PrefService prefs = UserPrefs.get(profile);
         switch (state) {
             case ContextualSearchPreference.UNINITIALIZED:
-                getPrefService().clearPref(Pref.CONTEXTUAL_SEARCH_ENABLED);
+                prefs.clearPref(Pref.CONTEXTUAL_SEARCH_ENABLED);
                 break;
             case ContextualSearchPreference.ENABLED:
-                getPrefService().setString(
-                        Pref.CONTEXTUAL_SEARCH_ENABLED, CONTEXTUAL_SEARCH_ENABLED);
+                prefs.setString(Pref.CONTEXTUAL_SEARCH_ENABLED, CONTEXTUAL_SEARCH_ENABLED);
                 break;
             case ContextualSearchPreference.DISABLED:
-                getPrefService().setString(
-                        Pref.CONTEXTUAL_SEARCH_ENABLED, CONTEXTUAL_SEARCH_DISABLED);
+                prefs.setString(Pref.CONTEXTUAL_SEARCH_ENABLED, CONTEXTUAL_SEARCH_DISABLED);
                 break;
             default:
                 Log.e(TAG, "Unexpected state for ContextualSearchPreference state=" + state);
                 break;
         }
-    }
-
-    /**
-     * @return The PrefService associated with last used Profile.
-     */
-    private static PrefService getPrefService() {
-        return UserPrefs.get(Profile.getLastUsedRegularProfile());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -464,7 +478,6 @@ class ContextualSearchPolicy {
      * @param decidedState Whether the user has decided to opt-in to sending page content or not.
      * @return whether the previous decided state was fully enabled or not.
      */
-    @VisibleForTesting
     boolean overrideDecidedStateForTesting(boolean decidedState) {
         boolean wasEnabled = mFullyEnabledForTesting;
         mDidOverrideFullyEnabledForTesting = true;
@@ -476,7 +489,6 @@ class ContextualSearchPolicy {
      * Overrides the user preference for sending the page URL to Google.
      * @param doAllowSendingPageUrl Whether to allow sending the page URL or not, for tests.
      */
-    @VisibleForTesting
     void overrideAllowSendingPageUrlForTesting(boolean doAllowSendingPageUrl) {
         mDidOverrideAllowSendingPageUrlForTesting = true;
         mAllowSendingPageUrlForTesting = doAllowSendingPageUrl;
@@ -507,7 +519,8 @@ class ContextualSearchPolicy {
     boolean isUserUndecided() {
         if (mDidOverrideFullyEnabledForTesting) return !mFullyEnabledForTesting;
 
-        return isContextualSearchUninitialized() && isContextualSearchOptInUninitialized();
+        return isContextualSearchUninitialized(mProfile)
+                && isContextualSearchOptInUninitialized(mProfile);
     }
 
     /**
@@ -516,7 +529,27 @@ class ContextualSearchPolicy {
     boolean isContextualSearchFullyEnabled() {
         if (mDidOverrideFullyEnabledForTesting) return mFullyEnabledForTesting;
 
-        return isContextualSearchEnabled();
+        return isContextualSearchResolutionUrlValid() && isContextualSearchEnabled(mProfile);
+    }
+
+    /**
+     * @return Whether the contextual search resolution URL is valid and can be used to resolve
+     *     highlight.
+     */
+    boolean isContextualSearchResolutionUrlValid() {
+        // This function is needed because certain DMA implementations supply a persistent set of
+        // Template URL overrides. These overrides are in effect until the user performs a factory
+        // data reset of their device, and occasionally miss relevant information, such as - in this
+        // particular case - "contextual_search_url" value.
+        if (mContextualSearchResolutionUrlValid == null) {
+            if (ContextualSearchPolicyJni.get() == null) {
+                // JNI is not initialized.
+                return false;
+            }
+            mContextualSearchResolutionUrlValid =
+                    ContextualSearchPolicyJni.get().isContextualSearchResolutionUrlValid(mProfile);
+        }
+        return mContextualSearchResolutionUrlValid;
     }
 
     /**
@@ -543,20 +576,6 @@ class ContextualSearchPolicy {
         return mRelatedSearchesStamp.getRelatedSearchesStamp(basePageLanguage);
     }
 
-    /**
-     * @return whether the given parameter is currently enabled in the Related Searches Variation
-     *         configuration.
-     */
-    boolean isRelatedSearchesParamEnabled(String paramName) {
-        return ContextualSearchFieldTrial.isRelatedSearchesParamEnabled(paramName);
-    }
-
-    /** @return whether we're missing the Related Searches configuration stamp. */
-    boolean isMissingRelatedSearchesConfiguration() {
-        return TextUtils.isEmpty(
-                ContextualSearchFieldTrial.getRelatedSearchesExperimentConfigurationStamp());
-    }
-
     // --------------------------------------------------------------------------------------------
     // Testing helpers.
     // --------------------------------------------------------------------------------------------
@@ -568,5 +587,10 @@ class ContextualSearchPolicy {
     @VisibleForTesting
     public void setNetworkCommunicator(ContextualSearchNetworkCommunicator networkCommunicator) {
         mNetworkCommunicator = networkCommunicator;
+    }
+
+    @NativeMethods
+    interface Natives {
+        boolean isContextualSearchResolutionUrlValid(@JniType("Profile*") Profile profile);
     }
 }

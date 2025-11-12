@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/webauthn/local_credential_management_mac.h"
-#include "chrome/browser/webauthn/local_credential_management.h"
 
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/webauthn/chrome_web_authentication_delegate.h"
+#include "chrome/browser/webauthn/local_credential_management.h"
 #include "device/fido/mac/credential_store.h"
 
 LocalCredentialManagementMac::LocalCredentialManagementMac(
@@ -25,23 +26,23 @@ void LocalCredentialManagementMac::HasCredentials(
     base::OnceCallback<void(bool)> callback) {
   Enumerate(
       base::BindOnce(
-          [](absl::optional<std::vector<device::DiscoverableCredentialMetadata>>
+          [](std::optional<std::vector<device::DiscoverableCredentialMetadata>>
                  metadata) { return metadata ? !metadata->empty() : false; })
           .Then(std::move(callback)));
 }
 
 void LocalCredentialManagementMac::Enumerate(
     base::OnceCallback<void(
-        absl::optional<std::vector<device::DiscoverableCredentialMetadata>>)>
+        std::optional<std::vector<device::DiscoverableCredentialMetadata>>)>
         callback) {
   device::fido::mac::TouchIdCredentialStore credential_store(config_);
-  absl::optional<std::list<device::fido::mac::Credential>> credentials =
-      credential_store.FindResidentCredentials(/*rp_id=*/absl::nullopt);
+  std::optional<std::list<device::fido::mac::Credential>> credentials =
+      credential_store.FindResidentCredentials(/*rp_id=*/std::nullopt);
 
   if (!credentials) {
     // FindResidentCredentials() encountered an error.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
   std::vector<device::DiscoverableCredentialMetadata> credential_metadata;
@@ -50,7 +51,8 @@ void LocalCredentialManagementMac::Enumerate(
     credential_metadata.emplace_back(
         device::AuthenticatorType::kTouchID, credential.rp_id,
         credential.credential_id,
-        credential.metadata.ToPublicKeyCredentialUserEntity());
+        credential.metadata.ToPublicKeyCredentialUserEntity(),
+        /*provider_name=*/std::nullopt);
   }
   std::sort(credential_metadata.begin(), credential_metadata.end(),
             CredentialComparator());

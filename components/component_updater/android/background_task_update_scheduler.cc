@@ -5,7 +5,10 @@
 #include "components/component_updater/android/background_task_update_scheduler.h"
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/component_updater/android/background_task_update_scheduler_jni_headers/UpdateScheduler_jni.h"
 
 namespace component_updater {
@@ -19,7 +22,7 @@ const base::TimeDelta kOnStartTaskDelay = base::Seconds(2);
 }  // namespace
 
 BackgroundTaskUpdateScheduler::BackgroundTaskUpdateScheduler() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   j_update_scheduler_.Reset(Java_UpdateScheduler_getInstance(env));
   Java_UpdateScheduler_setNativeScheduler(env, j_update_scheduler_,
                                           reinterpret_cast<intptr_t>(this));
@@ -28,19 +31,19 @@ BackgroundTaskUpdateScheduler::BackgroundTaskUpdateScheduler() {
 BackgroundTaskUpdateScheduler::~BackgroundTaskUpdateScheduler() = default;
 
 void BackgroundTaskUpdateScheduler::Schedule(
-    const base::TimeDelta& initial_delay,
-    const base::TimeDelta& delay,
+    base::TimeDelta initial_delay,
+    base::TimeDelta delay,
     const UserTask& user_task,
     const OnStopTaskCallback& on_stop) {
   user_task_ = user_task;
   on_stop_ = on_stop;
   Java_UpdateScheduler_schedule(
-      base::android::AttachCurrentThread(), j_update_scheduler_,
+      jni_zero::AttachCurrentThread(), j_update_scheduler_,
       initial_delay.InMilliseconds(), delay.InMilliseconds());
 }
 
 void BackgroundTaskUpdateScheduler::Stop() {
-  Java_UpdateScheduler_cancelTask(base::android::AttachCurrentThread(),
+  Java_UpdateScheduler_cancelTask(jni_zero::AttachCurrentThread(),
                                   j_update_scheduler_);
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
@@ -65,7 +68,7 @@ void BackgroundTaskUpdateScheduler::OnStopTask(
 }
 
 void BackgroundTaskUpdateScheduler::OnStartTaskDelayed() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (!user_task_) {
     LOG(WARNING) << "No components registered to update";
     Java_UpdateScheduler_finishTask(env, j_update_scheduler_,

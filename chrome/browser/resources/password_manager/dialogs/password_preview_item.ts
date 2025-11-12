@@ -11,8 +11,8 @@ import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import '../site_favicon.js';
 import '../shared_style.css.js';
 
-import {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
-import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import type {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -57,12 +57,12 @@ export class PasswordPreviewItemElement extends PasswordPreviewItemElementBase {
     };
   }
 
-  passwordId: number;
-  url: string;
-  username: string;
-  password: string;
-  first: boolean;
-  checked: boolean;
+  declare passwordId: number;
+  declare url: string;
+  declare username: string;
+  declare password: string;
+  declare first: boolean;
+  declare checked: boolean;
 
   private getElementClass_(): string {
     return this.first ? '' : 'hr';

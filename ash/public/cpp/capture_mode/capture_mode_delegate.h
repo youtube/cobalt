@@ -5,20 +5,25 @@
 #ifndef ASH_PUBLIC_CPP_CAPTURE_MODE_CAPTURE_MODE_DELEGATE_H_
 #define ASH_PUBLIC_CPP_CAPTURE_MODE_CAPTURE_MODE_DELEGATE_H_
 
-#include <memory>
+#include <optional>
+#include <string>
 
 #include "ash/public/cpp/ash_public_export.h"
+#include "ash/public/cpp/ash_web_view.h"
+#include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/unguessable_token.h"
+#include "chromeos/crosapi/mojom/video_conference.mojom-shared.h"
+#include "chromeos/crosapi/mojom/video_conference.mojom.h"
+#include "components/search_engines/template_url.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+
+class SkBitmap;
 
 namespace aura {
 class Window;
 }  // namespace aura
-
-namespace base {
-class FilePath;
-}  // namespace base
 
 namespace gfx {
 class Rect;
@@ -38,8 +43,6 @@ class VideoSourceProvider;
 
 namespace ash {
 
-class RecordingOverlayView;
-
 // Defines the type of the callback that will be invoked when the DLP (Data Leak
 // Prevention) manager is checked for any restricted content related to screen
 // capture. DLP is checked multiple times (before entering a capture session,
@@ -56,20 +59,45 @@ using OnCaptureModeDlpRestrictionChecked =
 using OnGotDriveFsFreeSpace =
     base::OnceCallback<void(int64_t free_remaining_bytes)>;
 
+// Defines the type of the callback that will be invoked when text detection has
+// been performed on an image. `detected_text` contains detected text, empty if
+// no text has been detected, or nullopt if text detection fails (such as the
+// OCR service being reset after the text detection request).
+using OnTextDetectionComplete =
+    base::OnceCallback<void(std::optional<std::string> detected_text)>;
+
+// Defines the type of the callback that will be invoked when the search backend
+// result is fetched. Repeating because the `LensOverlayUrlResponseCallback`
+// that invokes this may be run multiple times for error; see
+// `LensOverlayQueryController::RunInteractionCallbackForError()`.
+using OnSearchUrlFetchedCallback = base::RepeatingCallback<void(GURL url)>;
+
 // Defines the interface for the delegate of CaptureModeController, that can be
 // implemented by an ash client (e.g. Chrome). The CaptureModeController owns
 // the instance of this delegate.
 class ASH_PUBLIC_EXPORT CaptureModeDelegate {
  public:
+  enum class CapturePathEnforcement {
+    kNone,
+    kManaged,
+    kRecommended,
+  };
+
+  // Contains the path to which capture should be saved if enforced or
+  // recommended by admin policy.
+  struct PolicyCapturePath {
+    base::FilePath path;
+    CapturePathEnforcement enforcement = CapturePathEnforcement::kNone;
+  };
+
   virtual ~CaptureModeDelegate() = default;
 
   // Returns the path to the default downloads directory of the currently active
   // user. This function can only be called if the user is logged in.
   virtual base::FilePath GetUserDefaultDownloadsFolder() const = 0;
 
-  // Shows the screenshot or screen recording item in the screen capture folder.
-  virtual void ShowScreenCaptureItemInFolder(
-      const base::FilePath& file_path) = 0;
+  // Opens the screenshot or screen recording item with the default handler.
+  virtual void OpenScreenCaptureItem(const base::FilePath& file_path) = 0;
 
   // Opens the screenshot item in an image editor.
   virtual void OpenScreenshotInImageEditor(const base::FilePath& file_path) = 0;
@@ -80,11 +108,13 @@ class ASH_PUBLIC_EXPORT CaptureModeDelegate {
   virtual bool Uses24HourFormat() const = 0;
 
   // Called when capture mode is being started to check if there are any content
-  // currently on the screen that are restricted by DLP. `callback` will be
-  // triggered by the DLP manager with `proceed` set to true if capture mode
-  // initialization is allowed to continue, or set to false if it should be
-  // aborted.
+  // currently on the screen that are restricted by DLP.`shutting_down` is true
+  // if the lock state controller has received a request to shut down, and false
+  // otherwise. `callback` will be triggered by the DLP manager with `proceed`
+  // set to true if capture mode initialization is allowed to continue, or set
+  // to false if it should be aborted.
   virtual void CheckCaptureModeInitRestrictionByDlp(
+      bool shutting_down,
       OnCaptureModeDlpRestrictionChecked callback) = 0;
 
   // Checks whether capture of the region defined by |window| and |bounds|
@@ -98,6 +128,9 @@ class ASH_PUBLIC_EXPORT CaptureModeDelegate {
 
   // Returns whether screen capture is allowed by an enterprise policy.
   virtual bool IsCaptureAllowedByPolicy() const = 0;
+
+  // Returns whether search is allowed by the browser enterprise policy.
+  virtual bool IsSearchAllowedByPolicy() const = 0;
 
   // Called when a video capture for |window| and |bounds| area is started, so
   // that Data Leak Prevention can start observing the area.
@@ -140,10 +173,6 @@ class ASH_PUBLIC_EXPORT CaptureModeDelegate {
 
   // Gets the DriveFS mount point. Returns true if the Drive is mounted false
   // otherwise.
-  // TODO(michelefan): Now we have both CaptureModeDelegate and ProjectorClient
-  // expose the GetDriveFsMountPointPath. Add the APIs in ShellDelegate which is
-  // implemented by ChromeShellDelegate in chrome and TestShellDelegate in
-  // ash_unittests to reduce the duplication.
   virtual bool GetDriveFsMountPointPath(base::FilePath* path) const = 0;
 
   // Returns the absolute path for the user's Android Play files.
@@ -152,12 +181,14 @@ class ASH_PUBLIC_EXPORT CaptureModeDelegate {
   // Returns the absolute path for the user's Linux Files.
   virtual base::FilePath GetLinuxFilesPath() const = 0;
 
-  // Creates and returns the view that will be used as the contents view of the
-  // overlay widget, which is added as a child of the recorded surface to host
-  // contents rendered in a web view that are meant to be part of the recording
-  // such as annotations.
-  virtual std::unique_ptr<RecordingOverlayView> CreateRecordingOverlayView()
-      const = 0;
+  // Gets the OneDrive mount point. Returns empty if OneDrive is not mounted.
+  virtual base::FilePath GetOneDriveMountPointPath() const = 0;
+
+  // Gets the OneDrive virtual path indicating that files should be saved there.
+  virtual base::FilePath GetOneDriveVirtualPath() const = 0;
+
+  // Returns the path to save files if policy set by admin.
+  virtual PolicyCapturePath GetPolicyCapturePath() const = 0;
 
   // Connects the given `receiver` to the VideoSourceProvider implementation in
   // the video capture service.
@@ -176,6 +207,76 @@ class ASH_PUBLIC_EXPORT CaptureModeDelegate {
   // Returns true if audio recording is disabled by admins via the
   // `AudioCaptureAllowed` policy.
   virtual bool IsAudioCaptureDisabledByPolicy() const = 0;
+
+  // Registers the given `client` as a video conference manager client with the
+  // provided `client_id`.
+  virtual void RegisterVideoConferenceManagerClient(
+      crosapi::mojom::VideoConferenceManagerClient* client,
+      const base::UnguessableToken& client_id) = 0;
+
+  // Unregisters the client whose ID is the given `client_id` from the video
+  // conference manager.
+  virtual void UnregisterVideoConferenceManagerClient(
+      const base::UnguessableToken& client_id) = 0;
+
+  // Updates the video conference manager with the given media usage `status`.
+  // This will in-turn update the video conference panel on the shelf.
+  virtual void UpdateVideoConferenceManager(
+      crosapi::mojom::VideoConferenceMediaUsageStatusPtr status) = 0;
+
+  // Requests that the video conference manager notifies the user that the given
+  // `device` (e.g. a camera or microphone) is being used for a screen recording
+  // while the device is disabled.
+  virtual void NotifyDeviceUsedWhileDisabled(
+      crosapi::mojom::VideoConferenceMediaDevice device) = 0;
+
+  // Requests to finalize the location for the saved file, e.g. move it to cloud
+  // storage if it was saved to a temporary local location. `callback` will be
+  // called after the file is confirmed to be in the final location with a bool
+  // success flag and the final file path if successful.
+  virtual void FinalizeSavedFile(
+      base::OnceCallback<void(bool, const base::FilePath&)> callback,
+      const base::FilePath& path,
+      const gfx::Image& thumbnail,
+      bool for_video) = 0;
+
+  // Returns a temporary location where a file with the capture should be saved
+  // instead of `path`, if needed, e.g. to be uploaded to cloud later.
+  virtual base::FilePath RedirectFilePath(const base::FilePath& path) = 0;
+
+  // Returns an instance of the concrete class of `SearchResultsView`.
+  virtual std::unique_ptr<AshWebView> CreateSearchResultsView() const = 0;
+
+  // Performs OCR to detect text in `image` and invokes `callback` with the full
+  // detected text contents. `callback` will be invoked with an empty string if
+  // no text is detected. If this is called while the OCR service is still being
+  // initialized, then the previous request will be cancelled and its callback
+  // involved with an empty string.
+  virtual void DetectTextInImage(const SkBitmap& image,
+                                 OnTextDetectionComplete callback) = 0;
+
+  // Sends the captured `image` to the Lens Web API for image search and text
+  // detection (if enabled). Invokes `search_callback` when the image search
+  // response is fetched, then `text_callback` when the text detection response
+  // is fetched. Invokes `error_callback` if an error occurs or an unexpected
+  // response is received.
+  virtual void SendLensWebRegionSearch(
+      const gfx::Image& image,
+      const bool is_standalone_session,
+      OnSearchUrlFetchedCallback search_callback,
+      OnTextDetectionComplete text_callback,
+      base::OnceCallback<void()> error_callback) = 0;
+
+  // Returns true if the network is currently in an offline or unknown state.
+  virtual bool IsNetworkConnectionOffline() const = 0;
+
+  // Deletes the remote file under `path` and calls `callback` with result.
+  virtual void DeleteRemoteFile(const base::FilePath& path,
+                                base::OnceCallback<void(bool)> callback) = 0;
+
+  // Returns true if Google is the default search engine for the active user,
+  // and false otherwise.
+  virtual bool ActiveUserDefaultSearchProviderIsGoogle() const = 0;
 };
 
 }  // namespace ash

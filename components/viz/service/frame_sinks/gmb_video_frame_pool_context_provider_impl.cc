@@ -13,9 +13,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "components/viz/service/display_embedder/in_process_gpu_memory_buffer_manager.h"
 #include "components/viz/service/gl/gpu_service_impl.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/service/scheduler_sequence.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image_interface_in_process.h"
+#include "gpu/ipc/common/gpu_client_ids.h"
+#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 
 namespace viz {
 
@@ -26,9 +30,11 @@ class GmbVideoFramePoolContext
   explicit GmbVideoFramePoolContext(
       GpuServiceImpl* gpu_service,
       InProcessGpuMemoryBufferManager* gpu_memory_buffer_manager,
+      gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory,
       base::OnceClosure on_context_lost)
       : gpu_service_(gpu_service),
         gpu_memory_buffer_manager_(gpu_memory_buffer_manager),
+        gpu_memory_buffer_factory_(gpu_memory_buffer_factory),
         on_context_lost_(
             base::BindPostTaskToCurrentDefault(std::move(on_context_lost))) {
     DETACH_FROM_SEQUENCE(gpu_sequence_checker_);
@@ -43,7 +49,7 @@ class GmbVideoFramePoolContext
     sequence_->ScheduleTask(
         base::BindOnce(&GmbVideoFramePoolContext::InitializeOnGpu,
                        base::Unretained(this), &event),
-        {});
+        /*sync_token_fences=*/{}, gpu::SyncToken());
 
     event.Wait();
   }
@@ -58,43 +64,71 @@ class GmbVideoFramePoolContext
     sequence_->ScheduleTask(
         base::BindOnce(&GmbVideoFramePoolContext::DestroyOnGpu,
                        base::Unretained(this), &event),
-        {});
+        /*sync_token_fences=*/{}, gpu::SyncToken());
 
     event.Wait();
 
     sequence_ = nullptr;
   }
 
-  // Allocate a GpuMemoryBuffer.
-  std::unique_ptr<gfx::GpuMemoryBuffer> CreateGpuMemoryBuffer(
+  // Note that currently SharedImageInterface provides 2 different ways to
+  // clients to create a MappableSI, one without using existing GMB handle and
+  // other using existing GMB handle. The difference being that when a
+  // MappableSI is created without clients providing a GMB handle, the shared
+  // image created is truly mappable to the CPU memory. Whereas in other case,
+  // when a MappableSI is created from an existing handle, it might end up not
+  // being CPU mappable, for eg, on Android. That is fine and is actually a
+  // requirement in many cases today where clients never Map() the underlying
+  // buffer to CPU memory and just uses the underlying external or internal GMB
+  // handle to refer to the GPU memory.
+  // In order to keep the same behavior as rest of the CreateSharedImage()
+  // methods in this class, this method first creates a GMB handle and then
+  // creates a shared image from it. Directly creating a MappableSI without
+  // providing a GMB handle will end up creating non-native shared memory
+  // buffers internally on windows compared to the native buffers created by
+  // other CreatedSharedImage methods in this class.
+  // TODO(crbug.com/353732994): Refactor this code to not use
+  // GpuMemoryBufferFactory for creating GpuMemoryBufferHandles directly.
+  scoped_refptr<gpu::ClientSharedImage> CreateSharedImage(
       const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage) override {
-    return gpu_memory_buffer_manager_->CreateGpuMemoryBuffer(
-        size, format, usage, gpu::kNullSurfaceHandle, nullptr);
-  }
+      gfx::BufferUsage buffer_usage,
+      const SharedImageFormat& si_format,
+      const gfx::ColorSpace& color_space,
+      gpu::SharedImageUsageSet usage,
+      gpu::SyncToken& sync_token) override {
+    // Create a native GMB handle first.
+    gfx::GpuMemoryBufferHandle buffer_handle =
+        gpu_memory_buffer_factory_->CreateNativeGmbHandle(
+            gpu::MappableSIClientGmbId::kGmbVideoFramePoolContext, size,
+            gpu::ToBufferFormat(si_format), buffer_usage);
+    if (buffer_handle.is_null()) {
+      return nullptr;
+    }
 
-  // Create a SharedImage representation of a plane of a GpuMemoryBuffer
-  // allocated by this interface. Populate `mailbox` and `sync_token`.
-  void CreateSharedImage(gfx::GpuMemoryBuffer* gpu_memory_buffer,
-                         gfx::BufferPlane plane,
-                         const gfx::ColorSpace& color_space,
-                         GrSurfaceOrigin surface_origin,
-                         SkAlphaType alpha_type,
-                         uint32_t usage,
-                         gpu::Mailbox& mailbox,
-                         gpu::SyncToken& sync_token) override {
-    mailbox = sii_in_process_->CreateSharedImage(
-        gpu_memory_buffer, gpu_memory_buffer_manager_, plane, color_space,
-        surface_origin, alpha_type, usage, "VizGmbVideoFramePool");
-
+    // Create a MappableSI from the |buffer_handle|.
+    auto client_shared_image = sii_in_process_->CreateSharedImage(
+        {si_format, size, color_space, usage, "VizGmbVideoFramePool"},
+        gpu::kNullSurfaceHandle, buffer_usage, std::move(buffer_handle));
+    if (!client_shared_image) {
+      return nullptr;
+    }
+#if BUILDFLAG(IS_MAC)
+    client_shared_image->SetColorSpaceOnNativeBuffer(color_space);
+#endif
     sync_token = sii_in_process_->GenVerifiedSyncToken();
+    return client_shared_image;
   }
 
   // Destroy a SharedImage created by this interface.
-  void DestroySharedImage(const gpu::SyncToken& sync_token,
-                          const gpu::Mailbox& mailbox) override {
-    sii_in_process_->DestroySharedImage(sync_token, mailbox);
+  void DestroySharedImage(
+      const gpu::SyncToken& sync_token,
+      scoped_refptr<gpu::ClientSharedImage> shared_image) override {
+    CHECK(shared_image);
+    shared_image->UpdateDestructionSyncToken(sync_token);
+  }
+
+  const gpu::SharedImageCapabilities& GetCapabilities() override {
+    return sii_in_process_->GetCapabilities();
   }
 
  private:
@@ -111,9 +145,8 @@ class GmbVideoFramePoolContext
     // TODO(bialpio): Move construction to the viz thread once it is no longer
     // necessary to dereference `shared_context_state_` to grab the memory
     // tracker from it.
-    sii_in_process_ = std::make_unique<gpu::SharedImageInterfaceInProcess>(
-        sequence_.get(), gpu_service_->sync_point_manager(),
-        gpu_service_->gpu_preferences(),
+    sii_in_process_ = base::MakeRefCounted<gpu::SharedImageInterfaceInProcess>(
+        sequence_.get(), gpu_service_->gpu_preferences(),
         gpu_service_->gpu_driver_bug_workarounds(),
         gpu_service_->gpu_feature_info(), shared_context_state_.get(),
         gpu_service_->shared_image_manager(),
@@ -145,6 +178,7 @@ class GmbVideoFramePoolContext
 
   const raw_ptr<GpuServiceImpl> gpu_service_;
   const raw_ptr<InProcessGpuMemoryBufferManager> gpu_memory_buffer_manager_;
+  const raw_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
 
   // Closure that we need to call when context loss happens.
   base::OnceClosure on_context_lost_;
@@ -155,16 +189,18 @@ class GmbVideoFramePoolContext
   std::unique_ptr<gpu::SchedulerSequence> sequence_;
   scoped_refptr<gpu::SharedContextState> shared_context_state_;
 
-  std::unique_ptr<gpu::SharedImageInterfaceInProcess> sii_in_process_;
+  scoped_refptr<gpu::SharedImageInterfaceInProcess> sii_in_process_;
 
   SEQUENCE_CHECKER(gpu_sequence_checker_);
 };
 
 GmbVideoFramePoolContextProviderImpl::GmbVideoFramePoolContextProviderImpl(
     GpuServiceImpl* gpu_service,
-    InProcessGpuMemoryBufferManager* gpu_memory_buffer_manager)
+    InProcessGpuMemoryBufferManager* gpu_memory_buffer_manager,
+    gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory)
     : gpu_service_(gpu_service),
-      gpu_memory_buffer_manager_(gpu_memory_buffer_manager) {}
+      gpu_memory_buffer_manager_(gpu_memory_buffer_manager),
+      gpu_memory_buffer_factory_(gpu_memory_buffer_factory) {}
 
 GmbVideoFramePoolContextProviderImpl::~GmbVideoFramePoolContextProviderImpl() =
     default;
@@ -173,7 +209,8 @@ std::unique_ptr<media::RenderableGpuMemoryBufferVideoFramePool::Context>
 GmbVideoFramePoolContextProviderImpl::CreateContext(
     base::OnceClosure on_context_lost) {
   return std::make_unique<GmbVideoFramePoolContext>(
-      gpu_service_, gpu_memory_buffer_manager_, std::move(on_context_lost));
+      gpu_service_, gpu_memory_buffer_manager_, gpu_memory_buffer_factory_,
+      std::move(on_context_lost));
 }
 
 }  // namespace viz

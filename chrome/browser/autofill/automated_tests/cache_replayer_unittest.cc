@@ -5,6 +5,8 @@
 #include "chrome/browser/autofill/automated_tests/cache_replayer.h"
 
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -86,25 +88,23 @@ RequestResponsePair MakeQueryRequestResponsePair(
 
 // Returns a query request URL. If |query| is not empty, the corresponding
 // query is encoded into the URL.
-bool MakeQueryRequestURL(const absl::optional<AutofillPageQueryRequest>& query,
+bool MakeQueryRequestURL(std::optional<AutofillPageQueryRequest> query,
                          std::string* request_url) {
   if (!query.has_value()) {
     *request_url = CreateQueryUrl("");
     return true;
   }
-  std::string encoded_query;
   std::string serialized_query;
   if (!(*query).SerializeToString(&serialized_query)) {
     VLOG(1) << "could not serialize Query proto";
     return false;
   }
-  base::Base64Encode(serialized_query, &encoded_query);
-  *request_url = CreateQueryUrl(encoded_query);
+  *request_url = CreateQueryUrl(base::Base64Encode(serialized_query));
   return true;
 }
 
 // Make HTTP request header given |url|.
-inline std::string MakeRequestHeader(base::StringPiece url) {
+inline std::string MakeRequestHeader(std::string_view url) {
   return base::StrCat({"GET ", url, " ", "HTTP/1.1"});
 }
 
@@ -116,32 +116,31 @@ bool MakeSerializedRequest(const AutofillPageQueryRequest& query,
                            std::string* request_url) {
   // Make body and query content for URL depending on the |type|.
   std::string body;
-  absl::optional<AutofillPageQueryRequest> query_for_url;
+  std::optional<AutofillPageQueryRequest> query_for_url;
   if (type == RequestType::kQueryProtoGET) {
     query_for_url = std::move(query);
   } else {
     std::string serialized_query;
-    std::string encoded_query;
     query.SerializeToString(&serialized_query);
-    base::Base64Encode(serialized_query, &encoded_query);
     // Wrap query payload in a request proto to interface with API Query method.
     AutofillPageResourceQueryRequest request;
-    request.set_serialized_request(encoded_query);
+    request.set_serialized_request(base::Base64Encode(serialized_query));
     request.SerializeToString(&body);
-    query_for_url = absl::nullopt;
+    query_for_url = std::nullopt;
   }
 
   // Make header according to query content for URL.
   std::string url;
-  if (!MakeQueryRequestURL(query_for_url, &url))
+  if (!MakeQueryRequestURL(std::move(query_for_url), &url)) {
     return false;
+  }
   *request_url = url;
   std::string header = MakeRequestHeader(url);
 
   // Fill HTTP text.
   std::string http_text =
       base::JoinString(std::vector<std::string>{header, body}, kHTTPBodySep);
-  base::Base64Encode(http_text, serialized_request);
+  *serialized_request = base::Base64Encode(http_text);
   return true;
 }
 
@@ -151,9 +150,7 @@ std::string MakeSerializedResponse(
   query_response.SerializeToString(&serialized_response);
 
   // The Api Environment expects the response body to be base64 encoded.
-  std::string tmp;
-  base::Base64Encode(serialized_response, &tmp);
-  serialized_response = tmp;
+  serialized_response = base::Base64Encode(serialized_response);
 
   std::string compressed_query;
   compression::GzipCompress(serialized_response, &compressed_query);
@@ -161,15 +158,13 @@ std::string MakeSerializedResponse(
   std::string http_text = base::JoinString(
       std::vector<std::string>{kTestHTTPResponseHeader, compressed_query},
       kHTTPBodySep);
-  std::string encoded_http_text;
-  base::Base64Encode(http_text, &encoded_http_text);
-  return encoded_http_text;
+  return base::Base64Encode(http_text);
 }
 
 // Write json node to file in text format.
 bool WriteJSONNode(const base::FilePath& file_path, const base::Value& node) {
   std::string json_text;
-  JSONWriter::WriteWithOptions(node, JSONWriter::Options::OPTIONS_PRETTY_PRINT,
+  JSONWriter::WriteWithOptions(node, JSONWriter::OPTIONS_PRETTY_PRINT,
                                &json_text);
 
   std::string compressed_json_text;
@@ -224,11 +219,11 @@ bool WriteJSON(const base::FilePath& file_path,
   return WriteJSONNode(file_path, Value(std::move(root_dict)));
 }
 
-// TODO(https://crbug.com/1212151): The test flakily times out.
+// TODO(crbug.com/40768066): The test flakily times out.
 TEST(AutofillCacheReplayerDeathTest,
      DISABLED_ServerCacheReplayerConstructor_CrashesWhenNoDomainNode) {
   // Make death test threadsafe.
-  testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   // Make writable file path.
   base::ScopedTempDir temp_dir;
@@ -253,7 +248,7 @@ TEST(AutofillCacheReplayerDeathTest,
 TEST(AutofillCacheReplayerDeathTest,
      ServerCacheReplayerConstructor_CrashesWhenNoQueryNodesAndFailOnEmpty) {
   // Make death test threadsafe.
-  testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   // Make writable file path.
   base::ScopedTempDir temp_dir;
@@ -286,7 +281,7 @@ TEST_P(
   // from the URL's query parameter are invalid.
 
   // Make death test threadsafe.
-  testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   // Make writable file path.
   base::ScopedTempDir temp_dir;
@@ -345,7 +340,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(AutofillCacheReplayerTest,
      CanUseReplayerWhenNoCacheContentWithNotFailOnEmpty) {
   // Make death test threadsafe.
-  testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   // Make writable file path.
   base::ScopedTempDir temp_dir;

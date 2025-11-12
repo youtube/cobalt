@@ -19,12 +19,13 @@ int IsCertErrorFatal(int cert_error) {
     case net::ERR_CERT_NO_REVOCATION_MECHANISM:
     case net::ERR_CERT_UNABLE_TO_CHECK_REVOCATION:
     case net::ERR_CERT_WEAK_SIGNATURE_ALGORITHM:
+    case net::ERR_CERT_NON_UNIQUE_NAME:
     case net::ERR_CERT_WEAK_KEY:
     case net::ERR_CERT_NAME_CONSTRAINT_VIOLATION:
     case net::ERR_CERT_VALIDITY_TOO_LONG:
     case net::ERR_CERTIFICATE_TRANSPARENCY_REQUIRED:
-    case net::ERR_CERT_SYMANTEC_LEGACY:
     case net::ERR_CERT_KNOWN_INTERCEPTION_BLOCKED:
+    case net::ERR_CERT_SELF_SIGNED_LOCAL_NETWORK:
       return false;
     case net::ERR_CERT_CONTAINS_ERRORS:
     case net::ERR_CERT_REVOKED:
@@ -33,7 +34,6 @@ int IsCertErrorFatal(int cert_error) {
       return true;
     default:
       NOTREACHED();
-      return true;
   }
 }
 

@@ -5,11 +5,15 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_INPUT_WIDGET_INPUT_HANDLER_IMPL_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_INPUT_WIDGET_INPUT_HANDLER_IMPL_H_
 
+#include <variant>
+
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "cc/input/browser_controls_state.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/direct_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom-blink.h"
@@ -77,9 +81,12 @@ class WidgetInputHandlerImpl : public mojom::blink::WidgetInputHandler {
   void GetFrameWidgetInputHandler(
       mojo::PendingAssociatedReceiver<mojom::blink::FrameWidgetInputHandler>
           interface_request) override;
-  void UpdateBrowserControlsState(cc::BrowserControlsState constraints,
-                                  cc::BrowserControlsState current,
-                                  bool animate) override;
+  void UpdateBrowserControlsState(
+      cc::BrowserControlsState constraints,
+      cc::BrowserControlsState current,
+      bool animate,
+      const std::optional<cc::BrowserControlsOffsetTagModifications>&
+          offset_tag_modifications) override;
 
   void InputWasProcessed();
 
@@ -101,7 +108,9 @@ class WidgetInputHandlerImpl : public mojom::blink::WidgetInputHandler {
   // killed before we actually fully process the input.
   WaitForInputProcessedCallback input_processed_ack_;
 
-  mojo::Receiver<mojom::blink::WidgetInputHandler> receiver_{this};
+  using Receiver = mojo::Receiver<mojom::blink::WidgetInputHandler>;
+  using DirectReceiver = mojo::DirectReceiver<mojom::blink::WidgetInputHandler>;
+  std::variant<std::monostate, Receiver, DirectReceiver> receiver_;
 
   base::WeakPtrFactory<WidgetInputHandlerImpl> weak_ptr_factory_{this};
 };

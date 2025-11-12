@@ -32,7 +32,7 @@ message AppListSpecifics {
     TYPE_APP = 1;
     // A request to remove any matching default installed apps.
     TYPE_REMOVE_DEFAULT_APP = 2;
-    // A folder containing entries whose |parent_id| matches |item_id|.
+    // A folder containing entries whose `parent_id` matches `item_id`.
     TYPE_FOLDER = 3;
     // Obsolete type, intended for URL shortcuts, that was never implemented.
     TYPE_OBSOLETE_URL = 4;
@@ -78,4 +78,13 @@ message AppListSpecifics {
     optional int32 hue = 2;
   }
   optional IconColor item_color = 8;
+
+  // This field previously stored the is_user_pinned value, which has been
+  // removed.
+  reserved 9;
+
+  // Identifier for the app package of the item. Package Ids are stable and
+  // globally unique across app platforms, whereas App Id stored in item_id is
+  // not.
+  optional string promise_package_id = 10;
 }

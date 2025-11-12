@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This class sets up the environment for running the native tests inside an
 // android application. It outputs (to a fifo) markers identifying the
 // START/PASSED/CRASH of the test suite, FAILURE/SUCCESS of individual tests,
@@ -11,6 +16,7 @@
 
 #include <android/log.h>
 #include <errno.h>
+#include <pthread.h>
 #include <signal.h>
 #include <string.h>
 
@@ -30,14 +36,19 @@
 #include "base/threading/thread_restrictions.h"
 #include "gtest/gtest.h"
 #include "testing/android/native_test/main_runner.h"
-#include "testing/android/native_test/native_test_jni_headers/NativeTest_jni.h"
+#include "testing/android/native_test/native_test_jni/NativeTest_jni.h"
 #include "testing/android/native_test/native_test_util.h"
 
 #if BUILDFLAG(CLANG_PROFILING)
 #include "base/test/clang_profiling.h"
 #endif
 
-using base::android::JavaParamRef;
+#if defined(__ANDROID_CLANG_COVERAGE__)
+// This is only used by Cronet in AOSP.
+extern "C" int __llvm_profile_dump(void);
+#endif
+
+using jni_zero::JavaParamRef;
 
 // The main function of the program to be wrapped as a test apk.
 extern int main(int argc, char** argv);
@@ -83,6 +94,9 @@ static void JNI_NativeTest_RunTests(
     const JavaParamRef<jobject>& app_context,
     const JavaParamRef<jstring>& jtest_data_dir) {
   base::ScopedAllowBlockingForTesting allow;
+
+  // Required for DEATH_TESTS.
+  pthread_atfork(nullptr, nullptr, jni_zero::DisableJvmForTesting);
 
   // Command line initialized basically, will be fully initialized later.
   static const char* const kInitialArgv[] = { "ChromeTestActivity" };
@@ -142,6 +156,14 @@ static void JNI_NativeTest_RunTests(
 // Explicitly write profiling data to LLVM profile file.
 #if BUILDFLAG(CLANG_PROFILING)
   base::WriteClangProfilingProfile();
+#elif defined(__ANDROID_CLANG_COVERAGE__)
+  // Cronet runs tests in AOSP, where due to build system constraints, compiler
+  // flags can be changed (to enable coverage), but source files cannot be
+  // conditionally linked (as is the case with `clang_profiling.cc`).
+  //
+  //  This will always get called from a single thread unlike
+  //  base::WriteClangProfilingProfile hence the lack of locks.
+  __llvm_profile_dump();
 #endif
 }
 

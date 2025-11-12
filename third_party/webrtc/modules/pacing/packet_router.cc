@@ -12,13 +12,20 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
+#include <vector>
 
-#include "absl/types/optional.h"
+#include "absl/functional/any_invocable.h"
+#include "api/array_view.h"
+#include "api/rtp_headers.h"
+#include "api/sequence_checker.h"
+#include "api/transport/network_types.h"
+#include "api/units/data_size.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
+#include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -27,12 +34,10 @@
 
 namespace webrtc {
 
-PacketRouter::PacketRouter() : PacketRouter(0) {}
-
-PacketRouter::PacketRouter(uint16_t start_transport_seq)
+PacketRouter::PacketRouter()
     : last_send_module_(nullptr),
       active_remb_module_(nullptr),
-      transport_seq_(start_transport_seq) {}
+      transport_seq_(1) {}
 
 PacketRouter::~PacketRouter() {
   RTC_DCHECK_RUN_ON(&thread_checker_);
@@ -49,10 +54,10 @@ void PacketRouter::AddSendRtpModule(RtpRtcpInterface* rtp_module,
   RTC_DCHECK_RUN_ON(&thread_checker_);
 
   AddSendRtpModuleToMap(rtp_module, rtp_module->SSRC());
-  if (absl::optional<uint32_t> rtx_ssrc = rtp_module->RtxSsrc()) {
+  if (std::optional<uint32_t> rtx_ssrc = rtp_module->RtxSsrc()) {
     AddSendRtpModuleToMap(rtp_module, *rtx_ssrc);
   }
-  if (absl::optional<uint32_t> flexfec_ssrc = rtp_module->FlexfecSsrc()) {
+  if (std::optional<uint32_t> flexfec_ssrc = rtp_module->FlexfecSsrc()) {
     AddSendRtpModuleToMap(rtp_module, *flexfec_ssrc);
   }
 
@@ -63,6 +68,29 @@ void PacketRouter::AddSendRtpModule(RtpRtcpInterface* rtp_module,
   if (remb_candidate) {
     AddRembModuleCandidate(rtp_module, /* media_sender = */ true);
   }
+}
+
+bool PacketRouter::SupportsRtxPayloadPadding() const {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  for (RtpRtcpInterface* rtp_module : send_modules_list_) {
+    if (rtp_module->SupportsRtxPayloadPadding()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void PacketRouter::RegisterNotifyBweCallback(
+    absl::AnyInvocable<void(const RtpPacketToSend& packet,
+                            const PacedPacketInfo& pacing_info)> callback) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  notify_bwe_callback_ = std::move(callback);
+}
+
+void PacketRouter::ConfigureForRfc8888Feedback(bool send_rtp_packets_as_ect1) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  use_cc_feedback_according_to_rfc8888_ = true;
+  send_rtp_packets_as_ect1_ = send_rtp_packets_as_ect1;
 }
 
 void PacketRouter::AddSendRtpModuleToMap(RtpRtcpInterface* rtp_module,
@@ -93,6 +121,7 @@ void PacketRouter::RemoveSendRtpModuleFromMap(uint32_t ssrc) {
     return;
   }
   send_modules_list_.remove(it->second);
+  RTC_CHECK(modules_used_in_current_batch_.empty());
   send_modules_map_.erase(it);
 }
 
@@ -101,10 +130,10 @@ void PacketRouter::RemoveSendRtpModule(RtpRtcpInterface* rtp_module) {
   MaybeRemoveRembModuleCandidate(rtp_module, /* media_sender = */ true);
 
   RemoveSendRtpModuleFromMap(rtp_module->SSRC());
-  if (absl::optional<uint32_t> rtx_ssrc = rtp_module->RtxSsrc()) {
+  if (std::optional<uint32_t> rtx_ssrc = rtp_module->RtxSsrc()) {
     RemoveSendRtpModuleFromMap(*rtx_ssrc);
   }
-  if (absl::optional<uint32_t> flexfec_ssrc = rtp_module->FlexfecSsrc()) {
+  if (std::optional<uint32_t> flexfec_ssrc = rtp_module->FlexfecSsrc()) {
     RemoveSendRtpModuleFromMap(*flexfec_ssrc);
   }
 
@@ -145,15 +174,6 @@ void PacketRouter::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
                "sequence_number", packet->SequenceNumber(), "rtp_timestamp",
                packet->Timestamp());
 
-  // With the new pacer code path, transport sequence numbers are only set here,
-  // on the pacer thread. Therefore we don't need atomics/synchronization.
-  bool assign_transport_sequence_number =
-      packet->HasExtension<TransportSequenceNumber>();
-  if (assign_transport_sequence_number) {
-    packet->SetExtension<TransportSequenceNumber>((transport_seq_ + 1) &
-                                                  0xFFFF);
-  }
-
   uint32_t ssrc = packet->Ssrc();
   auto it = send_modules_map_.find(ssrc);
   if (it == send_modules_map_.end()) {
@@ -165,26 +185,56 @@ void PacketRouter::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
   }
 
   RtpRtcpInterface* rtp_module = it->second;
-  if (!rtp_module->TrySendPacket(packet.get(), cluster_info)) {
-    RTC_LOG(LS_WARNING) << "Failed to send packet, rejected by RTP module.";
+  if (!packet || !rtp_module->CanSendPacket(*packet)) {
+    RTC_LOG(LS_WARNING) << "Failed to send packet, Not sending media";
     return;
   }
 
-  // Sending succeeded.
-
-  if (assign_transport_sequence_number) {
-    ++transport_seq_;
+  // Transport sequence numbers are used if send side bandwidth estimation is
+  // used. Send side BWE relies on RTCP feedback either using format described
+  // in RFC 8888 or
+  // https://datatracker.ietf.org/doc/html/draft-holmer-rmcat-transport-wide-cc-extensions-01.
+  // If RFC 8888 feedback is used, a transport
+  // sequence number is created for all RTP packets, but not sent in the RTP
+  // packet. Otherwise, the transport sequence number is only created
+  // if the TransportSequenceNumber header extension is negotiated for the
+  // specific media type. Historically, webrtc only used TransportSequenceNumber
+  // on video packets.
+  if (use_cc_feedback_according_to_rfc8888_ ||
+      packet->HasExtension<TransportSequenceNumber>()) {
+    packet->set_transport_sequence_number(transport_seq_++);
+  }
+  if (send_rtp_packets_as_ect1_) {
+    packet->set_send_as_ect1();
+  }
+  rtp_module->AssignSequenceNumber(*packet);
+  if (notify_bwe_callback_) {
+    notify_bwe_callback_(*packet, cluster_info);
   }
 
+  rtp_module->SendPacket(std::move(packet), cluster_info);
+  modules_used_in_current_batch_.insert(rtp_module);
+
+  // Sending succeeded.
   if (rtp_module->SupportsRtxPayloadPadding()) {
     // This is now the last module to send media, and has the desired
     // properties needed for payload based padding. Cache it for later use.
     last_send_module_ = rtp_module;
   }
 
-  for (auto& packet : rtp_module->FetchFecPackets()) {
-    pending_fec_packets_.push_back(std::move(packet));
+  for (auto& fec_packet : rtp_module->FetchFecPackets()) {
+    pending_fec_packets_.push_back(std::move(fec_packet));
   }
+}
+
+void PacketRouter::OnBatchComplete() {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("webrtc"),
+               "PacketRouter::OnBatchComplete");
+  for (auto& module : modules_used_in_current_batch_) {
+    module->OnBatchComplete();
+  }
+  modules_used_in_current_batch_.clear();
 }
 
 std::vector<std::unique_ptr<RtpPacketToSend>> PacketRouter::FetchFec() {
@@ -241,7 +291,7 @@ std::vector<std::unique_ptr<RtpPacketToSend>> PacketRouter::GeneratePadding(
 
 void PacketRouter::OnAbortedRetransmissions(
     uint32_t ssrc,
-    rtc::ArrayView<const uint16_t> sequence_numbers) {
+    ArrayView<const uint16_t> sequence_numbers) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   auto it = send_modules_map_.find(ssrc);
   if (it != send_modules_map_.end()) {
@@ -249,7 +299,7 @@ void PacketRouter::OnAbortedRetransmissions(
   }
 }
 
-absl::optional<uint32_t> PacketRouter::GetRtxSsrcForMedia(uint32_t ssrc) const {
+std::optional<uint32_t> PacketRouter::GetRtxSsrcForMedia(uint32_t ssrc) const {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   auto it = send_modules_map_.find(ssrc);
   if (it != send_modules_map_.end() && it->second->SSRC() == ssrc) {
@@ -257,12 +307,7 @@ absl::optional<uint32_t> PacketRouter::GetRtxSsrcForMedia(uint32_t ssrc) const {
     // media SSRC for that RTP module.
     return it->second->RtxSsrc();
   }
-  return absl::nullopt;
-}
-
-uint16_t PacketRouter::CurrentTransportSequenceNumber() const {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  return transport_seq_ & 0xFFFF;
+  return std::nullopt;
 }
 
 void PacketRouter::SendRemb(int64_t bitrate_bps, std::vector<uint32_t> ssrcs) {

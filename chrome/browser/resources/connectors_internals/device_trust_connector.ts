@@ -3,21 +3,14 @@
 // found in the LICENSE file.
 
 import {CustomElement} from 'chrome://resources/js/custom_element.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
-import {DeviceTrustState, Int32Value, KeyInfo, KeyManagerInitializedValue, KeyManagerPermanentFailure, KeyTrustLevel, KeyType, PageHandler, PageHandlerInterface} from './connectors_internals.mojom-webui.js';
+import {BrowserProxy} from './browser_proxy.js';
+import type {ConsentMetadata, DeviceTrustState, KeyInfo, PageHandlerInterface} from './connectors_internals.mojom-webui.js';
+import {KeyManagerInitializedValue, KeyManagerPermanentFailure} from './connectors_internals.mojom-webui.js';
+import * as utils from './connectors_utils.js';
 import {getTemplate} from './device_trust_connector.html.js';
 
-const TrustLevelStringMap = {
-  [KeyTrustLevel.UNSPECIFIED]: 'Unspecified',
-  [KeyTrustLevel.HW]: 'HW',
-  [KeyTrustLevel.OS]: 'OS',
-};
-
-const KeyTypeStringMap = {
-  [KeyType.UNKNOWN]: 'Unknown',
-  [KeyType.RSA]: 'RSA',
-  [KeyType.EC]: 'EC',
-};
 
 const KeyPermanentFailureMap = {
   [KeyManagerPermanentFailure.CREATION_UPLOAD_CONFLICT]:
@@ -42,29 +35,55 @@ export class DeviceTrustConnectorElement extends CustomElement {
     return getTemplate();
   }
 
-  public set enabledString(str: string) {
-    const strEl = (this.$('#enabled-string') as HTMLElement);
-    if (strEl) {
-      strEl.innerText = str;
-    } else {
-      console.error('Could not find #enabled-string element.');
-    }
+  get deleteKeyEnabled(): boolean {
+    return loadTimeData.getBoolean('canDeleteDeviceTrustKey');
   }
 
-  public set keyInfo(keyInfo: KeyInfo) {
-    const keySectionEl = (this.$('#key-manager-section') as HTMLElement);
-    const initStateEl = (this.$('#key-manager-state') as HTMLElement);
+  set enabledString(isEnabledString: string) {
+    this.setValueToElement('#enabled-string', isEnabledString);
+  }
+
+  set policyEnabledLevels(policyLevels: string[]) {
+    if (policyLevels.length === 0) {
+      this.setValueToElement('#policy-enabled-levels', 'None');
+      return;
+    }
+
+    this.setValueToElement('#policy-enabled-levels', `${policyLevels}`);
+  }
+
+  set consentMetadata(consentMetadata: ConsentMetadata|null) {
+    const consentDetailsEl = this.getRequiredElement('#consent-details');
+    const noConsentDetailsEl = this.getRequiredElement('#no-consent-details');
+    if (!consentMetadata) {
+      this.showElement(noConsentDetailsEl);
+      this.hideElement(consentDetailsEl);
+      return;
+    }
+
+    this.showElement(consentDetailsEl);
+    this.hideElement(noConsentDetailsEl);
+
+    this.setValueToElement(
+        '#consent-received', `${consentMetadata.consentReceived}`);
+    this.setValueToElement(
+        '#can-collect', `${consentMetadata.canCollectSignals}`);
+  }
+
+  set keyInfo(keyInfo: KeyInfo) {
+    const keySectionEl = this.getRequiredElement('#key-manager-section');
+    const initStateEl = this.getRequiredElement('#key-manager-state');
 
     const keyPermanentErrorRowEl =
-        (this.$('#key-permanent-failure-row') as HTMLElement);
+        this.getRequiredElement('#key-permanent-failure-row');
     const keyPermanentErrorValueEl =
-        (this.$('#key-permanent-failure') as HTMLElement);
+        this.getRequiredElement('#key-permanent-failure');
 
-    const keyLoadedRows = (this.$('#key-loaded-rows') as HTMLElement);
-    const trustLevelStateEl = (this.$('#key-trust-level') as HTMLElement);
-    const keyTypeStateEl = (this.$('#key-type') as HTMLElement);
-    const spkiHashStateEl = (this.$('#spki-hash') as HTMLElement);
-    const keySyncStateEl = (this.$('#key-sync') as HTMLElement);
+    const keyLoadedRows = this.getRequiredElement('#key-loaded-rows');
+    const trustLevelStateEl = this.getRequiredElement('#key-trust-level');
+    const keyTypeStateEl = this.getRequiredElement('#key-type');
+    const spkiHashStateEl = this.getRequiredElement('#spki-hash');
+    const keySyncStateEl = this.getRequiredElement('#key-sync');
 
     const initializedValue = keyInfo.isKeyManagerInitialized;
     if (initializedValue === KeyManagerInitializedValue.UNSUPPORTED) {
@@ -89,45 +108,95 @@ export class DeviceTrustConnectorElement extends CustomElement {
       const keyMetadata = keyInfo.loadedKeyInfo;
       if (keyMetadata) {
         trustLevelStateEl.innerText =
-            this.trustLevelToString(keyMetadata.trustLevel);
-        keyTypeStateEl.innerText = this.keyTypeToString(keyMetadata.keyType);
+            utils.trustLevelToString(keyMetadata.trustLevel);
+        keyTypeStateEl.innerText = utils.keyTypeToString(keyMetadata.keyType);
         spkiHashStateEl.innerText = keyMetadata.encodedSpkiHash;
-        keySyncStateEl.innerText =
-            this.keySyncCodeToString(keyMetadata.syncKeyResponseCode);
+        keySyncStateEl.innerText = utils.keySyncCodeToString(
+            keyMetadata.keyUploadStatus?.syncKeyResponseCode);
 
         this.showElement(keyLoadedRows);
       } else {
         this.hideElement(keyLoadedRows);
       }
+
+      const deleteKeyButton = this.deleteKeyButton;
+      if (deleteKeyButton) {
+        this.deleteKeyEnabled ? this.showElement(deleteKeyButton) :
+                                this.hideElement(deleteKeyButton);
+      }
     }
   }
 
   private signalsString_: string = '';
-  public set signalsString(str: string) {
-    const signalsEl = (this.$('#signals') as HTMLElement);
+  set signalsString(str: string) {
+    const signalsEl = this.$<HTMLElement>('#signals');
     if (signalsEl) {
       signalsEl.innerText = str;
       this.signalsString_ = str;
     } else {
       console.error('Could not find #signals element.');
     }
+
+    const signalsSection = this.$<HTMLElement>('#signals-section');
+    if (signalsSection) {
+      str === '' ? this.hideElement(signalsSection) :
+                   this.showElement(signalsSection);
+    } else {
+      console.error('Could not find #signals-section element.');
+    }
   }
 
-  public get copyButton(): HTMLButtonElement|undefined {
+  get copyButton(): HTMLButtonElement|undefined {
     return this.$('#copy-signals') as HTMLButtonElement;
   }
 
-  public get signalsString(): string {
+  get deleteKeyButton(): HTMLButtonElement|undefined {
+    return this.$('#delete-key') as HTMLButtonElement;
+  }
+
+  get signalsString(): string {
     return this.signalsString_;
   }
 
-  private readonly pageHandler: PageHandlerInterface;
+  private get pageHandler(): PageHandlerInterface {
+    return BrowserProxy.getInstance().handler;
+  }
 
   constructor() {
     super();
-    this.pageHandler = PageHandler.getRemote();
 
-    this.fetchDeviceTrustValues()
+    this.fetchDeviceTrustValues();
+
+    if (this.deleteKeyEnabled) {
+      const deleteKeyButton = this.deleteKeyButton;
+      if (deleteKeyButton) {
+        deleteKeyButton.addEventListener('click', () => this.deleteKey());
+      }
+    }
+  }
+
+  private setDeviceTrustValues(state: DeviceTrustState|undefined) {
+    if (!state) {
+      this.enabledString = 'error';
+      return;
+    }
+
+    this.enabledString = `${state.isEnabled}`;
+    this.policyEnabledLevels = state.policyEnabledLevels;
+    this.consentMetadata = state.consentMetadata;
+    this.keyInfo = state.keyInfo;
+    this.signalsString = state.signalsJson;
+  }
+
+  private fetchDeviceTrustValues() {
+    this.pageHandler.getDeviceTrustState()
+        .then(
+            (response: {state: DeviceTrustState}) => response && response.state,
+            (e: object) => {
+              console.warn(
+                  `fetchDeviceTrustValues failed: ${JSON.stringify(e)}`);
+              return undefined;
+            })
         .then(state => this.setDeviceTrustValues(state))
         .then(() => {
           const copyButton = this.copyButton;
@@ -138,32 +207,14 @@ export class DeviceTrustConnectorElement extends CustomElement {
         });
   }
 
-  private setDeviceTrustValues(state: DeviceTrustState|undefined) {
-    if (!state) {
-      this.enabledString = 'error';
-      return;
-    }
-
-    this.enabledString = `${state.isEnabled}`;
-
-    this.keyInfo = state.keyInfo;
-
-    this.signalsString = state.signalsJson;
-  }
-
-  private async fetchDeviceTrustValues(): Promise<DeviceTrustState|undefined> {
-    return this.pageHandler.getDeviceTrustState().then(
-        (response: {state: DeviceTrustState}) => response && response.state,
-        (e: object) => {
-          console.warn(`fetchDeviceTrustValues failed: ${JSON.stringify(e)}`);
-          return undefined;
-        });
-  }
-
-  private async copySignals(copyButton: HTMLButtonElement): Promise<void> {
+  private copySignals(copyButton: HTMLButtonElement) {
     copyButton.disabled = true;
     navigator.clipboard.writeText(this.signalsString)
         .finally(() => copyButton.disabled = false);
+  }
+
+  private async deleteKey(): Promise<void> {
+    await this.pageHandler.deleteDeviceTrustKey();
   }
 
   private showElement(element: Element) {
@@ -174,25 +225,13 @@ export class DeviceTrustConnectorElement extends CustomElement {
     element?.classList.add('hidden');
   }
 
-  private trustLevelToString(trustLevel: KeyTrustLevel): string {
-    return TrustLevelStringMap[trustLevel] || 'invalid';
-  }
-
-  private keyTypeToString(keyType: KeyType): string {
-    return KeyTypeStringMap[keyType] || 'invalid';
-  }
-
-  private keySyncCodeToString(syncKeyResponseCode: Int32Value|
-                              undefined): string {
-    if (!syncKeyResponseCode) {
-      return 'Undefined';
+  private setValueToElement(elementId: string, stringValue: string) {
+    const htmlElement = (this.$(elementId) as HTMLElement);
+    if (htmlElement) {
+      htmlElement.innerText = stringValue;
+    } else {
+      console.error(`Could not find ${elementId} element.`);
     }
-
-    const value = syncKeyResponseCode.value;
-    if (value / 100 === 2) {
-      return `Success (${value})`;
-    }
-    return `Failure (${value})`;
   }
 }
 

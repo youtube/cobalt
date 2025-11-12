@@ -2,23 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/chromeos/extensions/echo_private/echo_private_api.h"
-
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/ash/notifications/echo_dialog_view.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
+#include "chrome/browser/chromeos/extensions/echo_private/echo_private_api.h"
+#include "chrome/browser/chromeos/extensions/echo_private/echo_private_api_util.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/extensions/window_controller.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "chromeos/ash/components/system/fake_statistics_provider.h"
+#include "chromeos/ash/components/system/statistics_provider.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 
 namespace utils = extensions::api_test_utils;
 
@@ -33,14 +38,24 @@ class ExtensionEchoPrivateApiTest : public extensions::ExtensionApiTest {
   };
 
   ExtensionEchoPrivateApiTest()
-      : expected_dialog_buttons_(ui::DIALOG_BUTTON_NONE),
+      : expected_dialog_buttons_(
+            static_cast<int>(ui::mojom::DialogButton::kNone)),
         dialog_action_(DIALOG_TEST_ACTION_NONE),
-        dialog_invocation_count_(0) {
-  }
+        dialog_invocation_count_(0) {}
 
-  ~ExtensionEchoPrivateApiTest() override {}
+  ~ExtensionEchoPrivateApiTest() override = default;
 
   void SetUp() override {
+    statistics_provider_.SetVpdStatus(
+        ash::system::StatisticsProvider::VpdStatus::kValid);
+    statistics_provider_.SetMachineStatistic(ash::system::kOffersCouponCodeKey,
+                                             "COUPON_CODE");
+    statistics_provider_.SetMachineStatistic(ash::system::kOffersGroupCodeKey,
+                                             "GROUP_CODE");
+    statistics_provider_.SetMachineStatistic(ash::system::kActivateDateKey,
+                                             "2024-13");
+    ash::system::StatisticsProvider::SetTestProvider(&statistics_provider_);
+
     ash::EchoDialogView::AddShowCallbackForTesting(base::BindOnce(
         &ExtensionEchoPrivateApiTest::OnDialogShown, base::Unretained(this)));
     extensions::ExtensionApiTest::SetUp();
@@ -54,9 +69,8 @@ class ExtensionEchoPrivateApiTest : public extensions::ExtensionApiTest {
     const std::string arguments = base::StringPrintf(
         R"([{"serviceName": "name", "origin": "https://test.com", "tabId": %d}])",
         tab_id);
-    absl::optional<base::Value> result =
-        utils::RunFunctionAndReturnSingleResult(function.get(), arguments,
-                                                profile());
+    std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+        function.get(), arguments, profile());
 
     ASSERT_TRUE(result);
     ASSERT_EQ(base::Value::Type::BOOLEAN, result->type());
@@ -68,14 +82,14 @@ class ExtensionEchoPrivateApiTest : public extensions::ExtensionApiTest {
     dialog_invocation_count_++;
     ASSERT_LE(dialog_invocation_count_, 1);
 
-    EXPECT_EQ(expected_dialog_buttons_, dialog->GetDialogButtons());
+    EXPECT_EQ(expected_dialog_buttons_, dialog->buttons());
 
     // Don't accept the dialog if the dialog buttons don't match expectation.
     // Accepting a dialog which should not have accept option may crash the
     // test. The test already failed, so it's ok to cancel the dialog.
     DialogTestAction dialog_action = dialog_action_;
     if (dialog_action == DIALOG_TEST_ACTION_ACCEPT &&
-        expected_dialog_buttons_ != dialog->GetDialogButtons()) {
+        expected_dialog_buttons_ != dialog->buttons()) {
       dialog_action = DIALOG_TEST_ACTION_CANCEL;
     }
 
@@ -112,22 +126,26 @@ class ExtensionEchoPrivateApiTest : public extensions::ExtensionApiTest {
   }
 
   bool CloseTabWithId(int tab_id) {
-    TabStripModel* tab_strip = nullptr;
+    extensions::WindowController* window = nullptr;
     int tab_index = -1;
-    if (!extensions::ExtensionTabUtil::GetTabById(tab_id, profile(), false,
-                                                  nullptr, &tab_strip, nullptr,
-                                                  &tab_index)) {
+    if (!extensions::ExtensionTabUtil::GetTabById(
+            tab_id, profile(), false, &window, nullptr, &tab_index) ||
+        !window) {
       ADD_FAILURE() << "Tab not found " << tab_id;
       return false;
     }
 
-    return tab_strip->CloseWebContentsAt(tab_index, 0);
+    TabStripModel* tab_strip = window->GetBrowser()->tab_strip_model();
+    int previous_tab_count = tab_strip->count();
+    tab_strip->CloseWebContentsAt(tab_index, 0);
+    return (previous_tab_count - 1) == tab_strip->count();
   }
 
  protected:
   int expected_dialog_buttons_;
   DialogTestAction dialog_action_;
   ash::ScopedTestingCrosSettings scoped_testing_cros_settings_;
+  ash::system::FakeStatisticsProvider statistics_provider_;
 
  private:
   int dialog_invocation_count_;
@@ -143,7 +161,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
                        GetUserConsent_InvalidOrigin) {
   const int tab_id = OpenAndActivateTab();
 
-  expected_dialog_buttons_ =  ui::DIALOG_BUTTON_NONE;
+  expected_dialog_buttons_ = static_cast<int>(ui::mojom::DialogButton::kNone);
   dialog_action_ = DIALOG_TEST_ACTION_NONE;
 
   auto function = base::MakeRefCounted<EchoPrivateGetUserConsentFunction>();
@@ -160,7 +178,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest, GetUserConsent_NoTabIdSet) {
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_NONE;
+  expected_dialog_buttons_ = static_cast<int>(ui::mojom::DialogButton::kNone);
   dialog_action_ = DIALOG_TEST_ACTION_NONE;
 
   auto function = base::MakeRefCounted<EchoPrivateGetUserConsentFunction>();
@@ -179,7 +197,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
   // Open and activate another tab.
   OpenAndActivateTab();
 
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_NONE;
+  expected_dialog_buttons_ = static_cast<int>(ui::mojom::DialogButton::kNone);
   dialog_action_ = DIALOG_TEST_ACTION_NONE;
 
   auto function = base::MakeRefCounted<EchoPrivateGetUserConsentFunction>();
@@ -198,7 +216,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest, GetUserConsent_ClosedTab) {
   const int tab_id = OpenAndActivateTab();
   ASSERT_TRUE(CloseTabWithId(tab_id));
 
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_NONE;
+  expected_dialog_buttons_ = static_cast<int>(ui::mojom::DialogButton::kNone);
   dialog_action_ = DIALOG_TEST_ACTION_NONE;
 
   auto function = base::MakeRefCounted<EchoPrivateGetUserConsentFunction>();
@@ -216,7 +234,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest, GetUserConsent_ClosedTab) {
 IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
                        GetUserConsent_AllowRedeemPrefNotSet) {
   const int tab_id = OpenAndActivateTab();
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK;
+  expected_dialog_buttons_ =
+      static_cast<int>(ui::mojom::DialogButton::kCancel) |
+      static_cast<int>(ui::mojom::DialogButton::kOk);
   dialog_action_ = DIALOG_TEST_ACTION_ACCEPT;
 
   RunDefaultGetUserFunctionAndExpectResultEquals(tab_id, true);
@@ -230,7 +250,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
   scoped_testing_cros_settings_.device_settings()->Set(
       ash::kAllowRedeemChromeOsRegistrationOffers, base::Value(true));
 
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK;
+  expected_dialog_buttons_ =
+      static_cast<int>(ui::mojom::DialogButton::kCancel) |
+      static_cast<int>(ui::mojom::DialogButton::kOk);
   dialog_action_ = DIALOG_TEST_ACTION_ACCEPT;
 
   RunDefaultGetUserFunctionAndExpectResultEquals(tab_id, true);
@@ -244,7 +266,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
   scoped_testing_cros_settings_.device_settings()->Set(
       ash::kAllowRedeemChromeOsRegistrationOffers, base::Value(true));
 
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK;
+  expected_dialog_buttons_ =
+      static_cast<int>(ui::mojom::DialogButton::kCancel) |
+      static_cast<int>(ui::mojom::DialogButton::kOk);
   dialog_action_ = DIALOG_TEST_ACTION_CANCEL;
 
   RunDefaultGetUserFunctionAndExpectResultEquals(tab_id, false);
@@ -258,7 +282,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
   scoped_testing_cros_settings_.device_settings()->Set(
       ash::kAllowRedeemChromeOsRegistrationOffers, base::Value(false));
 
-  expected_dialog_buttons_ = ui::DIALOG_BUTTON_CANCEL;
+  expected_dialog_buttons_ = static_cast<int>(ui::mojom::DialogButton::kCancel);
   dialog_action_ = DIALOG_TEST_ACTION_CANCEL;
 
   RunDefaultGetUserFunctionAndExpectResultEquals(tab_id, false);
@@ -267,19 +291,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionEchoPrivateApiTest, RemoveEmptyValueDicts) {
-  base::Value::Dict dict;
-
-  base::Value::Dict nested;
-  nested.Set("c", "d");
-  nested.Set("empty_value", base::Value::Dict());
-
-  base::Value::Dict nested_empty;
-  nested_empty.Set("empty_value", base::Value::Dict());
-
-  dict.Set("a", "b");
-  dict.Set("empty", base::Value::Dict());
-  dict.Set("nested", std::move(nested));
-  dict.Set("nested_empty", std::move(nested_empty));
+  auto dict = base::Value::Dict()
+                  .Set("a", "b")
+                  .Set("empty", base::Value::Dict())
+                  .Set("nested", base::Value::Dict().Set("c", "d").Set(
+                                     "empty_value", base::Value::Dict()))
+                  .Set("nested_empty", base::Value::Dict().Set(
+                                           "empty_value", base::Value::Dict()));
 
   // Remove nested dictionaries.
   chromeos::echo_offer::RemoveEmptyValueDicts(dict);

@@ -37,7 +37,7 @@ class DevToolsTagTest : public InProcessBrowserTest {
 
   DevToolsTagTest(const DevToolsTagTest&) = delete;
   DevToolsTagTest& operator=(const DevToolsTagTest&) = delete;
-  ~DevToolsTagTest() override {}
+  ~DevToolsTagTest() override = default;
 
   void LoadTestPage(const std::string& test_page) {
     GURL url = embedded_test_server()->GetURL(test_page);
@@ -58,7 +58,7 @@ class DevToolsTagTest : public InProcessBrowserTest {
   }
 
  private:
-  raw_ptr<DevToolsWindow, DanglingUntriaged> devtools_window_;
+  raw_ptr<DevToolsWindow, AcrossTasksDanglingUntriaged> devtools_window_;
 };
 
 // Tests that opening a DevToolsWindow will result in tagging its main

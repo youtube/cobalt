@@ -14,19 +14,32 @@ option optimize_for = LITE_RUNTIME;
 
 package sync_pb;
 
+import "components/sync/protocol/data_type_state.proto";
 import "components/sync/protocol/encryption.proto";
 import "components/sync/protocol/entity_metadata.proto";
-import "components/sync/protocol/model_type_state.proto";
 import "components/sync/protocol/nigori_specifics.proto";
+
+message CrossUserSharingKeys {
+  // Asymmetric private-keys used for cross user sharing.
+  repeated CrossUserSharingPrivateKey private_key = 1;
+}
+
+message LocalNigoriKeyBag {
+  // Used for encrypting within the sync account boundary.
+  repeated NigoriKey key = 2;
+}
 
 message CryptographerData {
   // Contains all known Nigori keys.
-  optional NigoriKeyBag key_bag = 1;
+  optional LocalNigoriKeyBag key_bag = 1;
 
   // Default key is the key, that should be used for encryption. Can be empty
   // in case we have pending keys (waiting for explicit passphrase, or client
   // didn't received keystore keys).
   optional string default_key_name = 2;
+
+  // Contains cross user sharing related keys.
+  optional CrossUserSharingKeys cross_user_sharing_keys = 3;
 }
 
 message CustomPassphraseKeyDerivationParams {
@@ -70,7 +83,7 @@ message NigoriModel {
   optional int64 custom_passphrase_time = 6;
 
   // Params used for deriving keys from custom passphrase. Should be set iff
-  // |passphrase_type| is CUSTOM_PASSPHRASE.
+  // `passphrase_type` is CUSTOM_PASSPHRASE.
   optional CustomPassphraseKeyDerivationParams
       custom_passphrase_key_derivation_params = 7;
 
@@ -98,6 +111,9 @@ message NigoriModel {
 
   // Some debug-only fields for passphrase type TRUSTED_VAULT_PASSPHRASE.
   optional NigoriSpecifics.TrustedVaultDebugInfo trusted_vault_debug_info = 13;
+
+  // Current Public-key.
+  optional CrossUserSharingPublicKey cross_user_sharing_public_key = 14;
 }
 
 // Sync proto to store Nigori data in storage. Proto should be encrypted with
@@ -105,7 +121,7 @@ message NigoriModel {
 // nigori_model.cryptographer_data.key_bag and nigori_model.keystore_keys).
 message NigoriLocalData {
   // Global metadata.
-  optional ModelTypeState model_type_state = 1;
+  optional DataTypeState data_type_state = 1;
 
   // Metadata for Nigori entity.
   optional EntityMetadata entity_metadata = 2;

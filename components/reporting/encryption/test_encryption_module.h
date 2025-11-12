@@ -5,8 +5,9 @@
 #ifndef COMPONENTS_REPORTING_ENCRYPTION_TEST_ENCRYPTION_MODULE_H_
 #define COMPONENTS_REPORTING_ENCRYPTION_TEST_ENCRYPTION_MODULE_H_
 
+#include <string_view>
+
 #include "base/functional/callback.h"
-#include "base/strings/string_piece.h"
 #include "components/reporting/encryption/encryption_module_interface.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/util/statusor.h"
@@ -23,12 +24,12 @@ class TestEncryptionModuleStrict : public EncryptionModuleInterface {
 
   MOCK_METHOD(void,
               EncryptRecordImpl,
-              (base::StringPiece record,
+              (std::string_view record,
                base::OnceCallback<void(StatusOr<EncryptedRecord>)> cb),
               (const override));
 
   void UpdateAsymmetricKeyImpl(
-      base::StringPiece new_public_key,
+      std::string_view new_public_key,
       PublicKeyId new_public_key_id,
       base::OnceCallback<void(Status)> response_cb) override;
 

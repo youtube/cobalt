@@ -4,37 +4,35 @@
 
 #import "ios/web_view/public/cwv_trusted_vault_utils.h"
 
-#import "components/sync/driver/trusted_vault_histograms.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "components/trusted_vault/local_recovery_factor.h"
+#import "components/trusted_vault/trusted_vault_histograms.h"
+#import "components/trusted_vault/trusted_vault_server_constants.h"
 
 namespace {
-syncer::TrustedVaultDeviceRegistrationStateForUMA CWVConvertTrustedVaultState(
-    CWVTrustedVaultState state) {
+trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA
+CWVConvertTrustedVaultState(CWVTrustedVaultState state) {
   switch (state) {
     case CWVTrustedVaultStateAlreadyRegisteredV0:
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kAlreadyRegisteredV0;
     case CWVTrustedVaultStateLocalKeysAreStale:
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kLocalKeysAreStale;
     case CWVTrustedVaultStateThrottledClientSide:
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kThrottledClientSide;
     case CWVTrustedVaultStateAttemptingRegistrationWithNewKeyPair:
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kAttemptingRegistrationWithNewKeyPair;
     case CWVTrustedVaultStateAttemptingRegistrationWithExistingKeyPair:
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kAttemptingRegistrationWithExistingKeyPair;
     case CWVTrustedVaultStateAttemptingRegistrationWithPersistentAuthError:
-      // TODO(crbug.com/1418027): remove CWV version of this bucket.
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      // TODO(crbug.com/40257503): remove CWV version of this bucket.
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kDeprecatedAttemptingRegistrationWithPersistentAuthError;
     case CWVTrustedVaultStateAlreadyRegisteredV1:
-      return syncer::TrustedVaultDeviceRegistrationStateForUMA::
+      return trusted_vault::TrustedVaultRecoveryFactorRegistrationStateForUMA::
           kAlreadyRegisteredV1;
   }
 }
@@ -43,18 +41,21 @@ syncer::TrustedVaultDeviceRegistrationStateForUMA CWVConvertTrustedVaultState(
 @implementation CWVTrustedVaultUtils
 
 + (void)logTrustedVaultDidUpdateState:(CWVTrustedVaultState)state {
-  syncer::RecordTrustedVaultDeviceRegistrationState(
+  trusted_vault::RecordTrustedVaultRecoveryFactorRegistrationState(
+      trusted_vault::LocalRecoveryFactorType::kPhysicalDevice,
+      trusted_vault::SecurityDomainId::kChromeSync,
       CWVConvertTrustedVaultState(state));
 }
 
 + (void)logTrustedVaultDidReceiveHTTPStatusCode:(NSInteger)statusCode {
-  syncer::RecordTrustedVaultURLFetchResponse(
-      statusCode, /*net_error=*/0,
-      syncer::TrustedVaultURLFetchReasonForUMA::kUnspecified);
+  trusted_vault::RecordTrustedVaultURLFetchResponse(
+      trusted_vault::SecurityDomainId::kChromeSync,
+      trusted_vault::TrustedVaultURLFetchReasonForUMA::kUnspecified, statusCode,
+      /*net_error=*/0);
 }
 
 + (void)logTrustedVaultDidFailKeyDistribution:(NSError*)error {
-  // TODO(crbug.com/1266130): Check to see if any UMA logging needs to occur.
+  // TODO(crbug.com/40204010): Check to see if any UMA logging needs to occur.
 }
 
 @end

@@ -8,6 +8,7 @@
 
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/shell.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -31,7 +32,7 @@ const int kFadingTimeoutDurationInSeconds = 10;
 // runs the specified |callback| when all of the animations have finished.
 class CallbackRunningObserver {
  public:
-  CallbackRunningObserver(base::OnceClosure callback)
+  explicit CallbackRunningObserver(base::OnceClosure callback)
       : completed_counter_(0),
         animation_aborted_(false),
         callback_(std::move(callback)) {}
@@ -89,8 +90,8 @@ class CallbackRunningObserver {
     }
 
    private:
-    raw_ptr<ui::LayerAnimator, ExperimentalAsh> animator_;
-    raw_ptr<CallbackRunningObserver, ExperimentalAsh> observer_;
+    raw_ptr<ui::LayerAnimator> animator_;
+    raw_ptr<CallbackRunningObserver> observer_;
   };
 
   size_t completed_counter_;
@@ -169,7 +170,7 @@ void DisplayAnimator::StartFadeInAnimation() {
   // invisible.
   for (aura::Window* root_window : Shell::Get()->GetAllRootWindows()) {
     ui::Layer* hiding_layer = nullptr;
-    if (hiding_layers_.find(root_window) == hiding_layers_.end()) {
+    if (!base::Contains(hiding_layers_, root_window)) {
       // In case of the transition from mirroring->non-mirroring, new root
       // windows appear and we do not have the black layers for them.  Thus
       // we need to create the layer and make it visible.
@@ -198,13 +199,13 @@ void DisplayAnimator::StartFadeInAnimation() {
   }
 }
 
-void DisplayAnimator::OnDisplayModeChanged(
+void DisplayAnimator::OnDisplayConfigurationChanged(
     const display::DisplayConfigurator::DisplayStateList& displays) {
   if (!hiding_layers_.empty())
     StartFadeInAnimation();
 }
 
-void DisplayAnimator::OnDisplayModeChangeFailed(
+void DisplayAnimator::OnDisplayConfigurationChangeFailed(
     const display::DisplayConfigurator::DisplayStateList& displays,
     display::MultipleDisplayState failed_new_state) {
   if (!hiding_layers_.empty())

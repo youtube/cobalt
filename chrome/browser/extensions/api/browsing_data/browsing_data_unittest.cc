@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+#include <string>
+
 #include "base/functional/callback.h"
-#include "base/json/json_string_value_serializer.h"
+#include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/stringprintf.h"
@@ -85,7 +88,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
   uint64_t GetAsMask(const base::Value::Dict* dict,
                      std::string path,
                      uint64_t mask_value) {
-    absl::optional<bool> value = dict->FindBool(path);
+    std::optional<bool> value = dict->FindBool(path);
     DCHECK(value.has_value());
     return *value ? mask_value : 0;
   }
@@ -142,7 +145,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     scoped_refptr<BrowsingDataSettingsFunction> function =
         new BrowsingDataSettingsFunction();
     SCOPED_TRACE("settings");
-    absl::optional<base::Value> result = RunFunctionAndReturnSingleResult(
+    std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
         function.get(), std::string("[]"), browser()->profile());
     EXPECT_TRUE(result->is_dict());
     ASSERT_TRUE(result->GetDict().FindDoubleByDottedPath("options.since"));
@@ -151,7 +154,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     double expected_since = 0;
     if (since_pref != browsing_data::TimePeriod::ALL_TIME) {
       base::Time time = CalculateBeginDeleteTime(since_pref);
-      expected_since = time.ToJsTime();
+      expected_since = time.InMillisecondsFSinceUnixEpoch();
     }
     // Even a synchronous function takes nonzero time, but the difference
     // between when the function was called and now should be well under a
@@ -219,7 +222,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     scoped_refptr<BrowsingDataSettingsFunction> function =
         new BrowsingDataSettingsFunction();
     SCOPED_TRACE("settings");
-    absl::optional<base::Value> result = RunFunctionAndReturnSingleResult(
+    std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
         function.get(), std::string("[]"), browser()->profile());
 
     ASSERT_TRUE(result->is_dict());
@@ -356,7 +359,7 @@ TEST_F(BrowsingDataApiTest, RemoveBrowsingDataAll) {
   EXPECT_FALSE(RunFunctionAndReturnSingleResult(
       function.get(), kRemoveEverythingArguments, browser()->profile()));
 
-  EXPECT_EQ(base::Time::FromDoubleT(1.0), GetBeginTime());
+  EXPECT_EQ(base::Time::FromSecondsSinceUnixEpoch(1.0), GetBeginTime());
   EXPECT_EQ(
       // TODO(benwells): implement clearing of site usage data via the
       // browsing data API. https://crbug.com/500801.
@@ -454,28 +457,28 @@ TEST_F(BrowsingDataApiTest, BrowsingDataRemovalInputFromSettings) {
   uint64_t expected_mask = content::BrowsingDataRemover::DATA_TYPE_CACHE |
                            content::BrowsingDataRemover::DATA_TYPE_DOWNLOADS |
                            chrome_browsing_data_remover::DATA_TYPE_HISTORY;
-  std::string json;
+  std::optional<std::string> json;
   // Scoping for the traces.
   {
     scoped_refptr<BrowsingDataSettingsFunction> settings_function =
         new BrowsingDataSettingsFunction();
     SCOPED_TRACE("settings_json");
-    absl::optional<base::Value> result = RunFunctionAndReturnSingleResult(
+    std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
         settings_function.get(), std::string("[]"), browser()->profile());
 
     EXPECT_TRUE(result->is_dict());
     base::Value::Dict* data_to_remove =
         result->GetDict().FindDict("dataToRemove");
-    EXPECT_TRUE(data_to_remove);
+    ASSERT_TRUE(data_to_remove);
 
-    JSONStringValueSerializer serializer(&json);
-    EXPECT_TRUE(serializer.Serialize(*data_to_remove));
+    json = base::WriteJson(*data_to_remove);
+    ASSERT_TRUE(json);
   }
   {
     auto remove_function = base::MakeRefCounted<BrowsingDataRemoveFunction>();
     SCOPED_TRACE("remove_json");
     EXPECT_FALSE(RunFunctionAndReturnSingleResult(
-        remove_function.get(), std::string("[{\"since\": 1},") + json + "]",
+        remove_function.get(), std::string("[{\"since\": 1},") + *json + "]",
         browser()->profile()));
     EXPECT_EQ(expected_mask, GetRemovalMask());
     EXPECT_EQ(UNPROTECTED_WEB, GetOriginTypeMask());

@@ -30,7 +30,7 @@ Presence tracking was added to proto3 in response to user feedback, both from
 inside Google and [from open-source
 users](https://github.com/protocolbuffers/protobuf/issues/1606). The [proto3
 wrapper
-types](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/wrappers.proto)
+types](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/wrappers.proto)
 were previously the only supported presence mechanism for proto3. Users have
 pointed to both efficiency and usability issues with the wrapper types.
 
@@ -131,11 +131,11 @@ These options are demonstrated below:
 
 ```
 # One option:
-$ ./src/protoc test.proto --cpp_out=. --experimental_allow_proto3_optional
+$ protoc test.proto --cpp_out=. --experimental_allow_proto3_optional
 
 # Another option:
 $ cp test.proto test_proto3_optional.proto
-$ ./src/protoc test_proto3_optional.proto --cpp_out=.
+$ protoc test_proto3_optional.proto --cpp_out=.
 $
 ```
 
@@ -152,7 +152,7 @@ If you now try to invoke your own code generator with the test proto, you will
 run into a different error:
 
 ```
-$ ./src/protoc test_proto3_optional.proto --my_codegen_out=.
+$ protoc test_proto3_optional.proto --my_codegen_out=.
 test_proto3_optional.proto: is a proto3 file that contains optional fields, but
 code generator --my_codegen_out hasn't been updated to support optional fields in
 proto3. Please ask the owner of this code generator to support proto3 optional.
@@ -201,7 +201,7 @@ Once you have added this, you should now be able to successfully use your code
 generator to generate a file containing proto3 optional fields:
 
 ```
-$ ./src/protoc test_proto3_optional.proto --my_codegen_out=.
+$ protoc test_proto3_optional.proto --my_codegen_out=.
 ```
 
 ### Updating Your Code Generator
@@ -237,9 +237,8 @@ methods where required.
 Old:
 
 ```c++
-bool MessageHasPresence(const google::protobuf::Descriptor* message) {
-  return message->file()->syntax() ==
-         google::protobuf::FileDescriptor::SYNTAX_PROTO2;
+bool MessageHasPresence(const google::protobuf::FieldDescriptor* field) {
+  return field->has_presence();
 }
 ```
 

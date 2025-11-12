@@ -10,9 +10,9 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
+#include "components/password_manager/core/browser/import/import_results.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
-#include "components/password_manager/core/browser/ui/import_results.h"
 #include "components/password_manager/services/csv_password/csv_password_parser_service.h"
 #include "components/password_manager/services/csv_password/public/mojom/csv_password_parser.mojom.h"
 
@@ -54,11 +54,6 @@ class SavedPasswordsPresenter;
 // performed using a utility SandBox process.
 class PasswordImporter {
  public:
-  static constexpr size_t MAX_PASSWORDS_PER_IMPORT = 3000;
-  // TODO(crbug/1417650): Use constant from
-  // components/password_manager/core/common/password_manager_constants.h
-  static constexpr size_t MAX_NOTE_LENGTH = 1000;
-
   enum State {
     // The object has just been created, but the import process has not been
     // launched yet. Or the import has finished with some errors and the object
@@ -94,9 +89,15 @@ class PasswordImporter {
   PasswordImporter& operator=(const PasswordImporter&) = delete;
   ~PasswordImporter();
 
+  // Imports passwords from the |csv_data| string into the |to_store|.
+  // |results_callback| is used to return import summary back to the user.
+  // The only supported data format is CSV.
+  void Import(std::string csv_data,
+              password_manager::PasswordForm::Store to_store,
+              ImportResultsCallback results_callback);
+
   // Imports passwords from the file at |path| into the |to_store|.
   // |results_callback| is used to return import summary back to the user.
-  // |cleanup_callback] is called when current object can be destroyed.
   // The only supported file format is CSV.
   void Import(const base::FilePath& path,
               password_manager::PasswordForm::Store to_store,

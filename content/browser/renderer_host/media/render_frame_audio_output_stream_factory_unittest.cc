@@ -17,11 +17,13 @@
 #include "base/unguessable_token.h"
 #include "content/browser/media/forwarding_audio_stream_factory.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
-#include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/renderer_host/media/mock_preferred_audio_output_device_manager.h"
+#include "content/browser/renderer_host/media/preferred_audio_output_device_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/test/mock_render_process_host.h"
+#include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "media/audio/audio_system_impl.h"
 #include "media/audio/fake_audio_log_factory.h"
@@ -83,10 +85,6 @@ class RenderFrameAudioOutputStreamFactoryTest
     audio_service_stream_factory_.receiver_.Bind(std::move(receiver));
   }
 
-  RenderFrameHostImpl* main_rfh_impl() {
-    return static_cast<RenderFrameHostImpl*>(main_rfh());
-  }
-
   class MockStreamFactory : public audio::FakeStreamFactory {
    public:
     MockStreamFactory() {}
@@ -101,10 +99,29 @@ class RenderFrameAudioOutputStreamFactoryTest
         const media::AudioParameters& params,
         const base::UnguessableToken& group_id,
         CreateOutputStreamCallback created_callback) override {
-      last_created_callback = std::move(created_callback);
+      last_created_callback_ = std::move(created_callback);
     }
 
-    CreateOutputStreamCallback last_created_callback;
+    void CreateSwitchableOutputStream(
+        mojo::PendingReceiver<media::mojom::AudioOutputStream> stream,
+        mojo::PendingReceiver<media::mojom::DeviceSwitchInterface>
+            device_switch_receiver,
+        mojo::PendingAssociatedRemote<media::mojom::AudioOutputStreamObserver>
+            observer,
+        mojo::PendingRemote<media::mojom::AudioLog> log,
+        const std::string& device_id,
+        const media::AudioParameters& params,
+        const base::UnguessableToken& group_id,
+        CreateOutputStreamCallback created_callback) override {
+      last_created_callback_ = std::move(created_callback);
+    }
+
+    bool last_created_callback() const {
+      return !last_created_callback_.is_null();
+    }
+
+   private:
+    CreateOutputStreamCallback last_created_callback_;
   };
 
   using MockAuthorizationCallback = StrictMock<
@@ -127,23 +144,21 @@ class RenderFrameAudioOutputStreamFactoryTest
 TEST_F(RenderFrameAudioOutputStreamFactoryTest, ConstructDestruct) {
   mojo::Remote<blink::mojom::RendererAudioOutputStreamFactory> factory_remote;
   RenderFrameAudioOutputStreamFactory factory(
-      main_rfh_impl(), audio_system_.get(), media_stream_manager_.get(),
-      factory_remote.BindNewPipeAndPassReceiver(),
-      /*restricted_callback=*/absl::nullopt);
+      main_rfh(), audio_system_.get(), media_stream_manager_.get(),
+      factory_remote.BindNewPipeAndPassReceiver());
 }
 
 TEST_F(RenderFrameAudioOutputStreamFactoryTest,
        RequestDeviceAuthorizationForDefaultDevice_StatusOk) {
   mojo::Remote<blink::mojom::RendererAudioOutputStreamFactory> factory_remote;
   RenderFrameAudioOutputStreamFactory factory(
-      main_rfh_impl(), audio_system_.get(), media_stream_manager_.get(),
-      factory_remote.BindNewPipeAndPassReceiver(),
-      /*restricted_callback=*/absl::nullopt);
+      main_rfh(), audio_system_.get(), media_stream_manager_.get(),
+      factory_remote.BindNewPipeAndPassReceiver());
 
   mojo::Remote<media::mojom::AudioOutputStreamProvider> provider_remote;
   MockAuthorizationCallback mock_callback;
   factory_remote->RequestDeviceAuthorization(
-      provider_remote.BindNewPipeAndPassReceiver(), absl::nullopt,
+      provider_remote.BindNewPipeAndPassReceiver(), std::nullopt,
       kDefaultDeviceId, mock_callback.Get());
 
   EXPECT_CALL(mock_callback,
@@ -159,14 +174,13 @@ TEST_F(
     RequestDeviceAuthorizationForDefaultDeviceAndDestroyProviderPtr_CleansUp) {
   mojo::Remote<blink::mojom::RendererAudioOutputStreamFactory> factory_remote;
   RenderFrameAudioOutputStreamFactory factory(
-      main_rfh_impl(), audio_system_.get(), media_stream_manager_.get(),
-      factory_remote.BindNewPipeAndPassReceiver(),
-      /*restricted_callback=*/absl::nullopt);
+      main_rfh(), audio_system_.get(), media_stream_manager_.get(),
+      factory_remote.BindNewPipeAndPassReceiver());
 
   mojo::Remote<media::mojom::AudioOutputStreamProvider> provider_remote;
   MockAuthorizationCallback mock_callback;
   factory_remote->RequestDeviceAuthorization(
-      provider_remote.BindNewPipeAndPassReceiver(), absl::nullopt,
+      provider_remote.BindNewPipeAndPassReceiver(), std::nullopt,
       kDefaultDeviceId, mock_callback.Get());
   provider_remote.reset();
 
@@ -183,14 +197,13 @@ TEST_F(
     RequestDeviceAuthorizationForNondefaultDeviceWithoutAuthorization_Fails) {
   mojo::Remote<blink::mojom::RendererAudioOutputStreamFactory> factory_remote;
   RenderFrameAudioOutputStreamFactory factory(
-      main_rfh_impl(), audio_system_.get(), media_stream_manager_.get(),
-      factory_remote.BindNewPipeAndPassReceiver(),
-      /*restricted_callback=*/absl::nullopt);
+      main_rfh(), audio_system_.get(), media_stream_manager_.get(),
+      factory_remote.BindNewPipeAndPassReceiver());
 
   mojo::Remote<media::mojom::AudioOutputStreamProvider> provider_remote;
   MockAuthorizationCallback mock_callback;
   factory_remote->RequestDeviceAuthorization(
-      provider_remote.BindNewPipeAndPassReceiver(), absl::nullopt, kDeviceId,
+      provider_remote.BindNewPipeAndPassReceiver(), std::nullopt, kDeviceId,
       mock_callback.Get());
 
   EXPECT_CALL(mock_callback,
@@ -205,14 +218,13 @@ TEST_F(RenderFrameAudioOutputStreamFactoryTest,
        CreateStream_CreatesStreamAndFreesProvider) {
   mojo::Remote<blink::mojom::RendererAudioOutputStreamFactory> factory_remote;
   RenderFrameAudioOutputStreamFactory factory(
-      main_rfh_impl(), audio_system_.get(), media_stream_manager_.get(),
-      factory_remote.BindNewPipeAndPassReceiver(),
-      /*restricted_callback=*/absl::nullopt);
+      main_rfh(), audio_system_.get(), media_stream_manager_.get(),
+      factory_remote.BindNewPipeAndPassReceiver());
 
   mojo::Remote<media::mojom::AudioOutputStreamProvider> provider_remote;
   MockAuthorizationCallback mock_callback;
   factory_remote->RequestDeviceAuthorization(
-      provider_remote.BindNewPipeAndPassReceiver(), absl::nullopt,
+      provider_remote.BindNewPipeAndPassReceiver(), std::nullopt,
       kDefaultDeviceId, mock_callback.Get());
   {
     mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client;
@@ -226,7 +238,7 @@ TEST_F(RenderFrameAudioOutputStreamFactoryTest,
 
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_TRUE(!!audio_service_stream_factory_.last_created_callback);
+  EXPECT_TRUE(!!audio_service_stream_factory_.last_created_callback());
   EXPECT_EQ(0u, factory.CurrentNumberOfProvidersForTesting());
 }
 
@@ -238,12 +250,11 @@ TEST_F(RenderFrameAudioOutputStreamFactoryTest,
   {
     mojo::Remote<blink::mojom::RendererAudioOutputStreamFactory> factory_remote;
     RenderFrameAudioOutputStreamFactory factory(
-        main_rfh_impl(), audio_system_.get(), media_stream_manager_.get(),
-        factory_remote.BindNewPipeAndPassReceiver(),
-        /*restricted_callback=*/absl::nullopt);
+        main_rfh(), audio_system_.get(), media_stream_manager_.get(),
+        factory_remote.BindNewPipeAndPassReceiver());
 
     factory_remote->RequestDeviceAuthorization(
-        provider_remote.BindNewPipeAndPassReceiver(), absl::nullopt,
+        provider_remote.BindNewPipeAndPassReceiver(), std::nullopt,
         kDefaultDeviceId, mock_callback.Get());
 
     media::mojom::AudioStreamFactory::CreateOutputStreamCallback
@@ -261,7 +272,7 @@ TEST_F(RenderFrameAudioOutputStreamFactoryTest,
 
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_FALSE(!!audio_service_stream_factory_.last_created_callback);
+  EXPECT_FALSE(!!audio_service_stream_factory_.last_created_callback());
 }
 
 }  // namespace content

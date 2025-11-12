@@ -9,18 +9,19 @@
 
 #include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
-#include "chromeos/ui/base/tablet_state.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/base/window_state_type.h"
 #include "chromeos/ui/frame/caption_buttons/caption_button_model.h"
 #include "chromeos/ui/frame/caption_buttons/frame_back_button.h"
 #include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
+#include "chromeos/ui/frame/caption_buttons/frame_center_button.h"
 #include "chromeos/ui/frame/default_frame_header.h"
+#include "chromeos/ui/frame/frame_utils.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
+#include "ui/display/tablet_state.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/non_client_view.h"
@@ -36,6 +37,8 @@ using ::chromeos::kFrameInactiveColorKey;
 // different scaling strategy than the rest of the frame such
 // as caption buttons.
 class HeaderView::HeaderContentView : public views::View {
+  METADATA_HEADER(HeaderContentView, views::View)
+
  public:
   explicit HeaderContentView(HeaderView* header_view)
       : header_view_(header_view) {}
@@ -58,10 +61,13 @@ class HeaderView::HeaderContentView : public views::View {
   }
 
  private:
-  raw_ptr<HeaderView, ExperimentalAsh> header_view_;
+  raw_ptr<HeaderView> header_view_;
   views::PaintInfo::ScaleType scale_type_ =
       views::PaintInfo::ScaleType::kScaleWithEdgeSnapping;
 };
+
+BEGIN_METADATA(HeaderView, HeaderContentView)
+END_METADATA
 
 HeaderView::HeaderView(views::Widget* target_widget,
                        views::NonClientFrameView* frame_view)
@@ -72,7 +78,6 @@ HeaderView::HeaderView(views::Widget* target_widget,
   caption_button_container_ =
       AddChildView(std::make_unique<chromeos::FrameCaptionButtonContainerView>(
           target_widget_));
-  caption_button_container_->UpdateCaptionButtonState(false /*=animate*/);
 
   frame_header_ = std::make_unique<DefaultFrameHeader>(
       target_widget,
@@ -87,12 +92,10 @@ void HeaderView::Init() {
 
   aura::Window* window = target_widget_->GetNativeWindow();
   window_observation_.Observe(window);
-  display::Screen::GetScreen()->AddObserver(this);
+  display_observer_.emplace(this);
 }
 
-HeaderView::~HeaderView() {
-  display::Screen::GetScreen()->RemoveObserver(this);
-}
+HeaderView::~HeaderView() = default;
 
 void HeaderView::SchedulePaintForTitle() {
   frame_header_->SchedulePaintForTitle();
@@ -114,9 +117,9 @@ int HeaderView::GetPreferredOnScreenHeight() {
 }
 
 int HeaderView::GetPreferredHeight() {
-  // Calculating the preferred height requires at least one Layout().
+  // Calculating the preferred height requires at least one layout.
   if (!did_layout_)
-    Layout();
+    DeprecatedLayoutImmediately();
   return frame_header_->GetHeaderHeightForPainting();
 }
 
@@ -135,12 +138,12 @@ void HeaderView::SetAvatarIcon(const gfx::ImageSkia& avatar) {
     DCHECK_EQ(avatar.width(), avatar.height());
     if (!avatar_icon_) {
       avatar_icon_ = new views::ImageView();
-      AddChildView(avatar_icon_.get());
+      AddChildViewRaw(avatar_icon_.get());
     }
-    avatar_icon_->SetImage(avatar);
+    avatar_icon_->SetImage(ui::ImageModel::FromImageSkia(avatar));
   }
   frame_header_->SetLeftHeaderView(avatar_icon_);
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void HeaderView::UpdateCaptionButtons() {
@@ -150,7 +153,7 @@ void HeaderView::UpdateCaptionButtons() {
   UpdateBackButton();
   UpdateCenterButton();
 
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void HeaderView::SetWidthInPixels(int width_in_pixels) {
@@ -163,7 +166,11 @@ void HeaderView::SetWidthInPixels(int width_in_pixels) {
           : views::PaintInfo::ScaleType::kScaleWithEdgeSnapping);
 }
 
-void HeaderView::Layout() {
+void HeaderView::SetHeaderCornerRadius(int radius) {
+  frame_header_->SetHeaderCornerRadius(radius);
+}
+
+void HeaderView::Layout(PassKey) {
   did_layout_ = true;
   header_content_view_->SetBoundsRect(GetLocalBounds());
   frame_header_->LayoutHeader();
@@ -175,7 +182,7 @@ void HeaderView::ChildPreferredSizeChanged(views::View* child) {
 
   // May be null during view initialization.
   if (parent())
-    parent()->Layout();
+    parent()->DeprecatedLayoutImmediately();
 }
 
 bool HeaderView::IsDrawn() const {
@@ -191,6 +198,7 @@ void HeaderView::OnWindowPropertyChanged(aura::Window* window,
     return;
 
   DCHECK_EQ(target_widget_->GetNativeWindow(), window);
+
   if (key == aura::client::kAvatarIconKey) {
     gfx::ImageSkia* const avatar_icon =
         window->GetProperty(aura::client::kAvatarIconKey);
@@ -215,14 +223,21 @@ void HeaderView::OnWindowPropertyChanged(aura::Window* window,
 void HeaderView::OnWindowDestroying(aura::Window* window) {
   DCHECK(window_observation_.IsObservingSource(window));
   window_observation_.Reset();
+  display_observer_.reset();
+
   // A HeaderView may outlive the target widget.
   target_widget_ = nullptr;
 }
 
 void HeaderView::OnDisplayMetricsChanged(const display::Display& display,
                                          uint32_t changed_metrics) {
-  if ((changed_metrics & chromeos::TabletState::DISPLAY_METRIC_ROTATION) &&
+  // When the display is rotated, the frame header may have invalid snap icons.
+  // For example, rotating from landscape display to portrait display layout
+  // should update snap icons from left/right arrows to upward/downward arrows
+  // for top and bottom snaps.
+  if ((changed_metrics & display::DisplayObserver::DISPLAY_METRIC_ROTATION) &&
       frame_header_) {
+    CHECK(target_widget_);
     frame_header_->LayoutHeader();
   }
 }
@@ -232,17 +247,17 @@ void HeaderView::OnDisplayTabletStateChanged(display::TabletState state) {
     case display::TabletState::kInTabletMode:
       UpdateCaptionButtonsVisibility();
       caption_button_container_->UpdateCaptionButtonState(true /*=animate*/);
-      parent()->Layout();
+      parent()->DeprecatedLayoutImmediately();
       if (target_widget_) {
-        target_widget_->non_client_view()->Layout();
+        target_widget_->non_client_view()->DeprecatedLayoutImmediately();
       }
       break;
     case display::TabletState::kInClamshellMode:
       UpdateCaptionButtonsVisibility();
       caption_button_container_->UpdateCaptionButtonState(true /*=animate*/);
-      parent()->Layout();
+      parent()->DeprecatedLayoutImmediately();
       if (target_widget_)
-        target_widget_->non_client_view()->Layout();
+        target_widget_->non_client_view()->DeprecatedLayoutImmediately();
       break;
     case display::TabletState::kEnteringTabletMode:
       break;
@@ -280,14 +295,14 @@ void HeaderView::OnImmersiveRevealStarted() {
     // The immersive layer should always be top.
     layer()->parent()->StackAtTop(layer());
   }
-  parent()->Layout();
+  parent()->DeprecatedLayoutImmediately();
 }
 
 void HeaderView::OnImmersiveRevealEnded() {
   fullscreen_visible_fraction_ = 0;
   if (add_layer_for_immersive_)
     DestroyLayer();
-  parent()->Layout();
+  parent()->DeprecatedLayoutImmediately();
 }
 
 void HeaderView::OnImmersiveFullscreenEntered() {
@@ -310,7 +325,7 @@ void HeaderView::OnImmersiveFullscreenExited() {
 void HeaderView::SetVisibleFraction(double visible_fraction) {
   if (fullscreen_visible_fraction_ != visible_fraction) {
     fullscreen_visible_fraction_ = visible_fraction;
-    parent()->Layout();
+    parent()->DeprecatedLayoutImmediately();
   }
 }
 
@@ -327,7 +342,7 @@ std::vector<gfx::Rect> HeaderView::GetVisibleBoundsInScreen() const {
 }
 
 void HeaderView::Relayout() {
-  parent()->Layout();
+  parent()->DeprecatedLayoutImmediately();
 }
 
 void HeaderView::PaintHeaderContent(gfx::Canvas* canvas) {
@@ -344,7 +359,7 @@ void HeaderView::UpdateBackButton() {
   if (has_back_button) {
     if (!back_button) {
       back_button = new chromeos::FrameBackButton();
-      AddChildView(back_button);
+      AddChildViewRaw(back_button);
       frame_header_->SetBackButton(back_button);
     }
     back_button->SetEnabled(caption_button_container_->model()->IsEnabled(
@@ -363,7 +378,7 @@ void HeaderView::UpdateCenterButton() {
     return;
   if (is_center_button_visible) {
     if (!center_button->parent())
-      AddChildView(center_button);
+      AddChildViewRaw(center_button);
     center_button->SetVisible(true);
   } else {
     center_button->SetVisible(false);
@@ -377,7 +392,7 @@ void HeaderView::UpdateCaptionButtonsVisibility() {
   caption_button_container_->SetVisible(should_paint_);
 }
 
-BEGIN_METADATA(HeaderView, views::View)
+BEGIN_METADATA(HeaderView)
 END_METADATA
 
 }  // namespace chromeos

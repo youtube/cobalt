@@ -14,18 +14,18 @@
 #include <string.h>
 
 #include <algorithm>
-#include <cstdint>
+#include <optional>
 
-#include "absl/types/optional.h"
+#include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
 #include "api/units/data_size.h"
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "modules/video_coding/timing/frame_delay_variation_kalman_filter.h"
 #include "modules/video_coding/timing/rtt_filter.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/numerics/safe_conversions.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -155,9 +155,9 @@ void JitterEstimator::Reset() {
   var_frame_size_bytes2_ = 100;
   avg_frame_size_median_bytes_.Reset();
   max_frame_size_bytes_percentile_.Reset();
-  last_update_time_ = absl::nullopt;
-  prev_estimate_ = absl::nullopt;
-  prev_frame_size_ = absl::nullopt;
+  last_update_time_ = std::nullopt;
+  prev_estimate_ = std::nullopt;
+  prev_frame_size_ = std::nullopt;
   avg_noise_ms_ = 0.0;
   var_noise_ms2_ = 4.0;
   alpha_count_ = 1;
@@ -424,7 +424,7 @@ void JitterEstimator::PostProcessEstimate() {
 // otherwise tries to calculate an estimate.
 TimeDelta JitterEstimator::GetJitterEstimate(
     double rtt_multiplier,
-    absl::optional<TimeDelta> rtt_mult_add_cap) {
+    std::optional<TimeDelta> rtt_mult_add_cap) {
   TimeDelta jitter = CalculateEstimate() + OPERATING_SYSTEM_JITTER;
   Timestamp now = clock_->CurrentTime();
 

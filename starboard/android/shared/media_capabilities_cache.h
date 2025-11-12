@@ -16,14 +16,14 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CAPABILITIES_CACHE_H_
 
 #include <jni.h>
+
 #include <atomic>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
-
-#include <mutex>
 
 #include "base/android/jni_android.h"
 #include "starboard/media.h"

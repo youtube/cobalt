@@ -62,13 +62,15 @@ class CanvasVideoCapturerSource : public VideoCapturerSource {
     return formats;
   }
   void StartCapture(const media::VideoCaptureParams& params,
-                    const blink::VideoCaptureDeliverFrameCB& frame_callback,
-                    const VideoCaptureCropVersionCB& crop_version_callback,
-                    const RunningCallback& running_callback) override {
+                    VideoCaptureCallbacks video_capture_callbacks,
+                    VideoCapturerSource::VideoCaptureRunningCallbackCB
+                        running_callback) override {
     DCHECK_CALLED_ON_VALID_THREAD(main_render_thread_checker_);
+
     if (canvas_handler_.get()) {
-      canvas_handler_->StartVideoCapture(params, frame_callback,
-                                         running_callback);
+      canvas_handler_->StartVideoCapture(
+          params, std::move(video_capture_callbacks.deliver_frame_cb),
+          std::move(running_callback));
     }
   }
   void RequestRefreshFrame() override {
@@ -118,7 +120,7 @@ class CanvasCaptureHandler::CanvasCaptureHandlerDelegate {
   void SendNewFrameOnIOThread(scoped_refptr<media::VideoFrame> video_frame,
                               base::TimeTicks current_time) {
     DCHECK_CALLED_ON_VALID_THREAD(io_thread_checker_);
-    new_frame_callback_.Run(std::move(video_frame), {}, current_time);
+    new_frame_callback_.Run(std::move(video_frame), current_time);
   }
 
   base::WeakPtr<CanvasCaptureHandlerDelegate> GetWeakPtrForIOThread() {
@@ -212,18 +214,18 @@ bool CanvasCaptureHandler::NeedsNewFrame() const {
 
 void CanvasCaptureHandler::StartVideoCapture(
     const media::VideoCaptureParams& params,
-    const VideoCaptureDeliverFrameCB& new_frame_callback,
-    const VideoCapturerSource::RunningCallback& running_callback) {
+    VideoCaptureDeliverFrameCB new_frame_callback,
+    VideoCapturerSource::VideoCaptureRunningCallbackCB running_callback) {
   DVLOG(3) << __func__ << " requested "
            << media::VideoCaptureFormat::ToString(params.requested_format);
   DCHECK_CALLED_ON_VALID_THREAD(main_render_thread_checker_);
   DCHECK(params.requested_format.IsValid());
   capture_format_ = params.requested_format;
-  delegate_ =
-      std::make_unique<CanvasCaptureHandlerDelegate>(new_frame_callback);
+  delegate_ = std::make_unique<CanvasCaptureHandlerDelegate>(
+      std::move(new_frame_callback));
   DCHECK(delegate_);
   ask_for_new_frame_ = true;
-  running_callback.Run(RunState::kRunning);
+  running_callback.Run(VideoCaptureRunState::kRunning);
 }
 
 void CanvasCaptureHandler::RequestRefreshFrame() {
@@ -281,7 +283,7 @@ void CanvasCaptureHandler::AddVideoCapturerSourceToVideoTrack(
     std::unique_ptr<VideoCapturerSource> source,
     MediaStreamComponent** component) {
   uint8_t track_id_bytes[64];
-  base::RandBytes(track_id_bytes, sizeof(track_id_bytes));
+  base::RandBytes(track_id_bytes);
   String track_id = Base64Encode(track_id_bytes);
   media::VideoCaptureFormats preferred_formats = source->GetPreferredFormats();
   auto stream_video_source = std::make_unique<MediaStreamVideoCapturerSource>(
@@ -292,7 +294,7 @@ void CanvasCaptureHandler::AddVideoCapturerSourceToVideoTrack(
       track_id, MediaStreamSource::kTypeVideo, track_id, false,
       std::move(stream_video_source));
   stream_source->SetCapabilities(ComputeCapabilitiesForVideoSource(
-      track_id, preferred_formats, mojom::blink::FacingMode::NONE,
+      track_id, preferred_formats, mojom::blink::FacingMode::kNone,
       false /* is_device_capture */));
 
   *component = MakeGarbageCollected<MediaStreamComponentImpl>(

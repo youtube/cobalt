@@ -20,7 +20,6 @@ ui::EventTarget* NullWindowTargeter::FindNextBestTarget(
     ui::EventTarget* previous_target,
     ui::Event* event) {
   NOTREACHED();
-  return nullptr;
 }
 
 }  // namespace aura

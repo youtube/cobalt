@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/374320451): Fix and remove.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stdint.h>
 #include <string.h>
 
@@ -9,12 +14,12 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/process/process_handle.h"
-#include "base/ranges/algorithm.h"
 #include "build/build_config.h"
 #include "mojo/core/test/mojo_test_base.h"
 #include "mojo/public/c/system/platform_handle.h"
@@ -23,9 +28,10 @@
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/win/scoped_handle.h"
 #elif BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_mach_port.h"
+#include "base/apple/scoped_mach_port.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -66,7 +72,7 @@ namespace {
 using PlatformWrapperTest = test::MojoTestBase;
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_WrapPlatformHandle DISABLED_WrapPlatformHandle
 #else
 #define MAYBE_WrapPlatformHandle WrapPlatformHandle
@@ -114,14 +120,13 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadPlatformFile, PlatformWrapperTest, h) {
 
   // Expect to read the same message from the file.
   std::vector<char> data(message.size());
-  EXPECT_EQ(file.ReadAtCurrentPos(data.data(), static_cast<int>(data.size())),
-            static_cast<int>(data.size()));
-  EXPECT_TRUE(base::ranges::equal(message, data));
+  EXPECT_TRUE(file.ReadAtCurrentPosAndCheck(base::as_writable_byte_span(data)));
+  EXPECT_TRUE(std::ranges::equal(message, data));
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_WrapPlatformSharedMemoryRegion \
   DISABLED_WrapPlatformSharedMemoryRegion
 #else
@@ -133,7 +138,7 @@ TEST_F(PlatformWrapperTest, MAYBE_WrapPlatformSharedMemoryRegion) {
   auto region = base::UnsafeSharedMemoryRegion::Create(kMessage.size());
   base::WritableSharedMemoryMapping buffer = region.Map();
   CHECK(buffer.IsValid());
-  memcpy(buffer.memory(), kMessage.data(), kMessage.size());
+  base::as_writable_chars(base::span(buffer)).copy_from(kMessage);
 
   RunTestClient("ReadPlatformSharedBuffer", [&](MojoHandle h) {
     // Wrap the shared memory handle and send it to the child along with the
@@ -202,7 +207,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadPlatformSharedBuffer,
   EXPECT_EQ(MOJO_PLATFORM_SHARED_MEMORY_REGION_ACCESS_MODE_UNSAFE, access_mode);
 
   auto mode = base::subtle::PlatformSharedMemoryRegion::Mode::kUnsafe;
-  absl::optional<base::UnguessableToken> guid =
+  std::optional<base::UnguessableToken> guid =
       base::UnguessableToken::Deserialize(mojo_guid.high, mojo_guid.low);
   ASSERT_TRUE(guid.has_value());
 #if BUILDFLAG(IS_WIN)
@@ -214,8 +219,8 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadPlatformSharedBuffer,
   auto platform_handle = zx::vmo(static_cast<zx_handle_t>(os_buffer.value));
 #elif BUILDFLAG(IS_APPLE)
   ASSERT_EQ(MOJO_PLATFORM_HANDLE_TYPE_MACH_PORT, os_buffer.type);
-  auto platform_handle =
-      base::mac::ScopedMachSendRight(static_cast<mach_port_t>(os_buffer.value));
+  auto platform_handle = base::apple::ScopedMachSendRight(
+      static_cast<mach_port_t>(os_buffer.value));
 #elif BUILDFLAG(IS_POSIX)
   ASSERT_EQ(MOJO_PLATFORM_HANDLE_TYPE_FILE_DESCRIPTOR, os_buffer.type);
   auto platform_handle = base::ScopedFD(static_cast<int>(os_buffer.value));
@@ -228,9 +233,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadPlatformSharedBuffer,
   ASSERT_TRUE(region.IsValid());
 
   base::WritableSharedMemoryMapping mapping = region.Map();
-  ASSERT_TRUE(mapping.memory());
-  EXPECT_TRUE(std::equal(message.begin(), message.end(),
-                         static_cast<const char*>(mapping.memory())));
+  EXPECT_EQ(base::as_byte_span(message), base::span(mapping));
 
   // Verify that the received buffer's internal GUID was preserved in transit.
   EXPECT_EQ(MOJO_RESULT_OK, WaitForSignals(h, MOJO_HANDLE_SIGNAL_READABLE));

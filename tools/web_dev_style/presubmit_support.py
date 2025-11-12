@@ -3,11 +3,11 @@
 # found in the LICENSE file.
 
 
-from . import css_checker
 from . import html_checker
 from . import js_checker
 from . import resource_checker
 from . import added_js_files_check
+from . import added_polymer_imports_check
 
 
 def IsResource(f):
@@ -18,7 +18,6 @@ def CheckStyle(input_api, output_api, file_filter=lambda f: True):
   apis = input_api, output_api
   wrapped_filter = lambda f: file_filter(f) and IsResource(f)
   checkers = [
-      css_checker.CSSChecker(*apis, file_filter=wrapped_filter),
       html_checker.HtmlChecker(*apis, file_filter=wrapped_filter),
       js_checker.JSChecker(*apis, file_filter=wrapped_filter),
       resource_checker.ResourceChecker(*apis, file_filter=wrapped_filter),
@@ -48,3 +47,10 @@ def DisallowNewJsFiles(input_api, output_api, file_filter=lambda f: True):
   return added_js_files_check.AddedJsFilesCheck(input_api,
                                                 output_api,
                                                 file_filter=file_filter)
+
+
+def DisallowNewPolymerElements(input_api,
+                               output_api,
+                               file_filter=lambda f: True):
+  return added_polymer_imports_check.AddedPolymerImportsCheck(
+      input_api, output_api, file_filter=file_filter)

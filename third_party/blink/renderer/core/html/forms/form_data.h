@@ -48,6 +48,7 @@ class File;
 class FormControlState;
 class HTMLFormElement;
 class ScriptState;
+class ExecutionContext;
 
 class CORE_EXPORT FormData final : public ScriptWrappable,
                                    public PairSyncIterable<FormData> {
@@ -105,7 +106,8 @@ class CORE_EXPORT FormData final : public ScriptWrappable,
   scoped_refptr<EncodedFormData> EncodeMultiPartFormData();
 
   void AppendToControlState(FormControlState& state) const;
-  static FormData* CreateFromControlState(const FormControlState& state,
+  static FormData* CreateFromControlState(ExecutionContext& execution_context,
+                                          const FormControlState& state,
                                           wtf_size_t& index);
 
  private:
@@ -129,7 +131,7 @@ class FormData::Entry final : public GarbageCollected<FormData::Entry> {
   void Trace(Visitor*) const;
 
   bool IsString() const { return !blob_; }
-  bool isFile() const { return blob_; }
+  bool isFile() const { return blob_ != nullptr; }
   const String& name() const { return name_; }
   const String& Value() const { return value_; }
   Blob* GetBlob() const { return blob_.Get(); }

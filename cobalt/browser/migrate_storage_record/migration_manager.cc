@@ -28,6 +28,7 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/url_matcher/url_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
@@ -338,9 +339,9 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false,
-        absl::optional<net::CookiePartitionKey>(),
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
+        net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
+        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
+        net::CookieSourceType::kUnknown));
   }
   return cookies;
 }

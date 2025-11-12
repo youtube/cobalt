@@ -59,8 +59,7 @@ class PLATFORM_EXPORT CalculationValue : public RefCounted<CalculationValue> {
 
   ~CalculationValue();
 
-  float Evaluate(float max_value,
-                 const Length::AnchorEvaluator* = nullptr) const;
+  float Evaluate(float max_value, const EvaluationInput& = {}) const;
   bool operator==(const CalculationValue& o) const;
   bool IsExpression() const { return is_expression_; }
   bool IsNonNegative() const { return is_non_negative_; }
@@ -68,7 +67,18 @@ class PLATFORM_EXPORT CalculationValue : public RefCounted<CalculationValue> {
     return is_non_negative_ ? Length::ValueRange::kNonNegative
                             : Length::ValueRange::kAll;
   }
-  bool HasAnchorQueries() const;
+  bool HasAuto() const;
+  bool HasContentOrIntrinsicSize() const;
+  bool HasAutoOrContentOrIntrinsicSize() const;
+  bool HasPercent() const;
+  bool HasPercentOrStretch() const;
+  bool HasStretch() const;
+
+  bool HasMinContent() const;
+  bool HasMaxContent() const;
+  bool HasFitContent() const;
+
+  bool HasOnlyFixedAndPercent() const;
 
   float Pixels() const {
     DCHECK(!IsExpression());
@@ -82,6 +92,14 @@ class PLATFORM_EXPORT CalculationValue : public RefCounted<CalculationValue> {
     DCHECK(!IsExpression());
     return data_.value;
   }
+  bool HasExplicitPixels() const {
+    DCHECK(!IsExpression());
+    return data_.value.has_explicit_pixels;
+  }
+  bool HasExplicitPercent() const {
+    DCHECK(!IsExpression());
+    return data_.value.has_explicit_percent;
+  }
 
   // If |this| is an expression, returns the underlying expression. Otherwise,
   // creates one from the underlying |PixelsAndPercent| value.
@@ -91,6 +109,7 @@ class PLATFORM_EXPORT CalculationValue : public RefCounted<CalculationValue> {
                                               double progress,
                                               Length::ValueRange) const;
   scoped_refptr<const CalculationValue> SubtractFromOneHundredPercent() const;
+  scoped_refptr<const CalculationValue> Add(const CalculationValue&) const;
   scoped_refptr<const CalculationValue> Zoom(double factor) const;
 
  private:

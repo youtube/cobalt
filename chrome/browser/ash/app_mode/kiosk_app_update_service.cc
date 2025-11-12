@@ -7,15 +7,15 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
-#include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/browser/ash/system/automatic_reboot_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
-#include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/extensions/updater/extension_updater.h"
+#include "chrome/browser/extensions/updater/extension_updater_factory.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/profiles/profile.h"
 #include "extensions/browser/api/runtime/runtime_api.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_system_provider.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/common/extension.h"
@@ -43,18 +43,14 @@ void KioskAppUpdateService::Init(const std::string& app_id) {
   DCHECK(app_id_.empty());
   app_id_ = app_id;
 
-  extensions::ExtensionService* service =
-      extensions::ExtensionSystem::Get(profile_)->extension_service();
-  if (service) {
-    service->AddUpdateObserver(this);
-  }
+  update_observation_.Observe(extensions::ExtensionUpdater::Get(profile_));
 
   if (automatic_reboot_manager_) {
     automatic_reboot_manager_->AddObserver(this);
   }
 
-  if (KioskAppManager::IsInitialized()) {
-    KioskAppManager::Get()->AddObserver(this);
+  if (KioskChromeAppManager::IsInitialized()) {
+    KioskChromeAppManager::Get()->AddObserver(this);
   }
 
   if (automatic_reboot_manager_->reboot_requested()) {
@@ -81,13 +77,10 @@ void KioskAppUpdateService::ForceAppUpdateRestart() {
 }
 
 void KioskAppUpdateService::Shutdown() {
-  extensions::ExtensionService* service =
-      extensions::ExtensionSystem::Get(profile_)->extension_service();
-  if (service) {
-    service->RemoveUpdateObserver(this);
-  }
-  if (KioskAppManager::IsInitialized()) {
-    KioskAppManager::Get()->RemoveObserver(this);
+  update_observation_.Reset();
+
+  if (KioskChromeAppManager::IsInitialized()) {
+    KioskChromeAppManager::Get()->RemoveObserver(this);
   }
   if (automatic_reboot_manager_) {
     automatic_reboot_manager_->RemoveObserver(this);
@@ -95,16 +88,16 @@ void KioskAppUpdateService::Shutdown() {
 }
 
 void KioskAppUpdateService::OnAppUpdateAvailable(
-    const extensions::Extension* extension) {
-  if (extension->id() != app_id_) {
+    const extensions::Extension& extension) {
+  if (extension.id() != app_id_) {
     return;
   }
 
   // Clears cached app data so that it will be reloaded if update from app
   // does not finish in this run.
-  KioskAppManager::Get()->ClearAppData(app_id_);
-  KioskAppManager::Get()->UpdateAppDataFromProfile(app_id_, profile_,
-                                                   extension);
+  KioskChromeAppManager::Get()->ClearAppData(app_id_);
+  KioskChromeAppManager::Get()->UpdateAppDataFromProfile(app_id_, profile_,
+                                                         &extension);
 
   extensions::RuntimeEventRouter::DispatchOnRestartRequiredEvent(
       profile_, app_id_,
@@ -127,7 +120,6 @@ void KioskAppUpdateService::OnRebootRequested(Reason reason) {
       break;
     default:
       NOTREACHED() << "Unknown reboot reason=" << reason;
-      return;
   }
 
   extensions::RuntimeEventRouter::DispatchOnRestartRequiredEvent(
@@ -156,12 +148,14 @@ KioskAppUpdateServiceFactory::KioskAppUpdateServiceFactory()
           "KioskAppUpdateService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
-  DependsOn(
-      extensions::ExtensionsBrowserClient::Get()->GetExtensionSystemFactory());
+  DependsOn(extensions::ExtensionUpdaterFactory::GetInstance());
 }
 
 KioskAppUpdateServiceFactory::~KioskAppUpdateServiceFactory() = default;
@@ -170,8 +164,8 @@ KioskAppUpdateServiceFactory::~KioskAppUpdateServiceFactory() = default;
 KioskAppUpdateService* KioskAppUpdateServiceFactory::GetForProfile(
     Profile* profile) {
   // This should never be called unless we are running in forced app mode.
-  DCHECK(chrome::IsRunningInForcedAppMode());
-  if (!chrome::IsRunningInForcedAppMode()) {
+  DCHECK(IsRunningInForcedAppMode());
+  if (!IsRunningInForcedAppMode()) {
     return nullptr;
   }
 
@@ -184,9 +178,10 @@ KioskAppUpdateServiceFactory* KioskAppUpdateServiceFactory::GetInstance() {
   return base::Singleton<KioskAppUpdateServiceFactory>::get();
 }
 
-KeyedService* KioskAppUpdateServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+KioskAppUpdateServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new KioskAppUpdateService(
+  return std::make_unique<KioskAppUpdateService>(
       Profile::FromBrowserContext(context),
       g_browser_process->platform_part()->automatic_reboot_manager());
 }

@@ -4,15 +4,16 @@
 
 #include "services/network/public/cpp/isolation_info_mojom_traits.h"
 
+#include <optional>
 #include <vector>
 
 #include "base/unguessable_token.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/base/isolation_info.h"
+#include "net/base/network_isolation_partition.h"
 #include "net/cookies/site_for_cookies.h"
 #include "services/network/public/mojom/isolation_info.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -24,53 +25,53 @@ TEST(IsolationInfoMojomTraitsTest, SerializeAndDeserialize) {
 
   const base::UnguessableToken nonce = base::UnguessableToken::Create();
 
-  const absl::optional<std::set<net::SchemefulSite>> kPartyContext1 =
-      absl::nullopt;
-  const absl::optional<std::set<net::SchemefulSite>> kPartyContext2 =
-      std::set<net::SchemefulSite>();
-  const absl::optional<std::set<net::SchemefulSite>> kPartyContext3 =
-      std::set<net::SchemefulSite>{
-          net::SchemefulSite(url::Origin::Create(GURL("https://c.test/")))};
-
   std::vector<net::IsolationInfo> keys = {
       net::IsolationInfo(),
-      net::IsolationInfo::CreateTransient(),
-      net::IsolationInfo::Create(
-          net::IsolationInfo::RequestType::kMainFrame, kOrigin1, kOrigin1,
-          net::SiteForCookies::FromOrigin(kOrigin1), kPartyContext2),
-      net::IsolationInfo::Create(
-          net::IsolationInfo::RequestType::kSubFrame, kOrigin1, kOrigin2,
-          net::SiteForCookies::FromOrigin(kOrigin1), kPartyContext2),
+      net::IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kMainFrame,
+                                 kOrigin1, kOrigin1,
+                                 net::SiteForCookies::FromOrigin(kOrigin1)),
       net::IsolationInfo::Create(net::IsolationInfo::RequestType::kSubFrame,
-                                 kOrigin1, kOrigin2, net::SiteForCookies(),
-                                 kPartyContext3),
-      net::IsolationInfo::Create(
-          net::IsolationInfo::RequestType::kOther, kOrigin1, kOrigin1,
-          net::SiteForCookies::FromOrigin(kOrigin1), kPartyContext1),
+                                 kOrigin1, kOrigin2,
+                                 net::SiteForCookies::FromOrigin(kOrigin1)),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kSubFrame,
+                                 kOrigin1, kOrigin2, net::SiteForCookies()),
       net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
-                                 url::Origin(), url::Origin(),
-                                 net::SiteForCookies(), kPartyContext1),
+                                 kOrigin1, kOrigin1,
+                                 net::SiteForCookies::FromOrigin(kOrigin1)),
       net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
                                  url::Origin(), url::Origin(),
                                  net::SiteForCookies()),
-      net::IsolationInfo::Create(
-          net::IsolationInfo::RequestType::kMainFrame, kOrigin1, kOrigin1,
-          net::SiteForCookies::FromOrigin(kOrigin1), kPartyContext2, nonce),
-      net::IsolationInfo::Create(
-          net::IsolationInfo::RequestType::kSubFrame, kOrigin1, kOrigin2,
-          net::SiteForCookies::FromOrigin(kOrigin1), kPartyContext2, nonce),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
+                                 url::Origin(), url::Origin(),
+                                 net::SiteForCookies()),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kMainFrame,
+                                 kOrigin1, kOrigin1,
+                                 net::SiteForCookies::FromOrigin(kOrigin1)),
       net::IsolationInfo::Create(net::IsolationInfo::RequestType::kSubFrame,
-                                 kOrigin1, kOrigin2, net::SiteForCookies(),
-                                 kPartyContext3, nonce),
+                                 kOrigin1, kOrigin2,
+                                 net::SiteForCookies::FromOrigin(kOrigin1)),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kSubFrame,
+                                 kOrigin1, kOrigin2, net::SiteForCookies()),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
+                                 kOrigin1, kOrigin1,
+                                 net::SiteForCookies::FromOrigin(kOrigin1)),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
+                                 url::Origin(), url::Origin(),
+                                 net::SiteForCookies(), nonce),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
+                                 url::Origin(), url::Origin(),
+                                 net::SiteForCookies(), nonce),
+      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
+                                 url::Origin(), url::Origin(),
+                                 net::SiteForCookies(), /*nonce=*/std::nullopt,
+                                 /*network_isolation_partition=*/
+                                 net::NetworkIsolationPartition::kGeneral),
       net::IsolationInfo::Create(
-          net::IsolationInfo::RequestType::kOther, kOrigin1, kOrigin1,
-          net::SiteForCookies::FromOrigin(kOrigin1), kPartyContext1, nonce),
-      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
-                                 url::Origin(), url::Origin(),
-                                 net::SiteForCookies(), kPartyContext1, nonce),
-      net::IsolationInfo::Create(net::IsolationInfo::RequestType::kOther,
-                                 url::Origin(), url::Origin(),
-                                 net::SiteForCookies(), absl::nullopt, nonce),
+          net::IsolationInfo::RequestType::kOther, url::Origin(), url::Origin(),
+          net::SiteForCookies(), /*nonce=*/std::nullopt,
+          /*network_isolation_partition=*/
+          net::NetworkIsolationPartition::kProtectedAudienceSellerWorklet),
   };
 
   for (auto original : keys) {

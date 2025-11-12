@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/memory/userspace_swap/swap_storage.h"
 
 #include <fcntl.h>
@@ -337,7 +342,7 @@ inline ssize_t CompressedSwapFile::Decompress(const Region& src,
       compression::GetUncompressedSize(src.AsStringPiece());
   CHECK_EQ(dest.length, uncompressed_size);
 
-  if (!compression::GzipUncompress(src.AsStringPiece(), dest.AsStringPiece())) {
+  if (!compression::GzipUncompress(src.AsStringPiece(), dest.AsSpan<char>())) {
     errno = EIO;
     return -1;
   }
@@ -404,7 +409,7 @@ ssize_t EncryptedSwapFile::ReadFromSwap(const Region& swap_region,
   }
   cipher_text.resize(read_bytes);
 
-  absl::optional<std::vector<uint8_t>> decrypted =
+  std::optional<std::vector<uint8_t>> decrypted =
       aead_.Open(cipher_text, nonce_,
                  /* additional data */ base::span<const uint8_t>());
   if (!decrypted) {

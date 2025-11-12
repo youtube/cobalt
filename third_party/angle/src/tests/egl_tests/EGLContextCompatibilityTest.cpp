@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include <unordered_set>
 #include <vector>
 
 #include "common/debug.h"
@@ -61,7 +62,7 @@ bool ShouldSkipConfig(EGLDisplay display, EGLConfig config, bool windowSurfaceTe
         return true;
 
     // Disable RGBA16F/RGB10_A2 on Android due to OSWindow on Android not providing compatible
-    // windows (http://anglebug.com/3156)
+    // windows (http://anglebug.com/42261830)
     if (IsAndroid())
     {
         if (IsRGB10_A2Config(display, config))
@@ -108,8 +109,7 @@ std::vector<EGLConfig> GetConfigs(EGLDisplay display)
 
 PlatformParameters FromRenderer(EGLint renderer)
 {
-    return WithNoFixture(
-        PlatformParameters(EGL_OPENGL_ES_API, 2, 0, 0, EGLPlatformParameters(renderer)));
+    return WithNoFixture(PlatformParameters(2, 0, EGLPlatformParameters(renderer)));
 }
 
 std::string EGLConfigName(EGLDisplay display, EGLConfig config)
@@ -173,11 +173,11 @@ class EGLContextCompatibilityTest : public ANGLETestBase, public testing::Test
     void SetUp() final
     {
         ANGLETestBase::ANGLETestSetUp();
-        ASSERT_TRUE(eglGetPlatformDisplayEXT != nullptr);
+        ASSERT_TRUE(eglGetPlatformDisplay != nullptr);
 
-        EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, mRenderer, EGL_NONE};
-        mDisplay           = eglGetPlatformDisplayEXT(
-            EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, mRenderer, EGL_NONE};
+        mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                                      reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         ASSERT_TRUE(mDisplay != EGL_NO_DISPLAY);
 
         ASSERT_TRUE(eglInitialize(mDisplay, nullptr, nullptr) == EGL_TRUE);
@@ -471,8 +471,8 @@ class EGLContextCompatibilityTest_PbufferDifferentConfig : public EGLContextComp
 
 void RegisterContextCompatibilityTests()
 {
-    // Linux failures: http://anglebug.com/4990
-    // Also wrong drivers loaded under xvfb due to egl* calls: https://anglebug.com/8083
+    // Linux failures: http://anglebug.com/42263563
+    // Also wrong drivers loaded under xvfb due to egl* calls: https://anglebug.com/42266535
     if (IsLinux())
     {
         std::cerr << "EGLContextCompatibilityTest: skipped on Linux\n";
@@ -482,6 +482,7 @@ void RegisterContextCompatibilityTests()
     std::vector<EGLint> renderers = {{
         EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE,
         EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
         EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE,
         EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
         EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE,
@@ -489,9 +490,9 @@ void RegisterContextCompatibilityTests()
 
     LoadEntryPointsWithUtilLoader(angle::GLESDriverType::AngleEGL);
 
-    if (eglGetPlatformDisplayEXT == nullptr)
+    if (eglGetPlatformDisplay == nullptr)
     {
-        std::cerr << "EGLContextCompatibilityTest: missing eglGetPlatformDisplayEXT\n";
+        std::cerr << "EGLContextCompatibilityTest: missing eglGetPlatformDisplay\n";
         return;
     }
 
@@ -501,12 +502,12 @@ void RegisterContextCompatibilityTests()
         if (!IsPlatformAvailable(params))
             continue;
 
-        EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, renderer, EGL_NONE};
-        EGLDisplay display = eglGetPlatformDisplayEXT(
+        EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, renderer, EGL_NONE};
+        EGLDisplay display    = eglGetPlatformDisplay(
             EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         if (display == EGL_NO_DISPLAY)
         {
-            std::cerr << "EGLContextCompatibilityTest: eglGetPlatformDisplayEXT error\n";
+            std::cerr << "EGLContextCompatibilityTest: eglGetPlatformDisplay error\n";
             return;
         }
 
@@ -516,13 +517,24 @@ void RegisterContextCompatibilityTests()
             return;
         }
 
-        std::vector<EGLConfig> configs = GetConfigs(display);
+        std::vector<EGLConfig> configs;
         std::vector<std::string> configNames;
         std::string rendererName = GetRendererName(renderer);
 
-        for (EGLConfig config : configs)
         {
-            configNames.push_back(EGLConfigName(display, config));
+            std::unordered_set<std::string> configNameSet;
+
+            for (EGLConfig config : GetConfigs(display))
+            {
+                std::string configName = EGLConfigName(display, config);
+                // Skip configs with duplicate names
+                if (configNameSet.count(configName) == 0)
+                {
+                    configNames.push_back(configName);
+                    configNameSet.insert(configName);
+                    configs.push_back(config);
+                }
+            }
         }
 
         for (size_t configIndex = 0; configIndex < configs.size(); ++configIndex)

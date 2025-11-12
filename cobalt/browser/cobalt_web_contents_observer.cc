@@ -75,29 +75,6 @@ void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
       web_contents());
 }
 
-namespace {
-enum {
-  // This must be kept in sync with Java dev.cobalt.PlatformError.ErrorType
-  kJniErrorTypeConnectionError = 0,
-};
-}  // namespace
-
-void CobaltWebContentsObserver::DidFinishNavigation(
-    content::NavigationHandle* navigation_handle) {
-  LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (navigation_handle->IsErrorPage() &&
-      navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
-    jint jni_error_type = kJniErrorTypeConnectionError;
-    jlong data = 0;
-
-    JNIEnv* env = base::android::AttachCurrentThread();
-    StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-    starboard_bridge->RaisePlatformError(env, jni_error_type, data);
-  }
-#endif
-}
-
 void CobaltWebContentsObserver::DidStopLoading() {
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {

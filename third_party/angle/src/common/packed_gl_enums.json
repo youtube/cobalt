@@ -197,7 +197,7 @@
         "_2D": "GL_TEXTURE_2D",
         "_2DArray": "GL_TEXTURE_2D_ARRAY",
         "_2DMultisample": "GL_TEXTURE_2D_MULTISAMPLE",
-        "_2DMultisampleArray": "GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES",
+        "_2DMultisampleArray": "GL_TEXTURE_2D_MULTISAMPLE_ARRAY",
         "_3D": "GL_TEXTURE_3D",
         "External": "GL_TEXTURE_EXTERNAL_OES",
         "Rectangle": "GL_TEXTURE_RECTANGLE_ANGLE",
@@ -211,7 +211,7 @@
         "_2D": "GL_TEXTURE_2D",
         "_2DArray": "GL_TEXTURE_2D_ARRAY",
         "_2DMultisample": "GL_TEXTURE_2D_MULTISAMPLE",
-        "_2DMultisampleArray": "GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES",
+        "_2DMultisampleArray": "GL_TEXTURE_2D_MULTISAMPLE_ARRAY",
         "_3D": "GL_TEXTURE_3D",
         "External": "GL_TEXTURE_EXTERNAL_OES",
         "Rectangle": "GL_TEXTURE_RECTANGLE_ANGLE",
@@ -255,6 +255,12 @@
         "SpotCutoff": "GL_SPOT_CUTOFF",
         "SpotDirection": "GL_SPOT_DIRECTION",
         "SpotExponent": "GL_SPOT_EXPONENT"
+    },
+    "PolygonMode":
+    {
+        "Point" : "GL_POINT_NV",
+        "Line" : "GL_LINE_NV",
+        "Fill" : "GL_FILL_NV"
     },
     "PointParameter":
     {
@@ -311,5 +317,10 @@
         "_2x2": "GL_SHADING_RATE_2X2_PIXELS_QCOM",
         "_4x2": "GL_SHADING_RATE_4X2_PIXELS_QCOM",
         "_4x4": "GL_SHADING_RATE_4X4_PIXELS_QCOM"
+    },
+    "TilingMode":
+    {
+        "Optimal": "GL_OPTIMAL_TILING_EXT",
+        "Linear": "GL_LINEAR_TILING_EXT"
     }
 }

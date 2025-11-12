@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "content/public/browser/bluetooth_delegate.h"
 #include "device/bluetooth/bluetooth_device.h"
@@ -72,7 +73,7 @@ class WebBluetoothPairingManagerDelegate {
   // error.
   virtual void RemoteCharacteristicWriteValue(
       const std::string& characteristic_instance_id,
-      const std::vector<uint8_t>& value,
+      base::span<const uint8_t> value,
       blink::mojom::WebBluetoothWriteType write_type,
       blink::mojom::WebBluetoothService::RemoteCharacteristicWriteValueCallback
           callback) = 0;
@@ -94,7 +95,7 @@ class WebBluetoothPairingManagerDelegate {
   // error.
   virtual void RemoteDescriptorWriteValue(
       const std::string& descriptor_instance_id,
-      const std::vector<uint8_t>& value,
+      base::span<const uint8_t> value,
       blink::mojom::WebBluetoothService::RemoteDescriptorWriteValueCallback
           callback) = 0;
 
@@ -114,7 +115,7 @@ class WebBluetoothPairingManagerDelegate {
       const std::u16string& device_identifier,
       BluetoothDelegate::PairPromptCallback callback,
       BluetoothDelegate::PairingKind pairing_kind,
-      const absl::optional<std::u16string>& pin) = 0;
+      const std::optional<std::u16string>& pin) = 0;
 };
 
 }  // namespace content

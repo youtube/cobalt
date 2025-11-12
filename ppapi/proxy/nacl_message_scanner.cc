@@ -200,6 +200,14 @@ void ScanTuple(std::tuple<A, B, C, D>&& t1, ScanningResults* results) {
   ScanParam(std::move(std::get<2>(t1)), results);
   ScanParam(std::move(std::get<3>(t1)), results);
 }
+template <class A, class B, class C, class D, class E>
+void ScanTuple(std::tuple<A, B, C, D, E>&& t1, ScanningResults* results) {
+  ScanParam(std::move(std::get<0>(t1)), results);
+  ScanParam(std::move(std::get<1>(t1)), results);
+  ScanParam(std::move(std::get<2>(t1)), results);
+  ScanParam(std::move(std::get<3>(t1)), results);
+  ScanParam(std::move(std::get<4>(t1)), results);
+}
 
 template <class MessageType>
 class MessageScannerImpl {
@@ -512,7 +520,7 @@ void NaClMessageScanner::ScanUntrustedMessage(
 NaClMessageScanner::FileIO* NaClMessageScanner::GetFile(
     PP_Resource file_io) {
   FileIOMap::iterator it = files_.find(file_io);
-  DCHECK(it != files_.end());
+  CHECK(it != files_.end());
   return it->second;
 }
 
@@ -552,13 +560,13 @@ void NaClMessageScanner::AuditNestedMessage(PP_Resource resource,
       if (ppapi::UnpackMessage<PpapiPluginMsg_FileSystem_ReserveQuotaReply>(
           msg, &amount, &file_sizes)) {
         FileSystemMap::iterator it = file_systems_.find(resource);
-        DCHECK(it != file_systems_.end());
+        CHECK(it != file_systems_.end());
         it->second->UpdateReservedQuota(amount);
 
         FileSizeMap::const_iterator offset_it = file_sizes.begin();
         for (; offset_it != file_sizes.end(); ++offset_it) {
           FileIOMap::iterator fio_it = files_.find(offset_it->first);
-          DCHECK(fio_it != files_.end());
+          CHECK(fio_it != files_.end());
           if (fio_it != files_.end())
             fio_it->second->SetMaxWrittenOffset(offset_it->second);
         }

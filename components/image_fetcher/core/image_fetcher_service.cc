@@ -53,8 +53,6 @@ ImageFetcher* ImageFetcherService::GetImageFetcher(ImageFetcherConfig config) {
       // Provided ImageFetcherConfig not in the enum.
       NOTREACHED();
   }
-
-  return nullptr;
 }
 
 scoped_refptr<ImageCache> ImageFetcherService::ImageCacheForTesting() const {

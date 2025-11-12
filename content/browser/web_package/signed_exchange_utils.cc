@@ -4,10 +4,11 @@
 
 #include "content/browser/web_package/signed_exchange_utils.h"
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
@@ -16,9 +17,9 @@
 #include "content/browser/web_package/signed_exchange_devtools_proxy.h"
 #include "content/browser/web_package/signed_exchange_error.h"
 #include "content/browser/web_package/signed_exchange_request_handler.h"
+#include "content/common/features.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "net/http/http_util.h"
 #include "net/url_request/redirect_info.h"
@@ -31,7 +32,7 @@ namespace signed_exchange_utils {
 
 namespace {
 constexpr char kLoadResultHistogram[] = "SignedExchange.LoadResult2";
-absl::optional<base::Time> g_verification_time_for_testing;
+std::optional<base::Time> g_verification_time_for_testing;
 }  // namespace
 
 void RecordLoadResultHistogram(SignedExchangeLoadResult result) {
@@ -41,7 +42,7 @@ void RecordLoadResultHistogram(SignedExchangeLoadResult result) {
 void ReportErrorAndTraceEvent(
     SignedExchangeDevToolsProxy* devtools_proxy,
     const std::string& error_message,
-    absl::optional<SignedExchangeError::FieldIndexPair> error_field) {
+    std::optional<SignedExchangeError::FieldIndexPair> error_field) {
   TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("loading"),
                        "SignedExchangeError", TRACE_EVENT_SCOPE_THREAD, "error",
                        error_message);
@@ -50,16 +51,11 @@ void ReportErrorAndTraceEvent(
 }
 
 bool IsSignedExchangeHandlingEnabled(BrowserContext* context) {
-  if (!GetContentClient()->browser()->AllowSignedExchange(context))
-    return false;
-
-  return base::FeatureList::IsEnabled(features::kSignedHTTPExchange);
+  return GetContentClient()->browser()->AllowSignedExchange(context);
 }
 
 bool IsSignedExchangeReportingForDistributorsEnabled() {
-  return base::FeatureList::IsEnabled(network::features::kReporting) &&
-         base::FeatureList::IsEnabled(
-             features::kSignedExchangeReportingForDistributors);
+  return base::FeatureList::IsEnabled(network::features::kReporting);
 }
 
 bool ShouldHandleAsSignedHTTPExchange(
@@ -67,7 +63,7 @@ bool ShouldHandleAsSignedHTTPExchange(
     const network::mojom::URLResponseHead& head) {
   // Currently we don't support the signed exchange which is returned from a
   // service worker.
-  // TODO(crbug/803774): Decide whether we should support it or not.
+  // TODO(crbug.com/40558902): Decide whether we should support it or not.
   if (head.was_fetched_via_service_worker)
     return false;
   if (!SignedExchangeRequestHandler::IsSupportedMimeType(head.mime_type))
@@ -76,15 +72,15 @@ bool ShouldHandleAsSignedHTTPExchange(
   // (Example: data:application/signed-exchange,)
   if (!head.headers.get())
     return false;
-  if (download_utils::MustDownload(request_url, head.headers.get(),
-                                   head.mime_type)) {
+  if (download_utils::MustDownload(/*browser_context=*/nullptr, request_url,
+                                   head.headers.get(), head.mime_type)) {
     return false;
   }
   return true;
 }
 
-absl::optional<SignedExchangeVersion> GetSignedExchangeVersion(
-    const std::string& content_type) {
+std::optional<SignedExchangeVersion> GetSignedExchangeVersion(
+    std::string_view content_type) {
   // https://wicg.github.io/webpackage/loading.html#signed-exchange-version
   // Step 1. Let mimeType be the supplied MIME type of response. [spec text]
   // |content_type| is the supplied MIME type.
@@ -95,29 +91,28 @@ absl::optional<SignedExchangeVersion> GetSignedExchangeVersion(
   const std::string essence = base::ToLowerASCII(base::TrimWhitespaceASCII(
       content_type.substr(0, semicolon), base::TRIM_ALL));
   if (essence != "application/signed-exchange")
-    return absl::nullopt;
+    return std::nullopt;
 
   // Step 4.Let params be mimeType's parameters. [spec text]
   std::map<std::string, std::string> params;
-  if (semicolon != base::StringPiece::npos) {
+  if (semicolon != std::string_view::npos) {
     net::HttpUtil::NameValuePairsIterator parser(
-        content_type.begin() + semicolon + 1, content_type.end(), ';');
+        content_type.substr(semicolon + 1), ';');
     while (parser.GetNext()) {
-      const base::StringPiece name = parser.name_piece();
-      params[base::ToLowerASCII(name)] = parser.value();
+      params[base::ToLowerASCII(parser.name())] = parser.value();
     }
     if (!parser.valid())
-      return absl::nullopt;
+      return std::nullopt;
   }
   // Step 5. If params["v"] exists, return it. Otherwise, return undefined.
   //        [spec text]
   auto iter = params.find("v");
   if (iter != params.end()) {
     if (iter->second == "b3")
-      return absl::make_optional(SignedExchangeVersion::kB3);
-    return absl::make_optional(SignedExchangeVersion::kUnknown);
+      return std::make_optional(SignedExchangeVersion::kB3);
+    return std::make_optional(SignedExchangeVersion::kUnknown);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 SignedExchangeLoadResult GetLoadResultFromSignatureVerifierResult(
@@ -196,11 +191,9 @@ SignedExchangeLoadResult GetLoadResultFromSignatureVerifierResult(
     case SignedExchangeSignatureVerifier::Result::
         kErrInvalidTimestamp_deprecated:
       NOTREACHED();
-      return SignedExchangeLoadResult::kSignatureVerificationError;
   }
 
   NOTREACHED();
-  return SignedExchangeLoadResult::kSignatureVerificationError;
 }
 
 net::RedirectInfo CreateRedirectInfo(
@@ -231,7 +224,8 @@ network::mojom::URLResponseHeadPtr CreateRedirectResponseHead(
   std::string link_header;
   if (!is_fallback_redirect &&
       outer_response.headers) {
-    outer_response.headers->GetNormalizedHeader("link", &link_header);
+    link_header = outer_response.headers->GetNormalizedHeader("link").value_or(
+        std::string());
   }
   if (link_header.empty()) {
     buf = base::StringPrintf("HTTP/1.1 %d %s\r\n", 303, "See Other");
@@ -272,16 +266,17 @@ base::Time GetVerificationTime() {
 }
 
 void SetVerificationTimeForTesting(
-    absl::optional<base::Time> verification_time_for_testing) {
+    std::optional<base::Time> verification_time_for_testing) {
   g_verification_time_for_testing = verification_time_for_testing;
 }
 
 bool IsCookielessOnlyExchange(const net::HttpResponseHeaders& inner_headers) {
-  std::string value;
+  std::optional<std::string_view> value;
   size_t iter = 0;
-  while (inner_headers.EnumerateHeader(&iter, "Vary", &value)) {
-    if (base::EqualsCaseInsensitiveASCII(value, "cookie"))
+  while ((value = inner_headers.EnumerateHeader(&iter, "Vary"))) {
+    if (base::EqualsCaseInsensitiveASCII(*value, "cookie")) {
       return true;
+    }
   }
   return false;
 }

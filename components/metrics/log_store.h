@@ -5,10 +5,11 @@
 #ifndef COMPONENTS_METRICS_LOG_STORE_H_
 #define COMPONENTS_METRICS_LOG_STORE_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/metrics/metrics_log.h"
 
 namespace metrics {
 
@@ -42,7 +43,10 @@ class LogStore {
   // recorded during no particular user session or during guest session.
   //
   // Will trigger a DCHECK if there is no staged log.
-  virtual absl::optional<uint64_t> staged_log_user_id() const = 0;
+  virtual std::optional<uint64_t> staged_log_user_id() const = 0;
+
+  // LogMetadata associated with the staged log.
+  virtual const LogMetadata staged_log_metadata() const = 0;
 
   // Populates staged_log() with the next stored log to send.
   // The order in which logs are staged is up to the implementor.
@@ -52,7 +56,7 @@ class LogStore {
 
   // Discards the staged log. |reason| is the reason why the log was discarded
   // (used for debugging through chrome://metrics-internals).
-  virtual void DiscardStagedLog(base::StringPiece reason = "") = 0;
+  virtual void DiscardStagedLog(std::string_view reason = "") = 0;
 
   // Marks the staged log as sent, DiscardStagedLog() shall still be called if
   // the staged log needs discarded.
@@ -62,7 +66,7 @@ class LogStore {
   // |overwrite_in_memory_store| is false, we will still not persist logs that
   // should be trimmed away, but they will still be available in memory
   // (allowing them to still be eligible for upload this session).
-  // TODO(crbug/1171830): Revisit call sites and determine what value of
+  // TODO(crbug.com/40745324): Revisit call sites and determine what value of
   // |overwrite_in_memory_store| they should use.
   virtual void TrimAndPersistUnsentLogs(bool overwrite_in_memory_store) = 0;
 

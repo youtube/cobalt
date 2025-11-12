@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }  // namespace base
 
 namespace content {
@@ -34,13 +34,13 @@ class TrackerFactory : public ProfileKeyedServiceFactory {
   TrackerFactory& operator=(const TrackerFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<TrackerFactory>;
+  friend base::NoDestructor<TrackerFactory>;
 
   TrackerFactory();
   ~TrackerFactory() override;
 
   // BrowserContextKeyedServiceFactory overrides:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

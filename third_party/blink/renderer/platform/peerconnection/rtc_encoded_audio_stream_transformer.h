@@ -11,12 +11,12 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
-#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "third_party/webrtc/api/scoped_refptr.h"
 
 namespace base {
@@ -26,13 +26,13 @@ class SingleThreadTaskRunner;
 namespace webrtc {
 class FrameTransformerInterface;
 class TransformedFrameCallback;
-class TransformableFrameInterface;
+class TransformableAudioFrameInterface;
 }  // namespace webrtc
 
 namespace blink {
 
 using TransformerCallback = WTF::CrossThreadRepeatingFunction<void(
-    std::unique_ptr<webrtc::TransformableFrameInterface>)>;
+    std::unique_ptr<webrtc::TransformableAudioFrameInterface>)>;
 
 class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
  public:
@@ -43,13 +43,13 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
   class PLATFORM_EXPORT Broker : public WTF::ThreadSafeRefCounted<Broker> {
    public:
     void RegisterTransformedFrameCallback(
-        rtc::scoped_refptr<webrtc::TransformedFrameCallback>
+        webrtc::scoped_refptr<webrtc::TransformedFrameCallback>
             send_frame_to_sink_callback);
 
     void UnregisterTransformedFrameCallback();
 
     void TransformFrameOnSourceTaskRunner(
-        std::unique_ptr<webrtc::TransformableFrameInterface> frame);
+        std::unique_ptr<webrtc::TransformableAudioFrameInterface> frame);
 
     void SetTransformerCallback(TransformerCallback callback);
 
@@ -59,7 +59,9 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
         scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
     void SendFrameToSink(
-        std::unique_ptr<webrtc::TransformableFrameInterface> frame);
+        std::unique_ptr<webrtc::TransformableAudioFrameInterface> frame);
+
+    void StartShortCircuiting();
 
    private:
     explicit Broker(RTCEncodedAudioStreamTransformer* transformer_);
@@ -67,7 +69,7 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
     friend class RTCEncodedAudioStreamTransformer;
 
     base::Lock transformer_lock_;
-    RTCEncodedAudioStreamTransformer* transformer_
+    raw_ptr<RTCEncodedAudioStreamTransformer> transformer_
         GUARDED_BY(transformer_lock_);
   };
 
@@ -79,7 +81,7 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
   // transformed frames to the WebRTC decoder. Runs on the thread which
   // created this object. The callback can run on any thread.
   void RegisterTransformedFrameCallback(
-      rtc::scoped_refptr<webrtc::TransformedFrameCallback>);
+      webrtc::scoped_refptr<webrtc::TransformedFrameCallback>);
 
   // Called by WebRTC to let us know that any reference to the callback object
   // reported by RegisterTransformedFrameCallback() should be released since
@@ -90,11 +92,12 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
   // Called by WebRTC to notify of new untransformed frames from the WebRTC
   // stack. Runs on the most recently set source task_runner - ie changes when
   // the stream is transferred.
-  void TransformFrame(std::unique_ptr<webrtc::TransformableFrameInterface>);
+  void TransformFrame(
+      std::unique_ptr<webrtc::TransformableAudioFrameInterface>);
 
   // Send a transformed frame to the WebRTC sink. Threadsafe.
   void SendFrameToSink(
-      std::unique_ptr<webrtc::TransformableFrameInterface> frame);
+      std::unique_ptr<webrtc::TransformableAudioFrameInterface> frame);
 
   // Set a callback to be invoked on every untransformed frame. Is threadsafe.
   void SetTransformerCallback(TransformerCallback);
@@ -110,7 +113,7 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
   // Threadsafe.
   bool HasTransformedFrameCallback() const;
 
-  rtc::scoped_refptr<webrtc::FrameTransformerInterface> Delegate();
+  webrtc::scoped_refptr<webrtc::FrameTransformerInterface> Delegate();
 
   // Set the TaskRunner used for the Source side - to deliver frames up to the
   // UnderlyingSource. Is threadsafe.
@@ -119,14 +122,17 @@ class PLATFORM_EXPORT RTCEncodedAudioStreamTransformer {
 
   scoped_refptr<Broker> GetBroker();
 
+  void StartShortCircuiting();
+
  private:
   const scoped_refptr<Broker> broker_;
-  const rtc::scoped_refptr<webrtc::FrameTransformerInterface> delegate_;
+  const webrtc::scoped_refptr<webrtc::FrameTransformerInterface> delegate_;
   mutable base::Lock sink_lock_;
-  rtc::scoped_refptr<webrtc::TransformedFrameCallback> send_frame_to_sink_cb_
+  webrtc::scoped_refptr<webrtc::TransformedFrameCallback> send_frame_to_sink_cb_
       GUARDED_BY(sink_lock_);
   base::Lock source_lock_;
   TransformerCallback transformer_callback_ GUARDED_BY(source_lock_);
+  bool short_circuit_ GUARDED_BY(sink_lock_) = false;
 };
 
 }  // namespace blink

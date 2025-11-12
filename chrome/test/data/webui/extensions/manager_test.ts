@@ -2,34 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
-import {ExtensionsManagerElement, navigation, Page, Service} from 'chrome://extensions/extensions.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
+import type {ExtensionsManagerElement} from 'chrome://extensions/extensions.js';
+import {getToastManager, navigation, Page, Service} from 'chrome://extensions/extensions.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-const extension_manager_tests = {
-  suiteName: 'ExtensionManagerTest',
-  TestNames: {
-    ChangePages: 'change pages',
-    ItemListVisibility: 'item list visibility',
-    SplitItems: 'split items',
-    PageTitleUpdate: 'updates the title based on current route',
-    NavigateToSitePermissionsFail:
-        'url navigation to site permissions page without flag set',
-    NavigateToSitePermissionsSuccess:
-        'url navigation to site permissions page with flag set',
-  },
-};
-
-Object.assign(window, {extension_manager_tests});
+import {createExtensionInfo} from './test_util.js';
 
 interface ChromeEventWithDispatch extends
     ChromeEvent<(data: chrome.developerPrivate.EventData) => void> {
   dispatch<E>(obj: E): void;
 }
 
-suite(extension_manager_tests.suiteName, function() {
+suite('ExtensionManagerTest', function() {
   let manager: ExtensionsManagerElement;
 
   function assertViewActive(tagName: string) {
@@ -50,52 +36,50 @@ suite(extension_manager_tests.suiteName, function() {
   });
 
   function getExtensions(): chrome.developerPrivate.ExtensionInfo[] {
-    return manager.shadowRoot!.querySelector(
-                                  'extensions-item-list')!.extensions;
+    return manager.shadowRoot.querySelector('extensions-item-list')!.extensions;
   }
 
   function getApps(): chrome.developerPrivate.ExtensionInfo[] {
-    return manager.shadowRoot!.querySelector('extensions-item-list')!.apps;
+    return manager.shadowRoot.querySelector('extensions-item-list')!.apps;
   }
 
-  test(
-      extension_manager_tests.TestNames.ItemListVisibility, function() {
-        function getExtensionByName(name: string):
-            chrome.developerPrivate.ExtensionInfo|null {
-          return getExtensions().find(el => el.name === name) || null;
-        }
+  function getExtensionByName(name: string):
+        chrome.developerPrivate.ExtensionInfo|null {
+    return getExtensions().find(el => el.name === name) || null;
+  }
 
-        const extension = getExtensionByName('My extension 1');
-        assertTrue(!!extension);
+  test('ItemListVisibility', async () => {
+    const extension = getExtensionByName('My extension 1');
+    assertTrue(!!extension);
 
-        const list = manager.$['items-list'];
+    const list = manager.$['items-list'];
 
-        function listHasItemWithName(name: string): boolean {
-          return list.extensions.some(el => el.name === name);
-        }
+    function listHasItemWithName(name: string): boolean {
+      return list.extensions.some(el => el.name === name);
+    }
 
-        assertTrue(listHasItemWithName('My extension 1'));
+    assertTrue(listHasItemWithName('My extension 1'));
 
-        const target = Service.getInstance().getItemStateChangedTarget() as
-            ChromeEventWithDispatch;
+    const target = Service.getInstance().getItemStateChangedTarget() as
+        ChromeEventWithDispatch;
 
-        target.dispatch<chrome.developerPrivate.EventData>({
-          event_type: chrome.developerPrivate.EventType.UNINSTALLED,
-          item_id: extension.id,
-        });
-        flush();
-        assertFalse(listHasItemWithName('My extension 1'));
+    target.dispatch<chrome.developerPrivate.EventData>({
+      event_type: chrome.developerPrivate.EventType.UNINSTALLED,
+      item_id: extension.id,
+    });
+    await microtasksFinished();
+    assertFalse(listHasItemWithName('My extension 1'));
 
-        target.dispatch<chrome.developerPrivate.EventData>({
-          event_type: chrome.developerPrivate.EventType.INSTALLED,
-          item_id: extension.id,
-          extensionInfo: extension,
-        });
-        flush();
-        assertTrue(listHasItemWithName('My extension 1'));
-      });
+    target.dispatch<chrome.developerPrivate.EventData>({
+      event_type: chrome.developerPrivate.EventType.INSTALLED,
+      item_id: extension.id,
+      extensionInfo: extension,
+    });
+    await microtasksFinished();
+    assertTrue(listHasItemWithName('My extension 1'));
+  });
 
-  test(extension_manager_tests.TestNames.SplitItems, function() {
+  test('SplitItems', function() {
     function hasExtensionWithName(name: string): boolean {
       return getExtensions().some(el => el.name === name);
     }
@@ -111,101 +95,158 @@ suite(extension_manager_tests.suiteName, function() {
     assertTrue(hasAppWithName('Packaged App Test'));
   });
 
-  test(extension_manager_tests.TestNames.ChangePages, function() {
-    manager.shadowRoot!.querySelector('extensions-toolbar')!.shadowRoot!
-        .querySelector('cr-toolbar')!.shadowRoot!
-        .querySelector<HTMLElement>('#menuButton')!.click();
-    flush();
-
+  test('ChangePages', async () => {
     // We start on the item list.
-    manager.shadowRoot!.querySelector(
-                           'extensions-sidebar')!.$.sectionsExtensions.click();
-    flush();
+    manager.shadowRoot.querySelector(
+                          'extensions-sidebar')!.$.sectionsExtensions.click();
+    await microtasksFinished();
     assertViewActive('extensions-item-list');
 
     // Switch: item list -> keyboard shortcuts.
-    manager.shadowRoot!.querySelector(
-                           'extensions-sidebar')!.$.sectionsShortcuts.click();
-    flush();
+    manager.shadowRoot.querySelector(
+                          'extensions-sidebar')!.$.sectionsShortcuts.click();
+    await microtasksFinished();
     assertViewActive('extensions-keyboard-shortcuts');
 
     // Switch: item list -> detail view.
     const item =
-        manager.$['items-list'].shadowRoot!.querySelector('extensions-item');
+        manager.$['items-list'].shadowRoot.querySelector('extensions-item');
     assertTrue(!!item);
     const detailsButton =
-        item.shadowRoot!.querySelector<HTMLElement>('#detailsButton');
+        item.shadowRoot.querySelector<HTMLElement>('#detailsButton');
     assertTrue(!!detailsButton);
     detailsButton.click();
-    flush();
+    await microtasksFinished();
     assertViewActive('extensions-detail-view');
 
     // Switch: detail view -> keyboard shortcuts.
-    manager.shadowRoot!.querySelector(
-                           'extensions-sidebar')!.$.sectionsShortcuts.click();
-    flush();
+    manager.shadowRoot.querySelector(
+                          'extensions-sidebar')!.$.sectionsShortcuts.click();
+    await microtasksFinished();
     assertViewActive('extensions-keyboard-shortcuts');
 
     // We get back on the item list.
-    manager.shadowRoot!.querySelector(
-                           'extensions-sidebar')!.$.sectionsExtensions.click();
-    flush();
+    manager.shadowRoot.querySelector(
+                          'extensions-sidebar')!.$.sectionsExtensions.click();
+    await microtasksFinished();
     assertViewActive('extensions-item-list');
   });
 
-  test(extension_manager_tests.TestNames.PageTitleUpdate, function() {
+  test('CloseDrawerOnNarrowModeExit', async function() {
+    manager.$.toolbar.narrow = true;
+    const toolbar = manager.$.toolbar.$.toolbar;
+    await microtasksFinished();
+    toolbar.shadowRoot.querySelector<HTMLElement>('#menuButton')!.click();
+
+    await eventToPromise('cr-drawer-opened', manager);
+    const drawer = manager.shadowRoot.querySelector('cr-drawer');
+    assertTrue(!!drawer);
+
+    manager.$.toolbar.narrow = false;
+    await eventToPromise('close', drawer);
+  });
+
+  test('PageTitleUpdate', async () => {
     assertEquals('Extensions', document.title);
 
     // Open details view with a valid ID.
     navigation.navigateTo(
         {page: Page.DETAILS, extensionId: 'ldnnhddmnhbkjipkidpdiheffobcpfmf'});
-    flush();
+    await microtasksFinished();
     assertEquals('Extensions - My extension 1', document.title);
 
     // Navigate back to the list view and check the page title.
     navigation.navigateTo({page: Page.LIST});
-    flush();
+    await microtasksFinished();
     assertEquals('Extensions', document.title);
   });
 
-  test(
-      extension_manager_tests.TestNames.NavigateToSitePermissionsFail,
-      function() {
-        assertFalse(manager.enableEnhancedSiteControls);
+  // Tests that navigating to site permissions pages is a no-op when
+  // enableEnhancedSiteControls is false.
+  test('NavigateToSitePermissionsFail', async () => {
+    manager.enableEnhancedSiteControls = false;
+    await microtasksFinished();
 
-        // Try to open the site permissions page.
-        navigation.navigateTo({page: Page.SITE_PERMISSIONS});
-        flush();
+    // Try to open the site permissions page.
+    navigation.navigateTo({page: Page.SITE_PERMISSIONS});
+    await microtasksFinished();
 
-        // Should be re-routed to the main page with enableEnhancedSiteControls
-        // set to false.
-        assertViewActive('extensions-item-list');
+    // Should be re-routed to the main page with enableEnhancedSiteControls
+    // set to false.
+    assertViewActive('extensions-item-list');
 
-        // Try to open the site permissions all-sites page.
-        navigation.navigateTo({page: Page.SITE_PERMISSIONS_ALL_SITES});
-        flush();
+    // Try to open the site permissions all-sites page.
+    navigation.navigateTo({page: Page.SITE_PERMISSIONS_ALL_SITES});
+    await microtasksFinished();
 
-        // Should be re-routed to the main page.
-        assertViewActive('extensions-item-list');
-      });
+    // Should be re-routed to the main page.
+    assertViewActive('extensions-item-list');
+  });
 
-  test(
-      extension_manager_tests.TestNames.NavigateToSitePermissionsSuccess,
-      function() {
-        // Set the enableEnhancedSiteControls flag to true.
-        manager.enableEnhancedSiteControls = true;
-        flush();
+  // Test that navigating to site permissions pages opens the corresponding page
+  // when enableEnhancedSiteControls is true.
+  test('NavigateToSitePermissionsSuccess', async () => {
+    manager.enableEnhancedSiteControls = true;
+    await microtasksFinished();
 
-        // Try to open the site permissions page. The navigation should succeed
-        // with enableEnhancedSiteControls set to true.
-        navigation.navigateTo({page: Page.SITE_PERMISSIONS});
-        flush();
-        assertViewActive('extensions-site-permissions');
+    // Try to open the site permissions page. The navigation should succeed
+    // with enableEnhancedSiteControls set to true.
+    navigation.navigateTo({page: Page.SITE_PERMISSIONS});
+    await microtasksFinished();
+    assertViewActive('extensions-site-permissions');
 
-        // Try to open the site permissions all-sites page. The navigation
-        // should succeed.
-        navigation.navigateTo({page: Page.SITE_PERMISSIONS_ALL_SITES});
-        flush();
-        assertViewActive('extensions-site-permissions-by-site');
-      });
+    // Try to open the site permissions all-sites page. The navigation
+    // should succeed.
+    navigation.navigateTo({page: Page.SITE_PERMISSIONS_ALL_SITES});
+    await microtasksFinished();
+    assertViewActive('extensions-site-permissions-by-site');
+  });
+
+  test('ShowUnsupportedDeveloperExtensionDisabledToast', async () => {
+    // Set developer mode to true and add an unpacked extension.
+    manager.inDevMode = true;
+    const unpackedInfo = createExtensionInfo({
+      location: chrome.developerPrivate.Location.UNPACKED,
+      name: 'Unpacked Extension',
+      state: chrome.developerPrivate.ExtensionState.ENABLED,
+    });
+
+    const target = Service.getInstance().getItemStateChangedTarget() as
+        ChromeEventWithDispatch;
+    target.dispatch<chrome.developerPrivate.EventData>({
+      event_type: chrome.developerPrivate.EventType.INSTALLED,
+      extensionInfo: unpackedInfo,
+      item_id: unpackedInfo.id,
+    });
+    await microtasksFinished();
+
+    // Verify the unpacked extension is added correctly.
+    const extension = getExtensionByName(unpackedInfo.name);
+    assertTrue(!!extension);
+    assertEquals(extension, unpackedInfo);
+
+    const toastManager = getToastManager();
+    assertFalse(toastManager.isToastOpen);
+
+    // Set developer mode to false and disable the unpacked extension with the
+    // unsupportedDeveloperExtension reason.
+    manager.inDevMode = false;
+    const disabledUnpackedInfo = createExtensionInfo(unpackedInfo);
+    disabledUnpackedInfo.state =
+        chrome.developerPrivate.ExtensionState.DISABLED;
+    disabledUnpackedInfo.disableReasons.unsupportedDeveloperExtension = true;
+
+    target.dispatch<chrome.developerPrivate.EventData>({
+      event_type: chrome.developerPrivate.EventType.UNLOADED,
+      extensionInfo: disabledUnpackedInfo,
+      item_id: disabledUnpackedInfo.id,
+    });
+    await microtasksFinished();
+
+    // Verify the unpacked extension is disabled and the toast is shown.
+    const disabledExtension = getExtensionByName(disabledUnpackedInfo.name);
+    assertTrue(!!disabledExtension);
+    assertEquals(disabledExtension, disabledUnpackedInfo);
+    assertTrue(toastManager.isToastOpen);
+  });
 });

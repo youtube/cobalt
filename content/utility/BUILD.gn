@@ -4,12 +4,15 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 import("//chromeos/ash/components/assistant/assistant.gni")
-import("//components/services/screen_ai/buildflags/features.gni")
+import("//components/services/on_device_translation/buildflags/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//media/gpu/args.gni")
 import("//media/media_options.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//services/accessibility/buildflags.gni")
+import("//services/screen_ai/buildflags/features.gni")
+import("//services/video_effects/args.gni")
 
 source_set("utility") {
   # Only the public target should depend on this. All other targets (even
@@ -30,8 +33,6 @@ source_set("utility") {
     "utility_blink_platform_with_sandbox_support_impl.cc",
     "utility_blink_platform_with_sandbox_support_impl.h",
     "utility_main.cc",
-    "utility_service_factory.cc",
-    "utility_service_factory.h",
     "utility_thread_impl.cc",
     "utility_thread_impl.h",
   ]
@@ -41,8 +42,8 @@ source_set("utility") {
   deps = [
     "//base",
     "//build:branding_buildflags",
-    "//build:chromeos_buildflags",
-    "//components/services/screen_ai/buildflags",
+    "//components/optimization_guide/core:features",
+    "//components/services/on_device_translation/buildflags",
     "//components/services/storage",
     "//components/services/storage/public/mojom",
     "//content:export",
@@ -62,6 +63,10 @@ source_set("utility") {
     "//services/data_decoder:lib",
     "//services/data_decoder/public/cpp",
     "//services/network:network_service",
+    "//services/on_device_model:on_device_model_service",
+    "//services/on_device_model/public/cpp",
+    "//services/on_device_model/public/mojom",
+    "//services/screen_ai/buildflags",
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
     "//services/shape_detection:lib",
@@ -70,9 +75,18 @@ source_set("utility") {
     "//services/tracing/public/mojom",
     "//services/video_capture:lib",
     "//services/video_capture/public/mojom:constants",
+    "//services/video_effects/buildflags",
     "//third_party/blink/public:blink_headers",
     "//url",
   ]
+
+  if (enable_video_effects) {
+    deps += [ "//services/video_effects:service" ]
+
+    if (is_linux) {
+      deps += [ "//services/video_effects:sandbox_hook" ]
+    }
+  }
 
   # When library CDMs are supported, we support running the CDM in the utility
   # process using mojo MediaService. On Windows, we use MediaFoundationService.
@@ -84,40 +98,43 @@ source_set("utility") {
     ]
   }
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     deps += [
       "//chromeos/ash/components/assistant:buildflags",
       "//chromeos/ash/services/ime:sandbox_hook",
       "//chromeos/services/tts:sandbox_hook",
     ]
-    if (use_vaapi || use_v4l2_codec) {
-      deps += [ "//ash/components/arc/video_accelerator" ]
+    if (use_linux_video_acceleration) {
+      deps += [ "//chromeos/ash/experiences/arc/video_accelerator" ]
     }
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
-      "//gpu/config",
+      "//content/utility/speech:speech_recognition_sandbox_hook",
       "//media/gpu/sandbox",
       "//media/mojo/services",
-      "//third_party/angle:angle_gpu_info_util",
+      "//services/network:network_sandbox_hook",
     ]
-    if (is_cobalt_hermetic_build) {
-      deps -= [
+    if (use_linux_video_acceleration && !is_cobalt_hermetic_build) {
+      deps += [
         "//gpu/config",
         "//third_party/angle:angle_gpu_info_util",
       ]
     }
+    if (enable_oop_printing) {
+      deps += [ "//printing:printing_sandbox_hook" ]
+    }
   }
 
-  if (is_chromeos_ash && is_chrome_branded) {
+  if (is_chromeos && is_chrome_branded) {
     deps += [
       "//services/shape_detection:lib",
       "//services/shape_detection/public/mojom",
     ]
   }
 
-  if (is_chromeos_ash && enable_cros_libassistant) {
+  if (is_chromeos && enable_cros_libassistant) {
     deps += [
       "//chromeos/ash/services/libassistant:sandbox_hook",
       "//chromeos/assistant/internal:libassistant",
@@ -129,22 +146,16 @@ source_set("utility") {
     deps += [ "//services/proxy_resolver:lib" ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
-    deps += [
-      "//content/utility/speech:speech_recognition_sandbox_hook",
-      "//services/network:network_sandbox_hook",
-    ]
-    if (enable_oop_printing) {
-      deps += [ "//printing:printing_sandbox_hook" ]
-    }
-  }
-
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
-    deps += [ "//components/services/screen_ai:screen_ai_sandbox_hook" ]
+  if (enable_screen_ai_service && (is_linux && !is_cobalt_hermetic_build || is_chromeos)) {
+    deps += [ "//services/screen_ai:screen_ai_sandbox_hook" ]
   }
 
   if (enable_accessibility_service) {
     deps += [ "//services/accessibility:lib" ]
+  }
+
+  if (enable_on_device_translation) {
+    deps += [ "//components/services/on_device_translation:on_device_translation_service" ]
   }
 
   if (enable_vr && !is_android) {
@@ -152,6 +163,19 @@ source_set("utility") {
       "//content/services/isolated_xr_device:lib",
       "//device/vr/public/mojom:isolated_xr_service",
     ]
+  }
+
+  if (is_win) {
+    deps += [ ":delegate_data" ]
+  }
+}
+
+if (is_win) {
+  mojom("delegate_data") {
+    disable_variants = true
+
+    sources = [ "sandbox_delegate_data.mojom" ]
+    public_deps = [ "//mojo/public/mojom/base" ]
   }
 }
 

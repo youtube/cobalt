@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/version.h"
 
@@ -58,6 +59,8 @@ enum class Version {
   SERVER_2022 = 21,  // Server 2022: Build 20348.
   WIN11 = 22,        // Win11 21H2: Build 22000.
   WIN11_22H2 = 23,   // Win11 22H2: Build 22621.
+  WIN11_23H2 = 24,   // Win11 23H2: Build 22631.
+  WIN11_24H2 = 25,   // Win11 24H2: Build 26100.
   WIN_LAST,          // Indicates error condition.
 };
 
@@ -143,9 +146,15 @@ class BASE_EXPORT OSInfo {
 
   // Functions to determine Version Type (e.g. Enterprise/Home) and Service Pack
   // value. See above for definitions of these values.
-  const VersionType& version_type() const { return version_type_; }
-  const ServicePack& service_pack() const { return service_pack_; }
-  const std::string& service_pack_str() const { return service_pack_str_; }
+  const VersionType& version_type() const LIFETIME_BOUND {
+    return version_type_;
+  }
+  const ServicePack& service_pack() const LIFETIME_BOUND {
+    return service_pack_;
+  }
+  const std::string& service_pack_str() const LIFETIME_BOUND {
+    return service_pack_str_;
+  }
 
   // Returns the number of processors on the system.
   const int& processors() const { return processors_; }
@@ -156,11 +165,15 @@ class BASE_EXPORT OSInfo {
     return allocation_granularity_;
   }
 
-  // Processor name as read from registry.
+  // Processor info as read from registry.
   std::string processor_model_name();
+  std::string processor_vendor_name();
 
   // Returns the "ReleaseId" (Windows 10 release number) from the registry.
-  const std::string& release_id() const { return release_id_; }
+  const std::string& release_id() const LIFETIME_BOUND { return release_id_; }
+
+  // It returns true if the Windows SKU is N edition.
+  bool IsWindowsNSku() const;
 
  private:
   friend class base::test::ScopedOSInfoOverride;
@@ -234,6 +247,8 @@ class BASE_EXPORT OSInfo {
   WowProcessMachine wow_process_machine_;
   WowNativeMachine wow_native_machine_;
   std::string processor_model_name_;
+  std::string processor_vendor_name_;
+  DWORD os_type_;
 };
 
 // Because this is by far the most commonly-requested value from the above

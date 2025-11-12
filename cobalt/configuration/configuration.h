@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_H5VCC_SYSTEM_CONFIGURATION_H_
-#define COBALT_BROWSER_H5VCC_SYSTEM_CONFIGURATION_H_
+#ifndef COBALT_CONFIGURATION_CONFIGURATION_H_
+#define COBALT_CONFIGURATION_CONFIGURATION_H_
 
 #include "base/memory/raw_ptr.h"
 #include "starboard/extension/configuration.h"
@@ -55,4 +55,4 @@ class Configuration {
 }  // namespace configuration
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_H5VCC_SYSTEM_CONFIGURATION_H_
+#endif  // COBALT_CONFIGURATION_CONFIGURATION_H_

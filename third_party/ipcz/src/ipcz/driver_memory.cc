@@ -16,13 +16,15 @@ namespace ipcz {
 
 DriverMemory::DriverMemory() = default;
 
-DriverMemory::DriverMemory(DriverObject memory) : memory_(std::move(memory)) {
-  if (memory_.is_valid()) {
+DriverMemory::DriverMemory(DriverObject memory) {
+  if (memory.is_valid()) {
     IpczSharedMemoryInfo info = {.size = sizeof(info)};
-    IpczResult result = memory_.driver()->GetSharedMemoryInfo(
-        memory_.handle(), IPCZ_NO_FLAGS, nullptr, &info);
-    ABSL_ASSERT(result == IPCZ_RESULT_OK);
-    size_ = info.region_num_bytes;
+    const IpczResult result = memory.driver()->GetSharedMemoryInfo(
+        memory.handle(), IPCZ_NO_FLAGS, nullptr, &info);
+    if (result == IPCZ_RESULT_OK) {
+      memory_ = std::move(memory);
+      size_ = info.region_num_bytes;
+    }
   }
 }
 
@@ -61,14 +63,18 @@ DriverMemoryMapping DriverMemory::Map() {
     return DriverMemoryMapping();
   }
 
-  void* address;
+  volatile void* address;
   IpczDriverHandle mapping_handle;
   IpczResult result = memory_.driver()->MapSharedMemory(
       memory_.handle(), 0, nullptr, &address, &mapping_handle);
   if (result != IPCZ_RESULT_OK) {
     return DriverMemoryMapping();
   }
-  return DriverMemoryMapping(*memory_.driver(), mapping_handle, address, size_);
+
+  // TODO(https://crbug.com/1451717): Propagate the volatile qualifier on
+  // `address`.
+  return DriverMemoryMapping(*memory_.driver(), mapping_handle,
+                             const_cast<void*>(address), size_);
 }
 
 DriverMemoryWithMapping::DriverMemoryWithMapping() = default;

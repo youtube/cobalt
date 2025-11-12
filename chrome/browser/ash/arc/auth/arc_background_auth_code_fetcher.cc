@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "ash/components/arc/arc_features.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/json/json_string_value_serializer.h"
@@ -15,6 +14,7 @@
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
 #include "components/account_id/account_id.h"
 #include "components/signin/public/identity_manager/access_token_fetcher.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -127,7 +127,11 @@ void ArcBackgroundAuthCodeFetcher::OnAccessTokenFetchComplete(
   user_manager::KnownUser known_user(g_browser_process->local_state());
   const std::string device_id = known_user.GetDeviceId(
       multi_user_util::GetAccountIdFromProfile(profile_));
-  DCHECK(!device_id.empty());
+  if (device_id.empty()) {
+    LOG(ERROR) << "device_id is empty";
+    // TODO(crbug.com/408155002): add new `OptInSilentAuthCode` and report it to
+    // UMA.
+  }
 
   base::Value::Dict request_data;
   request_data.Set(kRefreshToken, token_info.token);
@@ -203,9 +207,9 @@ void ArcBackgroundAuthCodeFetcher::OnSimpleLoaderComplete(
     response_code =
         simple_url_loader_->ResponseInfo()->headers->response_code();
   }
-
-  bool mandatory_proxy_failed = simple_url_loader_->NetError() ==
-                                net::ERR_MANDATORY_PROXY_CONFIGURATION_FAILED;
+  int net_error = simple_url_loader_->NetError();
+  bool mandatory_proxy_failed =
+      net_error == net::ERR_MANDATORY_PROXY_CONFIGURATION_FAILED;
 
   // If the network request has failed because of an unreachable PAC script,
   // retry the request without the proxy.
@@ -218,8 +222,9 @@ void ArcBackgroundAuthCodeFetcher::OnSimpleLoaderComplete(
   }
 
   std::string json_string;
-  if (response_body)
+  if (response_body) {
     json_string = std::move(*response_body);
+  }
 
   simple_url_loader_.reset();
 
@@ -234,8 +239,11 @@ void ArcBackgroundAuthCodeFetcher::OnSimpleLoaderComplete(
             ? json_value->GetDict().FindString(kErrorDescription)
             : nullptr;
 
-    LOG(WARNING) << "Server returned wrong response code: " << response_code
-                 << ": " << (error ? *error : "Unknown") << ".";
+    LOG(WARNING) << "Server request failed."
+                 << " Net error: " << net_error << ": "
+                 << net::ErrorToString(net_error)
+                 << ", response code: " << response_code << ": "
+                 << (error ? *error : "Unknown") << ".";
 
     OptInSilentAuthCode uma_status;
     if (response_code >= 400 && response_code < 500) {
@@ -285,10 +293,11 @@ void ArcBackgroundAuthCodeFetcher::ReportResult(
     UpdateSilentAuthCodeUMA(uma_status);
   } else {
     // Not the initial provisioning.
-    if (is_primary_account_)
+    if (is_primary_account_) {
       UpdateReauthorizationSilentAuthCodeUMA(uma_status);
-    else
+    } else {
       UpdateSecondaryAccountSilentAuthCodeUMA(uma_status);
+    }
   }
   std::move(callback_).Run(!auth_code.empty(), auth_code);
 }

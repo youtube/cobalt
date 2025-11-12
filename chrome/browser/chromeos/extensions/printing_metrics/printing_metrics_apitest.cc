@@ -3,7 +3,12 @@
 // found in the LICENSE file.
 
 #include "base/functional/bind.h"
-
+#include "base/run_loop.h"
+#include "chrome/browser/ash/printing/cups_print_job.h"
+#include "chrome/browser/ash/printing/cups_print_job_manager_factory.h"
+#include "chrome/browser/ash/printing/history/print_job_history_service_factory.h"
+#include "chrome/browser/ash/printing/history/test_print_job_history_service_observer.h"
+#include "chrome/browser/ash/printing/test_cups_print_job_manager.h"
 #include "chrome/browser/chromeos/extensions/printing_metrics/printing_metrics_api.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/policy_test_utils.h"
@@ -16,21 +21,6 @@
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/printing/cups_print_job.h"
-#include "chrome/browser/ash/printing/cups_print_job_manager_factory.h"
-#include "chrome/browser/ash/printing/history/print_job_history_service_factory.h"
-#include "chrome/browser/ash/printing/history/test_print_job_history_service_observer.h"
-#include "chrome/browser/ash/printing/test_cups_print_job_manager.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/printing_metrics.mojom.h"
-#include "chromeos/crosapi/mojom/test_controller.mojom-test-utils.h"
-#include "chromeos/crosapi/mojom/test_controller.mojom.h"
-#include "chromeos/lacros/lacros_service.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 namespace extensions {
 
@@ -45,25 +35,15 @@ constexpr char kUpdateManifestPath[] =
 // the extension.
 constexpr char kTestExtensionID[] = "cmgkkmeeoiceijkpmaabbmpgnkpaaela";
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 std::unique_ptr<KeyedService> BuildTestCupsPrintJobManager(
     content::BrowserContext* context) {
   return std::make_unique<ash::TestCupsPrintJobManager>(
       Profile::FromBrowserContext(context));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 }  // namespace
 
 class PrintingMetricsApiTest : public ExtensionApiTest {
- public:
-  PrintingMetricsApiTest() {}
-
-  PrintingMetricsApiTest(const PrintingMetricsApiTest&) = delete;
-  PrintingMetricsApiTest& operator=(const PrintingMetricsApiTest&) = delete;
-
-  ~PrintingMetricsApiTest() override = default;
-
  protected:
   void SetUpInProcessBrowserTestFixture() override {
     // Init the user policy provider.
@@ -73,14 +53,19 @@ class PrintingMetricsApiTest : public ExtensionApiTest {
     policy_provider_.SetAutoRefresh();
     policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
         &policy_provider_);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    create_services_subscription_ =
-        BrowserContextDependencyManager::GetInstance()
-            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
-                &PrintingMetricsApiTest::OnWillCreateBrowserContextServices,
-                base::Unretained(this)));
-#endif
     ExtensionApiTest::SetUpInProcessBrowserTestFixture();
+  }
+
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    ExtensionApiTest::SetUpBrowserContextKeyedServices(context);
+    ash::CupsPrintJobManagerFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating(&BuildTestCupsPrintJobManager));
+  }
+
+  const Extension* extension() {
+    return ExtensionRegistry::Get(profile())->enabled_extensions().GetByID(
+        kTestExtensionID);
   }
 
   void ForceInstallExtensionByPolicy() {
@@ -89,14 +74,10 @@ class PrintingMetricsApiTest : public ExtensionApiTest {
     policy_test_utils::SetExtensionInstallForcelistPolicy(
         kTestExtensionID, embedded_test_server()->GetURL(kUpdateManifestPath),
         profile(), &policy_provider_);
-    extension_ =
-        ExtensionRegistry::Get(profile())->enabled_extensions().GetByID(
-            kTestExtensionID);
-    ASSERT_TRUE(extension_);
+    ASSERT_TRUE(extension());
   }
 
   void CreateAndCancelPrintJob(const std::string& job_title) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
     base::RunLoop run_loop;
     ash::TestPrintJobHistoryServiceObserver observer(
         ash::PrintJobHistoryServiceFactory::GetForBrowserContext(
@@ -116,48 +97,12 @@ class PrintingMetricsApiTest : public ExtensionApiTest {
     print_job_manager->CreatePrintJob(print_job.get());
     print_job_manager->CancelPrintJob(print_job.get());
     run_loop.Run();
-#else
-    crosapi::mojom::TestControllerAsyncWaiter waiter{GetTestController()};
-    waiter.CreateAndCancelPrintJob(job_title);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  crosapi::mojom::TestController* GetTestController() {
-    auto* service = chromeos::LacrosService::Get();
-    if (!service->IsRegistered<crosapi::mojom::PrintingMetrics>() ||
-        !service->IsAvailable<crosapi::mojom::TestController>() ||
-        service->GetInterfaceVersion(crosapi::mojom::TestController::Uuid_) <
-            static_cast<int>(crosapi::mojom::TestController::MethodMinVersions::
-                                 kCreateAndCancelPrintJobMinVersion)) {
-      LOG(ERROR) << "Unsupported ash version.";
-      return nullptr;
-    }
-    return service->GetRemote<crosapi::mojom::TestController>().get();
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
-  raw_ptr<const extensions::Extension> extension_ = nullptr;
   testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
-
- private:
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  void OnWillCreateBrowserContextServices(content::BrowserContext* context) {
-    ash::CupsPrintJobManagerFactory::GetInstance()->SetTestingFactory(
-        context, base::BindRepeating(&BuildTestCupsPrintJobManager));
-  }
-
-  base::CallbackListSubscription create_services_subscription_;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 };
 
 IN_PROC_BROWSER_TEST_F(PrintingMetricsApiTest, GetPrintJobs) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (!GetTestController()) {
-    GTEST_SKIP() << "Unsupported ash version.";
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
   ForceInstallExtensionByPolicy();
 
   CreateAndCancelPrintJob(kTitle);
@@ -166,23 +111,17 @@ IN_PROC_BROWSER_TEST_F(PrintingMetricsApiTest, GetPrintJobs) {
   SetCustomArg(kTitle);
   extensions::ResultCatcher catcher;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      new_browser, extension_->GetResourceURL("get_print_jobs.html")));
+      new_browser, extension()->GetResourceURL("get_print_jobs.html")));
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
 IN_PROC_BROWSER_TEST_F(PrintingMetricsApiTest, OnPrintJobFinished) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (!GetTestController()) {
-    GTEST_SKIP() << "Unsupported ash version.";
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
   ForceInstallExtensionByPolicy();
 
   ResultCatcher catcher;
   Browser* const new_browser = CreateBrowser(profile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      new_browser, extension_->GetResourceURL("on_print_job_finished.html")));
+      new_browser, extension()->GetResourceURL("on_print_job_finished.html")));
 
   CreateAndCancelPrintJob(kTitle);
 

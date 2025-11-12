@@ -59,7 +59,9 @@ constexpr ProcessName kProcessNames[] = {
     {ChromeProcessDescriptor::PROCESS_SERVICE_PROXY_RESOLVER,
      "Service: proxy_resolver.mojom.ProxyResolverFactory"},
     {ChromeProcessDescriptor::PROCESS_SERVICE_CDM,
-     "Service: media.mojom.CdmService"},
+     "Service: media.mojom.CdmServiceBroker"},
+    {ChromeProcessDescriptor::PROCESS_SERVICE_MEDIA_FOUNDATION,
+     "Service: media.mojom.MediaFoundationServiceBroker"},
     {ChromeProcessDescriptor::PROCESS_SERVICE_VIDEO_CAPTURE,
      "Service: video_capture.mojom.VideoCaptureService"},
     {ChromeProcessDescriptor::PROCESS_SERVICE_UNZIPPER,
@@ -168,6 +170,7 @@ constexpr ThreadName kThreadNames[] = {
      "NetworkConfigWatcher"},
     {ChromeThreadDescriptor::THREAD_WASAPI_RENDER, "wasapi_render_thread"},
     {ChromeThreadDescriptor::THREAD_LOADER_LOCK_SAMPLER, "LoaderLockSampler"},
+    {ChromeThreadDescriptor::THREAD_COMPOSITOR_GPU, "CompositorGpuThread"},
 };
 
 }  // namespace

@@ -8,15 +8,15 @@
 #include <fuchsia/ui/views/cpp/fidl.h>
 #include <lib/fit/function.h>
 #include <lib/sys/cpp/component_context.h>
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
+
+#include <string_view>
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "fuchsia_web/runners/common/web_content_runner.h"
 
-WebComponent::WebComponent(base::StringPiece debug_name,
+WebComponent::WebComponent(std::string_view debug_name,
                            WebContentRunner* runner,
                            std::unique_ptr<base::StartupContext> context)
     : debug_name_(debug_name),

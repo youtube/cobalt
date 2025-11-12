@@ -4,36 +4,32 @@
 
 package org.chromium.chrome.browser.tab;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import org.chromium.base.UserData;
+import org.chromium.base.UserDataHost;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.external_intents.InterceptNavigationDelegateImpl;
 
-/**
- * Class that glues InterceptNavigationDelegateImpl objects to Tabs.
- */
+/** Class that glues InterceptNavigationDelegateImpl objects to Tabs. */
+@NullMarked
 public class InterceptNavigationDelegateTabHelper implements UserData {
     private static final Class<InterceptNavigationDelegateTabHelper> USER_DATA_KEY =
             InterceptNavigationDelegateTabHelper.class;
 
     private InterceptNavigationDelegateImpl mInterceptNavigationDelegate;
-    private InterceptNavigationDelegateClientImpl mInterceptNavigationDelegateClient;
+    private final InterceptNavigationDelegateClientImpl mInterceptNavigationDelegateClient;
 
     public static void setDelegateForTesting(Tab tab, InterceptNavigationDelegateImpl delegate) {
         InterceptNavigationDelegateTabHelper helper =
                 tab.getUserDataHost().getUserData(USER_DATA_KEY);
-        helper.mInterceptNavigationDelegate = delegate;
+        assumeNonNull(helper).mInterceptNavigationDelegate = delegate;
     }
 
     public static void createForTab(Tab tab) {
-        assert get(tab) == null;
-        tab.getUserDataHost().setUserData(
-                USER_DATA_KEY, new InterceptNavigationDelegateTabHelper(tab));
-    }
-
-    public static InterceptNavigationDelegateImpl get(Tab tab) {
-        InterceptNavigationDelegateTabHelper helper =
-                tab.getUserDataHost().getUserData(USER_DATA_KEY);
-        if (helper == null) return null;
-        return helper.mInterceptNavigationDelegate;
+        tab.getUserDataHost()
+                .setUserData(USER_DATA_KEY, new InterceptNavigationDelegateTabHelper(tab));
     }
 
     InterceptNavigationDelegateTabHelper(Tab tab) {
@@ -46,5 +42,22 @@ public class InterceptNavigationDelegateTabHelper implements UserData {
     @Override
     public void destroy() {
         mInterceptNavigationDelegateClient.destroy();
+    }
+
+    /** Retrieve an InterceptNavigationDelegateTabHelper instance for a Tab. */
+    public static @Nullable InterceptNavigationDelegateTabHelper getFromTab(Tab tab) {
+        UserDataHost host = tab.getUserDataHost();
+        if (host == null) {
+            return null;
+        }
+        return host.getUserData(USER_DATA_KEY);
+    }
+
+    /**
+     * Returns this InterceptNavigationDelegateTabHelper instance implementation of
+     * InterceptNavigationDelegate
+     */
+    public InterceptNavigationDelegateImpl getInterceptNavigationDelegate() {
+        return mInterceptNavigationDelegate;
     }
 }

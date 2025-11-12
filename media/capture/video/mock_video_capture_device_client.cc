@@ -6,11 +6,15 @@
 
 #include <utility>
 
-#include "base/memory/raw_ptr.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_span.h"
+#include "base/time/time.h"
 #include "media/base/video_frame.h"
 
 using testing::_;
 using testing::Invoke;
+using testing::WithArgs;
 
 namespace media {
 
@@ -18,34 +22,31 @@ namespace {
 
 class StubBufferHandle : public VideoCaptureBufferHandle {
  public:
-  StubBufferHandle(size_t mapped_size, uint8_t* data)
-      : mapped_size_(mapped_size), data_(data) {}
+  explicit StubBufferHandle(base::span<uint8_t> data) : data_(data) {}
 
-  size_t mapped_size() const override { return mapped_size_; }
-  uint8_t* data() const override { return data_; }
-  const uint8_t* const_data() const override { return data_; }
+  size_t mapped_size() const override { return data_.size(); }
+  uint8_t* data() const override { return data_.data(); }
+  const uint8_t* const_data() const override { return data_.data(); }
 
  private:
-  const size_t mapped_size_;
-  const raw_ptr<uint8_t> data_;
+  const base::raw_span<uint8_t> data_;
 };
 
 class StubBufferHandleProvider
     : public VideoCaptureDevice::Client::Buffer::HandleProvider {
  public:
-  StubBufferHandleProvider(size_t mapped_size, std::unique_ptr<uint8_t[]> data)
-      : mapped_size_(mapped_size), data_(std::move(data)) {}
+  explicit StubBufferHandleProvider(base::HeapArray<uint8_t> data)
+      : data_(std::move(data)) {}
 
   ~StubBufferHandleProvider() override = default;
 
   base::UnsafeSharedMemoryRegion DuplicateAsUnsafeRegion() override {
-    NOTREACHED();
-    return {};
+    return base::UnsafeSharedMemoryRegion();
   }
 
   std::unique_ptr<VideoCaptureBufferHandle> GetHandleForInProcessAccess()
       override {
-    return std::make_unique<StubBufferHandle>(mapped_size_, data_.get());
+    return std::make_unique<StubBufferHandle>(data_);
   }
 
   gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle() override {
@@ -53,29 +54,27 @@ class StubBufferHandleProvider
   }
 
  private:
-  const size_t mapped_size_;
-  const std::unique_ptr<uint8_t[]> data_;
+  base::HeapArray<uint8_t> data_;
 };
 
 class StubReadWritePermission
     : public VideoCaptureDevice::Client::Buffer::ScopedAccessPermission {
  public:
-  StubReadWritePermission(uint8_t* data) : data_(data) {}
+  explicit StubReadWritePermission(base::span<uint8_t> data) : data_(data) {}
   ~StubReadWritePermission() override = default;
 
  private:
-  const raw_ptr<uint8_t> data_;
+  const base::raw_span<uint8_t> data_;
 };
 
 VideoCaptureDevice::Client::Buffer CreateStubBuffer(int buffer_id,
                                                     size_t mapped_size) {
   const int arbitrary_frame_feedback_id = 0;
-  auto buffer = std::make_unique<uint8_t[]>(mapped_size);
-  auto* unowned_buffer = buffer.get();
+  auto buffer = base::HeapArray<uint8_t>::WithSize(mapped_size);
+  auto unowned_buffer = buffer.as_span();
   return VideoCaptureDevice::Client::Buffer(
       buffer_id, arbitrary_frame_feedback_id,
-      std::make_unique<StubBufferHandleProvider>(mapped_size,
-                                                 std::move(buffer)),
+      std::make_unique<StubBufferHandleProvider>(std::move(buffer)),
       std::make_unique<StubReadWritePermission>(unowned_buffer));
 }
 
@@ -88,7 +87,9 @@ void MockVideoCaptureDeviceClient::OnIncomingCapturedBuffer(
     Buffer buffer,
     const media::VideoCaptureFormat& format,
     base::TimeTicks reference_time,
-    base::TimeDelta timestamp) {
+    base::TimeDelta timestamp,
+    std::optional<base::TimeTicks> capture_begin_time,
+    const std::optional<VideoFrameMetadata>& metadata) {
   DoOnIncomingCapturedBuffer(buffer, format, reference_time, timestamp);
 }
 void MockVideoCaptureDeviceClient::OnIncomingCapturedBufferExt(
@@ -97,8 +98,9 @@ void MockVideoCaptureDeviceClient::OnIncomingCapturedBufferExt(
     const gfx::ColorSpace& color_space,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
+    std::optional<base::TimeTicks> capture_begin_time,
     gfx::Rect visible_rect,
-    const media::VideoFrameMetadata& additional_metadata) {
+    const std::optional<VideoFrameMetadata>& additional_metadata) {
   DoOnIncomingCapturedBufferExt(buffer, format, color_space, reference_time,
                                 timestamp, visible_rect, additional_metadata);
 }
@@ -111,10 +113,11 @@ MockVideoCaptureDeviceClient::CreateMockClientWithBufferAllocator(
   result->fake_frame_captured_callback_ = std::move(frame_captured_callback);
 
   auto* raw_result_ptr = result.get();
-  ON_CALL(*result, ReserveOutputBuffer(_, _, _, _))
+  ON_CALL(*result, ReserveOutputBuffer)
       .WillByDefault(
           Invoke([](const gfx::Size& dimensions, VideoPixelFormat format, int,
-                    VideoCaptureDevice::Client::Buffer* buffer) {
+                    VideoCaptureDevice::Client::Buffer* buffer,
+                    int* require_new_buffer_id, int* retire_old_buffer_id) {
             EXPECT_GT(dimensions.GetArea(), 0);
             const VideoCaptureFormat frame_format(dimensions, 0.0, format);
             *buffer = CreateStubBuffer(
@@ -122,37 +125,26 @@ MockVideoCaptureDeviceClient::CreateMockClientWithBufferAllocator(
                                               frame_format.frame_size));
             return VideoCaptureDevice::Client::ReserveResult::kSucceeded;
           }));
-  ON_CALL(*result, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([raw_result_ptr](const uint8_t*, int,
-                                  const media::VideoCaptureFormat& frame_format,
-                                  const gfx::ColorSpace&, int, bool,
-                                  base::TimeTicks, base::TimeDelta, int) {
+  ON_CALL(*result, OnIncomingCapturedData)
+      .WillByDefault(WithArgs<2>(Invoke(
+          [raw_result_ptr](const media::VideoCaptureFormat& frame_format) {
             raw_result_ptr->fake_frame_captured_callback_.Run(frame_format);
-          }));
-  ON_CALL(*result, OnIncomingCapturedGfxBuffer(_, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([raw_result_ptr](gfx::GpuMemoryBuffer*,
-                                  const media::VideoCaptureFormat& frame_format,
-                                  int, base::TimeTicks, base::TimeDelta, int) {
+          })));
+  ON_CALL(*result, OnIncomingCapturedImage)
+      .WillByDefault(WithArgs<1>(Invoke(
+          [raw_result_ptr](const media::VideoCaptureFormat& frame_format) {
             raw_result_ptr->fake_frame_captured_callback_.Run(frame_format);
-          }));
-  ON_CALL(*result, DoOnIncomingCapturedBuffer(_, _, _, _))
-      .WillByDefault(
-          Invoke([raw_result_ptr](media::VideoCaptureDevice::Client::Buffer&,
-                                  const media::VideoCaptureFormat& frame_format,
-                                  base::TimeTicks, base::TimeDelta) {
+          })));
+  ON_CALL(*result, DoOnIncomingCapturedBuffer)
+      .WillByDefault(WithArgs<1>(Invoke(
+          [raw_result_ptr](const media::VideoCaptureFormat& frame_format) {
             raw_result_ptr->fake_frame_captured_callback_.Run(frame_format);
-          }));
-  ON_CALL(*result, DoOnIncomingCapturedBufferExt(_, _, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([raw_result_ptr](media::VideoCaptureDevice::Client::Buffer&,
-                                  const media::VideoCaptureFormat& frame_format,
-                                  const gfx::ColorSpace&, base::TimeTicks,
-                                  base::TimeDelta, gfx::Rect,
-                                  const media::VideoFrameMetadata&) {
+          })));
+  ON_CALL(*result, DoOnIncomingCapturedBufferExt)
+      .WillByDefault(WithArgs<1>(Invoke(
+          [raw_result_ptr](const media::VideoCaptureFormat& frame_format) {
             raw_result_ptr->fake_frame_captured_callback_.Run(frame_format);
-          }));
+          })));
   return result;
 }
 

@@ -8,12 +8,12 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "cbor.h"
-#include "maybe.h"
 #include "serializable.h"
 #include "span.h"
 #include "status.h"
@@ -84,16 +84,19 @@ class ContainerSerializer {
     ProtocolTypeTraits<T>::Serialize(value, bytes_);
   }
   template <typename T>
-  void AddField(span<char> field_name, const detail::ValueMaybe<T>& value) {
-    if (!value.isJust())
+  void AddField(span<char> field_name, const std::optional<T>& value) {
+    if (!value.has_value()) {
       return;
-    AddField(field_name, value.fromJust());
+    }
+    AddField(field_name, value.value());
   }
+
   template <typename T>
-  void AddField(span<char> field_name, const detail::PtrMaybe<T>& value) {
-    if (!value.isJust())
+  void AddField(span<char> field_name, const std::unique_ptr<T>& value) {
+    if (!value) {
       return;
-    AddField(field_name, *value.fromJust());
+    }
+    AddField(field_name, *value);
   }
 
   void EncodeStop();
@@ -206,14 +209,17 @@ template <>
 struct ProtocolTypeTraits<std::unique_ptr<DeferredMessage>> {
   static bool Deserialize(DeserializerState* state,
                           std::unique_ptr<DeferredMessage>* value);
-  static void Serialize(const std::unique_ptr<DeferredMessage>& value,
+};
+
+template <>
+struct ProtocolTypeTraits<DeferredMessage> {
+  static void Serialize(const DeferredMessage& value,
                         std::vector<uint8_t>* bytes);
 };
 
 template <typename T>
-struct ProtocolTypeTraits<detail::ValueMaybe<T>> {
-  static bool Deserialize(DeserializerState* state,
-                          detail::ValueMaybe<T>* value) {
+struct ProtocolTypeTraits<std::optional<T>> {
+  static bool Deserialize(DeserializerState* state, std::optional<T>* value) {
     T res;
     if (!ProtocolTypeTraits<T>::Deserialize(state, &res))
       return false;
@@ -221,26 +227,9 @@ struct ProtocolTypeTraits<detail::ValueMaybe<T>> {
     return true;
   }
 
-  static void Serialize(const detail::ValueMaybe<T>& value,
+  static void Serialize(const std::optional<T>& value,
                         std::vector<uint8_t>* bytes) {
-    ProtocolTypeTraits<T>::Serialize(value.fromJust(), bytes);
-  }
-};
-
-template <typename T>
-struct ProtocolTypeTraits<detail::PtrMaybe<T>> {
-  static bool Deserialize(DeserializerState* state,
-                          detail::PtrMaybe<T>* value) {
-    std::unique_ptr<T> res;
-    if (!ProtocolTypeTraits<std::unique_ptr<T>>::Deserialize(state, &res))
-      return false;
-    *value = std::move(res);
-    return true;
-  }
-
-  static void Serialize(const detail::PtrMaybe<T>& value,
-                        std::vector<uint8_t>* bytes) {
-    ProtocolTypeTraits<T>::Serialize(*value.fromJust(), bytes);
+    ProtocolTypeTraits<T>::Serialize(value.value(), bytes);
   }
 };
 

@@ -21,8 +21,18 @@ const char kSwitchValueFalse[] = "false";
 // Default is "https://clients2.google.com/cr/staging_report" for non prod.
 const char kCrashServerUrl[] = "crash-server-url";
 
+// Switch to enable daemon-mode in crash_uploader.
+const char kCrashUploaderDaemon[] = "daemon";
+
+// Switch to specify product name used when crash_uploader uploads crash report.
+// Default to "Eureka" if not specified.
+const char kCrashReportProductName[] = "product-name";
+
 // Switch to disable Crash reporting
 const char kDisableCrashReporter[] = "disable-crash-reporter";
+
+// Switch to disable Crashpad forwarding
+const char kDisableCrashpadForwarding[] = "disable-crashpad-forwarding";
 
 // Switch to dumpstate binary path.
 const char kDumpstateBinPath[] = "dumpstate-path";
@@ -206,6 +216,17 @@ extern const char kCastMemoryPressureModerateFraction[] =
 // to the default renderer within content_renderer. Does not change the behavior
 // of the media service.
 const char kDisableMojoRenderer[] = "disable-mojo-renderer";
+
+// Forces the use of the mojo renderer. In other words, the renderer process
+// will run a mojo renderer and CastRenderer will run in the browser process.
+// This is necessary for devices that use CastRenderer.
+//
+// For this flag to have any effect, note that you must build the cast web
+// runtime with the gn arg "enable_cast_renderer" set to true, and "renderer"
+// must be included in the list "mojo_media_services".
+//
+// This flag has lower priority than "disable-mojo-renderer".
+const char kForceMojoRenderer[] = "force-mojo-renderer";
 
 // Per-product customization of force update UI remote url, also used in
 // testing.

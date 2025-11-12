@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
+#include "base/uuid.h"
 #include "ios/web/public/browser_state.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -31,8 +32,9 @@ class FakeBrowserState final : public BrowserState {
       network::mojom::NetworkContextParams* params) override;
   scoped_refptr<network::SharedURLLoaderFactory> GetSharedURLLoaderFactory()
       override;
+  const base::Uuid& GetWebKitStorageID() const override;
 
-  // Sets a SharedURLLoaderFactory for test.
+  // Sets a SharedURLLoaderFactory for testing.
   void SetSharedURLLoaderFactory(
       scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory);
 
@@ -42,16 +44,21 @@ class FakeBrowserState final : public BrowserState {
   // This must be called before the first GetRequestContext() call.
   void SetCookieStore(std::unique_ptr<net::CookieStore> cookie_store);
 
+  // Sets an identifier used to access the WebKit storage for testing.
+  void SetWebKitStorageID(base::Uuid uuid);
+
  private:
   scoped_refptr<net::URLRequestContextGetter> request_context_;
 
-  bool is_off_the_record_;
+  bool is_off_the_record_ = false;
 
   // A SharedURLLoaderFactory for test.
   scoped_refptr<network::SharedURLLoaderFactory>
       test_shared_url_loader_factory_;
 
   std::unique_ptr<net::CookieStore> cookie_store_;
+
+  base::Uuid storage_uuid_;
 };
 }  // namespace web
 

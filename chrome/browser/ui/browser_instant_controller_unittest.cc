@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <vector>
 
 #include "base/gtest_prod_util.h"
@@ -13,7 +14,6 @@
 #include "base/memory/raw_ref.h"
 #include "base/metrics/field_trial.h"
 #include "base/run_loop.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/search/instant_service.h"
 #include "chrome/browser/search/instant_unittest_base.h"
 #include "chrome/browser/search/search.h"
@@ -40,9 +40,10 @@ class BrowserInstantControllerTest : public InstantUnitTestBase {
 
   // BrowserWithTestWindowTest:
   TestingProfile::TestingFactories GetTestingFactories() override {
-    return {{ChromeSigninClientFactory::GetInstance(),
-             base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
-                                 test_url_loader_factory())}};
+    return {TestingProfile::TestingFactory{
+        ChromeSigninClientFactory::GetInstance(),
+        base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
+                            test_url_loader_factory())}};
   }
 };
 
@@ -54,11 +55,13 @@ struct TabReloadTestCase {
 };
 
 // Test cases for when Google is the initial, but not final provider.
-const TabReloadTestCase kTabReloadTestCasesFinalProviderNotGoogle[] = {
-    {"NTP", chrome::kChromeUINewTabPageURL, false, true},
-    {"Remote SERP", "https://www.google.com/url?bar=search+terms", false,
-     false},
-    {"Other NTP", "https://bar.com/newtab", false, false}};
+const auto kTabReloadTestCasesFinalProviderNotGoogle =
+    std::to_array<TabReloadTestCase>({
+        {"NTP", chrome::kChromeUINewTabPageURL, false, true},
+        {"Remote SERP", "https://www.google.com/url?bar=search+terms", false,
+         false},
+        {"Other NTP", "https://bar.com/newtab", false, false},
+    });
 
 class FakeWebContentsObserver : public content::WebContentsObserver {
  public:
@@ -66,14 +69,15 @@ class FakeWebContentsObserver : public content::WebContentsObserver {
       : WebContentsObserver(contents),
         contents_(contents),
         did_start_observer_(contents),
-        url_(contents->GetURL()),
-        num_reloads_(0) {}
+        url_(contents->GetURL()) {}
 
   void DidStartNavigation(content::NavigationHandle* navigation) override {
-    if (navigation->GetReloadType() == content::ReloadType::NONE)
+    if (navigation->GetReloadType() == content::ReloadType::NONE) {
       return;
-    if (*url_ == navigation->GetURL())
+    }
+    if (*url_ == navigation->GetURL()) {
       num_reloads_++;
+    }
     current_url_ = navigation->GetURL();
   }
 
@@ -98,7 +102,7 @@ class FakeWebContentsObserver : public content::WebContentsObserver {
   content::DidStartNavigationObserver did_start_observer_;
   const raw_ref<const GURL> url_;
   GURL current_url_;
-  int num_reloads_;
+  int num_reloads_ = 0;
 };
 
 TEST_F(BrowserInstantControllerTest, DefaultSearchProviderChanged) {
@@ -112,9 +116,10 @@ TEST_F(BrowserInstantControllerTest, DefaultSearchProviderChanged) {
         browser()->tab_strip_model()->GetActiveWebContents();
 
     // Validate initial instant state.
-    EXPECT_EQ(test.start_in_instant_process,
-              instant_service_->IsInstantProcess(
-                  contents->GetPrimaryMainFrame()->GetProcess()->GetID()))
+    EXPECT_EQ(
+        test.start_in_instant_process,
+        instant_service_->IsInstantProcess(
+            contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID()))
         << test.description;
 
     // Setup an observer to verify reload or absence thereof.

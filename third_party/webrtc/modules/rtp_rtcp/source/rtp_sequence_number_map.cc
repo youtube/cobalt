@@ -11,8 +11,12 @@
 #include "modules/rtp_rtcp/source/rtp_sequence_number_map.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <deque>
 #include <iterator>
 #include <limits>
+#include <optional>
 
 #include "absl/algorithm/container.h"
 #include "rtc_base/checks.h"
@@ -94,7 +98,7 @@ void RtpSequenceNumberMap::InsertFrame(uint16_t first_sequence_number,
   }
 }
 
-absl::optional<RtpSequenceNumberMap::Info> RtpSequenceNumberMap::Get(
+std::optional<RtpSequenceNumberMap::Info> RtpSequenceNumberMap::Get(
     uint16_t sequence_number) const {
   // To make the binary search easier to understand, we use the fact that
   // adding a constant offset to all elements, as well as to the searched
@@ -105,7 +109,7 @@ absl::optional<RtpSequenceNumberMap::Info> RtpSequenceNumberMap::Get(
   // element to 0 would serve this purpose.
 
   if (associations_.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const uint16_t offset =
@@ -118,8 +122,8 @@ absl::optional<RtpSequenceNumberMap::Info> RtpSequenceNumberMap::Get(
   const auto elem = absl::c_lower_bound(associations_, sequence_number, cmp);
 
   return elem != associations_.end() && elem->sequence_number == sequence_number
-             ? absl::optional<Info>(elem->info)
-             : absl::nullopt;
+             ? std::optional<Info>(elem->info)
+             : std::nullopt;
 }
 
 size_t RtpSequenceNumberMap::AssociationCountForTesting() const {

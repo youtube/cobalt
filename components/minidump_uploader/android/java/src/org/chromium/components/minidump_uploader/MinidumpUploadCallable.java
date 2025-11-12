@@ -7,6 +7,8 @@ package org.chromium.components.minidump_uploader;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.minidump_uploader.util.CrashReportingPermissionManager;
 
 import java.io.File;
@@ -20,9 +22,10 @@ import java.util.concurrent.Callable;
 /**
  * This class tries to upload a minidump to the crash server.
  *
- * It is implemented as a Callable<Boolean> and returns true on successful uploads,
- * and false otherwise.
+ * It is implemented as a Callable<Boolean> and returns true on successful uploads, and false
+ * otherwise.
  */
+@NullMarked
 public class MinidumpUploadCallable implements Callable<Integer> {
     private static final String TAG = "MDUploadCallable";
 
@@ -30,8 +33,12 @@ public class MinidumpUploadCallable implements Callable<Integer> {
     // "crash_dump_week_upload_size" - Deprecated prefs used for limiting crash report uploads over
     // cellular network. Last used in M47, removed in M78.
 
-    @IntDef({MinidumpUploadStatus.SUCCESS, MinidumpUploadStatus.FAILURE,
-            MinidumpUploadStatus.USER_DISABLED, MinidumpUploadStatus.DISABLED_BY_SAMPLING})
+    @IntDef({
+        MinidumpUploadStatus.SUCCESS,
+        MinidumpUploadStatus.FAILURE,
+        MinidumpUploadStatus.USER_DISABLED,
+        MinidumpUploadStatus.DISABLED_BY_SAMPLING
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface MinidumpUploadStatus {
         int SUCCESS = 0;
@@ -50,8 +57,11 @@ public class MinidumpUploadCallable implements Callable<Integer> {
         this(fileToUpload, logfile, new MinidumpUploader(), permissionManager);
     }
 
-    public MinidumpUploadCallable(File fileToUpload, File logfile,
-            MinidumpUploader minidumpUploader, CrashReportingPermissionManager permissionManager) {
+    public MinidumpUploadCallable(
+            File fileToUpload,
+            File logfile,
+            MinidumpUploader minidumpUploader,
+            CrashReportingPermissionManager permissionManager) {
         mFileToUpload = fileToUpload;
         mLogfile = logfile;
         mMinidumpUploader = minidumpUploader;
@@ -64,15 +74,18 @@ public class MinidumpUploadCallable implements Callable<Integer> {
             Log.i(TAG, "Minidump upload enabled for tests, skipping other checks.");
         } else if (!CrashFileManager.isForcedUpload(mFileToUpload)) {
             if (!mPermManager.isUsageAndCrashReportingPermitted()) {
-                Log.i(TAG,
+                Log.i(
+                        TAG,
                         "Minidump upload is not permitted. Marking file as skipped "
                                 + "for cleanup to prevent future uploads.");
                 CrashFileManager.markUploadSkipped(mFileToUpload);
                 return MinidumpUploadStatus.USER_DISABLED;
             }
 
-            if (!mPermManager.isClientInMetricsSample()) {
-                Log.i(TAG, "Minidump upload skipped due to sampling.  Marking file as skipped for "
+            if (!mPermManager.isClientInSampleForCrashes()) {
+                Log.i(
+                        TAG,
+                        "Minidump upload skipped due to sampling. Marking file as skipped for "
                                 + "cleanup to prevent future uploads.");
                 CrashFileManager.markUploadSkipped(mFileToUpload);
                 return MinidumpUploadStatus.DISABLED_BY_SAMPLING;
@@ -89,6 +102,9 @@ public class MinidumpUploadCallable implements Callable<Integer> {
             String uploadId = result.message();
             String crashFileName = mFileToUpload.getName();
             Log.i(TAG, "Minidump " + crashFileName + " uploaded successfully, id: " + uploadId);
+
+            // Re-post the crash ID as an error log to make it more visible in crash triaging tools.
+            Log.e(TAG, "Crash with id: " + uploadId + " uploaded successfully.");
 
             // TODO(acleung): MinidumpUploadService is in charge of renaming while this class is
             // in charge of deleting. We should move all the file system operations into
@@ -108,15 +124,23 @@ public class MinidumpUploadCallable implements Callable<Integer> {
         if (result.isUploadError()) {
             // Log the results of the upload. Note that periodic upload failures aren't bad
             // because we will need to throttle uploads in the future anyway.
-            String msg = String.format(Locale.US, "Failed to upload %s with code: %d (%s).",
-                    mFileToUpload.getName(), result.errorCode(), result.message());
+            String msg =
+                    String.format(
+                            Locale.US,
+                            "Failed to upload %s with code: %d (%s).",
+                            mFileToUpload.getName(),
+                            result.errorCode(),
+                            result.message());
             Log.i(TAG, msg);
 
             // TODO(acleung): The return status informs us about why an upload might be
             // rejected. The next logical step is to put the reasons in an UMA histogram.
         } else {
-            Log.e(TAG,
-                    "Local error while uploading " + mFileToUpload.getName() + ": "
+            Log.e(
+                    TAG,
+                    "Local error while uploading "
+                            + mFileToUpload.getName()
+                            + ": "
                             + result.message());
         }
         return MinidumpUploadStatus.FAILURE;
@@ -129,8 +153,9 @@ public class MinidumpUploadCallable implements Callable<Integer> {
      * @param localId The local ID when crash happened.
      * @param uploadId The crash ID return from the server.
      */
-    private void appendUploadedEntryToLog(String localId, String uploadId) throws IOException {
-        FileWriter writer = new FileWriter(mLogfile, /* Appending */ true);
+    private void appendUploadedEntryToLog(@Nullable String localId, String uploadId)
+            throws IOException {
+        FileWriter writer = new FileWriter(mLogfile, /* append= */ true);
 
         // The log entries are formated like so:
         //  seconds_since_epoch,crash_id
@@ -151,5 +176,4 @@ public class MinidumpUploadCallable implements Callable<Integer> {
             writer.close();
         }
     }
-
 }

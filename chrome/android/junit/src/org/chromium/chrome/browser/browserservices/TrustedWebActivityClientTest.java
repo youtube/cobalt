@@ -21,18 +21,20 @@ import android.os.RemoteException;
 import androidx.browser.trusted.Token;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.browserservices.metrics.TrustedWebActivityUmaRecorder;
-import org.chromium.chrome.browser.browserservices.permissiondelegation.InstalledWebappPermissionManager;
+import org.chromium.chrome.browser.browserservices.permissiondelegation.InstalledWebappPermissionStore;
 import org.chromium.chrome.browser.notifications.NotificationBuilderBase;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
+import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 import org.chromium.components.embedder_support.util.Origin;
 
@@ -43,43 +45,38 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Unit tests for {@link TrustedWebActivityClient}.
- */
+/** Unit tests for {@link TrustedWebActivityClient}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TrustedWebActivityClientTest {
     private static final int SERVICE_SMALL_ICON_ID = 1;
     private static final String CLIENT_PACKAGE_NAME = "com.example.app";
 
-    @Mock
-    private TrustedWebActivityClientWrappers.ConnectionPool mConnectionPool;
-    @Mock
-    private TrustedWebActivityClientWrappers.Connection mService;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private TrustedWebActivityClientWrappers.ConnectionPool mConnectionPool;
+    @Mock private TrustedWebActivityClientWrappers.Connection mService;
     @Mock private NotificationBuilderBase mNotificationBuilder;
-    @Mock private TrustedWebActivityUmaRecorder mRecorder;
     @Mock private NotificationUmaTracker mNotificationUmaTracker;
 
     @Mock private Bitmap mServiceSmallIconBitmap;
-    @Mock
-    private NotificationWrapper mNotificationWrapper;
-    @Mock
-    private InstalledWebappPermissionManager mPermissionManager;
+    @Mock private NotificationWrapper mNotificationWrapper;
+    @Mock private InstalledWebappPermissionStore mPermissionStore;
 
     private TrustedWebActivityClient mClient;
 
     @Before
     public void setUp() throws RemoteException {
-        MockitoAnnotations.initMocks(this);
 
-        doAnswer(invocation -> {
-            Origin origin = invocation.getArgument(1);
-            TrustedWebActivityClient.ExecutionCallback callback = invocation.getArgument(3);
+        doAnswer(
+                        invocation -> {
+                            Origin origin = invocation.getArgument(1);
+                            TrustedWebActivityClient.ExecutionCallback callback =
+                                    invocation.getArgument(3);
 
-            callback.onConnected(origin, mService);
+                            callback.onConnected(origin, mService);
 
-            return null;
-        })
+                            return null;
+                        })
                 .when(mConnectionPool)
                 .connectAndExecute(any(), any(), any(), any());
 
@@ -91,9 +88,10 @@ public class TrustedWebActivityClientTest {
 
         Set<Token> delegateApps = new HashSet<>();
         delegateApps.add(createDummyToken());
-        when(mPermissionManager.getAllDelegateApps(any())).thenReturn(delegateApps);
+        when(mPermissionStore.getAllDelegateApps(any())).thenReturn(delegateApps);
+        WebappRegistry.getInstance().setPermissionStoreForTesting(mPermissionStore);
 
-        mClient = new TrustedWebActivityClient(mConnectionPool, mPermissionManager, mRecorder);
+        mClient = new TrustedWebActivityClient(mConnectionPool);
     }
 
     @Test
@@ -103,7 +101,6 @@ public class TrustedWebActivityClientTest {
         verify(mNotificationBuilder)
                 .setStatusBarIconForRemoteApp(SERVICE_SMALL_ICON_ID, mServiceSmallIconBitmap);
     }
-
 
     @Test
     public void doesntUseIconFromService_IfContentBarIconSet() {
@@ -154,14 +151,16 @@ public class TrustedWebActivityClientTest {
 
     private void postNotification() {
         Uri uri = Uri.parse("https://www.example.com");
-        mClient.notifyNotification(uri, "tag", 1, mNotificationBuilder,
-                mNotificationUmaTracker);
+        mClient.notifyNotification(uri, "tag", 1, mNotificationBuilder, mNotificationUmaTracker);
     }
 
     @Test
     public void createLaunchIntentForTwaNonHttpScheme() {
-        assertNull(TrustedWebActivityClient.createLaunchIntentForTwa(RuntimeEnvironment.application,
-                "mailto:miranda@example.com", new ArrayList<ResolveInfo>()));
+        assertNull(
+                mClient.createLaunchIntentForTwa(
+                        RuntimeEnvironment.application,
+                        "mailto:miranda@example.com",
+                        new ArrayList<ResolveInfo>()));
     }
 
     private static Token createDummyToken() {

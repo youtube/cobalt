@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <set>
 #include <string>
 
@@ -22,7 +23,7 @@
 #include "base/syslog_logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/policy/core/common/policy_bundle.h"
-#include "components/policy/core/common/policy_load_status.h"
+#include "components/policy/core/common/policy_logger.h"
 #include "components/policy/core/common/policy_types.h"
 
 namespace policy {
@@ -35,24 +36,6 @@ constexpr base::FilePath::CharType kMandatoryConfigDir[] =
 constexpr base::FilePath::CharType kRecommendedConfigDir[] =
     FILE_PATH_LITERAL("recommended");
 
-PolicyLoadStatus JsonErrorToPolicyLoadStatus(int status) {
-  switch (status) {
-    case JSONFileValueDeserializer::JSON_ACCESS_DENIED:
-    case JSONFileValueDeserializer::JSON_CANNOT_READ_FILE:
-    case JSONFileValueDeserializer::JSON_FILE_LOCKED:
-      return POLICY_LOAD_STATUS_READ_ERROR;
-    case JSONFileValueDeserializer::JSON_NO_SUCH_FILE:
-      return POLICY_LOAD_STATUS_MISSING;
-    case base::ValueDeserializer::kErrorCodeNoError:
-      NOTREACHED();
-      return POLICY_LOAD_STATUS_STARTED;
-  }
-  if (!base::ValueDeserializer::ErrorCodeIsDataError(status)) {
-    NOTREACHED() << "Invalid status " << status;
-  }
-  return POLICY_LOAD_STATUS_PARSE_ERROR;
-}
-
 }  // namespace
 
 ConfigDirPolicyLoader::ConfigDirPolicyLoader(
@@ -64,7 +47,7 @@ ConfigDirPolicyLoader::ConfigDirPolicyLoader(
       config_dir_(config_dir),
       scope_(scope) {}
 
-ConfigDirPolicyLoader::~ConfigDirPolicyLoader() {}
+ConfigDirPolicyLoader::~ConfigDirPolicyLoader() = default;
 
 void ConfigDirPolicyLoader::InitOnBackgroundThread() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -88,9 +71,11 @@ PolicyBundle ConfigDirPolicyLoader::Load() {
 }
 
 base::Time ConfigDirPolicyLoader::LastModificationTime() {
-  static constexpr const base::FilePath::CharType* kConfigDirSuffixes[] = {
-      kMandatoryConfigDir, kRecommendedConfigDir,
-  };
+  constexpr static const auto kConfigDirSuffixes =
+      std::to_array<const base::FilePath::CharType*>({
+          kMandatoryConfigDir,
+          kRecommendedConfigDir,
+      });
 
   base::Time last_modification = base::Time();
   base::File::Info info;
@@ -121,15 +106,21 @@ void ConfigDirPolicyLoader::LoadFromPath(const base::FilePath& path,
                                          PolicyBundle* bundle) {
   // Enumerate the files and sort them lexicographically.
   std::set<base::FilePath> files;
+  std::string policy_level =
+      level == POLICY_LEVEL_MANDATORY ? "mandatory" : "recommended";
   base::FileEnumerator file_enumerator(path, false,
                                        base::FileEnumerator::FILES);
   for (base::FilePath config_file_path = file_enumerator.Next();
-       !config_file_path.empty(); config_file_path = file_enumerator.Next())
+       !config_file_path.empty(); config_file_path = file_enumerator.Next()) {
     files.insert(config_file_path);
+    VLOG_POLICY(1, POLICY_FETCHING)
+        << "Found " << policy_level << " policy file: " << config_file_path;
+  }
 
-  PolicyLoadStatusUmaReporter status;
   if (files.empty()) {
-    status.Add(POLICY_LOAD_STATUS_NO_POLICY);
+    VLOG_POLICY(1, POLICY_FETCHING)
+        << "Skipping " << policy_level
+        << " platform policies because no policy file was found at: " << path;
     return;
   }
 
@@ -141,26 +132,23 @@ void ConfigDirPolicyLoader::LoadFromPath(const base::FilePath& path,
     JSONFileValueDeserializer deserializer(
         config_file, base::JSON_PARSE_CHROMIUM_EXTENSIONS |
                          base::JSON_ALLOW_TRAILING_COMMAS);
-    int error_code = 0;
     std::string error_msg;
     std::unique_ptr<base::Value> value =
-        deserializer.Deserialize(&error_code, &error_msg);
+        deserializer.Deserialize(nullptr, &error_msg);
     if (!value) {
       SYSLOG(WARNING) << "Failed to read configuration file "
                       << config_file.value() << ": " << error_msg;
-      status.Add(JsonErrorToPolicyLoadStatus(error_code));
       continue;
     }
     base::Value::Dict* dictionary_value = value->GetIfDict();
     if (!dictionary_value) {
       SYSLOG(WARNING) << "Expected JSON dictionary in configuration file "
                       << config_file.value();
-      status.Add(POLICY_LOAD_STATUS_PARSE_ERROR);
       continue;
     }
 
     // Detach the "3rdparty" node.
-    absl::optional<base::Value> third_party =
+    std::optional<base::Value> third_party =
         dictionary_value->Extract("3rdparty");
     if (third_party.has_value()) {
       Merge3rdPartyPolicy(&*third_party, level, bundle,

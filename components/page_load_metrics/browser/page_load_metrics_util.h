@@ -5,38 +5,42 @@
 #ifndef COMPONENTS_PAGE_LOAD_METRICS_BROWSER_PAGE_LOAD_METRICS_UTIL_H_
 #define COMPONENTS_PAGE_LOAD_METRICS_BROWSER_PAGE_LOAD_METRICS_UTIL_H_
 
-#include "base/metrics/histogram_macros.h"
+#include <cstdint>
+#include <optional>
+#include <string_view>
+
+#include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
 #include "components/page_load_metrics/common/page_load_metrics_util.h"
 #include "components/page_load_metrics/common/page_visit_final_status.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
+#include "url/gurl.h"
 
 // Up to 10 minutes, with 100 buckets.
-#define PAGE_LOAD_HISTOGRAM(name, sample)                          \
-  UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, base::Milliseconds(10), \
-                             base::Minutes(10), 100)               \
-                                                                   \
+#define PAGE_LOAD_HISTOGRAM(name, sample)                             \
+  base::UmaHistogramCustomTimes(name, sample, base::Milliseconds(10), \
+                                base::Minutes(10), 100)
+
 // 1 ms to 1 minute, with 100 buckets.
-#define PAGE_LOAD_SHORT_HISTOGRAM(name, sample)                   \
-  UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, base::Milliseconds(1), \
-                             base::Minutes(1), 100)
+#define PAGE_LOAD_SHORT_HISTOGRAM(name, sample)                      \
+  base::UmaHistogramCustomTimes(name, sample, base::Milliseconds(1), \
+                                base::Minutes(1), 100)
 
 // Up to 1 hour, with 100 buckets.
-#define PAGE_LOAD_LONG_HISTOGRAM(name, sample)                     \
-  UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, base::Milliseconds(10), \
-                             base::Hours(1), 100)
+#define PAGE_LOAD_LONG_HISTOGRAM(name, sample)                        \
+  base::UmaHistogramCustomTimes(name, sample, base::Milliseconds(10), \
+                                base::Hours(1), 100)
 
 // Records |bytes| to |histogram_name| in kilobytes (i.e., bytes / 1024).
 #define PAGE_BYTES_HISTOGRAM(histogram_name, bytes) \
-  UMA_HISTOGRAM_CUSTOM_COUNTS(                      \
+  base::UmaHistogramCustomCounts(                   \
       histogram_name, static_cast<int>((bytes) / 1024), 1, 500 * 1024, 50)
 
 // Up to 1 minute with 50 buckets.
-#define INPUT_DELAY_HISTOGRAM(name, sample)                       \
-  UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, base::Milliseconds(1), \
-                             base::Seconds(60), 50)
+#define INPUT_DELAY_HISTOGRAM(name, sample)                          \
+  base::UmaHistogramCustomTimes(name, sample, base::Milliseconds(1), \
+                                base::Seconds(60), 50)
 
 #define PAGE_RESOURCE_COUNT_HISTOGRAM UMA_HISTOGRAM_COUNTS_10000
 
@@ -121,7 +125,7 @@ void UmaMaxCumulativeShiftScoreHistogram10000x(
 // consider the event to be logged in the foreground histogram since any
 // background specific handling would not yet have been applied to that event.
 bool WasStartedInForegroundOptionalEventInForeground(
-    const absl::optional<base::TimeDelta>& event,
+    const std::optional<base::TimeDelta>& event,
     const PageLoadMetricsObserverDelegate& delegate);
 
 // Returns true if:
@@ -130,11 +134,11 @@ bool WasStartedInForegroundOptionalEventInForeground(
 //   started in the foreground.
 // - The event occurred prior to the page being moved to the background.
 bool WasActivatedInForegroundOptionalEventInForeground(
-    const absl::optional<base::TimeDelta>& event,
+    const std::optional<base::TimeDelta>& event,
     const PageLoadMetricsObserverDelegate& delegate);
 
 bool WasStartedInForegroundOptionalEventInForegroundAfterBackForwardCacheRestore(
-    const absl::optional<base::TimeDelta>& event,
+    const std::optional<base::TimeDelta>& event,
     const PageLoadMetricsObserverDelegate& delegate,
     size_t index);
 
@@ -144,7 +148,7 @@ bool WasStartedInForegroundOptionalEventInForegroundAfterBackForwardCacheRestore
 // - Moved to the foreground prior to the event.
 // - Not moved back to the background prior to the event.
 bool WasStartedInBackgroundOptionalEventInForeground(
-    const absl::optional<base::TimeDelta>& event,
+    const std::optional<base::TimeDelta>& event,
     const PageLoadMetricsObserverDelegate& delegate);
 
 // Returns true if |delegate| started in the foreground or became foregrounded
@@ -161,7 +165,7 @@ bool WasInForeground(const PageLoadMetricsObserverDelegate& delegate);
 //
 // Note that this can be different from the return value of
 // `PageLoadMetricsObserverDelegate::GetTimeToFirstBackground`.
-absl::optional<base::TimeDelta> GetNonPrerenderingBackgroundStartTiming(
+std::optional<base::TimeDelta> GetNonPrerenderingBackgroundStartTiming(
     const PageLoadMetricsObserverDelegate& delegate);
 
 // Returns true iff event occurred in prerendered before activation or before
@@ -201,30 +205,12 @@ PageAbortInfo GetPageAbortInfo(const PageLoadMetricsObserverDelegate& delegate);
 // * the render process hosting the page goes away
 // * a new navigation which later commits is initiated in the same tab
 // * the tab hosting the page is backgrounded
-absl::optional<base::TimeDelta> GetInitialForegroundDuration(
+std::optional<base::TimeDelta> GetInitialForegroundDuration(
     const PageLoadMetricsObserverDelegate& delegate,
     base::TimeTicks app_background_time);
 
-// Whether the given url has a Google Search hostname.
-// Examples:
-//   https://www.google.com -> true
-//   https://www.google.co.jp -> true
-//   https://www.google.example.com -> false
-//   https://docs.google.com -> false
-bool IsGoogleSearchHostname(const GURL& url);
-
-// Whether the given url is for a Google Search results page. See
-// https://docs.google.com/document/d/1jNPZ6Aeh0KV6umw1yZrrkfXRfxWNruwu7FELLx_cpOg/edit
-// for additional details.
-// Examples:
-//   https://www.google.com/#q=test -> true
-//   https://www.google.com/search?q=test -> true
-//   https://www.google.com/ -> false
-//   https://www.google.com/about/ -> false
-bool IsGoogleSearchResultUrl(const GURL& url);
-
-// Whether the given url is a Google Search redirector URL.
-bool IsGoogleSearchRedirectorUrl(const GURL& url);
+// zstd content-coded responses.
+bool IsZstdUrl(const GURL& url);
 
 // Whether the given query string contains the given component. The query
 // parameter should contain the query string of a URL (the portion following
@@ -240,10 +226,9 @@ bool IsGoogleSearchRedirectorUrl(const GURL& url);
 // beginning of the query string if the component starts with a delimiter
 // character ('?' or '#'). For example, '?foo=bar' will match the query string
 // 'a=b&?foo=bar' but not the query string '?foo=bar&a=b'.
-bool QueryContainsComponent(const base::StringPiece query,
-                            const base::StringPiece component);
-bool QueryContainsComponentPrefix(const base::StringPiece query,
-                                  const base::StringPiece component);
+bool QueryContainsComponent(std::string_view query, std::string_view component);
+bool QueryContainsComponentPrefix(std::string_view query,
+                                  std::string_view component);
 
 // Adjusts the layout shift score for UKM.
 int64_t LayoutShiftUkmValue(float shift_score);
@@ -265,6 +250,21 @@ PageVisitFinalStatus RecordPageVisitFinalStatusForTiming(
     const page_load_metrics::mojom::PageLoadTiming& timing,
     const PageLoadMetricsObserverDelegate& delegate,
     ukm::SourceId source_id);
+
+// Returns the ID if `url` contains a URL param where the param name and value
+// matches the prefix pattern configured by Finch (the default param name is
+// "category" and the prefix pattern is an empty string / will match anything).
+// Returns std::nullopt if the param value is not recognized.
+//
+// For example, if the valid param name  is "cat" and the prefix pattern is
+// "pattern", this function may return an ID for (1) but not for (2):
+//
+// (1) http://a.com?cat=pattern1
+// (2) http://b.com?cat=invalid-pattern
+//
+// UKM Review:
+// https://docs.google.com/document/d/1TSbtp5I5Bc1pbAKrrEHfmZlAwgeh6AlgAH7GbDMNPRQ/edit?disco=AAABe5h90jQ
+std::optional<uint32_t> GetCategoryIdFromUrl(const GURL& url);
 
 }  // namespace page_load_metrics
 

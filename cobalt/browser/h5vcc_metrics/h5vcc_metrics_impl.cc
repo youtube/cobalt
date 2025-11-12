@@ -47,10 +47,10 @@ void H5vccMetricsImpl::AddListener(
 void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto global_features = cobalt::GlobalFeatures::GetInstance();
-  auto enabled_state_provider =
+  cobalt::CobaltEnabledStateProvider& enabled_state_provider =
       global_features->metrics_services_manager_client()
           ->GetEnabledStateProvider();
-  enabled_state_provider->SetReportingEnabled(enable);
+  enabled_state_provider.SetReportingEnabled(enable);
   global_features->metrics_services_manager()->UpdateUploadPermissions(true);
   std::move(callback).Run();
 }

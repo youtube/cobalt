@@ -8,10 +8,12 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/json/json_file_value_serializer.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
@@ -23,8 +25,7 @@
 #include "extensions/common/api/declarative_net_request/test_utils.h"
 #include "url/gurl.h"
 
-namespace extensions {
-namespace declarative_net_request {
+namespace extensions::declarative_net_request {
 
 namespace {
 
@@ -75,16 +76,16 @@ class ProtoToJSONRuleConverter {
     }
 
     // Sanity check that we can parse this rule.
-    std::u16string err;
-    dnr_api::Rule rule;
     base::Value json_rule(std::move(json_rule_));
-    CHECK(dnr_api::Rule::Populate(json_rule, rule, err) && err.empty())
-        << "Converted rule can't be parsed " << json_rule;
+    auto rule = dnr_api::Rule::FromValue(json_rule);
+    CHECK(rule.has_value())
+        << "Converted rule can't be parsed. Error: " << rule.error()
+        << json_rule;
 
     IndexedRule indexed_rule;
-    ParseResult result =
-        IndexedRule::CreateIndexedRule(std::move(rule), GURL() /* base_url */,
-                                       kMinValidStaticRulesetID, &indexed_rule);
+    ParseResult result = IndexedRule::CreateIndexedRule(
+        std::move(rule).value(), GURL() /* base_url */,
+        kMinValidStaticRulesetID, &indexed_rule);
 
     auto get_non_ascii_error = [this](const std::string& context) {
       return base::StringPrintf(
@@ -114,8 +115,9 @@ class ProtoToJSONRuleConverter {
   }
 
   bool CheckActivationType() {
-    if (input_rule_.activation_types() == proto::ACTIVATION_TYPE_UNSPECIFIED)
+    if (input_rule_.activation_types() == proto::ACTIVATION_TYPE_UNSPECIFIED) {
       return true;
+    }
 
     if (input_rule_.activation_types() == proto::ACTIVATION_TYPE_DOCUMENT) {
       is_allow_all_requests_rule_ = true;
@@ -126,13 +128,13 @@ class ProtoToJSONRuleConverter {
     for (int activation_type = 1; activation_type <= proto::ACTIVATION_TYPE_MAX;
          activation_type <<= 1) {
       CHECK(proto::ActivationType_IsValid(activation_type));
-      if (!(input_rule_.activation_types() & activation_type))
+      if (!(input_rule_.activation_types() & activation_type)) {
         continue;
+      }
 
       switch (static_cast<proto::ActivationType>(activation_type)) {
         case proto::ACTIVATION_TYPE_UNSPECIFIED:
-          CHECK(false);
-          break;
+          NOTREACHED();
         case proto::ACTIVATION_TYPE_DOCUMENT:
           activation_types.emplace_back("document");
           break;
@@ -146,8 +148,7 @@ class ProtoToJSONRuleConverter {
           activation_types.emplace_back("genericblock");
           break;
         case proto::ACTIVATION_TYPE_ALL:
-          CHECK(false);
-          break;
+          NOTREACHED();
       }
     }
 
@@ -195,8 +196,7 @@ class ProtoToJSONRuleConverter {
         result += "||";
         break;
       case proto::ANCHOR_TYPE_UNSPECIFIED:
-        CHECK(false);
-        break;
+        NOTREACHED();
     }
 
     result += input_rule_.url_pattern();
@@ -209,8 +209,7 @@ class ProtoToJSONRuleConverter {
         break;
       case proto::ANCHOR_TYPE_SUBDOMAIN:
       case proto::ANCHOR_TYPE_UNSPECIFIED:
-        CHECK(false);
-        break;
+        NOTREACHED();
     }
 
     // If |result| is empty, omit persisting the url pattern. In that case, it
@@ -226,8 +225,9 @@ class ProtoToJSONRuleConverter {
   bool PopulateIsURLFilterCaseSensitive() {
     // Omit if case sensitive, since it's the default.
     const bool case_sensitive = input_rule_.match_case();
-    if (case_sensitive)
+    if (case_sensitive) {
       return true;
+    }
 
     CHECK(json_rule_.EnsureDict(kRuleConditionKey)
               ->Set(kIsUrlFilterCaseSensitiveKey, false));
@@ -242,15 +242,16 @@ class ProtoToJSONRuleConverter {
     return PopulateDomainsInternal(kExcludedDomainsKey, true /*exclude_value*/);
   }
 
-  bool PopulateDomainsInternal(base::StringPiece sub_key, bool exclude_value) {
+  bool PopulateDomainsInternal(std::string_view sub_key, bool exclude_value) {
     base::Value::List domains;
 
     // Note: This isn't always correct. Filters consider the $domain option to
     //       match the request domain for main_frame requests - not the
     //       initiator domain.
     for (const proto::DomainListItem& item : input_rule_.initiator_domains()) {
-      if (item.exclude() == exclude_value)
+      if (item.exclude() == exclude_value) {
         domains.Append(item.domain());
+      }
     }
 
     // Omit empty domain list.
@@ -268,14 +269,14 @@ class ProtoToJSONRuleConverter {
          element_type <<= 1) {
       CHECK(proto::ElementType_IsValid(element_type));
 
-      if (!(element_type & element_mask))
+      if (!(element_type & element_mask)) {
         continue;
+      }
 
       dnr_api::ResourceType resource_type = dnr_api::ResourceType::kNone;
       switch (static_cast<proto::ElementType>(element_type)) {
         case proto::ELEMENT_TYPE_UNSPECIFIED:
-          CHECK(false);
-          break;
+          NOTREACHED();
         case proto::ELEMENT_TYPE_OTHER:
           resource_type = dnr_api::ResourceType::kOther;
           break;
@@ -295,8 +296,7 @@ class ProtoToJSONRuleConverter {
           resource_type = dnr_api::ResourceType::kXmlhttprequest;
           break;
         case proto::ELEMENT_TYPE_OBJECT_SUBREQUEST:
-          CHECK(false);
-          break;
+          NOTREACHED();
         case proto::ELEMENT_TYPE_SUBDOCUMENT:
           resource_type = dnr_api::ResourceType::kSubFrame;
           break;
@@ -310,8 +310,7 @@ class ProtoToJSONRuleConverter {
           resource_type = dnr_api::ResourceType::kFont;
           break;
         case proto::ELEMENT_TYPE_POPUP:
-          CHECK(false);
-          break;
+          NOTREACHED();
         case proto::ELEMENT_TYPE_WEBSOCKET:
           resource_type = dnr_api::ResourceType::kWebsocket;
           break;
@@ -322,8 +321,7 @@ class ProtoToJSONRuleConverter {
           resource_type = dnr_api::ResourceType::kWebbundle;
           break;
         case proto::ELEMENT_TYPE_ALL:
-          CHECK(false);
-          break;
+          NOTREACHED();
       }
 
       resource_types.Append(dnr_api::ToString(resource_type));
@@ -344,8 +342,9 @@ class ProtoToJSONRuleConverter {
 
     // We don't support object-subrequest. Instead let these be treated as rules
     // matching object requests.
-    if (input_rule_.element_types() & proto::ELEMENT_TYPE_OBJECT_SUBREQUEST)
+    if (input_rule_.element_types() & proto::ELEMENT_TYPE_OBJECT_SUBREQUEST) {
       element_mask |= proto::ELEMENT_TYPE_OBJECT;
+    }
 
     if (is_allow_all_requests_rule_) {
       // Any subresource types specified with ACTIVATION_TYPE_DOCUMENT are
@@ -372,8 +371,9 @@ class ProtoToJSONRuleConverter {
     }
 
     // Omit resource types to block all subresources by default.
-    if (element_mask == (proto::ELEMENT_TYPE_ALL & ~kMaskUnsupported))
+    if (element_mask == (proto::ELEMENT_TYPE_ALL & ~kMaskUnsupported)) {
       return true;
+    }
 
     base::Value::List resource_types = GetResourceTypeList(element_mask);
     if (is_allow_all_requests_rule_) {
@@ -406,8 +406,7 @@ class ProtoToJSONRuleConverter {
         domain_type = dnr_api::DomainType::kThirdParty;
         break;
       case proto::SOURCE_TYPE_UNSPECIFIED:
-        CHECK(false);
-        break;
+        NOTREACHED();
     }
 
     CHECK_NE(dnr_api::DomainType::kNone, domain_type);
@@ -427,14 +426,14 @@ class ProtoToJSONRuleConverter {
         action_type = dnr_api::RuleActionType::kBlock;
         break;
       case proto::RULE_SEMANTICS_ALLOWLIST:
-        if (is_allow_all_requests_rule_)
+        if (is_allow_all_requests_rule_) {
           action_type = dnr_api::RuleActionType::kAllowAllRequests;
-        else
+        } else {
           action_type = dnr_api::RuleActionType::kAllow;
+        }
         break;
       case proto::RULE_SEMANTICS_UNSPECIFIED:
-        CHECK(false);
-        break;
+        NOTREACHED();
     }
 
     CHECK_NE(dnr_api::RuleActionType::kNone, action_type);
@@ -552,5 +551,4 @@ bool ConvertRuleset(const std::vector<base::FilePath>& filter_list_inputs,
 }
 
 }  // namespace filter_list_converter
-}  // namespace declarative_net_request
-}  // namespace extensions
+}  // namespace extensions::declarative_net_request

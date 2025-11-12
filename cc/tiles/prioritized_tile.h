@@ -37,6 +37,9 @@ class CC_EXPORT PrioritizedTile {
   const PaintWorkletRecordMap& GetPaintWorkletRecords() const {
     return source_tiling_->GetPaintWorkletRecords();
   }
+  ScrollOffsetMap GetRasterInducingScrollOffsets() const {
+    return source_tiling_->GetRasterInducingScrollOffsets();
+  }
   const TilePriority& priority() const { return priority_; }
   bool is_occluded() const { return is_occluded_; }
   bool is_process_for_images_only() const {
@@ -51,11 +54,9 @@ class CC_EXPORT PrioritizedTile {
   const PictureLayerTiling* source_tiling() const { return source_tiling_; }
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
+  // RAW_PTR_EXCLUSION: Renderer performance: visible in sampling profiler
+  // stacks.
   RAW_PTR_EXCLUSION Tile* tile_ = nullptr;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
   RAW_PTR_EXCLUSION const PictureLayerTiling* source_tiling_ = nullptr;
   TilePriority priority_;
   bool is_occluded_ = false;

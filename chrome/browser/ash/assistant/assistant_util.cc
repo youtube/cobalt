@@ -9,10 +9,11 @@
 #include "ash/constants/devicetype.h"
 #include "base/containers/contains.h"
 #include "base/strings/string_util.h"
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
+#include "chromeos/ash/services/assistant/public/cpp/assistant_enums.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_prefs.h"
 #include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "components/language/core/browser/pref_names.h"
@@ -53,29 +54,21 @@ bool IsAssistantAllowedForUserType(const Profile* profile) {
 AssistantAllowedState GetErrorForUserType(const Profile* profile) {
   DCHECK(!IsAssistantAllowedForUserType(profile));
   switch (GetUser(profile)->GetType()) {
-    case user_manager::USER_TYPE_PUBLIC_ACCOUNT:
+    case user_manager::UserType::kPublicAccount:
       return AssistantAllowedState::DISALLOWED_BY_PUBLIC_SESSION;
 
-    case user_manager::USER_TYPE_KIOSK_APP:
-    case user_manager::USER_TYPE_ARC_KIOSK_APP:
-    case user_manager::USER_TYPE_WEB_KIOSK_APP:
+    case user_manager::UserType::kKioskApp:
+    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskIWA:
       return AssistantAllowedState::DISALLOWED_BY_KIOSK_MODE;
 
-    case user_manager::USER_TYPE_ACTIVE_DIRECTORY:
+    case user_manager::UserType::kGuest:
       return AssistantAllowedState::DISALLOWED_BY_ACCOUNT_TYPE;
 
-    case user_manager::USER_TYPE_GUEST:
-      return AssistantAllowedState::DISALLOWED_BY_ACCOUNT_TYPE;
-
-    case user_manager::USER_TYPE_REGULAR:
-    case user_manager::USER_TYPE_CHILD:
+    case user_manager::UserType::kRegular:
+    case user_manager::UserType::kChild:
       // This method should only be called for disallowed user types.
       NOTREACHED();
-      return AssistantAllowedState::DISALLOWED_BY_ACCOUNT_TYPE;
-
-    case user_manager::NUM_USER_TYPES:
-      NOTREACHED();
-      return AssistantAllowedState::DISALLOWED_BY_ACCOUNT_TYPE;
   }
 }
 
@@ -133,6 +126,10 @@ bool HasDedicatedAssistantKey() {
 namespace assistant {
 
 AssistantAllowedState IsAssistantAllowedForProfile(const Profile* profile) {
+  if (ash::assistant::features::IsNewEntryPointEnabled()) {
+    return AssistantAllowedState::DISALLOWED_BY_NEW_ENTRY_POINT;
+  }
+
   // Disabled because the libassistant.so is not available.
   if (!ash::assistant::features::IsLibAssistantDLCEnabled()) {
     return AssistantAllowedState::DISALLOWED_BY_NO_BINARY;
@@ -148,8 +145,9 @@ AssistantAllowedState IsAssistantAllowedForProfile(const Profile* profile) {
   if (profile->IsOffTheRecord())
     return AssistantAllowedState::DISALLOWED_BY_INCOGNITO;
 
-  if (ash::DemoSession::IsDeviceInDemoMode())
+  if (ash::demo_mode::IsDeviceInDemoMode()) {
     return AssistantAllowedState::DISALLOWED_BY_DEMO_MODE;
+  }
 
   if (!IsAssistantAllowedForUserType(profile))
     return GetErrorForUserType(profile);

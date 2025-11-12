@@ -49,9 +49,9 @@ BluetoothHidDetector::BluetoothHidMetadata::operator=(
 BluetoothHidDetector::BluetoothHidMetadata::~BluetoothHidMetadata() = default;
 
 BluetoothHidDetector::BluetoothHidDetectionStatus::BluetoothHidDetectionStatus(
-    absl::optional<BluetoothHidDetector::BluetoothHidMetadata>
+    std::optional<BluetoothHidDetector::BluetoothHidMetadata>
         current_pairing_device,
-    absl::optional<BluetoothHidPairingState> pairing_state)
+    std::optional<BluetoothHidPairingState> pairing_state)
     : current_pairing_device(std::move(current_pairing_device)),
       pairing_state(std::move(pairing_state)) {}
 
@@ -71,10 +71,6 @@ BluetoothHidDetector::BluetoothHidDetectionStatus::operator=(
 
 BluetoothHidDetector::BluetoothHidDetectionStatus::
     ~BluetoothHidDetectionStatus() = default;
-
-BluetoothHidDetector::BluetoothHidDetector() {
-  DCHECK(ash::features::IsOobeHidDetectionRevampEnabled());
-}
 
 BluetoothHidDetector::~BluetoothHidDetector() {
   DCHECK(!delegate_) << " Bluetooth HID detection must be stopped before "

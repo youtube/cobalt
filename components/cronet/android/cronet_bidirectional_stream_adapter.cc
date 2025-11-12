@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "cronet_bidirectional_stream_adapter.h"
 
 #include <string>
@@ -11,10 +16,11 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "components/cronet/android/cronet_context_adapter.h"
-#include "components/cronet/android/cronet_jni_headers/CronetBidirectionalStream_jni.h"
 #include "components/cronet/android/io_buffer_with_byte_buffer.h"
+#include "components/cronet/android/url_request_close_source.h"
 #include "components/cronet/android/url_request_error.h"
 #include "components/cronet/metrics_util.h"
 #include "net/base/http_user_agent_settings.h"
@@ -28,9 +34,11 @@
 #include "net/http/http_util.h"
 #include "net/ssl/ssl_info.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 #include "net/url_request/url_request_context.h"
 #include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/cronet/android/cronet_jni_headers/CronetBidirectionalStream_jni.h"
 
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ConvertJavaStringToUTF8;
@@ -183,12 +191,8 @@ jboolean CronetBidirectionalStreamAdapter::ReadData(
     jint jlimit) {
   DCHECK_LT(jposition, jlimit);
 
-  void* data = env->GetDirectBufferAddress(jbyte_buffer);
-  if (!data)
-    return JNI_FALSE;
-
   scoped_refptr<IOBufferWithByteBuffer> read_buffer(
-      new IOBufferWithByteBuffer(env, jbyte_buffer, data, jposition, jlimit));
+      new IOBufferWithByteBuffer(env, jbyte_buffer, jposition, jlimit));
 
   int remaining_capacity = jlimit - jposition;
 
@@ -232,12 +236,11 @@ jboolean CronetBidirectionalStreamAdapter::WritevData(
     jint limit;
     env->GetIntArrayRegion(pending_write_data->jwrite_buffer_limit_list.obj(),
                            i, 1, &limit);
-    DCHECK_LE(pos, limit);
-    scoped_refptr<net::WrappedIOBuffer> write_buffer =
-        base::MakeRefCounted<net::WrappedIOBuffer>(static_cast<char*>(data) +
-                                                   pos);
+    auto write_buffer = base::MakeRefCounted<net::WrappedIOBuffer>(
+        base::span(static_cast<char*>(data), base::checked_cast<size_t>(limit))
+            .subspan(base::checked_cast<size_t>(pos)));
     pending_write_data->write_buffer_list.push_back(write_buffer);
-    pending_write_data->write_buffer_len_list.push_back(limit - pos);
+    pending_write_data->write_buffer_len_list.push_back(write_buffer->size());
   }
 
   context_->PostTaskToNetworkThread(
@@ -272,7 +275,7 @@ void CronetBidirectionalStreamAdapter::OnStreamReady(
 }
 
 void CronetBidirectionalStreamAdapter::OnHeadersReceived(
-    const spdy::Http2HeaderBlock& response_headers) {
+    const quiche::HttpHeaderBlock& response_headers) {
   DCHECK(context_->IsOnNetworkThread());
   JNIEnv* env = base::android::AttachCurrentThread();
   // Get http status code from response headers.
@@ -284,10 +287,10 @@ void CronetBidirectionalStreamAdapter::OnHeadersReceived(
 
   std::string protocol;
   switch (bidi_stream_->GetProtocol()) {
-    case net::kProtoHTTP2:
+    case net::NextProto::kProtoHTTP2:
       protocol = "h2";
       break;
-    case net::kProtoQUIC:
+    case net::NextProto::kProtoQUIC:
       protocol = "quic/1+spdy/3";
       break;
     default:
@@ -329,7 +332,7 @@ void CronetBidirectionalStreamAdapter::OnDataSent() {
 }
 
 void CronetBidirectionalStreamAdapter::OnTrailersReceived(
-    const spdy::Http2HeaderBlock& response_trailers) {
+    const quiche::HttpHeaderBlock& response_trailers) {
   DCHECK(context_->IsOnNetworkThread());
   JNIEnv* env = base::android::AttachCurrentThread();
   cronet::Java_CronetBidirectionalStream_onResponseTrailersReceived(
@@ -345,6 +348,7 @@ void CronetBidirectionalStreamAdapter::OnFailed(int error) {
   cronet::Java_CronetBidirectionalStream_onError(
       env, owner_, NetErrorToUrlRequestError(error), error,
       net_error_details.quic_connection_error,
+      (int)NetSourceToJavaSource(net_error_details.source),
       ConvertUTF8ToJavaString(env, net::ErrorToString(error)),
       bidi_stream_->GetTotalReceivedBytes());
 }
@@ -444,7 +448,7 @@ void CronetBidirectionalStreamAdapter::DestroyOnNetworkThread(
 base::android::ScopedJavaLocalRef<jobjectArray>
 CronetBidirectionalStreamAdapter::GetHeadersArray(
     JNIEnv* env,
-    const spdy::Http2HeaderBlock& header_block) {
+    const quiche::HttpHeaderBlock& header_block) {
   DCHECK(context_->IsOnNetworkThread());
 
   std::vector<std::string> headers;
@@ -477,6 +481,8 @@ void CronetBidirectionalStreamAdapter::MaybeReportMetrics() {
   JNIEnv* env = base::android::AttachCurrentThread();
   base::Time start_time = load_timing_info.request_start_time;
   base::TimeTicks start_ticks = load_timing_info.request_start;
+  net::NetErrorDetails net_error_details;
+  bidi_stream_->PopulateNetErrorDetails(&net_error_details);
   cronet::Java_CronetBidirectionalStream_onMetricsCollected(
       env, owner_,
       metrics_util::ConvertTime(start_ticks, start_ticks, start_time),
@@ -507,7 +513,11 @@ void CronetBidirectionalStreamAdapter::MaybeReportMetrics() {
       metrics_util::ConvertTime(base::TimeTicks::Now(), start_ticks,
                                 start_time),
       load_timing_info.socket_reused, bidi_stream_->GetTotalSentBytes(),
-      bidi_stream_->GetTotalReceivedBytes());
+      bidi_stream_->GetTotalReceivedBytes(),
+      net_error_details.quic_connection_migration_attempted ? JNI_TRUE
+                                                            : JNI_FALSE,
+      net_error_details.quic_connection_migration_successful ? JNI_TRUE
+                                                             : JNI_FALSE);
 }
 
 }  // namespace cronet

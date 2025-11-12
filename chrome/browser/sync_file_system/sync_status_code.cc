@@ -92,7 +92,6 @@ const char* SyncStatusCodeToString(SyncStatusCode status) {
       return "Sync: retry the operation.";
   }
   NOTREACHED();
-  return "Unknown error.";
 }
 
 SyncStatusCode LevelDBStatusToSyncStatusCode(const leveldb::Status& status) {
@@ -147,7 +146,6 @@ SyncStatusCode FileErrorToSyncStatusCode(
       return SYNC_FILE_ERROR_IO;
     case base::File::FILE_ERROR_MAX:
       NOTREACHED();
-      return SYNC_FILE_ERROR_FAILED;
   }
   // Return the value as is, so the value converted by
   // SyncStatusCodeToFileError could be restored.

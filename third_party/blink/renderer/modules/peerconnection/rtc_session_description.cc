@@ -43,10 +43,11 @@ RTCSessionDescription* RTCSessionDescription::Create(
     ExecutionContext* context,
     const RTCSessionDescriptionInit* description_init_dict) {
   String type;
-  if (description_init_dict->hasType())
-    type = description_init_dict->type();
-  else
+  if (description_init_dict->hasType()) {
+    type = description_init_dict->type().AsString();
+  } else {
     UseCounter::Count(context, WebFeature::kRTCSessionDescriptionInitNoType);
+  }
 
   String sdp;
   if (description_init_dict->hasSdp())
@@ -68,11 +69,11 @@ RTCSessionDescription::RTCSessionDescription(
     RTCSessionDescriptionPlatform* platform_session_description)
     : platform_session_description_(platform_session_description) {}
 
-String RTCSessionDescription::type() const {
-  return platform_session_description_->GetType();
+std::optional<V8RTCSdpType> RTCSessionDescription::type() const {
+  return V8RTCSdpType::Create(platform_session_description_->GetType());
 }
 
-void RTCSessionDescription::setType(absl::optional<V8RTCSdpType> type) {
+void RTCSessionDescription::setType(std::optional<V8RTCSdpType> type) {
   platform_session_description_->SetType(
       type.has_value() ? type.value().AsString() : String());
 }
@@ -85,15 +86,16 @@ void RTCSessionDescription::setSdp(const String& sdp) {
   platform_session_description_->SetSdp(sdp);
 }
 
-ScriptValue RTCSessionDescription::toJSONForBinding(ScriptState* script_state) {
+ScriptObject RTCSessionDescription::toJSONForBinding(
+    ScriptState* script_state) {
   V8ObjectBuilder result(script_state);
-  result.AddStringOrNull("type", type());
+  result.AddStringOrNull("type", platform_session_description_->GetType());
   result.AddStringOrNull("sdp", sdp());
-  return result.GetScriptValue();
+  return result.ToScriptObject();
 }
 
 RTCSessionDescriptionPlatform* RTCSessionDescription::WebSessionDescription() {
-  return platform_session_description_;
+  return platform_session_description_.Get();
 }
 
 void RTCSessionDescription::Trace(Visitor* visitor) const {

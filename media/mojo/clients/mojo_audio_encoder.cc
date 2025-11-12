@@ -5,19 +5,47 @@
 #include "media/mojo/clients/mojo_audio_encoder.h"
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "media/base/audio_buffer.h"
+#include "media/base/media_switches.h"
 #include "media/mojo/common/media_type_converters.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android/media_codec_util.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_version.h"
+#endif
+
 namespace media {
+
+// static
+bool MojoAudioEncoder::IsSupported(AudioCodec codec) {
+  switch (codec) {
+    case AudioCodec::kAAC:
+#if BUILDFLAG(IS_ANDROID)
+      return base::FeatureList::IsEnabled(media::kPlatformAudioEncoder) &&
+             MediaCodecUtil::IsAACEncoderAvailable();
+#elif BUILDFLAG(IS_WIN)
+      // Windows AAC encoder relies on the MediaFoundation, which is not
+      // installed for Windows N Sku.
+      return !base::win::OSInfo::GetInstance()->IsWindowsNSku() &&
+             base::FeatureList::IsEnabled(media::kPlatformAudioEncoder);
+#else
+      return base::FeatureList::IsEnabled(media::kPlatformAudioEncoder);
+#endif
+    default:
+      // We only spin up platform AudioEncoders for AAC for now.
+      return false;
+  }
+}
 
 MojoAudioEncoder::MojoAudioEncoder(
     mojo::PendingRemote<mojom::AudioEncoder> remote_encoder)
     : pending_remote_encoder_(std::move(remote_encoder)),
-      buffer_pool_(new AudioBufferMemoryPool()),
+      buffer_pool_(base::MakeRefCounted<AudioBufferMemoryPool>()),
       runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   weak_this_ = weak_factory_.GetWeakPtr();
 }
@@ -88,7 +116,7 @@ void MojoAudioEncoder::Flush(EncoderStatusCB done_cb) {
 void MojoAudioEncoder::OnEncodedBufferReady(media::EncodedAudioBuffer buffer,
                                             const CodecDescription& desc) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  absl::optional<CodecDescription> opt_desc;
+  std::optional<CodecDescription> opt_desc;
   if (desc.size() > 0)
     opt_desc = desc;
   output_cb_.Run(std::move(buffer), std::move(opt_desc));

@@ -4,21 +4,23 @@
 
 #include "sql/vfs_wrapper.h"
 
-#include <algorithm>
-#include <string>
-#include <vector>
+#include <cstring>
+#include <functional>
+#include <memory>
+#include <string_view>
 
+#include "base/check.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/debug/leak_annotations.h"
-#include "base/files/file_path.h"
-#include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/notreached.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
+#include "sql/sql_features.h"
+#include "third_party/sqlite/sqlite3.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/backup_util.h"
+#include "base/apple/backup_util.h"
+#include "base/files/file_util.h"
 #endif
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -27,6 +29,10 @@
 
 namespace sql {
 namespace {
+
+#if !BUILDFLAG(IS_FUCHSIA)
+int Unlock(sqlite3_file* sqlite_file, int file_lock);
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 // https://www.sqlite.org/vfs.html - documents the overall VFS system.
 //
@@ -58,6 +64,21 @@ int Close(sqlite3_file* sqlite_file) {
   Unlock(sqlite_file, SQLITE_LOCK_NONE);
 #endif
 
+  // On Windows, the file lock is taken with a call to LockFileEx using the
+  // flags 'LOCKFILE_FAIL_IMMEDIATELY'. The documentation state the fhe lock
+  // will be released but it is also stating that it will "eventually" released
+  // and it's better that the application release it on exit.
+  //
+  // see:
+  // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
+  //
+  // A side effect of not releasing the lock is that the next startup may get
+  // a database open error (kBusy). This will cause the next launch to not use
+  // the database.
+  if (base::FeatureList::IsEnabled(sql::features::kUnlockDatabaseOnClose)) {
+    Unlock(sqlite_file, SQLITE_LOCK_NONE);
+  }
+
   VfsFile* file = AsVfsFile(sqlite_file);
   int r = file->wrapped_file->pMethods->xClose(file->wrapped_file);
   sqlite3_free(file->wrapped_file);
@@ -65,7 +86,7 @@ int Close(sqlite3_file* sqlite_file) {
   // Memory will be freed with sqlite3_free(), so the destructor needs to be
   // called explicitly.
   file->~VfsFile();
-  memset(file, '\0', sizeof(*file));
+  UNSAFE_TODO(memset(file, '\0', sizeof(*file)));
   return r;
 }
 
@@ -90,6 +111,7 @@ int Truncate(sqlite3_file* sqlite_file, sqlite3_int64 size)
 
 int Sync(sqlite3_file* sqlite_file, int flags)
 {
+  SCOPED_UMA_HISTOGRAM_TIMER("Sql.vfs.SyncTime");
   sqlite3_file* wrapped_file = GetWrappedFile(sqlite_file);
   return wrapped_file->pMethods->xSync(wrapped_file, flags);
 }
@@ -202,12 +224,14 @@ int Open(sqlite3_vfs* vfs, const char* file_name, sqlite3_file* wrapper_file,
   if (file_name && (desired_flags & kJournalFlags)) {
     // https://www.sqlite.org/c3ref/vfs.html indicates that the journal path
     // will have a suffix separated by "-" from the main database file name.
-    base::StringPiece file_name_string_piece(file_name);
+    std::string_view file_name_string_piece(file_name);
     size_t dash_index = file_name_string_piece.rfind('-');
-    if (dash_index != base::StringPiece::npos) {
-      base::StringPiece db_name(file_name, dash_index);
-      if (base::mac::GetBackupExclusion(base::FilePath(db_name))) {
-        base::mac::SetBackupExclusion(base::FilePath(file_name_string_piece));
+    if (dash_index != std::string_view::npos) {
+      base::FilePath database_file_path(
+          std::string_view(file_name, dash_index));
+      if (base::PathExists(database_file_path) &&
+          base::apple::GetBackupExclusion(database_file_path)) {
+        base::apple::SetBackupExclusion(base::FilePath(file_name_string_piece));
       }
     }
   }
@@ -345,14 +369,9 @@ int CurrentTimeInt64(sqlite3_vfs* vfs, sqlite3_int64* now) {
 
 }  // namespace
 
-sqlite3_vfs* VFSWrapper() {
-  static constexpr char kVFSName[] = "VFSWrapper";
-
-  // Return existing version if already registered.
-  {
-    sqlite3_vfs* vfs = sqlite3_vfs_find(kVFSName);
-    if (vfs)
-      return vfs;
+void EnsureVfsWrapper() {
+  if (sqlite3_vfs_find(kVfsWrapperName)) {
+    return;
   }
 
   // Get the default VFS on all platforms except Fuchsia.
@@ -363,19 +382,21 @@ sqlite3_vfs* VFSWrapper() {
       nullptr;
 #endif
   sqlite3_vfs* wrapped_vfs = sqlite3_vfs_find(kBaseVfsName);
+  CHECK(wrapped_vfs);
 
-  // Give up if there is no VFS implementation for the current platform.
-  if (!wrapped_vfs) {
-    NOTREACHED();
-    return nullptr;
-  }
+  // We only work with the VFS implementations listed below. If you're trying to
+  // use this code with any other VFS, you're not in a good place.
+  std::string_view vfs_name(wrapped_vfs->zName);
+  CHECK(vfs_name == "unix" || vfs_name == "win32" || vfs_name == "unix-none" ||
+        vfs_name == "storage_service")
+      << "Wrapping unexpected VFS " << vfs_name;
 
   std::unique_ptr<sqlite3_vfs, std::function<void(sqlite3_vfs*)>> wrapper_vfs(
       static_cast<sqlite3_vfs*>(sqlite3_malloc(sizeof(sqlite3_vfs))),
       [](sqlite3_vfs* v) {
         sqlite3_free(v);
       });
-  memset(wrapper_vfs.get(), '\0', sizeof(sqlite3_vfs));
+  UNSAFE_TODO(memset(wrapper_vfs.get(), '\0', sizeof(sqlite3_vfs)));
 
   // VFS implementations should always work with a SQLite that only knows about
   // earlier versions.
@@ -391,7 +412,7 @@ sqlite3_vfs* VFSWrapper() {
 
   wrapper_vfs->mxPathname = wrapped_vfs->mxPathname;
   wrapper_vfs->pNext = nullptr;  // Field used by SQLite.
-  wrapper_vfs->zName = kVFSName;
+  wrapper_vfs->zName = kVfsWrapperName;
 
   // Keep a reference to the wrapped vfs for use in methods.
   wrapper_vfs->pAppData = wrapped_vfs;
@@ -436,12 +457,10 @@ sqlite3_vfs* VFSWrapper() {
 
   // The methods above are in version 3 of sqlite_vfs.
 
-  if (SQLITE_OK == sqlite3_vfs_register(wrapper_vfs.get(), 0)) {
+  if (SQLITE_OK == sqlite3_vfs_register(wrapper_vfs.get(), /*makeDflt=*/1)) {
     ANNOTATE_LEAKING_OBJECT_PTR(wrapper_vfs.get());
     wrapper_vfs.release();
   }
-
-  return sqlite3_vfs_find(kVFSName);
 }
 
 }  // namespace sql

@@ -77,7 +77,6 @@ std::string GetBasicCardNetworkName(const mojom::BasicCardNetwork& network) {
       return "visa";
   }
   NOTREACHED();
-  return std::string();
 }
 
 PaymentMethodData ConvertPaymentMethodData(

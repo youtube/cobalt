@@ -26,13 +26,19 @@ class BookmarksApiWatcherFactory : public ProfileKeyedServiceFactory {
   BookmarksApiWatcherFactory()
       : ProfileKeyedServiceFactory(
             "BookmarksApiWatcher",
-            ProfileSelections::BuildForRegularAndIncognito()) {}
+            ProfileSelections::Builder()
+                .WithRegular(ProfileSelection::kOwnInstance)
+                .WithGuest(ProfileSelection::kOwnInstance)
+                // TODO(crbug.com/41488885): Check if this service is needed for
+                // Ash Internals.
+                .WithAshInternals(ProfileSelection::kOwnInstance)
+                .Build()) {}
 
  private:
   // BrowserContextKeyedServiceFactory overrides
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override {
-    return new BookmarksApiWatcher();
+    return std::make_unique<BookmarksApiWatcher>();
   }
 };
 
@@ -55,11 +61,10 @@ void BookmarksApiWatcher::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void BookmarksApiWatcher::NotifyApiInvoked(
-    const extensions::Extension* extension,
-    const extensions::BookmarksFunction* func) {
-  for (auto& observer : observers_)
-    observer.OnBookmarksApiInvoked(extension, func);
+void BookmarksApiWatcher::NotifyApiInvoked(const ExtensionFunction* func) {
+  for (auto& observer : observers_) {
+    observer.OnBookmarksApiInvoked(func);
+  }
 }
 
 // static

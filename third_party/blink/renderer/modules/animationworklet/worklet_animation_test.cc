@@ -5,11 +5,11 @@
 #include "third_party/blink/renderer/modules/animationworklet/worklet_animation.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_timeline_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_animationeffect_animationeffectsequence.h"
@@ -98,7 +98,7 @@ class WorkletAnimationTest : public RenderingTest {
 
   void SetUp() override {
     RenderingTest::SetUp();
-    element_ = GetDocument().CreateElementForBinding("test");
+    element_ = GetDocument().CreateElementForBinding(AtomicString("test"));
     GetDocument().body()->appendChild(element_);
     // Animator has to be registered before constructing WorkletAnimation. For
     // unit test this is faked by adding the animator name to
@@ -149,24 +149,18 @@ TEST_F(WorkletAnimationTest, ElementHasWorkletAnimation) {
 
 // Regression test for crbug.com/1136120, pass if there is no crash.
 TEST_F(WorkletAnimationTest, SetCurrentTimeInfNotCrash) {
-  worklet_animation_->SetPlayState(Animation::kRunning);
+  worklet_animation_->SetPlayState(V8AnimationPlayState::Enum::kRunning);
   GetDocument().GetAnimationClock().UpdateTime(base::TimeTicks::Max());
   worklet_animation_->SetCurrentTime(/*current_time=*/base::TimeDelta::Max());
 }
 
 TEST_F(WorkletAnimationTest, StyleHasCurrentAnimation) {
-  scoped_refptr<const ComputedStyle> style1 =
-      GetDocument()
-          .GetStyleResolver()
-          .ResolveStyle(element_, StyleRecalcContext())
-          .get();
+  const ComputedStyle* style1 = GetDocument().GetStyleResolver().ResolveStyle(
+      element_, StyleRecalcContext());
   EXPECT_FALSE(style1->HasCurrentOpacityAnimation());
   worklet_animation_->play(ASSERT_NO_EXCEPTION);
-  scoped_refptr<const ComputedStyle> style2 =
-      GetDocument()
-          .GetStyleResolver()
-          .ResolveStyle(element_, StyleRecalcContext())
-          .get();
+  const ComputedStyle* style2 = GetDocument().GetStyleResolver().ResolveStyle(
+      element_, StyleRecalcContext());
   EXPECT_TRUE(style2->HasCurrentOpacityAnimation());
 }
 
@@ -282,27 +276,34 @@ TEST_F(WorkletAnimationTest, DocumentTimelineSetPlaybackRateWhilePlaying) {
 TEST_F(WorkletAnimationTest, PausePlay) {
   SimulateFrame(0);
   worklet_animation_->play(ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(Animation::kPending, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kPending,
+            worklet_animation_->PlayState());
   SimulateFrame(0);
-  EXPECT_EQ(Animation::kRunning, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning,
+            worklet_animation_->PlayState());
   EXPECT_TRUE(worklet_animation_->Playing());
   EXPECT_TIME_NEAR(0, worklet_animation_->currentTime().value());
   SimulateFrame(10);
   worklet_animation_->pause(ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(Animation::kPaused, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kPaused,
+            worklet_animation_->PlayState());
   EXPECT_FALSE(worklet_animation_->Playing());
   EXPECT_TIME_NEAR(10, worklet_animation_->currentTime().value());
   SimulateFrame(20);
-  EXPECT_EQ(Animation::kPaused, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kPaused,
+            worklet_animation_->PlayState());
   EXPECT_TIME_NEAR(10, worklet_animation_->currentTime().value());
   worklet_animation_->play(ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(Animation::kPending, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kPending,
+            worklet_animation_->PlayState());
   SimulateFrame(20);
-  EXPECT_EQ(Animation::kRunning, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning,
+            worklet_animation_->PlayState());
   EXPECT_TRUE(worklet_animation_->Playing());
   EXPECT_TIME_NEAR(10, worklet_animation_->currentTime().value());
   SimulateFrame(30);
-  EXPECT_EQ(Animation::kRunning, worklet_animation_->PlayState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning,
+            worklet_animation_->PlayState());
   EXPECT_TIME_NEAR(20, worklet_animation_->currentTime().value());
 }
 
@@ -446,8 +447,9 @@ TEST_F(WorkletAnimationTest, DISABLED_ScrollTimelineNewlyActive) {
   ASSERT_FALSE(worklet_animation->startTime().has_value());
 
   // Make the timeline active.
-  scroller_element->setAttribute(html_names::kStyleAttr,
-                                 "overflow:scroll;width:100px;height:100px;");
+  scroller_element->setAttribute(
+      html_names::kStyleAttr,
+      AtomicString("overflow:scroll;width:100px;height:100px;"));
   UpdateAllLifecyclePhasesForTest();
   // Simulate a new animation frame  which allows the timeline to compute new
   // current time.
@@ -514,8 +516,9 @@ TEST_F(WorkletAnimationTest, DISABLED_ScrollTimelineNewlyInactive) {
   EXPECT_TIME_NEAR(0, start_time.value());
 
   // Make the timeline inactive.
-  scroller_element->setAttribute(html_names::kStyleAttr,
-                                 "overflow:visible;width:100px;height:100px;");
+  scroller_element->setAttribute(
+      html_names::kStyleAttr,
+      AtomicString("overflow:visible;width:100px;height:100px;"));
   UpdateAllLifecyclePhasesForTest();
   GetPage().Animator().ServiceScriptedAnimations(base::TimeTicks::Now());
   ASSERT_FALSE(scroll_timeline->IsActive());
@@ -529,8 +532,9 @@ TEST_F(WorkletAnimationTest, DISABLED_ScrollTimelineNewlyInactive) {
   EXPECT_TIME_NEAR(40, current_time.value());
 
   // Make the timeline active again.
-  scroller_element->setAttribute(html_names::kStyleAttr,
-                                 "overflow:scroll;width:100px;height:100px;");
+  scroller_element->setAttribute(
+      html_names::kStyleAttr,
+      AtomicString("overflow:scroll;width:100px;height:100px;"));
   UpdateAllLifecyclePhasesForTest();
   GetPage().Animator().ServiceScriptedAnimations(base::TimeTicks::Now());
   ASSERT_TRUE(scroll_timeline->IsActive());

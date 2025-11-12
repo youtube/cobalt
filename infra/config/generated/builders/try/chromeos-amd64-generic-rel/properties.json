@@ -1,17 +1,16 @@
 {
-  "$build/chromium_orchestrator": {
-    "compilator": "chromeos-amd64-generic-rel-compilator",
-    "compilator_watcher_git_revision": "e3cad57252d996ab02463019e7f49343d739b885"
-  },
   "$build/chromium_tests_builder_config": {
     "builder_config": {
+      "additional_exclusions": [
+        "infra/config/generated/builders/try/chromeos-amd64-generic-rel/gn-args.json"
+      ],
       "builder_db": {
         "entries": [
           {
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-amd64-generic-rel",
-              "project": "chromium-m114"
+              "project": "chromium-m138"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -19,7 +18,8 @@
               "execution_mode": "COMPILE_AND_TEST",
               "legacy_chromium_config": {
                 "apply_configs": [
-                  "mb"
+                  "mb",
+                  "shared_build_dir"
                 ],
                 "build_config": "Release",
                 "config": "chromium",
@@ -36,7 +36,7 @@
               "legacy_gclient_config": {
                 "apply_configs": [
                   "chromeos",
-                  "checkout_lacros_sdk"
+                  "chromium_with_telemetry_dependencies"
                 ],
                 "config": "chromium"
               }
@@ -48,10 +48,25 @@
         {
           "bucket": "ci",
           "builder": "chromeos-amd64-generic-rel",
-          "project": "chromium-m114"
+          "project": "chromium-m138"
         }
-      ]
+      ],
+      "targets_spec_directory": "src/infra/config/generated/builders/try/chromeos-amd64-generic-rel/targets"
     }
+  },
+  "$build/siso": {
+    "configs": [
+      "builder",
+      "remote-link"
+    ],
+    "enable_cloud_monitoring": true,
+    "enable_cloud_profiler": true,
+    "enable_cloud_trace": true,
+    "experiments": [],
+    "metrics_project": "chromium-reclient-metrics",
+    "output_local_strategy": "minimum",
+    "project": "rbe-chromium-untrusted",
+    "remote_jobs": 150
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],
@@ -61,6 +76,5 @@
     ]
   },
   "builder_group": "tryserver.chromium.chromiumos",
-  "cq": "required",
-  "recipe": "chromium/orchestrator"
+  "recipe": "chromium_trybot"
 }

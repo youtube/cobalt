@@ -1,8 +1,9 @@
 Name: International Components for Unicode for Java (ICU4J)
 URL: http://site.icu-project.org/
 Version: 53.1
-License: MIT
-License File: NOT_SHIPPED
+License: Unicode-DFS-2015, NAIST-2003, BSD-3-Clause, BSD-2-Clause, ICU
+License File: LICENSE
 Security Critical: no
+Shipped: no
 Description: icu4j provides Java libraries for Unicode support.
 Local Modifications: None

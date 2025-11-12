@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/inlined_vector.h"
 #include "quiche/http2/adapter/http2_adapter.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/nghttp2_session.h"
@@ -55,6 +56,8 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                       std::unique_ptr<MetadataSource> source) override;
 
+  void SubmitMetadata(Http2StreamId stream_id, size_t num_frames) override;
+
   int Send() override;
 
   int GetSendWindowSize() const override;
@@ -72,12 +75,15 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
 
+  // For the deprecated overload.
+  using Http2Adapter::SubmitRequest;
   int32_t SubmitRequest(absl::Span<const Header> headers,
-                        std::unique_ptr<DataFrameSource> data_source,
-                        void* user_data) override;
+                        bool end_stream, void* user_data) override;
 
+  // For the deprecated overload.
+  using Http2Adapter::SubmitResponse;
   int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
-                     std::unique_ptr<DataFrameSource> data_source) override;
+                     bool end_stream) override;
 
   int SubmitTrailer(Http2StreamId stream_id,
                     absl::Span<const Header> trailers) override;
@@ -87,13 +93,36 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
 
   bool ResumeStream(Http2StreamId stream_id) override;
 
+  void FrameNotSent(Http2StreamId stream_id, uint8_t frame_type) override;
+
   // Removes references to the `stream_id` from this adapter.
   void RemoveStream(Http2StreamId stream_id);
 
   // Accessor for testing.
-  size_t sources_size() const { return sources_.size(); }
+  size_t sources_size() const { return 0; }
+  size_t stream_metadata_size() const { return stream_metadata_.size(); }
+  size_t pending_metadata_count(Http2StreamId stream_id) const {
+    if (auto it = stream_metadata_.find(stream_id);
+        it != stream_metadata_.end()) {
+      return it->second.size();
+    }
+    return 0;
+  }
+
+  // Delegates a DATA frame read callback to either the visitor or a registered
+  // DataFrameSource.
+  ssize_t DelegateReadCallback(int32_t stream_id, size_t max_length,
+                               uint32_t* data_flags);
+
+  // Delegates a DATA frame send callback to either the visitor or a registered
+  // DataFrameSource.
+  int DelegateSendCallback(int32_t stream_id, const uint8_t* framehd,
+                           size_t length);
 
  private:
+  class NotifyingMetadataSource;
+  class NotifyingVisitorMetadataSource;
+
   NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective,
                  const nghttp2_option* options);
 
@@ -101,12 +130,17 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   // such as preparing initial SETTINGS.
   void Initialize();
 
+  void RemovePendingMetadata(Http2StreamId stream_id);
+
   std::unique_ptr<NgHttp2Session> session_;
   Http2VisitorInterface& visitor_;
   const nghttp2_option* options_;
   Perspective perspective_;
 
-  absl::flat_hash_map<int32_t, std::unique_ptr<DataFrameSource>> sources_;
+  using MetadataSourceVec =
+      absl::InlinedVector<std::unique_ptr<MetadataSource>, 2>;
+  using MetadataMap = absl::flat_hash_map<Http2StreamId, MetadataSourceVec>;
+  MetadataMap stream_metadata_;
 };
 
 }  // namespace adapter

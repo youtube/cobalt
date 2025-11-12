@@ -8,13 +8,18 @@ import android.content.res.Configuration;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ObserverList;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
- * Observes and keeps a record of the system night mode state (i.e. the night mode from
- * the application).
+ * Observes and keeps a record of the system night mode state (i.e. the night mode from the
+ * application).
  */
+@NullMarked
 public class SystemNightModeMonitor {
-    private static SystemNightModeMonitor sInstance;
+    private static @Nullable SystemNightModeMonitor sInstance;
 
     /** Interface for callback when system night mode is changed. */
     public interface Observer {
@@ -26,14 +31,21 @@ public class SystemNightModeMonitor {
     private boolean mSystemNightModeOn;
 
     /**
-     * @return The {@link SystemNightModeMonitor} that observes the system night mode state
-     *         (i.e. the night mode from the application).
+     * @return The {@link SystemNightModeMonitor} that observes the system night mode state (i.e.
+     *     the night mode from the application).
      */
     public static SystemNightModeMonitor getInstance() {
+        ThreadUtils.assertOnUiThread();
         if (sInstance == null) {
             sInstance = new SystemNightModeMonitor();
         }
         return sInstance;
+    }
+
+    public static void setInstanceForTesting(SystemNightModeMonitor instance) {
+        var oldValue = sInstance;
+        sInstance = instance;
+        ResettersForTesting.register(() -> sInstance = oldValue);
     }
 
     private SystemNightModeMonitor() {
@@ -57,9 +69,7 @@ public class SystemNightModeMonitor {
         mObservers.removeObserver(observer);
     }
 
-    /**
-     * Updates the system night mode state, and notifies observers if system night mode changes.
-     */
+    /** Updates the system night mode state, and notifies observers if system night mode changes. */
     public void onApplicationConfigurationChanged() {
         final boolean oldNightMode = mSystemNightModeOn;
         calculateSystemNightMode();

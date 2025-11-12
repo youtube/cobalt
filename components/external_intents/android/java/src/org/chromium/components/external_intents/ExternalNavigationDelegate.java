@@ -10,15 +10,16 @@ import android.content.pm.ResolveInfo;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 import java.util.List;
 
-/**
- * A delegate for {@link ExternalNavigationHandler}.
- */
+/** A delegate for {@link ExternalNavigationHandler}. */
+@NullMarked
 public interface ExternalNavigationDelegate {
     /**
      * Returns the Context with which this delegate is associated, or null if there is no such
@@ -37,9 +38,7 @@ public interface ExternalNavigationDelegate {
      */
     boolean willAppHandleIntent(Intent intent);
 
-    /**
-     * Returns whether to disable forwarding URL requests to external intents for the passed-in URL.
-     */
+    /** Returns whether to disable forwarding URL requests to external intents for the passed-in URL. */
     boolean shouldDisableExternalIntentRequestsForUrl(GURL url);
 
     /** Adds a window id to the intent, if necessary. */
@@ -61,24 +60,16 @@ public interface ExternalNavigationDelegate {
      */
     void maybeSetPendingIncognitoUrl(Intent intent);
 
-    /**
-     * Determine if the application of the embedder is in the foreground.
-     */
+    /** Determine if the application of the embedder is in the foreground. */
     boolean isApplicationInForeground();
 
-    /**
-     * @return The WindowAndroid instance associated with this delegate instance.
-     */
+    /** @return The WindowAndroid instance associated with this delegate instance. */
     WindowAndroid getWindowAndroid();
 
-    /**
-     * @return The WebContents instance associated with this delegate instance.
-     */
+    /** @return The WebContents instance associated with this delegate instance. */
     WebContents getWebContents();
 
-    /**
-     * @return Whether this delegate has a valid tab available.
-     */
+    /** @return Whether this delegate has a valid tab available. */
     boolean hasValidTab();
 
     /**
@@ -90,9 +81,7 @@ public interface ExternalNavigationDelegate {
      */
     boolean canCloseTabOnIncognitoIntentLaunch();
 
-    /**
-     * @return whether it's possible to load a URL in the current tab.
-     */
+    /** @return whether it's possible to load a URL in the current tab. */
     boolean canLoadUrlInCurrentTab();
 
     /* Invoked when the tab associated with this delegate should be closed. */
@@ -120,14 +109,10 @@ public interface ExternalNavigationDelegate {
      */
     boolean isForTrustedCallingApp(Supplier<List<ResolveInfo>> resolveInfoSupplier);
 
-    /**
-     * Whether WebAPKs should be launched even on the initial Intent.
-     */
+    /** Whether WebAPKs should be launched even on the initial Intent. */
     boolean shouldLaunchWebApksOnInitialIntent();
 
-    /**
-     * Adds a target package to the Intent. Only called if isForTrustedCallingApp is true.
-     */
+    /** Adds a target package to the Intent. Only called if isForTrustedCallingApp is true. */
     void setPackageForTrustedCallingApp(Intent intent);
 
     /**
@@ -142,4 +127,43 @@ public interface ExternalNavigationDelegate {
      * navigation still being allowed to leave the browser.
      */
     boolean shouldEmbedderInitiatedNavigationsStayInBrowser();
+
+    /**
+     * Returns the scheme (or null) used by web pages to start up the browser (Chrome Stable for
+     * Chrome) without an explicit Intent.
+     */
+    @Nullable String getSelfScheme();
+
+    /** Returns whether all the external intents are supposed to be disabled per embedder. */
+    boolean shouldDisableAllExternalIntents();
+
+    /**
+     * Returns whether the url should be returned as the result of the current activity.
+     *
+     * @param url The {@link GURL} to return as activtiy result.
+     */
+    boolean shouldReturnAsActivityResult(GURL url);
+
+    /**
+     * Sets the url as the result of the current activity and finishes it if conditions are met.
+     *
+     * @param url The {@link GURL} to return as activtiy result.
+     */
+    void returnAsActivityResult(GURL url);
+
+    /**
+     * Records the scheme of the external navigation if this is likely a CCT launched for auth
+     * purposes.
+     *
+     * @param url The {@link GURL} of the external navigation.
+     */
+    void maybeRecordExternalNavigationSchemeHistogram(GURL url);
+
+    /**
+     * Records metrics relevant to password saving in CCTs if the recorder exists. A recorder might
+     * not exist if there was no form submission preceding the external navigation.
+     */
+    void notifyCctPasswordSavingRecorderOfExternalNavigation();
+
+    void reportIntentToSafeBrowsing(Intent intent);
 }

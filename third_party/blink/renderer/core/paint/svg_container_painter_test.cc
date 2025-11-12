@@ -52,10 +52,12 @@ TEST_P(SVGContainerPainterTest, FilterPaintProperties) {
 
   const auto* after = GetLayoutObjectByElementId("after");
   PaintChunk::Id after_id(after->Id(), kSVGEffectPaintPhaseForeground);
+
   const auto& after_properties = after->FirstFragment().ContentsProperties();
 
   EXPECT_THAT(ContentPaintChunks(),
               ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON,
+                          IsPaintChunk(1, 1),  // Hit test for svg.
                           IsPaintChunk(1, 2, before_id, before_properties),
                           IsPaintChunk(2, 3, rect_id, container_properties),
                           IsPaintChunk(3, 4, after_id, after_properties)));
@@ -88,12 +90,14 @@ TEST_P(SVGContainerPainterTest, ScaleAnimationFrom0) {
   // Initially all <g>s and <rect>s are empty and don't paint.
 
   EXPECT_THAT(ContentPaintChunks(),
-              ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON));
+              ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON,
+                          IsPaintChunk(1, 1)));  // Svg hit test.
 
-  auto* rect1_element = GetDocument().getElementById("rect1");
-  auto* rect2_element = GetDocument().getElementById("rect2");
-  rect1_element->setAttribute(html_names::kClassAttr, "scale");
-  rect2_element->setAttribute(html_names::kClassAttr, "transform-scale");
+  auto* rect1_element = GetDocument().getElementById(AtomicString("rect1"));
+  auto* rect2_element = GetDocument().getElementById(AtomicString("rect2"));
+  rect1_element->setAttribute(html_names::kClassAttr, AtomicString("scale"));
+  rect2_element->setAttribute(html_names::kClassAttr,
+                              AtomicString("transform-scale"));
   UpdateAllLifecyclePhasesForTest();
 
   // Start animations on the rects.
@@ -109,6 +113,7 @@ TEST_P(SVGContainerPainterTest, ScaleAnimationFrom0) {
   // Both rects should be painted to be ready for composited animation.
   EXPECT_THAT(ContentPaintChunks(),
               ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON,
+                          IsPaintChunk(1, 1),  // Svg hit test.
                           IsPaintChunk(1, 2, rect1_id, rect1_properties),
                           IsPaintChunk(2, 3, rect2_id, rect2_properties)));
 
@@ -120,6 +125,7 @@ TEST_P(SVGContainerPainterTest, ScaleAnimationFrom0) {
   // harmless and we want to avoid repaints.
   EXPECT_THAT(ContentPaintChunks(),
               ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON,
+                          IsPaintChunk(1, 1),  // Svg hit test.
                           IsPaintChunk(1, 2, rect1_id, rect1_properties),
                           IsPaintChunk(2, 3, rect2_id, rect2_properties)));
 
@@ -130,7 +136,8 @@ TEST_P(SVGContainerPainterTest, ScaleAnimationFrom0) {
   rect1->EnclosingLayer()->SetNeedsRepaint();
   UpdateAllLifecyclePhasesForTest();
   EXPECT_THAT(ContentPaintChunks(),
-              ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON));
+              ElementsAre(VIEW_SCROLLING_BACKGROUND_CHUNK_COMMON,
+                          IsPaintChunk(1, 1)));  // Svg hit test.
 }
 
 }  // namespace blink

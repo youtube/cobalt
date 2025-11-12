@@ -4,7 +4,9 @@
 
 #include "third_party/blink/renderer/core/editing/state_machines/backward_grapheme_boundary_state_machine.h"
 
-#include <ostream>  // NOLINT
+#include <array>
+#include <ostream>
+
 #include "third_party/blink/renderer/core/editing/state_machines/state_machine_util.h"
 #include "third_party/blink/renderer/core/editing/state_machines/text_segmentation_machine_state.h"
 #include "third_party/blink/renderer/platform/text/character.h"
@@ -42,15 +44,13 @@ enum class BackwardGraphemeBoundaryStateMachine::InternalState {
 std::ostream& operator<<(
     std::ostream& os,
     BackwardGraphemeBoundaryStateMachine::InternalState state) {
-  static const char* const kTexts[] = {
+  static const auto kTexts = std::to_array<const char*>({
 #define V(name) #name,
       FOR_EACH_BACKWARD_GRAPHEME_BOUNDARY_STATE(V)
 #undef V
-  };
-  auto* const* const it = std::begin(kTexts) + static_cast<size_t>(state);
-  DCHECK_GE(it, std::begin(kTexts)) << "Unknown state value";
-  DCHECK_LT(it, std::end(kTexts)) << "Unknown state value";
-  return os << *it;
+  });
+  DCHECK_LT(static_cast<size_t>(state), kTexts.size()) << "Unknown state value";
+  return os << kTexts[static_cast<size_t>(state)];
 }
 
 BackwardGraphemeBoundaryStateMachine::BackwardGraphemeBoundaryStateMachine()
@@ -165,7 +165,6 @@ BackwardGraphemeBoundaryStateMachine::FeedPrecedingCodeUnit(UChar code_unit) {
       NOTREACHED() << "Do not call feedPrecedingCodeUnit() once it finishes.";
   }
   NOTREACHED() << "Unhandled state: " << internal_state_;
-  return Finish();
 }
 
 TextSegmentationMachineState
@@ -193,13 +192,11 @@ BackwardGraphemeBoundaryStateMachine::TellEndOfPrecedingText() {
       NOTREACHED() << "Do not call tellEndOfPrecedingText() once it finishes.";
   }
   NOTREACHED() << "Unhandled state: " << internal_state_;
-  return Finish();
 }
 
 TextSegmentationMachineState
 BackwardGraphemeBoundaryStateMachine::FeedFollowingCodeUnit(UChar code_unit) {
   NOTREACHED();
-  return TextSegmentationMachineState::kInvalid;
 }
 
 int BackwardGraphemeBoundaryStateMachine::FinalizeAndGetBoundaryOffset() {

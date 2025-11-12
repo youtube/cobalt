@@ -15,6 +15,7 @@
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_event_intent.h"
 #include "ui/accessibility/ax_node_data.h"
+#include "ui/accessibility/ax_tree_checks.h"
 #include "ui/accessibility/ax_tree_data.h"
 
 namespace ui {
@@ -49,8 +50,17 @@ namespace ui {
 //        before or after an AXTreeUpdate.
 struct AX_BASE_EXPORT AXTreeUpdate {
   AXTreeUpdate();
+
+  AXTreeUpdate(AXTreeUpdate&& other);
+  AXTreeUpdate& operator=(AXTreeUpdate&& other);
+
+  // TODO(accessibility): try to = delete these or finish auditing all sites.
   AXTreeUpdate(const AXTreeUpdate& other);
+  AXTreeUpdate& operator=(const AXTreeUpdate& other);
+
   ~AXTreeUpdate();
+
+  void AccumulateSize(AXNodeData::AXNodeDataSize& node_data_size) const;
 
   // If |has_tree_data| is true, the value of |tree_data| should be used
   // to update the tree data, otherwise it should be ignored.
@@ -82,8 +92,18 @@ struct AX_BASE_EXPORT AXTreeUpdate {
   // The event intents associated with this tree update.
   std::vector<AXEventIntent> event_intents;
 
+  std::optional<AXTreeChecks> tree_checks;
+
   // Return a multi-line indented string representation, for logging.
-  std::string ToString(bool verbose = true) const;
+  // This method is used to help diagnose inconsistent tree states. Limiting the
+  // max number of items avoids out of memory errors and excessive logging.
+  // To stringify the entire update, pass in max_items = -1.
+  static constexpr int kMaxItemsToStringify = 200;
+  std::string ToString(bool verbose = true,
+                       int max_items = kMaxItemsToStringify) const;
+
+  // Returns the approximate size in bytes.
+  size_t ByteSize() const;
 };
 
 }  // namespace ui

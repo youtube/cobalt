@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -112,9 +113,7 @@ class VolumeControlInternal : public SystemVolumeControl::Delegate {
 
   void RemoveVolumeObserver(VolumeObserver* observer) {
     base::AutoLock lock(observer_lock_);
-    volume_observers_.erase(std::remove(volume_observers_.begin(),
-                                        volume_observers_.end(), observer),
-                            volume_observers_.end());
+    std::erase(volume_observers_, observer);
   }
 
   float GetVolume(AudioContentType type) {
@@ -202,7 +201,7 @@ class VolumeControlInternal : public SystemVolumeControl::Delegate {
 
     for (auto type : {AudioContentType::kMedia, AudioContentType::kAlarm,
                       AudioContentType::kCommunication}) {
-      absl::optional<double> dbfs =
+      std::optional<double> dbfs =
           stored_values_.FindDouble(ContentTypeToDbFSPath(type));
       CHECK(dbfs);
       volumes_[type] = VolumeControl::DbFSToVolume(*dbfs);
@@ -245,7 +244,7 @@ class VolumeControlInternal : public SystemVolumeControl::Delegate {
     DCHECK(thread_.task_runner()->BelongsToCurrentThread());
     DCHECK_NE(AudioContentType::kOther, type);
     DCHECK(!from_system || type == AudioContentType::kMedia);
-    DCHECK(volume_multipliers_.find(type) != volume_multipliers_.end());
+    DCHECK(base::Contains(volume_multipliers_, type));
 
     {
       base::AutoLock lock(volume_lock_);
@@ -278,7 +277,7 @@ class VolumeControlInternal : public SystemVolumeControl::Delegate {
     stored_values_.SetByDottedPath(ContentTypeToDbFSPath(type), dbfs);
     std::string output_js;
     base::JSONWriter::Write(stored_values_, &output_js);
-    saved_volumes_writer_->WriteNow(std::make_unique<std::string>(output_js));
+    saved_volumes_writer_->WriteNow(std::move(output_js));
   }
 
   void SetVolumeMultiplierOnThread(AudioContentType type, float multiplier) {

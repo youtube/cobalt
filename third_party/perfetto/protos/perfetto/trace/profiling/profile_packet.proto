@@ -303,13 +303,18 @@ message PerfSample {
   // Value of the timebase counter (since the event was configured, no deltas).
   optional uint64 timebase_count = 6;
 
+  // Value of the followers counter (since the event was configured, no deltas).
+  repeated uint64 follower_counts = 7;
+
   // Unwound callstack. Might be partial, in which case a synthetic "error"
   // frame is appended, and |unwind_error| is set accordingly.
   optional uint64 callstack_iid = 4;
 
   // If set, stack unwinding was incomplete due to an error.
   // Unset values should be treated as UNWIND_ERROR_NONE.
-  oneof optional_unwind_error { Profiling.StackUnwindError unwind_error = 16; };
+  oneof optional_unwind_error {
+    Profiling.StackUnwindError unwind_error = 16;
+  };
 
   // If set, indicates that this message is not a sample, but rather an
   // indication of data loss in the ring buffer allocated for |cpu|. Such data
@@ -332,6 +337,7 @@ message PerfSample {
     PROFILER_SKIP_READ_STAGE = 1;
     PROFILER_SKIP_UNWIND_STAGE = 2;
     PROFILER_SKIP_UNWIND_ENQUEUE = 3;
+    PROFILER_SKIP_NOT_IN_SCOPE = 4;
   }
   oneof optional_sample_skipped_reason {
     SampleSkipReason sample_skipped_reason = 18;
@@ -355,6 +361,9 @@ message PerfSampleDefaults {
   // The sampling timebase. Might not be identical to the data source config if
   // the implementation decided to default/override some parameters.
   optional PerfEvents.Timebase timebase = 1;
+
+  // Description of followers event
+  repeated FollowerEvent followers = 4;
 
   // If the config requested process sharding, report back the count and which
   // of those bins was selected. Never changes for the duration of a trace.

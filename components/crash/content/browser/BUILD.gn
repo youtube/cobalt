@@ -2,15 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromecast_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/cast.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
-# TODO(crbug.com/1226159): Complete crash reporting integration on Fuchsia.
+# TODO(crbug.com/40188745): Complete crash reporting integration on Fuchsia.
 assert(!is_fuchsia)
+
+if (is_android) {
+  generate_jni("jni_headers") {
+    sources = [
+      "../../android/java/src/org/chromium/components/crash/browser/ChildProcessCrashObserver.java",
+      "../../android/java/src/org/chromium/components/crash/browser/ProcessExitReasonFromSystem.java",
+    ]
+  }
+}
 
 source_set("browser") {
   sources = []
@@ -22,20 +31,17 @@ source_set("browser") {
     "//content/public/common",
   ]
 
-  if (is_castos || is_chromeos || is_android) {
+  if (is_castos || is_android) {
     sources += [
       "crash_handler_host_linux.cc",
       "crash_handler_host_linux.h",
     ]
   }
 
-  if (is_castos || is_chromeos) {
+  if (is_castos) {
     configs += [ "//third_party/breakpad:client_config" ]
     public_configs = [ "//third_party/breakpad:client_config" ]
-    deps += [
-      "//build:chromeos_buildflags",
-      "//third_party/breakpad:client",
-    ]
+    deps += [ "//third_party/breakpad:client" ]
   }
 
   if (is_android) {
@@ -52,7 +58,7 @@ source_set("browser") {
       "process_exit_reason_from_system_android.h",
     ]
     deps += [
-      "//components/crash/android:jni_headers",
+      ":jni_headers",
       "//mojo/public/cpp/bindings",
       "//third_party/crashpad/crashpad/client",
     ]

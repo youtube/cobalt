@@ -4,6 +4,10 @@
 
 #include "ash/assistant/ui/main_stage/assistant_onboarding_suggestion_view.h"
 
+#include <array>
+#include <string_view>
+#include <utility>
+
 #include "ash/assistant/ui/assistant_ui_constants.h"
 #include "ash/assistant/ui/assistant_view_delegate.h"
 #include "ash/assistant/ui/assistant_view_ids.h"
@@ -15,6 +19,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/focus_ring.h"
@@ -43,55 +48,53 @@ constexpr float kInkDropHighlightOpacity = 0.08f;
 
 // Helpers ---------------------------------------------------------------------
 
-struct ColorPalette {
-  SkColor flag_off;
-  SkColor dark;
-  SkColor light;
-};
-
 SkColor GetBackgroundColor(int index) {
   // Opacity values:
   // 0x19: 10%
   // 0x4c: 30%
-  constexpr ColorPalette kBackgroundColors[] = {
-      {gfx::kGoogleBlue050, SkColorSetA(gfx::kGoogleBlue300, 0x4c),
+  constexpr std::array<std::pair<SkColor, SkColor>, 6> kBackgroundColors = {{
+      // First: Dark Mode
+      // Second: Light Mode
+      {SkColorSetA(gfx::kGoogleBlue300, 0x4c),
        SkColorSetA(gfx::kGoogleBlue600, 0x19)},
-      {gfx::kGoogleRed050, SkColorSetA(gfx::kGoogleRed300, 0x4c),
+      {SkColorSetA(gfx::kGoogleRed300, 0x4c),
        SkColorSetA(gfx::kGoogleRed600, 0x19)},
-      {gfx::kGoogleYellow050, SkColorSetA(gfx::kGoogleYellow300, 0x4c),
+      {SkColorSetA(gfx::kGoogleYellow300, 0x4c),
        SkColorSetA(gfx::kGoogleYellow600, 0x19)},
-      {gfx::kGoogleGreen050, SkColorSetA(gfx::kGoogleGreen300, 0x4c),
+      {SkColorSetA(gfx::kGoogleGreen300, 0x4c),
        SkColorSetA(gfx::kGoogleGreen600, 0x19)},
-      {SkColorSetRGB(0xF6, 0xE9, 0xF8), SkColorSetARGB(0x4c, 0xf8, 0x82, 0xff),
+      {SkColorSetARGB(0x4c, 0xf8, 0x82, 0xff),
        SkColorSetARGB(0x19, 0xc6, 0x1a, 0xd9)},
-      {gfx::kGoogleBlue050, SkColorSetA(gfx::kGoogleBlue300, 0x4c),
-       SkColorSetA(gfx::kGoogleBlue600, 0x19)}};
+      {SkColorSetA(gfx::kGoogleBlue300, 0x4c),
+       SkColorSetA(gfx::kGoogleBlue600, 0x19)},
+  }};
 
   DCHECK_GE(index, 0);
-  DCHECK_LT(index, static_cast<int>(std::size(kBackgroundColors)));
+  DCHECK_LT(index, static_cast<int>(kBackgroundColors.size()));
 
   return DarkLightModeControllerImpl::Get()->IsDarkModeEnabled()
-             ? kBackgroundColors[index].dark
-             : kBackgroundColors[index].light;
+             ? kBackgroundColors[index].first
+             : kBackgroundColors[index].second;
 }
 
 SkColor GetForegroundColor(int index) {
-  constexpr ColorPalette kForegroundColors[] = {
-      {gfx::kGoogleBlue800, gfx::kGoogleBlue200, gfx::kGoogleBlue800},
-      {gfx::kGoogleRed800, gfx::kGoogleRed200, gfx::kGoogleRed800},
-      {SkColorSetRGB(0xBF, 0x50, 0x00), gfx::kGoogleYellow200,
-       SkColorSetRGB(0xBF, 0x50, 0x00)},
-      {gfx::kGoogleGreen800, gfx::kGoogleGreen200, gfx::kGoogleGreen800},
-      {SkColorSetRGB(0x8A, 0x0E, 0x9E), SkColorSetRGB(0xf8, 0x82, 0xff),
-       SkColorSetRGB(0xaa, 0x00, 0xb8)},
-      {gfx::kGoogleBlue800, gfx::kGoogleBlue200, gfx::kGoogleBlue800}};
+  constexpr std::array<std::pair<SkColor, SkColor>, 6> kForegroundColors = {{
+      // First: Dark Mode
+      // Second: Light Mode
+      {gfx::kGoogleBlue200, gfx::kGoogleBlue800},
+      {gfx::kGoogleRed200, gfx::kGoogleRed800},
+      {gfx::kGoogleYellow200, SkColorSetRGB(0xBF, 0x50, 0x00)},
+      {gfx::kGoogleGreen200, gfx::kGoogleGreen800},
+      {SkColorSetRGB(0xf8, 0x82, 0xff), SkColorSetRGB(0xaa, 0x00, 0xb8)},
+      {gfx::kGoogleBlue200, gfx::kGoogleBlue800},
+  }};
 
   DCHECK_GE(index, 0);
-  DCHECK_LT(index, static_cast<int>(std::size(kForegroundColors)));
+  DCHECK_LT(index, static_cast<int>(kForegroundColors.size()));
 
   return DarkLightModeControllerImpl::Get()->IsDarkModeEnabled()
-             ? kForegroundColors[index].dark
-             : kForegroundColors[index].light;
+             ? kForegroundColors[index].first
+             : kForegroundColors[index].second;
 }
 
 }  // namespace
@@ -118,8 +121,11 @@ AssistantOnboardingSuggestionView::~AssistantOnboardingSuggestionView() {
   views::InkDrop::Remove(this);
 }
 
-int AssistantOnboardingSuggestionView::GetHeightForWidth(int width) const {
-  return kPreferredHeightDip;
+gfx::Size AssistantOnboardingSuggestionView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  const int preferred_width =
+      views::Button::CalculatePreferredSize(available_size).width();
+  return gfx::Size(preferred_width, kPreferredHeightDip);
 }
 
 void AssistantOnboardingSuggestionView::ChildPreferredSizeChanged(
@@ -145,18 +151,16 @@ void AssistantOnboardingSuggestionView::RemoveLayerFromRegions(
 void AssistantOnboardingSuggestionView::OnThemeChanged() {
   views::View::OnThemeChanged();
 
-  GetBackground()->SetNativeControlColor(GetBackgroundColor(index_));
-
-  // SetNativeControlColor does not trigger a repaint.
+  GetBackground()->SetColor(GetBackgroundColor(index_));
   SchedulePaint();
-
   label_->SetEnabledColor(GetForegroundColor(index_));
 
   if (assistant::util::IsResourceLinkType(url_, ResourceLinkType::kIcon)) {
-    icon_->SetImage(assistant::util::CreateVectorIcon(
-        assistant::util::AppendOrReplaceColorParam(url_,
-                                                   GetForegroundColor(index_)),
-        kIconSizeDip));
+    icon_->SetImage(
+        ui::ImageModel::FromImageSkia(assistant::util::CreateVectorIcon(
+            assistant::util::AppendOrReplaceColorParam(
+                url_, GetForegroundColor(index_)),
+            kIconSizeDip)));
   }
 }
 
@@ -164,14 +168,14 @@ gfx::ImageSkia AssistantOnboardingSuggestionView::GetIcon() const {
   return icon_->GetImage();
 }
 
-const std::u16string& AssistantOnboardingSuggestionView::GetText() const {
+std::u16string_view AssistantOnboardingSuggestionView::GetText() const {
   return label_->GetText();
 }
 
 void AssistantOnboardingSuggestionView::InitLayout(
     const assistant::AssistantSuggestion& suggestion) {
   // A11y.
-  SetAccessibleName(base::UTF8ToUTF16(suggestion.text));
+  GetViewAccessibility().SetName(base::UTF8ToUTF16(suggestion.text));
 
   // Background.
   SetBackground(views::CreateRoundedRectBackground(GetBackgroundColor(index_),
@@ -199,22 +203,21 @@ void AssistantOnboardingSuggestionView::InitLayout(
       AddChildView(std::make_unique<views::InkDropContainerView>());
 
   // Layout.
-  auto& layout =
-      SetLayoutManager(std::make_unique<views::FlexLayout>())
-          ->SetCollapseMargins(true)
-          .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
-          .SetDefault(views::kFlexBehaviorKey, views::FlexSpecification())
-          .SetDefault(views::kMarginsKey, gfx::Insets::VH(0, 2 * kSpacingDip))
-          .SetInteriorMargin(gfx::Insets::VH(0, 2 * kMarginDip))
-          .SetOrientation(views::LayoutOrientation::kHorizontal);
+  SetLayoutManager(std::make_unique<views::FlexLayout>())
+      ->SetCollapseMargins(true)
+      .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
+      .SetDefault(views::kFlexBehaviorKey, views::FlexSpecification())
+      .SetDefault(views::kMarginsKey, gfx::Insets::VH(0, 2 * kSpacingDip))
+      .SetInteriorMargin(gfx::Insets::VH(0, 2 * kMarginDip))
+      .SetOrientation(views::LayoutOrientation::kHorizontal);
 
-  // NOTE: Our |layout| ignores the view for drawing focus as it is a special
-  // view which lays out itself. Removing this would cause it *not* to paint.
-  layout.SetChildViewIgnoredByLayout(views::FocusRing::Get(this), true);
+  // Ignore the focus ring, which lays out itself.
+  views::FocusRing::Get(this)->SetProperty(views::kViewIgnoredByLayoutKey,
+                                           true);
 
-  // NOTE: Our |ink_drop_container_| serves only to hold reference to ink drop
-  // layers for painting purposes. It can be completely ignored by our |layout|.
-  layout.SetChildViewIgnoredByLayout(ink_drop_container_, true);
+  // Ignore the `ink_drop_container_`, which serves only to hold reference to
+  // ink drop layers for painting purposes.
+  ink_drop_container_->SetProperty(views::kViewIgnoredByLayoutKey, true);
 
   // Icon.
   icon_ = AddChildView(std::make_unique<views::ImageView>());
@@ -255,14 +258,14 @@ void AssistantOnboardingSuggestionView::InitLayout(
 
 void AssistantOnboardingSuggestionView::UpdateIcon(const gfx::ImageSkia& icon) {
   if (!icon.isNull())
-    icon_->SetImage(icon);
+    icon_->SetImage(ui::ImageModel::FromImageSkia(icon));
 }
 
 void AssistantOnboardingSuggestionView::OnButtonPressed() {
   delegate_->OnSuggestionPressed(suggestion_id_);
 }
 
-BEGIN_METADATA(AssistantOnboardingSuggestionView, views::Button)
+BEGIN_METADATA(AssistantOnboardingSuggestionView)
 END_METADATA
 
 }  // namespace ash

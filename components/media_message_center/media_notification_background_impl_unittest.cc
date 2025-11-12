@@ -96,11 +96,11 @@ class MediaNotificationBackgroundImplTest : public views::ViewsTestBase {
     return background_.get();
   }
 
-  absl::optional<SkColor> GetBackgroundColor() const {
+  std::optional<SkColor> GetBackgroundColor() const {
     return background_->background_color_;
   }
 
-  absl::optional<SkColor> GetForegroundColor() const {
+  std::optional<SkColor> GetForegroundColor() const {
     return background_->foreground_color_;
   }
 
@@ -210,7 +210,8 @@ TEST_F(MediaNotificationBackgroundImplTest,
 }
 
 TEST_F(MediaNotificationBackgroundImplTest, GetBackgroundColorRespectsTheme) {
-  std::unique_ptr<views::Widget> widget = CreateTestWidget();
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
   auto* theme = widget->GetNativeTheme();
   theme->set_use_dark_colors(false);
   auto* owner = widget->SetContentsView(std::make_unique<views::View>());

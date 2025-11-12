@@ -6,6 +6,7 @@
 
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/actions/actions.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/views/background.h"
@@ -32,13 +33,15 @@ TEST_F(MdTextButtonTest, CustomPadding) {
 TEST_F(MdTextButtonTest, BackgroundColorChangesWithWidgetActivation) {
   // Test whether the button's background color changes when its containing
   // widget's activation changes.
-  if (!PlatformStyle::kInactiveWidgetControlsAppearDisabled)
+  if constexpr (!PlatformStyle::kInactiveWidgetControlsAppearDisabled) {
     GTEST_SKIP() << "Button colors do not change with widget activation here.";
+  }
 
-  std::unique_ptr<Widget> widget = CreateTestWidget();
+  std::unique_ptr<Widget> widget =
+      CreateTestWidget(Widget::InitParams::CLIENT_OWNS_WIDGET);
   auto* button = widget->SetContentsView(
-      std::make_unique<MdTextButton>(Button::PressedCallback(), u"button"));
-  button->SetProminent(true);
+      std::make_unique<MdTextButton>(Button::PressedCallback(), u" "));
+  button->SetStyle(ui::ButtonStyle::kProminent);
   button->SetBounds(0, 0, 70, 20);
   widget->LayoutRootViewIfNecessary();
 
@@ -49,15 +52,8 @@ TEST_F(MdTextButtonTest, BackgroundColorChangesWithWidgetActivation) {
   SkBitmap active_bitmap = views::test::PaintViewToBitmap(button);
 
   auto background_color = [button](const SkBitmap& bitmap) {
-    // The very edge of the bitmap contains the button's border, which we aren't
-    // interested in here. Instead, grab a pixel that is inset by the button's
-    // corner radius from the top-left point to avoid the border.
-    //
-    // It would make a bit more sense to inset by the border thickness or
-    // something, but MdTextButton doesn't expose (or even know) that value
-    // without some major abstraction violation.
-    int corner_radius = button->GetCornerRadiusValue();
-    return bitmap.getColor(corner_radius, corner_radius);
+    return bitmap.getColor(button->size().width() / 2.,
+                           button->size().height() / 2.);
   };
 
   EXPECT_EQ(background_color(active_bitmap),
@@ -69,7 +65,8 @@ TEST_F(MdTextButtonTest, BackgroundColorChangesWithWidgetActivation) {
   // kColorButtonForegroundProminent. Bummer.
 
   // Activate another widget to cause the original widget to deactivate.
-  std::unique_ptr<Widget> other_widget = CreateTestWidget();
+  std::unique_ptr<Widget> other_widget =
+      CreateTestWidget(Widget::InitParams::CLIENT_OWNS_WIDGET);
   test::WidgetTest::SimulateNativeActivate(other_widget.get());
   EXPECT_FALSE(widget->IsActive());
   SkBitmap inactive_bitmap = views::test::PaintViewToBitmap(button);
@@ -77,6 +74,96 @@ TEST_F(MdTextButtonTest, BackgroundColorChangesWithWidgetActivation) {
   EXPECT_EQ(
       background_color(inactive_bitmap),
       color_provider->GetColor(ui::kColorButtonBackgroundProminentDisabled));
+}
+
+using MdTextButtonActionViewInterfaceTest = ViewsTestBase;
+
+TEST_F(MdTextButtonActionViewInterfaceTest, TestActionChanged) {
+  auto md_text_button = std::make_unique<MdTextButton>();
+  const std::u16string test_string = u"test_string";
+  std::unique_ptr<actions::ActionItem> action_item =
+      actions::ActionItem::Builder()
+          .SetText(test_string)
+          .SetActionId(0)
+          .SetEnabled(false)
+          .Build();
+  action_item->SetText(test_string);
+  md_text_button->GetActionViewInterface()->ActionItemChangedImpl(
+      action_item.get());
+  // Test some properties to ensure that the right ActionViewInterface is linked
+  // to the view.
+  EXPECT_EQ(test_string, md_text_button->GetText());
+  EXPECT_FALSE(md_text_button->GetEnabled());
+}
+
+TEST_F(MdTextButtonActionViewInterfaceTest,
+       DefaultCornerRadiusDependsOnButtonSize) {
+  auto md_text_button = std::make_unique<MdTextButton>();
+  constexpr gfx::Size kSize1(100, 100);
+  constexpr gfx::Size kSize2(50, 50);
+
+  const int corner_radius_1 = LayoutProvider::Get()->GetCornerRadiusMetric(
+      ShapeContextTokens::kButtonRadius, kSize1);
+  const int corner_radius_2 = LayoutProvider::Get()->GetCornerRadiusMetric(
+      ShapeContextTokens::kButtonRadius, kSize2);
+  ASSERT_NE(corner_radius_1, corner_radius_2);
+
+  md_text_button->SetBoundsRect(gfx::Rect(kSize1));
+  EXPECT_EQ(md_text_button->GetCornerRadii(),
+            gfx::RoundedCornersF(corner_radius_1));
+  EXPECT_EQ(md_text_button->GetFocusRingCornerRadii(),
+            gfx::RoundedCornersF(corner_radius_1));
+
+  md_text_button->SetBoundsRect(gfx::Rect(kSize2));
+  EXPECT_EQ(md_text_button->GetCornerRadii(),
+            gfx::RoundedCornersF(corner_radius_2));
+  EXPECT_EQ(md_text_button->GetFocusRingCornerRadii(),
+            gfx::RoundedCornersF(corner_radius_2));
+}
+
+TEST_F(MdTextButtonActionViewInterfaceTest,
+       CustomCornerRadiusIsNotOverriddenOnButtonSizeChange) {
+  auto md_text_button = std::make_unique<MdTextButton>();
+  md_text_button->SetBoundsRect(gfx::Rect(100, 100));
+
+  constexpr int kCustomCornerRadius = 1234;
+  md_text_button->SetCornerRadius(kCustomCornerRadius);
+  ASSERT_EQ(md_text_button->GetCornerRadii(),
+            gfx::RoundedCornersF(kCustomCornerRadius));
+
+  md_text_button->SetBoundsRect(gfx::Rect(50, 50));
+  EXPECT_EQ(md_text_button->GetCornerRadii(),
+            gfx::RoundedCornersF(kCustomCornerRadius));
+  EXPECT_EQ(md_text_button->GetFocusRingCornerRadii(),
+            gfx::RoundedCornersF(kCustomCornerRadius));
+}
+
+TEST_F(MdTextButtonActionViewInterfaceTest, CustomCornerRadii) {
+  auto md_text_button = std::make_unique<MdTextButton>();
+  md_text_button->SetBoundsRect(gfx::Rect(100, 100));
+
+  gfx::RoundedCornersF kCustomCornerRadii(1, 5, 10, 20);
+  md_text_button->SetCornerRadii(kCustomCornerRadii);
+  EXPECT_EQ(md_text_button->GetCornerRadii(), kCustomCornerRadii);
+  EXPECT_EQ(md_text_button->GetFocusRingCornerRadii(), kCustomCornerRadii);
+}
+
+TEST_F(MdTextButtonTest, StrokeColorIdOverride) {
+  auto button = std::make_unique<MdTextButton>();
+
+  ASSERT_FALSE(button->GetStrokeColorIdOverride().has_value());
+
+  button->SetStrokeColorIdOverride(ui::kColorButtonBorder);
+  EXPECT_EQ(ui::kColorButtonBorder, button->GetStrokeColorIdOverride().value());
+}
+
+TEST_F(MdTextButtonTest, StrokeColorOverride) {
+  auto button = std::make_unique<MdTextButton>();
+
+  ASSERT_FALSE(button->GetStrokeColorOverrideDeprecated().has_value());
+
+  button->SetStrokeColorOverrideDeprecated(SK_ColorBLUE);
+  EXPECT_EQ(SK_ColorBLUE, button->GetStrokeColorOverrideDeprecated().value());
 }
 
 }  // namespace views

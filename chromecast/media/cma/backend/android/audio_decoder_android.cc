@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/cma/backend/android/audio_decoder_android.h"
 
 #include <time.h>
@@ -11,6 +16,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/trace_event/trace_event.h"
 #include "chromecast/base/task_runner_impl.h"
 #include "chromecast/media/api/decoder_buffer_base.h"
@@ -82,7 +88,7 @@ AudioDecoderAndroid::AudioDecoderAndroid(MediaPipelineBackendAndroid* backend,
       current_pts_(kInvalidTimestamp),
       pending_output_frames_(kNoPendingOutput),
       volume_multiplier_(1.0f),
-      pool_(new ::media::AudioBufferMemoryPool()),
+      pool_(base::MakeRefCounted<::media::AudioBufferMemoryPool>()),
       weak_factory_(this) {
   LOG(INFO) << __func__ << ":";
   TRACE_FUNCTION_ENTRY0();
@@ -122,10 +128,13 @@ bool AudioDecoderAndroid::Start(int64_t start_pts) {
   current_pts_ = start_pts;
   DCHECK(IsValidConfig(config_));
   DCHECK(IsValidChannelNumber(config_.channel_number));
-  sink_.Reset(this, config_.channel_number, config_.samples_per_second,
-              config_.audio_track_session_id, backend_->Primary(),
-              is_apk_audio_, config_.use_hw_av_sync, backend_->DeviceId(),
-              backend_->ContentType());
+  if (!sink_.Create(this, config_.channel_number, config_.samples_per_second,
+                    config_.audio_track_session_id, backend_->Primary(),
+                    is_apk_audio_, config_.use_hw_av_sync, backend_->DeviceId(),
+                    backend_->ContentType())) {
+    return false;
+  }
+
   sink_->SetStreamVolumeMultiplier(volume_multiplier_);
   // Create decoder_ if necessary. This can happen if Stop() was called, and
   // SetConfig() was not called since then.
@@ -271,7 +280,9 @@ bool AudioDecoderAndroid::SetConfig(const AudioConfig& config) {
   }
 
   if (sink_ && changed_config) {
-    ResetSinkForNewConfig(config);
+    if (!ResetSinkForNewConfig(config)) {
+      return false;
+    }
   }
 
   config_ = config;
@@ -286,13 +297,17 @@ bool AudioDecoderAndroid::SetConfig(const AudioConfig& config) {
   return true;
 }
 
-void AudioDecoderAndroid::ResetSinkForNewConfig(const AudioConfig& config) {
-  sink_.Reset(this, config.channel_number, config.samples_per_second,
-              config.audio_track_session_id, backend_->Primary(), is_apk_audio_,
-              config.use_hw_av_sync, backend_->DeviceId(),
-              backend_->ContentType());
+bool AudioDecoderAndroid::ResetSinkForNewConfig(const AudioConfig& config) {
+  if (!sink_.Create(this, config.channel_number, config.samples_per_second,
+                    config.audio_track_session_id, backend_->Primary(),
+                    is_apk_audio_, config.use_hw_av_sync, backend_->DeviceId(),
+                    backend_->ContentType())) {
+    return false;
+  }
+
   sink_->SetStreamVolumeMultiplier(volume_multiplier_);
   pending_output_frames_ = kNoPendingOutput;
+  return true;
 }
 
 void AudioDecoderAndroid::CreateDecoder() {
@@ -445,7 +460,10 @@ void AudioDecoderAndroid::OnBufferDecoded(
     // assume that this can only happen at start of stream (ie, on the first
     // decoded buffer).
     CreateRateShifter(config_);
-    ResetSinkForNewConfig(config_);
+    if (!ResetSinkForNewConfig(config_)) {
+      OnSinkError(SinkError::kInternalError);
+      return;
+    }
   }
 
   pending_buffer_complete_ = true;
@@ -603,8 +621,9 @@ void AudioDecoderAndroid::PushRateShifted() {
   DCHECK_GE(possible_output_frames, rate_info->output_frames);
 
   int channel_data_size = out_frames * sizeof(float);
-  scoped_refptr<DecoderBufferBase> output_buffer(new DecoderBufferAdapter(
-      new ::media::DecoderBuffer(channel_data_size * config_.channel_number)));
+  scoped_refptr<DecoderBufferBase> output_buffer(
+      new DecoderBufferAdapter(base::MakeRefCounted<::media::DecoderBuffer>(
+          channel_data_size * config_.channel_number)));
   for (int c = 0; c < config_.channel_number; ++c) {
     memcpy(output_buffer->writable_data() + c * channel_data_size,
            rate_shifter_output_->channel(c), channel_data_size);

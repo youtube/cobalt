@@ -2,13 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromecast_build.gni")
+import("//build/config/cast.gni")
+import("//build/config/python.gni")
+import("//media/media_options.gni")
+import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/blink/renderer/bindings/bindings.gni")
-import("//third_party/blink/renderer/bindings/scripts/scripts.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
-import("//third_party/webrtc/webrtc.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -56,9 +57,11 @@ component("modules") {
     "//third_party/blink/renderer/bindings/modules/v8",
     "//third_party/blink/renderer/modules/accessibility",
     "//third_party/blink/renderer/modules/ad_auction",
+    "//third_party/blink/renderer/modules/ai",
     "//third_party/blink/renderer/modules/animationworklet",
     "//third_party/blink/renderer/modules/app_banner",
     "//third_party/blink/renderer/modules/audio_output_devices",
+    "//third_party/blink/renderer/modules/awc",
     "//third_party/blink/renderer/modules/background_fetch",
     "//third_party/blink/renderer/modules/background_sync",
     "//third_party/blink/renderer/modules/badging",
@@ -74,9 +77,10 @@ component("modules") {
     "//third_party/blink/renderer/modules/cache_storage",
     "//third_party/blink/renderer/modules/canvas",
     "//third_party/blink/renderer/modules/clipboard",
-    "//third_party/blink/renderer/modules/compute_pressure",
     "//third_party/blink/renderer/modules/contacts_picker",
+    "//third_party/blink/renderer/modules/content_extraction",
     "//third_party/blink/renderer/modules/content_index",
+    "//third_party/blink/renderer/modules/context_menu",
     "//third_party/blink/renderer/modules/cookie_store",
     "//third_party/blink/renderer/modules/credentialmanagement",
     "//third_party/blink/renderer/modules/crypto",
@@ -93,7 +97,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/eventsource",
     "//third_party/blink/renderer/modules/exported",
     "//third_party/blink/renderer/modules/eyedropper",
-    "//third_party/blink/renderer/modules/formatted_text",
     "//third_party/blink/renderer/modules/filesystem",
     "//third_party/blink/renderer/modules/file_system_access",
     "//third_party/blink/renderer/modules/font_access",
@@ -103,14 +106,15 @@ component("modules") {
     "//third_party/blink/renderer/modules/hid",
     "//third_party/blink/renderer/modules/idle",
     "//third_party/blink/renderer/modules/imagecapture",
+    "//third_party/blink/renderer/modules/cookie_deprecation_label",
     "//third_party/blink/renderer/modules/image_downloader",
     "//third_party/blink/renderer/modules/indexeddb",
     "//third_party/blink/renderer/modules/installation",
     "//third_party/blink/renderer/modules/installedapp",
     "//third_party/blink/renderer/modules/keyboard",
     "//third_party/blink/renderer/modules/launch",
+    "//third_party/blink/renderer/modules/locked_mode",
     "//third_party/blink/renderer/modules/locks",
-    "//third_party/blink/renderer/modules/lock_screen",
     "//third_party/blink/renderer/modules/manifest",
     "//third_party/blink/renderer/modules/media_capabilities",
     "//third_party/blink/renderer/modules/media_controls",
@@ -132,29 +136,29 @@ component("modules") {
     "//third_party/blink/renderer/modules/picture_in_picture",
     "//third_party/blink/renderer/modules/plugins",
     "//third_party/blink/renderer/modules/presentation",
+    "//third_party/blink/renderer/modules/private_attribution",
     "//third_party/blink/renderer/modules/push_messaging",
     "//third_party/blink/renderer/modules/quota",
     "//third_party/blink/renderer/modules/remoteplayback",
-    "//third_party/blink/renderer/modules/sanitizer_api",
-    "//third_party/blink/renderer/modules/scheduler",
     "//third_party/blink/renderer/modules/screen_details",
     "//third_party/blink/renderer/modules/screen_orientation",
     "//third_party/blink/renderer/modules/sensor",
+    "//third_party/blink/renderer/modules/serial",
     "//third_party/blink/renderer/modules/service_worker",
     "//third_party/blink/renderer/modules/shapedetection",
     "//third_party/blink/renderer/modules/shared_storage",
-    "//third_party/blink/renderer/modules/smart_card",
     "//third_party/blink/renderer/modules/speech",
     "//third_party/blink/renderer/modules/srcobject",
     "//third_party/blink/renderer/modules/storage",
+    "//third_party/blink/renderer/modules/storage_access",
     "//third_party/blink/renderer/modules/subapps",
     "//third_party/blink/renderer/modules/vibration",
     "//third_party/blink/renderer/modules/video_rvfc",
     "//third_party/blink/renderer/modules/virtualkeyboard",
     "//third_party/blink/renderer/modules/wake_lock",
+    "//third_party/blink/renderer/modules/web_install",
     "//third_party/blink/renderer/modules/webaudio",
     "//third_party/blink/renderer/modules/webcodecs",
-    "//third_party/blink/renderer/modules/webdatabase",
     "//third_party/blink/renderer/modules/webgl",
     "//third_party/blink/renderer/modules/webgpu",
     "//third_party/blink/renderer/modules/webmidi",
@@ -184,18 +188,24 @@ component("modules") {
   # generating the snapshot for android, blink is compiled with
   # current_os="linux" and target_os="android". Using target_os is necessary as
   # we need to compile in the same way as would happen when current_os="android".
-  if (target_os == "android") {
+  if (target_os_is_android) {
     sub_modules += [ "//third_party/blink/renderer/modules/remote_objects" ]
   } else {
     sub_modules += [
       "//third_party/blink/renderer/modules/direct_sockets",
-      "//third_party/blink/renderer/modules/serial",
+      "//third_party/blink/renderer/modules/printing",
+      "//third_party/blink/renderer/modules/smart_card",
       "//third_party/blink/renderer/modules/window_controls_overlay",
     ]
   }
 
+  if (enable_compute_pressure) {
+    sub_modules += [ "//third_party/blink/renderer/modules/compute_pressure" ]
+  }
+
   deps = [
     ":make_modules_generated",
+    "//build:android_buildflags",
     "//cc",
     "//components/webrtc:thread_wrapper",
     "//gin",
@@ -226,6 +236,14 @@ source_set("modules_testing") {
   sources = [
     "accessibility/testing/internals_accessibility.cc",
     "accessibility/testing/internals_accessibility.h",
+    "ad_auction/testing/internals_protected_audience.cc",
+    "ad_auction/testing/internals_protected_audience.h",
+    "credentialmanagement/testing/internals_fed_cm.cc",
+    "credentialmanagement/testing/internals_fed_cm.h",
+    "device_posture/testing/internals_device_posture.cc",
+    "device_posture/testing/internals_device_posture.h",
+    "fuzzing/internals_fuzzing.cc",
+    "fuzzing/internals_fuzzing.h",
     "mediastream/testing/internals_media_stream.cc",
     "mediastream/testing/internals_media_stream.h",
     "netinfo/testing/internals_net_info.cc",
@@ -234,6 +252,8 @@ source_set("modules_testing") {
     "peerconnection/adapters/test/mock_ice_transport_adapter_cross_thread_factory.h",
     "peerconnection/testing/fake_resource_listener.cc",
     "peerconnection/testing/fake_resource_listener.h",
+    "peerconnection/testing/fake_webrtc_data_channel.cc",
+    "peerconnection/testing/fake_webrtc_data_channel.h",
     "peerconnection/testing/internals_rtc_certificate.cc",
     "peerconnection/testing/internals_rtc_certificate.h",
     "peerconnection/testing/internals_rtc_peer_connection.cc",
@@ -241,9 +261,10 @@ source_set("modules_testing") {
     "peerconnection/testing/mock_peer_connection_interface.h",
     "peerconnection/testing/mock_rtp_receiver.h",
     "peerconnection/testing/mock_rtp_sender.h",
-    "peerconnection/testing/mock_transformable_audio_frame.h",
     "permissions/testing/internals_permission.cc",
     "permissions/testing/internals_permission.h",
+    "sensor/testing/internals_sensor.cc",
+    "sensor/testing/internals_sensor.h",
     "service_worker/testing/internals_service_worker.cc",
     "service_worker/testing/internals_service_worker.h",
     "speech/testing/internals_speech_synthesis.cc",
@@ -256,6 +277,13 @@ source_set("modules_testing") {
     "webaudio/testing/internals_web_audio.h",
   ]
 
+  if (enable_compute_pressure) {
+    sources += [
+      "compute_pressure/testing/internals_compute_pressure.cc",
+      "compute_pressure/testing/internals_compute_pressure.h",
+    ]
+  }
+
   configs += [
     "//third_party/blink/renderer:config",
     "//third_party/blink/renderer:inside_blink",
@@ -267,10 +295,12 @@ source_set("modules_testing") {
     "//testing/gmock:gmock",
   ]
   deps = [
+    "//services/device/public/cpp/generic_sensor",
     "//third_party/blink/renderer/bindings/modules/v8:testing",
     "//third_party/blink/renderer/core",
     "//third_party/blink/renderer/core:testing",
     "//third_party/blink/renderer/modules",
+    "//third_party/blink/renderer/platform:test_support",
   ]
 }
 
@@ -281,7 +311,6 @@ group("make_modules_generated") {
     ":make_modules_generated_event_target_names",
     ":make_modules_generated_indexed_db_names",
     ":make_modules_generated_media_capabilities_names",
-    "//components/ml/mojom:mojom_blink_headers",
     "//components/payments/mojom:mojom_blink_headers",
     "//components/schema_org/common:mojom_blink_headers",
     "//components/services/filesystem/public/mojom:mojom_blink_headers",
@@ -291,6 +320,7 @@ group("make_modules_generated") {
     "//media/capture/mojom:image_capture_blink_headers",
     "//media/midi:mojo_blink_headers",
     "//services/device/public/mojom:generic_sensor_headers",
+    "//services/device/public/mojom:geoposition_blink_headers",
     "//services/device/public/mojom:mojom_blink_headers",
     "//services/device/public/mojom:usb_blink_headers",
     "//services/shape_detection/public/mojom:mojom_blink_headers",
@@ -298,7 +328,6 @@ group("make_modules_generated") {
     "//third_party/blink/public/mojom:mojom_modules_blink_headers",
     "//third_party/blink/renderer/bindings/modules/v8:generated",
     "//third_party/blink/renderer/core:core_event_interfaces",
-    "//third_party/blink/renderer/modules/mediarecorder:buildflags",
     "//ui/accessibility:ax_enums_mojo_blink_headers",
     "//ui/display/mojom:mojom_blink_headers",
   ]
@@ -306,79 +335,27 @@ group("make_modules_generated") {
 
 # generate_event_interfaces ----------------------------------------------------
 
-generate_event_interfaces("modules_event_interfaces") {
-  sources = [
-    "app_banner/before_install_prompt_event.idl",
-    "background_fetch/background_fetch_event.idl",
-    "background_fetch/background_fetch_update_ui_event.idl",
-    "background_sync/periodic_sync_event.idl",
-    "background_sync/sync_event.idl",
-    "content_index/content_index_event.idl",
-    "cookie_store/cookie_change_event.idl",
-    "cookie_store/extendable_cookie_change_event.idl",
-    "device_orientation/device_motion_event.idl",
-    "device_orientation/device_orientation_event.idl",
-    "encryptedmedia/media_encrypted_event.idl",
-    "encryptedmedia/media_key_message_event.idl",
-    "gamepad/gamepad_axis_event.idl",
-    "gamepad/gamepad_button_event.idl",
-    "gamepad/gamepad_event.idl",
-    "hid/hid_connection_event.idl",
-    "hid/hid_input_report_event.idl",
-    "indexeddb/idb_version_change_event.idl",
-    "mediarecorder/blob_event.idl",
-    "mediastream/media_stream_event.idl",
-    "mediastream/media_stream_track_event.idl",
-    "nfc/ndef_reading_event.idl",
-    "notifications/notification_event.idl",
-    "payments/abort_payment_event.idl",
-    "payments/can_make_payment_event.idl",
-    "payments/merchant_validation_event.idl",
-    "payments/payment_method_change_event.idl",
-    "payments/payment_request_details_update.idl",
-    "payments/payment_request_event.idl",
-    "payments/payment_request_update_event.idl",
-    "peerconnection/rtc_data_channel_event.idl",
-    "peerconnection/rtc_dtmf_tone_change_event.idl",
-    "peerconnection/rtc_peer_connection_ice_error_event.idl",
-    "peerconnection/rtc_peer_connection_ice_event.idl",
-    "picture_in_picture/picture_in_picture_event.idl",
-    "presentation/presentation_connection_available_event.idl",
-    "presentation/presentation_connection_close_event.idl",
-    "push_messaging/push_event.idl",
-    "scheduler/task_priority_change_event.idl",
-    "sensor/sensor_error_event.idl",
-    "service_worker/extendable_event.idl",
-    "service_worker/extendable_message_event.idl",
-    "service_worker/fetch_event.idl",
-    "service_worker/install_event.idl",
-    "speech/speech_recognition_error_event.idl",
-    "speech/speech_recognition_event.idl",
-    "speech/speech_synthesis_error_event.idl",
-    "speech/speech_synthesis_event.idl",
-    "storage/storage_event.idl",
-    "webaudio/audio_processing_event.idl",
-    "webaudio/offline_audio_completion_event.idl",
-    "webgl/webgl_context_event.idl",
-    "webmidi/midi_connection_event.idl",
-    "webmidi/midi_message_event.idl",
-    "websockets/close_event.idl",
-    "xr/xr_input_source_event.idl",
-    "xr/xr_input_sources_change_event.idl",
-    "xr/xr_reference_space_event.idl",
-    "xr/xr_session_event.idl",
+action_with_pydeps("modules_event_interfaces") {
+  script = "//third_party/blink/renderer/bindings/scripts/generate_event_interface_names.py"
+
+  inputs = [ web_idl_database_filepath ]
+  outputs =
+      [ get_path_info(".", "gen_dir") + "/event_interface_modules_names.json5" ]
+
+  args = [
+    "--web_idl_database",
+    rebase_path(web_idl_database_filepath, root_build_dir),
+    "--component",
+    "modules",
+    "--export-macro",
+    "MODULES_EXPORT",
+    "--suffix",
+    "Modules",
+    "--output",
+    rebase_path(outputs[0], root_build_dir),
   ]
 
-  if (is_cobalt) {
-    sources += [
-      "cobalt/h5vcc_metrics/metrics_event.idl",
-      "cobalt/h5vcc_runtime/deep_link_event.idl",
-      "cobalt/h5vcc_system/h_5_vcc_system.idl",
-    ]
-  }
-
-  output_file = "modules/event_interface_modules_names.json5"
-  suffix = "Modules"
+  deps = [ "//third_party/blink/renderer/bindings:web_idl_database" ]
 }
 
 # make_event_factory -----------------------------------------------------------
@@ -436,8 +413,6 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
-    "accessibility/accessibility_object_model_test.cc",
-    "accessibility/ax_inline_text_box_test.cc",
     "accessibility/ax_layout_object_test.cc",
     "accessibility/ax_node_object_test.cc",
     "accessibility/ax_object_cache_test.cc",
@@ -449,29 +424,42 @@ source_set("unit_tests") {
     "accessibility/testing/accessibility_selection_test.h",
     "accessibility/testing/accessibility_test.cc",
     "accessibility/testing/accessibility_test.h",
+    "ai/ai_utils_test.cc",
+    "ai/model_execution_responder_test.cc",
     "animationworklet/animation_worklet_global_scope_test.cc",
     "animationworklet/animation_worklet_proxy_client_test.cc",
     "animationworklet/worklet_animation_test.cc",
     "background_fetch/background_fetch_icon_loader_test.cc",
     "background_fetch/background_fetch_manager_test.cc",
+    "bluetooth/bluetooth_uuid_unittest.cc",
     "broadcastchannel/broadcast_channel_unittest.cc",
     "cache_storage/cache_test.cc",
     "canvas/canvas2d/base_rendering_context_2d_test.cc",
-    "canvas/canvas2d/canvas_color_cache_test.cc",
+    "canvas/canvas2d/canvas_2d_recorder_context_test.cc",
     "canvas/canvas2d/canvas_filter_operation_resolver_test.cc",
+    "canvas/canvas2d/canvas_filter_test.cc",
+    "canvas/canvas2d/canvas_filter_test_utils.cc",
+    "canvas/canvas2d/canvas_filter_test_utils.h",
     "canvas/canvas2d/canvas_path_test.cc",
     "canvas/canvas2d/canvas_rendering_context_2d_api_test.cc",
     "canvas/canvas2d/canvas_rendering_context_2d_test.cc",
     "canvas/canvas2d/canvas_style_test_utils.cc",
     "canvas/canvas2d/canvas_style_test_utils.h",
+    "canvas/canvas2d/identifiability_study_helper_test.cc",
+    "canvas/canvas_noise_test.cc",
     "canvas/htmlcanvas/html_canvas_element_module_test.cc",
     "canvas/offscreencanvas/offscreen_canvas_rendering_api_ukm_metrics_test.cc",
     "canvas/offscreencanvas/offscreen_canvas_test.cc",
+    "canvas/offscreencanvas2d/offscreen_canvas_rendering_context_2d_test.cc",
+    "content_extraction/ai_page_content_agent_unittest.cc",
+    "content_extraction/inner_html_builder_unittest.cc",
+    "content_extraction/inner_text_builder_unittest.cc",
     "content_index/content_description_type_converter_test.cc",
+    "credentialmanagement/authentication_credentials_container_test.cc",
     "credentialmanagement/credential_manager_type_converters_unittest.cc",
-    "credentialmanagement/credentials_container_test.cc",
+    "credentialmanagement/digital_identity_credential_test.cc",
     "credentialmanagement/password_credential_test.cc",
-    "credentialmanagement/web_identity_requester_test.cc",
+    "credentialmanagement/public_key_credential_unittest.cc",
     "csspaint/document_paint_definition_test.cc",
     "csspaint/nativepaint/background_color_paint_definition_test.cc",
     "csspaint/nativepaint/clip_path_paint_definition_test.cc",
@@ -494,11 +482,13 @@ source_set("unit_tests") {
     "manifest/manifest_manager_unittest.cc",
     "manifest/manifest_parser_unittest.cc",
     "media/audio/audio_output_ipc_factory_test.cc",
+    "media/audio/audio_renderer_mixer_input_test.cc",
     "media/audio/audio_renderer_mixer_manager_test.cc",
+    "media/audio/audio_renderer_mixer_test.cc",
     "media/audio/audio_renderer_sink_cache_test.cc",
     "media/audio/mojo_audio_input_ipc_test.cc",
     "media/audio/mojo_audio_output_ipc_test.cc",
-    "media/webmediaplayer_util_unittest.cc",
+    "media/web_media_player_util_unittest.cc",
     "media_capabilities/media_capabilities_test.cc",
     "media_controls/elements/media_control_animated_arrow_container_element_test.cc",
     "media_controls/elements/media_control_display_cutout_fullscreen_button_element_test.cc",
@@ -517,8 +507,10 @@ source_set("unit_tests") {
     "mediacapturefromelement/canvas_capture_handler_unittest.cc",
     "mediacapturefromelement/html_audio_element_capturer_source_unittest.cc",
     "mediacapturefromelement/html_video_element_capturer_source_unittest.cc",
+    "mediarecorder/audio_track_mojo_encoder_unittest.cc",
     "mediarecorder/audio_track_recorder_unittest.cc",
     "mediarecorder/fake_encoded_video_frame.h",
+    "mediarecorder/key_frame_request_processor_unittest.cc",
     "mediarecorder/media_recorder_encoder_wrapper_unittest.cc",
     "mediarecorder/media_recorder_handler_unittest.cc",
     "mediarecorder/media_recorder_unittest.cc",
@@ -526,6 +518,7 @@ source_set("unit_tests") {
     "mediarecorder/video_track_recorder_unittest.cc",
     "mediasession/media_session_test.cc",
     "mediastream/browser_capture_media_stream_track_test.cc",
+    "mediastream/local_media_stream_audio_source_test.cc",
     "mediastream/low_latency_video_renderer_algorithm_unittest.cc",
     "mediastream/media_constraints_test.cc",
     "mediastream/media_devices_test.cc",
@@ -539,6 +532,7 @@ source_set("unit_tests") {
     "mediastream/media_stream_set_test.cc",
     "mediastream/media_stream_track_impl_test.cc",
     "mediastream/media_stream_track_transfer_test.cc",
+    "mediastream/media_stream_utils_test.cc",
     "mediastream/media_stream_video_capturer_source_test.cc",
     "mediastream/media_stream_video_renderer_sink_test.cc",
     "mediastream/media_stream_video_source_test.cc",
@@ -550,8 +544,8 @@ source_set("unit_tests") {
     "mediastream/transferred_media_stream_track_test.cc",
     "mediastream/user_media_client_test.cc",
     "mediastream/video_track_adapter_unittest.cc",
+    "mediastream/web_media_player_ms_test.cc",
     "mediastream/webaudio_media_stream_audio_sink_test.cc",
-    "mediastream/webmediaplayer_ms_test.cc",
     "nfc/nfc_proxy_test.cc",
     "notifications/notification_data_test.cc",
     "notifications/notification_resources_loader_test.cc",
@@ -559,13 +553,13 @@ source_set("unit_tests") {
     "payments/can_make_payment_test.cc",
     "payments/complete_test.cc",
     "payments/goods/digital_goods_type_converters_unittest.cc",
-    "payments/merchant_validation_event_test.cc",
     "payments/on_payment_response_test.cc",
     "payments/payment_address_test.cc",
     "payments/payment_event_data_conversion_test.cc",
     "payments/payment_request_details_test.cc",
     "payments/payment_request_for_invalid_origin_or_ssl_test.cc",
     "payments/payment_request_optional_total_test.cc",
+    "payments/payment_request_secure_payment_confirmation_availability_test.cc",
     "payments/payment_request_test.cc",
     "payments/payment_request_update_event_test.cc",
     "payments/payment_response_test.cc",
@@ -580,20 +574,25 @@ source_set("unit_tests") {
     "peerconnection/peer_connection_dependency_factory_test.cc",
     "peerconnection/peer_connection_tracker_test.cc",
     "peerconnection/rtc_data_channel_test.cc",
+    "peerconnection/rtc_encoded_audio_frame_test.cc",
     "peerconnection/rtc_encoded_audio_underlying_sink_test.cc",
     "peerconnection/rtc_encoded_audio_underlying_source_test.cc",
+    "peerconnection/rtc_encoded_underlying_sink_wrapper_test.cc",
+    "peerconnection/rtc_encoded_underlying_source_wrapper_test.cc",
     "peerconnection/rtc_encoded_video_frame_test.cc",
     "peerconnection/rtc_encoded_video_underlying_sink_test.cc",
     "peerconnection/rtc_encoded_video_underlying_source_test.cc",
+    "peerconnection/rtc_ice_candidate_test.cc",
     "peerconnection/rtc_peer_connection_handler_test.cc",
     "peerconnection/rtc_peer_connection_test.cc",
     "peerconnection/rtc_rtp_receiver_impl_test.cc",
+    "peerconnection/rtc_rtp_script_transformer_test.cc",
     "peerconnection/rtc_rtp_sender_impl_test.cc",
     "peerconnection/rtc_rtp_transceiver_impl_test.cc",
+    "peerconnection/rtc_rtp_transport_processor_test.cc",
+    "peerconnection/rtc_rtp_transport_test.cc",
     "peerconnection/rtc_sctp_transport_test.cc",
-    "peerconnection/speed_limit_uma_listener_test.cc",
     "peerconnection/thermal_resource_test.cc",
-    "peerconnection/thermal_uma_listener_test.cc",
     "peerconnection/transceiver_state_surfacer_test.cc",
     "peerconnection/webrtc_audio_renderer_test.cc",
     "peerconnection/webrtc_media_stream_track_adapter_map_test.cc",
@@ -610,18 +609,18 @@ source_set("unit_tests") {
     "push_messaging/push_message_data_test.cc",
     "push_messaging/push_subscription_test.cc",
     "remoteplayback/remote_playback_test.cc",
-    "scheduler/dom_scheduler_test.cc",
-    "scheduler/task_attribution_tracker_impl_test.cc",
     "screen_orientation/screen_orientation_controller_test.cc",
     "sensor/sensor_test_utils.cc",
     "sensor/sensor_test_utils.h",
     "service_worker/service_worker_container_test.cc",
     "service_worker/service_worker_event_queue_test.cc",
     "service_worker/service_worker_installed_scripts_manager_test.cc",
+    "service_worker/service_worker_router_type_converter_test.cc",
     "service_worker/thread_safe_script_container_test.cc",
     "service_worker/web_embedded_worker_impl_test.cc",
     "service_worker/web_service_worker_fetch_context_impl_test.cc",
     "shared_storage/shared_storage_worklet_unittest.cc",
+    "speech/speech_recognition_controller_unittest.cc",
     "video_rvfc/video_frame_callback_requester_impl_test.cc",
     "video_rvfc/video_frame_request_callback_collection_test.cc",
     "wake_lock/wake_lock_manager_test.cc",
@@ -629,18 +628,18 @@ source_set("unit_tests") {
     "wake_lock/wake_lock_test.cc",
     "wake_lock/wake_lock_test_utils.cc",
     "wake_lock/wake_lock_test_utils.h",
-    "webaudio/audio_basic_processor_handler_test.cc",
     "webaudio/audio_context_autoplay_test.cc",
     "webaudio/audio_context_test.cc",
     "webaudio/audio_node_input_test.cc",
     "webaudio/audio_worklet_global_scope_test.cc",
     "webaudio/audio_worklet_thread_test.cc",
+    "webaudio/biquad_dsp_kernel_test.cc",
     "webaudio/convolver_node_test.cc",
     "webaudio/dynamics_compressor_node_test.cc",
+    "webaudio/media_stream_audio_destination_handler_test.cc",
     "webaudio/script_processor_node_test.cc",
     "webaudio/stereo_panner_node_test.cc",
-    "webdatabase/dom_window_web_database_test.cc",
-    "webdatabase/quota_tracker_test.cc",
+    "webaudio/testing/mock_web_audio_device.h",
     "webrtc/webrtc_audio_device_impl_test.cc",
     "webshare/navigator_share_test.cc",
     "websockets/dom_websocket_test.cc",
@@ -648,6 +647,7 @@ source_set("unit_tests") {
     "websockets/mock_websocket_channel.h",
     "websockets/websocket_channel_impl_test.cc",
     "websockets/websocket_common_test.cc",
+    "websockets/websocket_error_test.cc",
     "websockets/websocket_message_chunk_accumulator_test.cc",
     "websockets/websocket_stream_test.cc",
     "worklet/animation_and_paint_worklet_thread_test.cc",
@@ -658,12 +658,33 @@ source_set("unit_tests") {
     "xr/xr_view_test.cc",
   ]
 
-  if (is_cobalt) {
-    sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+  if (enable_compute_pressure) {
+    sources += [
+      "compute_pressure/pressure_observer_test.cc",
+      "compute_pressure/pressure_observer_test_utils.cc",
+      "compute_pressure/pressure_observer_test_utils.h",
+    ]
   }
 
-  if (rtc_use_h264) {
-    sources += [ "mediarecorder/h264_encoder_unittest.cc" ]
+  if (!is_android) {
+    sources += [
+      # Inline text box tests do not apply to Android, which only loads
+      # AXInlineTextBox tests for the focused node.
+      "accessibility/ax_inline_text_box_test.cc",
+    ]
+  }
+
+  if (!is_android && !is_ios) {
+    sources += [
+      # CaptureController is not Web-exposed on Android and iOS,
+      # so most of the logic is compile-guarded away on Android and iOS,
+      # preventing meaningful testing.
+      "mediastream/capture_controller_test.cc",
+    ]
+  }
+
+  if (is_cobalt) {
+    sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
   }
 
   configs += [
@@ -684,10 +705,12 @@ source_set("unit_tests") {
     "//media/capture/mojom:image_capture_blink",
     "//media/gpu:gpu",
     "//media/mojo:buildflags",
+    "//media/mojo:test_support",
     "//media/mojo/mojom",
     "//media/mojo/services:services",
     "//media/webrtc:webrtc",
     "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/test_support:test_utils",
     "//net:test_support",
     "//services/device/public/cpp:test_support",
     "//services/metrics/public/cpp:ukm_builders",
@@ -702,18 +725,20 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/core",
     "//third_party/blink/renderer/core:testing",
     "//third_party/blink/renderer/core:unit_test_support",
+    "//third_party/blink/renderer/core:unit_tests",
     "//third_party/blink/renderer/modules/ad_auction:unit_tests",
     "//third_party/blink/renderer/modules/breakout_box:unit_tests",
+    "//third_party/blink/renderer/modules/clipboard:unit_tests",
     "//third_party/blink/renderer/modules/file_system_access:unit_tests",
     "//third_party/blink/renderer/modules/gamepad:unit_tests",
     "//third_party/blink/renderer/modules/hid:unit_tests",
     "//third_party/blink/renderer/modules/idle:unit_tests",
     "//third_party/blink/renderer/modules/indexeddb:unit_tests",
-    "//third_party/blink/renderer/modules/mediarecorder:buildflags",
     "//third_party/blink/renderer/modules/mediastream:test_support",
     "//third_party/blink/renderer/modules/ml:unit_tests",
     "//third_party/blink/renderer/modules/peerconnection:test_support",
     "//third_party/blink/renderer/modules/storage:unit_tests",
+    "//third_party/blink/renderer/modules/storage_access:unit_tests",
     "//third_party/blink/renderer/modules/webcodecs:unit_tests",
     "//third_party/blink/renderer/modules/webgpu:unit_tests",
     "//third_party/blink/renderer/modules/webtransport:unit_tests",
@@ -722,7 +747,9 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/googletest:gmock",
     "//third_party/opus",
+    "//third_party/webrtc_overrides:logging_test",
     "//third_party/webrtc_overrides:webrtc_component",
+    "//ui/strings:ax_strings_grit",
     "//v8",
   ]
 
@@ -737,8 +764,12 @@ source_set("unit_tests") {
   # generating the snapshot for android, blink is compiled with
   # current_os="linux" and target_os="android". Using target_os is necessary as
   # we need to compile in the same way as would happen when current_os="android".
-  if (target_os != "android") {
-    deps += [ "//third_party/blink/renderer/modules/direct_sockets:unit_tests" ]
+  if (!target_os_is_android) {
+    deps += [
+      "//third_party/blink/renderer/modules/direct_sockets:unit_tests",
+      "//third_party/blink/renderer/modules/serial:unit_tests",
+      "//third_party/blink/renderer/modules/smart_card:unit_tests",
+    ]
   }
 
   data_deps = [
@@ -929,6 +960,7 @@ fuzzer_test("webcodecs_video_encoder_fuzzer") {
 
   deps = [
     ":modules",
+    "//third_party/blink/renderer/controller:blink_bindings_test_sources",
     "//third_party/blink/renderer/core:testing",
     "//third_party/blink/renderer/modules/webcodecs:fuzzer_protos",
     "//third_party/blink/renderer/platform:blink_fuzzer_test_support",

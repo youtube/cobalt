@@ -27,6 +27,8 @@
 // Doing it this way guarantees that features defined in the Chrobalt side and
 // starboard side share the same names, param types and initial default values.
 
+// NOLINT(build/header_guard)
+
 #include "build/build_config.h"
 #include "starboard/configuration.h"
 
@@ -120,6 +122,13 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// Cobalt VideoRenderAlgorithm used to release video frames immediately after
+// playback starts. Set the following variable to true to make it release video
+// frames until the underlying audio sink actually starts.
+STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
+                  "ReleaseVideoFramesAfterAudioStarts",
+                  false)
+
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
@@ -135,6 +144,7 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // Enables the ExoPlayer-based SbPlayer for playback.
 STARBOARD_FEATURE(kEnableExoPlayer, "EnableExoPlayer", false)
+  
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 

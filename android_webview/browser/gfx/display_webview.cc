@@ -26,7 +26,7 @@ std::unique_ptr<DisplayWebView> DisplayWebView::Create(
   std::unique_ptr<viz::OverlayProcessorInterface> overlay_processor;
   OverlayProcessorWebView* overlay_processor_webview_raw = nullptr;
   if (features::IsAndroidSurfaceControlEnabled()) {
-    // TODO(crbug.com/1039876): This is to help triage bugs on pre-release
+    // TODO(crbug.com/40113791): This is to help triage bugs on pre-release
     // android. Remove this log once feature is controlled only by feature flag
     // or launched.
     LOG(WARNING) << "WebView overlays are enabled!";
@@ -60,7 +60,8 @@ DisplayWebView::DisplayWebView(
     OverlayProcessorWebView* overlay_processor_webview,
     viz::FrameSinkManagerImpl* frame_sink_manager,
     RootFrameSink* root_frame_sink)
-    : viz::Display(/*bitmap_manager=*/nullptr,
+    : viz::Display(/*shared_image_manager=*/nullptr,
+                   /*gpu_scheduler=*/nullptr,
                    settings,
                    debug_settings,
                    frame_sink_id,
@@ -72,8 +73,8 @@ DisplayWebView::DisplayWebView(
       overlay_processor_webview_(overlay_processor_webview),
       frame_sink_manager_(frame_sink_manager),
       root_frame_sink_(root_frame_sink),
-      use_new_invalidate_heuristic_(base::FeatureList::IsEnabled(
-          features::kWebViewNewInvalidateHeuristic)) {
+      use_new_invalidate_heuristic_(
+          features::UseWebViewNewInvalidateHeuristic()) {
   if (overlay_processor_webview_) {
     frame_sink_manager_observation_.Observe(frame_sink_manager);
   }
@@ -96,15 +97,22 @@ void DisplayWebView::OnFrameSinkDidFinishFrame(
       // For overlays we are going to display this frame immediately, so commit
       // it.
       surface->CommitFramesRecursively(
-          base::BindRepeating([](const viz::SurfaceId&,
-                                 const viz::BeginFrameId&) { return true; }));
+          [](const viz::SurfaceId&, const viz::BeginFrameId&) { return true; });
     }
 
     // TODO(vasilyt): We don't need full aggregation here as we don't need
     // aggregated frame.
+    int64_t display_trace_id = base::trace_event::GetNextGlobalTraceId();
+    // Note: Unlike in viz::Display::DrawAndSwap, there's no need to push
+    // display_trace_id to pending_swap_ack_trace_ids_ and
+    // pending_presented_trace_ids_ because we're not drawing the whole frame,
+    // so viz::Display::DidReceiveSwapBuffersAck and
+    // viz::Display::DidReceivePresentationFeedback won't be called (and
+    // therefore won't consume pending_swap_ack_trace_ids_ and
+    // pending_presented_trace_ids_ respectively).
     aggregator_->Aggregate(current_surface_id_, base::TimeTicks::Now(),
                            gfx::OVERLAY_TRANSFORM_NONE, gfx::Rect(),
-                           ++swapped_trace_id_);
+                           display_trace_id);
     auto* resolved_data = aggregator_->GetLatestFrameData(surface_id);
     if (resolved_data) {
       if (!overlay_processor_webview_->ProcessForFrameSinkId(frame_sink_id,

@@ -45,8 +45,8 @@ class PERFETTO_EXPORT_COMPONENT Iterator {
   explicit Iterator(std::unique_ptr<IteratorImpl>);
   ~Iterator();
 
-  Iterator(Iterator&) noexcept = delete;
-  Iterator& operator=(Iterator&) = delete;
+  Iterator(const Iterator&) = delete;
+  Iterator& operator=(const Iterator&) = delete;
 
   Iterator(Iterator&&) noexcept;
   Iterator& operator=(Iterator&&) noexcept;
@@ -83,8 +83,12 @@ class PERFETTO_EXPORT_COMPONENT Iterator {
   // This value is guaranteed to be <= |StatementCount()|.
   uint32_t StatementWithOutputCount();
 
+  // Returns the last executed statement SQL (including, potentially, the final
+  // statement which is iterated using this iterator).
+  std::string LastStatementSql();
+
   // Returns the status of the iterator.
-  util::Status Status();
+  base::Status Status();
 
  private:
   friend class QueryResultSerializer;

@@ -60,10 +60,11 @@ std::string ParseWarningTypeToString(
 }  // namespace
 
 FirstPartySetsOverridesPolicyHandler::FirstPartySetsOverridesPolicyHandler(
+    const char* policy_name,
     const policy::Schema& schema)
     : policy::SchemaValidatingPolicyHandler(
-          policy::key::kFirstPartySetsOverrides,
-          schema.GetKnownProperty(policy::key::kFirstPartySetsOverrides),
+          policy_name,
+          schema.GetKnownProperty(policy_name),
           policy::SchemaOnErrorStrategy::SCHEMA_ALLOW_UNKNOWN) {}
 
 FirstPartySetsOverridesPolicyHandler::~FirstPartySetsOverridesPolicyHandler() =
@@ -86,7 +87,7 @@ bool FirstPartySetsOverridesPolicyHandler::CheckPolicySettings(
           policy_value->GetDict());
 
   // Output warnings that occur when parsing the policy.
-  for (ParseWarning parse_warning : warnings) {
+  for (const ParseWarning& parse_warning : warnings) {
     errors->AddError(policy_name(), IDS_POLICY_SCHEMA_VALIDATION_ERROR,
                      ParseWarningTypeToString(parse_warning.type()),
                      parse_warning.path(),
@@ -109,7 +110,7 @@ void FirstPartySetsOverridesPolicyHandler::ApplyPolicySettings(
   std::unique_ptr<base::Value> value;
   policy::SchemaValidatingPolicyHandler::CheckAndGetValue(policies, nullptr,
                                                           &value);
-  prefs->SetValue(first_party_sets::kFirstPartySetsOverrides,
+  prefs->SetValue(first_party_sets::kRelatedWebsiteSetsOverrides,
                   base::Value::FromUniquePtrValue(std::move(value)));
 }
 

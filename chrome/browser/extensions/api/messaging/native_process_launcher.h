@@ -6,8 +6,9 @@
 #define CHROME_BROWSER_EXTENSIONS_API_MESSAGING_NATIVE_PROCESS_LAUNCHER_H_
 
 #include <memory>
+#include <string>
 
-#include "base/files/file.h"
+#include "base/files/platform_file.h"
 #include "base/functional/callback_forward.h"
 #include "base/process/process.h"
 #include "ui/gfx/native_widget_types.h"
@@ -15,9 +16,14 @@
 class GURL;
 
 namespace base {
-class CommandLine;
 class FilePath;
 }
+
+namespace net {
+class FileStream;
+}
+
+class Profile;
 
 namespace extensions {
 
@@ -31,22 +37,24 @@ class NativeProcessLauncher {
     RESULT_FAILED_TO_START,
   };
 
-  // Callback that's called after the process has been launched. |result| is set
-  // to false in case of a failure. Handler must take ownership of the IO
-  // handles.
-  using LaunchedCallback = base::OnceCallback<void(LaunchResult result,
-                                                   base::Process process,
-                                                   base::File read_file,
-                                                   base::File write_file)>;
+  // Callback that's called after the process has been launched. Handler must
+  // take ownership of the process and streams. `read_file`, supplied only on
+  // POSIX, is the file descriptor owned by `read_stream`.
+  using LaunchedCallback =
+      base::OnceCallback<void(LaunchResult result,
+                              base::Process process,
+                              base::PlatformFile read_file,
+                              std::unique_ptr<net::FileStream> read_stream,
+                              std::unique_ptr<net::FileStream> write_stream)>;
 
-  // Creates default launcher for the current OS. |native_view| refers to the
+  // Creates default launcher for the current OS. `native_view` refers to the
   // window that contains calling page. Can be nullptr, e.g. for background
-  // pages. If |profile_directory| is non-empty and the host supports
+  // pages. If `profile_directory` is non-empty and the host supports
   // native-initiated connections, additional reconnect args will be passed to
-  // the host. If |require_native_initiated_connections| is true, the connection
+  // the host. If `require_native_initiated_connections` is true, the connection
   // will be allowed only if the native messaging host sets
   // "supports_native_initiated_connections" to true in its manifest.
-  // If |error_arg| is non-empty, the reconnect args are omitted, and instead
+  // If `error_arg` is non-empty, the reconnect args are omitted, and instead
   // the error value is passed as a command line argument to the host.
   static std::unique_ptr<NativeProcessLauncher> CreateDefault(
       bool allow_user_level_hosts,
@@ -54,9 +62,8 @@ class NativeProcessLauncher {
       const base::FilePath& profile_directory,
       bool require_native_initiated_connections,
       const std::string& connect_id,
-      const std::string& error_arg);
-
-  NativeProcessLauncher() = default;
+      const std::string& error_arg,
+      Profile* profile);
 
   NativeProcessLauncher(const NativeProcessLauncher&) = delete;
   NativeProcessLauncher& operator=(const NativeProcessLauncher&) = delete;
@@ -64,8 +71,8 @@ class NativeProcessLauncher {
   virtual ~NativeProcessLauncher() = default;
 
   // Finds native messaging host with the specified name and launches it
-  // asynchronously. Also checks that the specified |origin| is permitted to
-  // access the host. |callback| is called after the process has been started.
+  // asynchronously. Also checks that the specified `origin` is permitted to
+  // access the host. `callback` is called after the process has been started.
   // If the launcher is destroyed before the callback is called then the call is
   // canceled and the process is stopped if it has been started already (by
   // closing IO pipes).
@@ -74,21 +81,7 @@ class NativeProcessLauncher {
                       LaunchedCallback callback) const = 0;
 
  protected:
-  // The following two methods are platform specific and are implemented in
-  // platform-specific .cc files.
-
-  // Finds manifest file for the native messaging host |native_host_name|.
-  // |user_level| is set to true if the manifest is installed on user level.
-  // Returns an empty path if the host with the specified name cannot be found.
-  static base::FilePath FindManifest(const std::string& native_host_name,
-                                     bool allow_user_level_hosts,
-                                     std::string* error_message);
-
-  // Launches native messaging process.
-  static bool LaunchNativeProcess(const base::CommandLine& command_line,
-                                  base::Process* process,
-                                  base::File* read_file,
-                                  base::File* write_file);
+  NativeProcessLauncher() = default;
 };
 
 }  // namespace extensions

@@ -5,12 +5,12 @@
 #ifndef IOS_WEB_JS_MESSAGING_WEB_FRAMES_MANAGER_IMPL_H_
 #define IOS_WEB_JS_MESSAGING_WEB_FRAMES_MANAGER_IMPL_H_
 
-#import "ios/web/public/js_messaging/web_frames_manager.h"
-
 #import <map>
 
+#import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "base/observer_list.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 
 namespace web {
 class WebFrame;
@@ -46,7 +46,7 @@ class WebFramesManagerImpl : public WebFramesManager {
   std::map<std::string, std::unique_ptr<WebFrame>> web_frames_;
 
   // Reference to the current main web frame.
-  WebFrame* main_web_frame_ = nullptr;
+  raw_ptr<WebFrame> main_web_frame_ = nullptr;
   base::ObserverList<Observer, /*check_empty=*/false> observers_;
   base::WeakPtrFactory<WebFramesManagerImpl> weak_factory_;
 };

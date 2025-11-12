@@ -6,22 +6,31 @@
 #define COMPONENTS_GUEST_VIEW_BROWSER_GUEST_VIEW_BASE_H_
 
 #include <memory>
+#include <optional>
+#include <string_view>
+#include <variant>
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/values.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/guest_view/browser/guest_view_message_handler.h"
 #include "components/guest_view/common/guest_view_constants.h"
 #include "components/zoom/zoom_observer.h"
 #include "content/public/browser/browser_plugin_guest_delegate.h"
+#include "content/public/browser/child_process_id.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/guest_page_holder.h"
+#include "content/public/browser/permission_result.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 
 namespace content {
+class NavigationHandle;
 class RenderFrameHost;
 }
 
@@ -39,10 +48,10 @@ struct SetSizeParams {
   SetSizeParams();
   ~SetSizeParams();
 
-  absl::optional<bool> enable_auto_size;
-  absl::optional<gfx::Size> min_size;
-  absl::optional<gfx::Size> max_size;
-  absl::optional<gfx::Size> normal_size;
+  std::optional<bool> enable_auto_size;
+  std::optional<gfx::Size> min_size;
+  std::optional<gfx::Size> max_size;
+  std::optional<gfx::Size> normal_size;
 };
 
 // A GuestViewBase is the base class browser-side API implementation for a
@@ -51,11 +60,19 @@ struct SetSizeParams {
 // the guest and relays them to the owner. GuestViewBase tracks the lifetime
 // of its owner. A GuestViewBase's owner is referred to as an embedder if
 // it is attached to a container within the owner's WebContents.
+// In the `features::kGuestViewMPArch` implementation, the GuestViewBase
+// observes the owner's WebContents instead and does not act as a
+// WebContentsDelegate.
 class GuestViewBase : public content::BrowserPluginGuestDelegate,
                       public content::WebContentsDelegate,
+                      public content::GuestPageHolder::Delegate,
                       public content::WebContentsObserver,
-                      public zoom::ZoomObserver {
+                      public zoom::ZoomObserver,
+                      public base::SupportsUserData::Data {
  public:
+  static GuestViewBase* FromInstanceID(content::ChildProcessId owner_process_id,
+                                       int instance_id);
+
   static GuestViewBase* FromInstanceID(int owner_process_id, int instance_id);
 
   // Prefer using FromRenderFrameHost. See https://crbug.com/1362569.
@@ -65,13 +82,23 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   static GuestViewBase* FromRenderFrameHostId(
       const content::GlobalRenderFrameHostId& rfh_id);
 
+  static GuestViewBase* FromNavigationHandle(
+      content::NavigationHandle* navigation_handle);
+  static GuestViewBase* FromFrameTreeNodeId(
+      content::FrameTreeNodeId frame_tree_node_id);
+
   ~GuestViewBase() override;
   GuestViewBase(const GuestViewBase&) = delete;
   GuestViewBase& operator=(const GuestViewBase&) = delete;
 
-  using WebContentsCreatedCallback = base::OnceCallback<void(
-      std::unique_ptr<GuestViewBase> guest,
-      std::unique_ptr<content::WebContents> guest_contents)>;
+  // The implementation of the guest page depends on
+  // `features::kGuestViewMPArch`.
+  using GuestPageVariant =
+      std::variant<std::unique_ptr<content::WebContents>,
+                   std::unique_ptr<content::GuestPageHolder>>;
+  using GuestPageCreatedCallback =
+      base::OnceCallback<void(std::unique_ptr<GuestViewBase> guest,
+                              GuestPageVariant guest_page)>;
 
   // Given a |web_contents|, returns the top level owner WebContents. If
   // |web_contents| does not belong to a GuestView, it will be returned
@@ -82,9 +109,11 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   static bool IsGuest(content::WebContents* web_contents);
   static bool IsGuest(content::RenderFrameHost* rfh);
   static bool IsGuest(const content::GlobalRenderFrameHostId& rfh_id);
+  static bool IsGuest(content::NavigationHandle* navigation_handle);
+  static bool IsGuest(content::FrameTreeNodeId frame_tree_node_id);
 
   // Returns the name of the derived type of this GuestView.
-  virtual const char* GetViewType() const = 0;
+  virtual std::string_view GetViewType() const = 0;
 
   // This method queries whether autosize is supported for this particular view.
   // By default, autosize is not supported. Derived classes can override this
@@ -122,11 +151,14 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   using GuestCreatedCallback =
       base::OnceCallback<void(std::unique_ptr<GuestViewBase> guest)>;
   void Init(std::unique_ptr<GuestViewBase> owned_this,
+            scoped_refptr<content::SiteInstance> site_instance,
             const base::Value::Dict& create_params,
             GuestCreatedCallback callback);
 
   void InitWithWebContents(const base::Value::Dict& create_params,
                            content::WebContents* guest_web_contents);
+  void InitWithGuestPageHolder(const base::Value::Dict& create_params,
+                               content::GuestPageHolder* guest_page_holder);
 
   void SetCreateParams(
       const base::Value::Dict& create_params,
@@ -138,19 +170,34 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   // then. We assume the owner doesn't change before attachment, but if it does,
   // we destroy and recreate the guest page. See this doc for details:
   // https://docs.google.com/document/d/1RVbtvklXUg9QCNvMT0r-1qDwJNeQFGoTCOD1Ur9mDa4/edit?usp=sharing
+  //
+  // `outer_contents_frame` is the frame at which the guest will be attached.
+  // `outer_contents_frame` is in a different WebContents from the `owner_rfh()`
+  // at the time of calling this. `outer_contents_frame`'s parent will be the
+  // new owner RenderFrameHost.
   virtual void MaybeRecreateGuestContents(
-      content::WebContents* embedder_web_contents) = 0;
+      content::RenderFrameHost* outer_contents_frame) = 0;
 
   // Used to toggle autosize mode for this GuestView, and set both the automatic
   // and normal sizes.
   void SetSize(const SetSizeParams& params);
 
+  // See the class comment for the difference between "owner" and "embedder."
   content::WebContents* embedder_web_contents() const {
-    return attached() ? owner_web_contents_.get() : nullptr;
+    return attached() ? owner_web_contents() : nullptr;
   }
 
   content::WebContents* owner_web_contents() const {
-    return owner_web_contents_;
+    return content::WebContents::FromRenderFrameHost(owner_rfh());
+  }
+
+  // See the class comment for the difference between "owner" and "embedder."
+  content::RenderFrameHost* embedder_rfh() const {
+    return attached() ? owner_rfh() : nullptr;
+  }
+
+  content::RenderFrameHost* owner_rfh() const {
+    return content::RenderFrameHost::FromID(owner_rfh_id_);
   }
 
   // Returns the parameters associated with the element hosting this GuestView
@@ -184,38 +231,39 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
 
   content::NavigationController& GetController();
 
-  GuestViewManager* GetGuestViewManager();
+  GuestViewManager* GetGuestViewManager() const;
 
-  // Returns the URL of the owner WebContents' SiteInstance.
-  // WARNING: Be careful using this with GuestViews where
-  // `CanBeEmbeddedInsideCrossProcessFrames` is true. This returns the site of
-  // the WebContents, not the embedding frame.
+  // Returns the URL of the owner RenderFrameHost's last committed URL.
+  const GURL& GetOwnerLastCommittedURL() const;
+
+  // Returns the URL of the owner RenderFrameHost's SiteInstance.
   const GURL& GetOwnerSiteURL() const;
 
-  // Returns the host of the owner WebContents. For extensions, this is the
-  // extension ID.
+  // Returns the host of the owner WebContents. If the owner RenderFrameHost is
+  // for an extension, returns the host of its URL, which is an extension ID. If
+  // the owner RenderFrameHost is a non-extension embedder of a Controlled
+  // Frame, returns its serialized origin.
+  // TODO(crbug.com/41490369): Expose this information as a url::Origin.
   std::string owner_host() const { return owner_host_; }
 
   // Whether the guest view is inside a plugin document.
   bool is_full_page_plugin() const { return is_full_page_plugin_; }
 
+  bool IsOwnedByExtension() const;
+  bool IsOwnedByWebUI() const;
+  bool IsOwnedByControlledFrameEmbedder() const;
+
   // Saves the attach state of the custom element hosting this GuestView.
   void SetAttachParams(const base::Value::Dict& params);
 
-  // Returns the RenderWidgetHost corresponding to the owner frame.
-  virtual content::RenderWidgetHost* GetOwnerRenderWidgetHost();
-
-  // The SiteInstance of the owner frame.
-  virtual content::SiteInstance* GetOwnerSiteInstance();
-
   // Starts the attaching process for a (frame-based) GuestView.
-  // |embedder_frame| is a frame in the embedder WebContents (owned by a
+  // |outer_contents_frame| is a frame in the embedder WebContents (owned by a
   // HTMLFrameOwnerElement associated with the GuestView's element in the
   // embedder process) which will be used for attaching.
   void AttachToOuterWebContentsFrame(
       std::unique_ptr<GuestViewBase> owned_this,
-      content::RenderFrameHost* embedder_frame,
-      int32_t element_instance_id,
+      content::RenderFrameHost* outer_contents_frame,
+      int element_instance_id,
       bool is_full_page_plugin,
       GuestViewMessageHandler::AttachToEmbedderFrameCallback
           attachment_callback);
@@ -228,46 +276,81 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   // interstitial instead of a plain error page.
   virtual bool RequiresSslInterstitials() const;
 
+  // Returns false if permission management should automatically drop
+  // permission requests of the given `type`.
+  virtual bool IsPermissionRequestable(ContentSettingsType type) const;
+
+  // If the GuestView overrides |type|, returns the permission result of |type|.
+  // Otherwise, returns nullopt.
+  virtual std::optional<content::PermissionResult> OverridePermissionResult(
+      ContentSettingsType type) const;
+
   content::RenderFrameHost* GetGuestMainFrame() const;
 
+  content::FrameTreeNodeId guest_main_frame_tree_node_id() const;
+  content::GuestPageHolder* owned_guest_page() const;
+
  protected:
-  explicit GuestViewBase(content::WebContents* owner_web_contents);
+  explicit GuestViewBase(content::RenderFrameHost* owner_rfh);
 
   GuestViewBase* GetOpener() const { return opener_.get(); }
 
   void SetOpener(GuestViewBase* opener);
 
-  const absl::optional<
+  const std::optional<
       std::pair<base::Value::Dict, content::WebContents::CreateParams>>&
   GetCreateParams() const;
+
+  zoom::ZoomController* GetZoomController() const;
+
+  // Convenience method for `CreateInnerPage` implementations when not creating
+  // a guest.
+  void RejectGuestCreation(std::unique_ptr<GuestViewBase> owned_this,
+                           GuestPageCreatedCallback callback);
+
+  base::WeakPtr<content::GuestPageHolder::Delegate>
+  GetGuestPageHolderDelegateWeakPtr();
 
   void TakeGuestContentsOwnership(
       std::unique_ptr<content::WebContents> guest_web_contents);
   void ClearOwnedGuestContents();
+  void TakeGuestPageOwnership(
+      std::unique_ptr<content::GuestPageHolder> guest_page_holder);
+  void ClearOwnedGuestPage();
 
-  void SetNewOwnerWebContents(content::WebContents* owner_web_contents);
+  // Return the GuestPageHolder. Can only be called for mparch guests.
+  content::GuestPageHolder& GetGuestPageHolder();
+
+  void SetGuestPageHolder(content::GuestPageHolder* guest_page_holder);
+
+  // Called when the current `owner_rfh()` is in a different WebContents from
+  // the frame that will be used for attachment. `owner_rfh` is the parent of
+  // the RenderFrameHost that will be used for attachment.
+  void UpdateWebContentsForNewOwner(content::RenderFrameHost* new_owner_rfh);
 
   // BrowserPluginGuestDelegate implementation.
   content::RenderFrameHost* GetProspectiveOuterDocument() override;
 
   // WebContentsDelegate implementation.
-  bool HandleKeyboardEvent(
-      content::WebContents* source,
-      const content::NativeWebKeyboardEvent& event) override;
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
   bool PreHandleGestureEvent(content::WebContents* source,
                              const blink::WebGestureEvent& event) override;
 
   // WebContentsObserver implementation.
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+  void FrameDeleted(content::FrameTreeNodeId frame_tree_node_id) override;
   void WebContentsDestroyed() override;
 
   // Given a set of initialization parameters, a concrete subclass of
-  // GuestViewBase can create a specialized WebContents that it returns back to
-  // GuestViewBase.
-  virtual void CreateWebContents(std::unique_ptr<GuestViewBase> owned_this,
-                                 const base::Value::Dict& create_params,
-                                 WebContentsCreatedCallback callback) = 0;
+  // GuestViewBase can create a specialized `WebContents`/`GuestPageHolder` that
+  // it returns back to GuestViewBase.
+  virtual void CreateInnerPage(
+      std::unique_ptr<GuestViewBase> owned_this,
+      scoped_refptr<content::SiteInstance> site_instance,
+      const base::Value::Dict& create_params,
+      GuestPageCreatedCallback callback) = 0;
 
   // This method is called after the guest has been attached to an embedder and
   // suspended resource loads have been resumed.
@@ -292,12 +375,14 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   // completed loading.
   virtual void GuestViewDidStopLoading() {}
 
-  // This method is invoked when the guest RenderView is ready, e.g. because we
-  // recreated it after a crash or after reattachment.
-  //
-  // This gives the derived class an opportunity to perform some initialization
-  // work.
-  virtual void GuestReady() {}
+  // When the document on load is completed in the main frame.
+  virtual void GuestViewDocumentOnLoadCompleted() {}
+
+  // When the load progress has changed.
+  virtual void GuestViewDidChangeLoadProgress(double progress) {}
+
+  // When the main process has terminated.
+  virtual void GuestViewMainFrameProcessGone(base::TerminationStatus status) {}
 
   // This method is called when the guest's zoom changes.
   virtual void GuestZoomChanged(double old_zoom_level, double new_zoom_level) {}
@@ -313,6 +398,10 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   // This method is invoked when the contents preferred size changes. This will
   // only ever fire if IsPreferredSizeSupported returns true.
   virtual void OnPreferredSizeChanged(const gfx::Size& pref_size) {}
+
+  // This method is invoked when the owner contents audio muted state changes to
+  // give the container an opportunity to adjust their muted state.
+  virtual void OnOwnerAudioMutedStateUpdated(bool muted);
 
   // Signals that the guest view is ready.  The default implementation signals
   // immediately, but derived class can override this if they need to do
@@ -342,11 +431,20 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
 
   void SetGuestZoomLevelToMatchEmbedder();
 
+  // Returns true if the given navigation occurs within this guest.
+  bool IsObservedNavigationWithinGuest(
+      content::NavigationHandle* navigation_handle);
+  // Returns true if the given navigation occurs within this guest's main frame.
+  bool IsObservedNavigationWithinGuestMainFrame(
+      content::NavigationHandle* navigation_handle);
+  // Returns true if the given RenderFrameHost is within this guest.
+  bool IsObservedRenderFrameHostWithinGuest(content::RenderFrameHost* rfh);
+
  private:
   class OwnerContentsObserver;
   class OpenerLifetimeObserver;
 
-  // TODO(533069): Remove since BrowserPlugin has been removed.
+  // TODO(crbug.com/40436245): Remove since BrowserPlugin has been removed.
   void DidAttach();
 
   // BrowserPluginGuestDelegate implementation.
@@ -356,28 +454,54 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   base::WeakPtr<content::BrowserPluginGuestDelegate> GetGuestDelegateWeakPtr()
       final;
 
+  // GuestPageHolder::Delegate implementation.
+  void GuestDidStopLoading() final;
+  content::JavaScriptDialogManager* GuestGetJavascriptDialogManager() override;
+  void GuestOverrideRendererPreferences(
+      blink::RendererPreferences& preferences) override;
+  void GuestDocumentOnLoadCompleted() final;
+  void GuestDidChangeLoadProgress(double progress) final;
+  void GuestMainFrameProcessGone(base::TerminationStatus status) final;
+  void GuestResizeDueToAutoResize(const gfx::Size& new_size) final;
+  void GuestUpdateWindowPreferredSize(const gfx::Size& pref_size) final;
+  content::GuestPageHolder* GuestCreateNewWindow(
+      WindowOpenDisposition disposition,
+      const GURL& url,
+      const std::string& main_frame_name,
+      content::RenderFrameHost* opener,
+      scoped_refptr<content::SiteInstance> site_instance) override;
+  void GuestOpenURL(const content::OpenURLParams& params,
+                    base::OnceCallback<void(content::NavigationHandle&)>
+                        navigation_handle_callback) override;
+  void GuestClose() override;
+  void GuestRequestMediaAccessPermission(
+      const content::MediaStreamRequest& request,
+      content::MediaResponseCallback callback) override;
+  bool GuestCheckMediaAccessPermission(
+      content::RenderFrameHost* render_frame_host,
+      const url::Origin& security_origin,
+      blink::mojom::MediaStreamType type) override;
+
   // WebContentsDelegate implementation.
   void ActivateContents(content::WebContents* contents) final;
   void ContentsMouseEvent(content::WebContents* source,
-                          bool motion,
-                          bool exited) final;
+                          const ui::Event& event) final;
   void ContentsZoomChange(bool zoom_in) final;
-  void LoadingStateChanged(content::WebContents* source,
-                           bool should_show_loading_ui) final;
   void ResizeDueToAutoResize(content::WebContents* web_contents,
                              const gfx::Size& new_size) final;
   void RunFileChooser(content::RenderFrameHost* render_frame_host,
                       scoped_refptr<content::FileSelectListener> listener,
                       const blink::mojom::FileChooserParams& params) final;
-  bool ShouldFocusPageAfterCrash() final;
+  bool ShouldFocusPageAfterCrash(content::WebContents* source) final;
   void UpdatePreferredSize(content::WebContents* web_contents,
                            const gfx::Size& pref_size) final;
   void UpdateTargetURL(content::WebContents* source, const GURL& url) final;
-  bool ShouldResumeRequestsForCreatedWindow() final;
 
   // WebContentsObserver implementation.
   void DidStopLoading() final;
-  void RenderViewReady() final;
+  void DocumentOnLoadCompletedInPrimaryMainFrame() final;
+  void LoadProgressChanged(double progress) final;
+  void PrimaryMainFrameRenderProcessGone(base::TerminationStatus status) final;
 
   // zoom::ZoomObserver implementation.
   void OnZoomControllerDestroyed(zoom::ZoomController* source) final;
@@ -389,7 +513,7 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   void CompleteInit(base::Value::Dict create_params,
                     GuestCreatedCallback callback,
                     std::unique_ptr<GuestViewBase> owned_this,
-                    std::unique_ptr<content::WebContents> guest_web_contents);
+                    GuestPageVariant guest_page);
 
   // Dispatches the onResize event to the embedder.
   void DispatchOnResizeEvent(const gfx::Size& old_size,
@@ -410,23 +534,11 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
 
   void SetOwnerHost();
 
-  // TODO(ekaramad): Revisit this once MimeHandlerViewGuest is frame-based
-  // (https://crbug.com/659750); either remove or unify with
-  // BrowserPluginGuestDelegate::WillAttach.
-  void WillAttach(std::unique_ptr<GuestViewBase> owned_this,
-                  content::WebContents* embedder_web_contents,
-                  content::RenderFrameHost* outer_contents_frame,
-                  int browser_plugin_instance_id,
-                  bool is_full_page_plugin,
-                  base::OnceClosure completion_callback,
-                  GuestViewMessageHandler::AttachToEmbedderFrameCallback
-                      attachment_callback);
-
-  // This guest tracks the lifetime of the WebContents specified by
-  // |owner_web_contents_|. If |owner_web_contents_| is destroyed then this
-  // guest will also self-destruct.
-  raw_ptr<content::WebContents> owner_web_contents_;
+  // This guest tracks the lifetime of the WebContents of `owner_rfh_id_`. If
+  // that WebContents is destroyed, then this guest will also self-destruct.
+  content::GlobalRenderFrameHostId owner_rfh_id_;
   std::string owner_host_;
+
   const raw_ptr<content::BrowserContext> browser_context_;
 
   // |guest_instance_id_| is a profile-wide unique identifier for a guest
@@ -476,20 +588,33 @@ class GuestViewBase : public content::BrowserPluginGuestDelegate,
   // element may not match the size of the guest.
   gfx::Size guest_size_;
 
-  // When the guest is created, a guest WebContents is created and we take
-  // ownership of it here until it's ready to be attached. On attachment,
-  // ownership of the guest WebContents is taken by the embedding WebContents.
-  std::unique_ptr<content::WebContents> owned_guest_contents_;
-
   // Before attachment a GuestViewBase is owned with a unique_ptr. After
   // attachment, a GuestViewBase is self-owned and scoped to the lifetime of the
   // guest WebContents.
   bool self_owned_ = false;
 
+  // When the guest is created, a guest WebContents is created and we take
+  // ownership of it here until it's ready to be attached. On attachment,
+  // ownership of the guest WebContents is taken by the embedding WebContents.
+  std::unique_ptr<content::WebContents> owned_guest_contents_;
+
+  // When the guest is created, we take ownership of the associated
+  // GuestPageHolder until it's ready to be attached. On attachment, the
+  // embedding RenderFrameHost takes ownership of the GuestPageHolder. Then the
+  // GuestPageHolder takes ownership of this GuestViewBase.
+  std::unique_ptr<content::GuestPageHolder> owned_guest_page_;
+  raw_ptr<content::GuestPageHolder> guest_page_;
+
+  // The frame tree node id of the main frame of the guest page.
+  // Note that we are intentionally tracking the frame, not a RenderFrameHost,
+  // since a guest will navigate over its lifetime. Set when the initialization
+  // of the guest completes. Only set for the MPArch implementation.
+  content::FrameTreeNodeId guest_main_frame_tree_node_id_;
+
   // The params used when creating the guest contents. These are saved here in
   // case we need to recreate the guest contents. Not all guest types need to
   // store these.
-  absl::optional<
+  std::optional<
       std::pair<base::Value::Dict, content::WebContents::CreateParams>>
       create_params_;
 

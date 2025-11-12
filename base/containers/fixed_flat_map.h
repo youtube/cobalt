@@ -5,15 +5,20 @@
 #ifndef BASE_CONTAINERS_FIXED_FLAT_MAP_H_
 #define BASE_CONTAINERS_FIXED_FLAT_MAP_H_
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <utility>
 
-#include "base/check.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_tree.h"
 
 namespace base {
+
+namespace internal {
+// Not constexpr to trigger a compile error.
+void FixedFlatMapInputNotSortedOrNotUnique();
+}  // namespace internal
 
 // fixed_flat_map is a immutable container with a std::map-like interface that
 // stores its contents in a sorted std::array.
@@ -89,43 +94,29 @@ using fixed_flat_map = base::
     flat_map<Key, Mapped, Compare, std::array<std::pair<const Key, Mapped>, N>>;
 
 // Utility function to simplify constructing a fixed_flat_map from a fixed list
-// of keys and values. Requires that the passed in `data` contains unique keys
-// and be sorted by key. See `MakeFixedFlatMap` for a variant that sorts the
-// input automatically.
+// of keys and values. Requires that the passed in `data` contains unique keys.
+//
+// Large inputs will run into compiler limits, e.g. "constexpr evaluation hit
+// maximum step limit", unless `data` is already sorted.
 //
 // Example usage:
-//   constexpr auto kMap = base::MakeFixedFlatMapSorted<base::StringPiece, int>(
-//       {{"bar", 2}, {"baz", 3}, {"foo", 1}});
-template <class Key, class Mapped, size_t N, class Compare = std::less<>>
-constexpr fixed_flat_map<Key, Mapped, N, Compare> MakeFixedFlatMapSorted(
+//   constexpr auto kMap = base::MakeFixedFlatMap<std::string_view, int>(
+//       {{"foo", 1}, {"bar", 2}, {"baz", 3}});
+template <class Key, class Mapped, class Compare = std::less<>, size_t N>
+consteval fixed_flat_map<Key, Mapped, N, Compare> MakeFixedFlatMap(
     std::pair<Key, Mapped> (&&data)[N],
     const Compare& comp = Compare()) {
   using FixedFlatMap = fixed_flat_map<Key, Mapped, N, Compare>;
   typename FixedFlatMap::value_compare value_comp{comp};
-  CHECK(internal::is_sorted_and_unique(data, value_comp));
-  // Specify the value_type explicitly to ensure that the returned array has
-  // immutable keys.
+  if (!internal::is_sorted_and_unique(data, value_comp)) {
+    std::ranges::sort(data, value_comp);
+    if (!internal::is_sorted_and_unique(data, value_comp)) {
+      internal::FixedFlatMapInputNotSortedOrNotUnique();
+    }
+  }
   return FixedFlatMap(
       sorted_unique, internal::ToArray<typename FixedFlatMap::value_type>(data),
       comp);
-}
-
-// Utility function to simplify constructing a fixed_flat_map from a fixed list
-// of keys and values. Requires that the passed in `data` contains unique keys.
-// This function does a quadratic insertion sort at compile-time, so if your set
-// is large, prefer `MakeFixedFlatMapSorted`.
-//
-// Example usage:
-//   constexpr auto kMap = base::MakeFixedFlatMap<base::StringPiece, int>(
-//       {{"foo", 1}, {"bar", 2}, {"baz", 3}});
-template <class Key, class Mapped, size_t N, class Compare = std::less<>>
-constexpr fixed_flat_map<Key, Mapped, N, Compare> MakeFixedFlatMap(
-    std::pair<Key, Mapped> (&&data)[N],
-    const Compare& comp = Compare()) {
-  using FixedFlatMap = fixed_flat_map<Key, Mapped, N, Compare>;
-  typename FixedFlatMap::value_compare value_comp{comp};
-  internal::InsertionSort(data, data + N, value_comp);
-  return MakeFixedFlatMapSorted(std::move(data), comp);
 }
 
 }  // namespace base

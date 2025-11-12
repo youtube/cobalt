@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_DEVICE_SIGNALS_CORE_BROWSER_MOCK_USER_DELEGATE_H_
 #define COMPONENTS_DEVICE_SIGNALS_CORE_BROWSER_MOCK_USER_DELEGATE_H_
 
+#include "build/build_config.h"
 #include "components/device_signals/core/browser/user_delegate.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -15,9 +16,16 @@ class MockUserDelegate : public UserDelegate {
   MockUserDelegate();
   ~MockUserDelegate() override;
 
+#if BUILDFLAG(IS_CHROMEOS)
+  MOCK_METHOD(bool, IsSigninContext, (), (const, override));
+#endif  // BUILDFLAG(IS_CHROMEOS)
   MOCK_METHOD(bool, IsAffiliated, (), (const, override));
-  MOCK_METHOD(bool, IsManaged, (), (const, override));
-  MOCK_METHOD(bool, IsSameUser, (const std::string&), (const, override));
+  MOCK_METHOD(bool, IsManagedUser, (), (const, override));
+  MOCK_METHOD(bool, IsSameUser, (const GaiaId&), (const, override));
+  MOCK_METHOD(std::set<policy::PolicyScope>,
+              GetPolicyScopesNeedingSignals,
+              (),
+              (const, override));
 };
 
 }  // namespace device_signals

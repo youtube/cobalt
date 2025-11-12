@@ -4,9 +4,11 @@
 
 #include "chrome/browser/notifications/notification_trigger_scheduler_android.h"
 
-#include "chrome/android/chrome_jni_headers/NotificationTriggerScheduler_jni.h"
 #include "chrome/browser/notifications/platform_notification_service_impl.h"
 #include "content/public/browser/browser_thread.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/NotificationTriggerScheduler_jni.h"
 
 using content::BrowserThread;
 
@@ -26,12 +28,3 @@ NotificationTriggerSchedulerAndroid::NotificationTriggerSchedulerAndroid() {
 
 NotificationTriggerSchedulerAndroid::~NotificationTriggerSchedulerAndroid() =
     default;
-
-void NotificationTriggerSchedulerAndroid::ScheduleTrigger(
-    base::Time timestamp) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  JNIEnv* env = base::android::AttachCurrentThread();
-
-  Java_NotificationTriggerScheduler_schedule(
-      env, java_notification_trigger_scheduler_, timestamp.ToJavaTime());
-}

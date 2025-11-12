@@ -22,11 +22,11 @@ items:
 - caption: Allow the user to decide
   value: null
 owners:
-- file://components/policy/OWNERS
-- rsorokin@chromium.org
+- file://ash/accessibility/OWNERS
 schema:
   type: boolean
 supported_on:
 - chrome_os:29-
 tags: []
 type: main
+generate_device_proto: False

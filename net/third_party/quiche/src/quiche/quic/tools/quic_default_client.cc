@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_default_client.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/quic/core/quic_connection.h"
@@ -87,7 +88,7 @@ std::unique_ptr<QuicSession> QuicDefaultClient::CreateQuicClientSession(
     QuicConnection* connection) {
   return std::make_unique<QuicSimpleClientSession>(
       *config(), supported_versions, connection, this, network_helper(),
-      server_id(), crypto_config(), push_promise_index(), drop_response_body(),
+      server_id(), crypto_config(), drop_response_body(),
       enable_web_transport());
 }
 

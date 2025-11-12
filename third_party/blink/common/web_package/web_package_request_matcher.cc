@@ -4,21 +4,23 @@
 
 #include "third_party/blink/public/common/web_package/web_package_request_matcher.h"
 
+#include <algorithm>
 #include <limits>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/numerics/checked_math.h"
-#include "base/ranges/algorithm.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "net/http/structured_headers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/web_package/signed_exchange_consts.h"
 
 namespace blink {
@@ -35,7 +37,7 @@ class ContentNegotiationAlgorithm {
   // content negotiation mechanism.
   virtual std::vector<std::string> run(
       base::span<const std::string> available_values,
-      absl::optional<std::string> request_header_value) = 0;
+      std::optional<std::string> request_header_value) = 0;
 
  protected:
   struct WeightedValue {
@@ -52,18 +54,18 @@ class ContentNegotiationAlgorithm {
   // Returns items sorted by descending order of their weight, omitting items
   // with weight of 0.
   std::vector<WeightedValue> ParseRequestHeaderValue(
-      const absl::optional<std::string>& request_header_value) {
+      const std::optional<std::string>& request_header_value) {
     std::vector<WeightedValue> items;
     if (!request_header_value)
       return items;
 
     // Value can start with '*', so it cannot be parsed by
     // net::structured_headers::ParseParameterisedList.
-    net::HttpUtil::ValuesIterator values(request_header_value->begin(),
-                                         request_header_value->end(), ',');
+    net::HttpUtil::ValuesIterator values(*request_header_value,
+                                         /*delimiter=*/',');
     while (values.GetNext()) {
       net::HttpUtil::NameValuePairsIterator name_value_pairs(
-          values.value_begin(), values.value_end(), ';',
+          values.value(), /*delimiter=*/';',
           net::HttpUtil::NameValuePairsIterator::Values::NOT_REQUIRED,
           net::HttpUtil::NameValuePairsIterator::Quotes::STRICT_QUOTES);
       if (!name_value_pairs.GetNext())
@@ -72,14 +74,14 @@ class ContentNegotiationAlgorithm {
       item.value = name_value_pairs.name();
       item.weight = 1.0;
       while (name_value_pairs.GetNext()) {
-        if (base::EqualsCaseInsensitiveASCII(name_value_pairs.name_piece(),
-                                             "q")) {
-          if (auto value = GetQValue(name_value_pairs.value()))
+        if (base::EqualsCaseInsensitiveASCII(name_value_pairs.name(), "q")) {
+          if (auto value = GetQValue(name_value_pairs.value())) {
             item.weight = *value;
+          }
         } else {
           // Parameters except for "q" are included in the output.
-          item.value +=
-              ';' + name_value_pairs.name() + '=' + name_value_pairs.value();
+          base::StrAppend(&item.value, {";", name_value_pairs.name(), "=",
+                                        name_value_pairs.value()});
         }
       }
       if (item.weight != 0.0)
@@ -90,14 +92,14 @@ class ContentNegotiationAlgorithm {
   }
 
  private:
-  absl::optional<double> GetQValue(const std::string& str) {
+  std::optional<double> GetQValue(std::string_view str) {
     // TODO(ksakamoto): Validate the syntax per Section 5.3.1 of [RFC7231],
     // by factoring out the logic in HttpUtil::ParseAcceptEncoding().
     double val;
     if (!base::StringToDouble(str, &val))
-      return absl::nullopt;
+      return std::nullopt;
     if (val < 0.0 || val > 1.0)
-      return absl::nullopt;
+      return std::nullopt;
     return val;
   }
 };
@@ -106,7 +108,7 @@ class ContentNegotiationAlgorithm {
 class ContentTypeNegotiation final : public ContentNegotiationAlgorithm {
   std::vector<std::string> run(
       base::span<const std::string> available_values,
-      absl::optional<std::string> request_header_value) override {
+      std::optional<std::string> request_header_value) override {
     // Step 1. Let preferred-available be an empty list. [spec text]
     std::vector<std::string> preferred_available;
 
@@ -147,7 +149,7 @@ class ContentTypeNegotiation final : public ContentNegotiationAlgorithm {
 class AcceptEncodingNegotiation final : public ContentNegotiationAlgorithm {
   std::vector<std::string> run(
       base::span<const std::string> available_values,
-      absl::optional<std::string> request_header_value) override {
+      std::optional<std::string> request_header_value) override {
     // Step 1. Let preferred-available be an empty list. [spec text]
     std::vector<std::string> preferred_available;
 
@@ -196,7 +198,7 @@ class AcceptLanguageNegotiation final : public ContentNegotiationAlgorithm {
  public:
   std::vector<std::string> run(
       base::span<const std::string> available_values,
-      absl::optional<std::string> request_header_value) override {
+      std::optional<std::string> request_header_value) override {
     // Step 1. Let preferred-available be an empty list. [spec text]
     std::vector<std::string> preferred_available;
 
@@ -235,7 +237,7 @@ class AcceptLanguageNegotiation final : public ContentNegotiationAlgorithm {
                               const std::string& preferred_lang,
                               std::vector<std::string>* output) {
     if (preferred_lang == "*") {
-      base::ranges::copy(available_values, std::back_inserter(*output));
+      std::ranges::copy(available_values, std::back_inserter(*output));
       return;
     }
 
@@ -262,8 +264,8 @@ std::unique_ptr<ContentNegotiationAlgorithm> GetContentNegotiationAlgorithm(
 }
 
 // https://tools.ietf.org/id/draft-ietf-httpbis-variants-04.html#variants
-absl::optional<std::vector<std::pair<std::string, std::vector<std::string>>>>
-ParseVariants(const base::StringPiece& str) {
+std::optional<std::vector<std::pair<std::string, std::vector<std::string>>>>
+ParseVariants(const std::string_view& str) {
   // Compatibility note: Draft 4 of Variants
   // (https://tools.ietf.org/id/draft-ietf-httpbis-variants-04.html#variants)
   // uses a custom format for the Variants-04 header, which this method attempts
@@ -279,10 +281,10 @@ ParseVariants(const base::StringPiece& str) {
   // specifies a Structured-Headers-Draft-13 dictionary for the Variants header.
   // Once the specs are updated, also parse the new Variants dictionary header
   // as well. The same data structure should be returned.
-  absl::optional<net::structured_headers::ListOfLists> parsed =
+  std::optional<net::structured_headers::ListOfLists> parsed =
       net::structured_headers::ParseListOfLists(str);
   if (!parsed)
-    return absl::nullopt;
+    return std::nullopt;
   std::vector<std::pair<std::string, std::vector<std::string>>> variants;
   // Each inner-list in the Variants header field value is parsed into a
   // variant-axis.  The first list-member of the inner-list is interpreted as
@@ -294,7 +296,7 @@ ParseVariants(const base::StringPiece& str) {
     // same characters.
     // [spec text]
     if (!it->is_string() && !it->is_token())
-      return absl::nullopt;
+      return std::nullopt;
     std::string field_name = it->GetString();
     std::vector<std::string> available_values;
     available_values.reserve(inner_list.size() - 1);
@@ -303,7 +305,7 @@ ParseVariants(const base::StringPiece& str) {
       // the same characters.
       // [spec text]
       if (!it->is_string() && !it->is_token())
-        return absl::nullopt;
+        return std::nullopt;
       available_values.push_back(it->GetString());
     }
     variants.push_back(std::make_pair(field_name, available_values));
@@ -312,8 +314,8 @@ ParseVariants(const base::StringPiece& str) {
 }
 
 // https://tools.ietf.org/id/draft-ietf-httpbis-variants-04.html#variant-key
-absl::optional<std::vector<std::vector<std::string>>> ParseVariantKey(
-    const base::StringPiece& str,
+std::optional<std::vector<std::vector<std::string>>> ParseVariantKey(
+    const std::string_view& str,
     size_t num_variant_axes) {
   // Compatibility note: Draft 4 of Variants
   // (https://tools.ietf.org/id/draft-ietf-httpbis-variants-04.html#variant-key)
@@ -327,10 +329,10 @@ absl::optional<std::vector<std::vector<std::string>>> ParseVariantKey(
   // both strings and tokens.
   // TODO(iclelland): Once the specs are updated, also parse the new
   // Variants-Key header as well. The same data structure should be returned.
-  absl::optional<net::structured_headers::ListOfLists> parsed =
+  std::optional<net::structured_headers::ListOfLists> parsed =
       net::structured_headers::ParseListOfLists(str);
   if (!parsed)
-    return absl::nullopt;
+    return std::nullopt;
   std::vector<std::vector<std::string>> variant_keys;
   variant_keys.reserve(parsed->size());
   // Each inner-list MUST have the same number of list-members as there are
@@ -342,10 +344,10 @@ absl::optional<std::vector<std::vector<std::string>>> ParseVariantKey(
     std::vector<std::string> list_members;
     list_members.reserve(inner_list.size());
     if (inner_list.size() != num_variant_axes)
-      return absl::nullopt;
+      return std::nullopt;
     for (const net::structured_headers::Item& item : inner_list) {
       if (!item.is_string() && !item.is_token())
-        return absl::nullopt;
+        return std::nullopt;
       list_members.push_back(item.GetString());
     }
     variant_keys.push_back(list_members);
@@ -363,15 +365,15 @@ absl::optional<std::vector<std::vector<std::string>>> ParseVariantKey(
 //      ["image/jpg", "en"], ["image/jpg", "fr"], ["image/jpg", "ja"]]
 //   Result: 4
 // [1] https://httpwg.org/http-extensions/draft-ietf-httpbis-variants.html#find
-absl::optional<size_t> GetPossibleKeysIndex(
+std::optional<size_t> GetPossibleKeysIndex(
     const std::vector<std::vector<std::string>>& sorted_variants,
     const std::vector<std::string>& variant_key) {
   DCHECK_EQ(variant_key.size(), sorted_variants.size());
   size_t index = 0;
   for (size_t i = 0; i < sorted_variants.size(); ++i) {
-    auto found = base::ranges::find(sorted_variants[i], variant_key[i]);
+    auto found = std::ranges::find(sorted_variants[i], variant_key[i]);
     if (found == sorted_variants[i].end())
-      return absl::nullopt;
+      return std::nullopt;
 
     index = index * sorted_variants[i].size() +
             (found - sorted_variants[i].begin());
@@ -409,7 +411,7 @@ WebPackageRequestMatcher::FindBestMatchingVariantKey(
                                     variant_key_list);
 }
 
-absl::optional<size_t> WebPackageRequestMatcher::FindBestMatchingIndex(
+std::optional<size_t> WebPackageRequestMatcher::FindBestMatchingIndex(
     const std::string& variants) const {
   return FindBestMatchingIndex(request_headers_, variants);
 }
@@ -455,10 +457,8 @@ std::vector<std::vector<std::string>> WebPackageRequestMatcher::CacheBehavior(
       // field-name in incoming-request (after being combined as allowed by
       // Section 3.2.2 of [RFC7230]), or null if field-name is not in
       // incoming-request. [spec text]
-      absl::optional<std::string> request_value;
-      std::string header_value;
-      if (request_headers.GetHeader(field_name, &header_value))
-        request_value = header_value;
+      std::optional<std::string> request_value =
+          request_headers.GetHeader(field_name);
       // Step 4.2.1.2. Let sorted-values be the result of running the algorithm
       // defined by the content negotiation mechanism with request-value and
       // variant-axis' available-values. [spec text]
@@ -610,12 +610,12 @@ WebPackageRequestMatcher::FindBestMatchingVariantKey(
 }
 
 // static
-absl::optional<size_t> WebPackageRequestMatcher::FindBestMatchingIndex(
+std::optional<size_t> WebPackageRequestMatcher::FindBestMatchingIndex(
     const net::HttpRequestHeaders& request_headers,
     const std::string& variants) {
   auto parsed_variants = ParseVariants(variants);
   if (!parsed_variants)
-    return absl::nullopt;
+    return std::nullopt;
 
   size_t best_match_index = 0;
   for (const auto& variant_axis : *parsed_variants) {
@@ -623,28 +623,26 @@ absl::optional<size_t> WebPackageRequestMatcher::FindBestMatchingIndex(
     std::unique_ptr<ContentNegotiationAlgorithm> negotiation_algorithm =
         GetContentNegotiationAlgorithm(field_name);
     if (!negotiation_algorithm)
-      return absl::nullopt;
-    absl::optional<std::string> request_value;
-    std::string header_value;
-    if (request_headers.GetHeader(field_name, &header_value))
-      request_value = header_value;
+      return std::nullopt;
+    std::optional<std::string> request_value =
+        request_headers.GetHeader(field_name);
 
     std::vector<std::string> sorted_values =
         negotiation_algorithm->run(variant_axis.second, request_value);
     if (sorted_values.empty())
-      return absl::nullopt;
-    auto it = base::ranges::find(variant_axis.second, sorted_values.front());
+      return std::nullopt;
+    auto it = std::ranges::find(variant_axis.second, sorted_values.front());
     if (it == variant_axis.second.end())
-      return absl::nullopt;
+      return std::nullopt;
     size_t best_value_index = it - variant_axis.second.begin();
 
     if (!base::CheckMul(best_match_index, variant_axis.second.size())
              .AssignIfValid(&best_match_index)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     if (!base::CheckAdd(best_match_index, best_value_index)
              .AssignIfValid(&best_match_index)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
   return best_match_index;

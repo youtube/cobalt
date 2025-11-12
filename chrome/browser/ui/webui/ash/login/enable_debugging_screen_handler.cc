@@ -11,7 +11,7 @@
 #include "chrome/browser/ash/login/screens/enable_debugging_screen.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -29,10 +29,14 @@ void EnableDebuggingScreenHandler::Show() {
   ShowInWebUI();
 }
 
+base::WeakPtr<EnableDebuggingScreenView>
+EnableDebuggingScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void EnableDebuggingScreenHandler::DeclareLocalizedValues(
     ::login::LocalizedValuesBuilder* builder) {
-  builder->Add("enableDebuggingScreenTitle",
-               IDS_ENABLE_DEBUGGING_SCREEN_TITLE);
+  builder->Add("enableDebuggingScreenTitle", IDS_ENABLE_DEBUGGING_SCREEN_TITLE);
   builder->Add("enableDebuggingScreenAccessibleTitle",
                IDS_ENABLE_DEBUGGING_SCREEN_TITLE);
   builder->Add("enableDebuggingCancelButton", IDS_CANCEL);
@@ -43,21 +47,17 @@ void EnableDebuggingScreenHandler::DeclareLocalizedValues(
                IDS_ENABLE_DEBUGGING_ENABLE_BUTTON);
   builder->Add("enableDebuggingRemveRootfsMessage",
                IDS_ENABLE_DEBUGGING_SCREEN_ROOTFS_REMOVE_MSG);
-  builder->Add("enableDebuggingLearnMore",
-               IDS_ENABLE_DEBUGGING_LEARN_MORE);
+  builder->Add("enableDebuggingLearnMore", IDS_ENABLE_DEBUGGING_LEARN_MORE);
   builder->Add("enableDebuggingSetupMessage",
                IDS_ENABLE_DEBUGGING_SETUP_MESSAGE);
   builder->AddF("enableDebuggingWarningTitle",
                 IDS_ENABLE_DEBUGGING_SCREEN_WARNING_MSG,
                 IDS_SHORT_PRODUCT_NAME);
-  builder->AddF("enableDebuggingDoneMessage",
-                IDS_ENABLE_DEBUGGING_DONE_MESSAGE,
+  builder->AddF("enableDebuggingDoneMessage", IDS_ENABLE_DEBUGGING_DONE_MESSAGE,
                 IDS_SHORT_PRODUCT_NAME);
-  builder->Add("enableDebuggingErrorTitle",
-                IDS_ENABLE_DEBUGGING_ERROR_TITLE);
+  builder->Add("enableDebuggingErrorTitle", IDS_ENABLE_DEBUGGING_ERROR_TITLE);
   builder->AddF("enableDebuggingErrorMessage",
-                IDS_ENABLE_DEBUGGING_ERROR_MESSAGE,
-                IDS_SHORT_PRODUCT_NAME);
+                IDS_ENABLE_DEBUGGING_ERROR_MESSAGE, IDS_SHORT_PRODUCT_NAME);
   builder->Add("enableDebuggingPasswordLabel",
                IDS_ENABLE_DEBUGGING_ROOT_PASSWORD_LABEL);
   builder->Add("enableDebuggingConfirmPasswordLabel",

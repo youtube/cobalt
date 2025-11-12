@@ -27,7 +27,6 @@
 #include "libANGLE/renderer/gl/FenceNVGL.h"
 #include "libANGLE/renderer/gl/FramebufferGL.h"
 #include "libANGLE/renderer/gl/FunctionsGL.h"
-#include "libANGLE/renderer/gl/PLSProgramCache.h"
 #include "libANGLE/renderer/gl/ProgramGL.h"
 #include "libANGLE/renderer/gl/QueryGL.h"
 #include "libANGLE/renderer/gl/RenderbufferGL.h"
@@ -60,7 +59,7 @@ void SetMaxShaderCompilerThreads(const rx::FunctionsGL *functions, GLuint count)
 
 #if defined(ANGLE_PLATFORM_ANDROID)
 const char *kIgnoredErrors[] = {
-    // Wrong error message on Android Q Pixel 2. http://anglebug.com/3491
+    // Wrong error message on Android Q Pixel 2. http://anglebug.com/42262155
     "FreeAllocationOnTimestamp - Reference to buffer created from "
     "different context without a share list. Application failed to pass "
     "share_context to eglCreateContext. Results are undefined.",
@@ -159,11 +158,11 @@ RendererGL::RendererGL(std::unique_ptr<FunctionsGL> functions,
       mNeedsFlushBeforeDeleteTextures(false)
 {
     ASSERT(mFunctions);
-    if (!display->getState().featuresAllDisabled)
+    ApplyFeatureOverrides(&mFeatures, display->getState().featureOverrides);
+    if (!display->getState().featureOverrides.allDisabled)
     {
         nativegl_gl::InitializeFeatures(mFunctions.get(), &mFeatures);
     }
-    ApplyFeatureOverrides(&mFeatures, display->getState());
     mStateManager =
         new StateManagerGL(mFunctions.get(), getNativeCaps(), getNativeExtensions(), mFeatures);
     mBlitter          = new BlitGL(mFunctions.get(), mFeatures, mStateManager);
@@ -214,12 +213,6 @@ RendererGL::~RendererGL()
     SafeDelete(mBlitter);
     SafeDelete(mMultiviewClearer);
     SafeDelete(mStateManager);
-    SafeDelete(mPLSProgramCache);
-
-    std::lock_guard<std::mutex> lock(mWorkerMutex);
-
-    ASSERT(mCurrentWorkerContexts.empty());
-    mWorkerContextPool.clear();
 }
 
 angle::Result RendererGL::flush()
@@ -338,15 +331,6 @@ const ShPixelLocalStorageOptions &RendererGL::getNativePixelLocalStorageOptions(
     return mNativePLSOptions;
 }
 
-PLSProgramCache *RendererGL::getPLSProgramCache()
-{
-    if (!mPLSProgramCache)
-    {
-        mPLSProgramCache = new PLSProgramCache(mFunctions.get(), mNativeCaps);
-    }
-    return mPLSProgramCache;
-}
-
 MultiviewImplementationTypeGL RendererGL::getMultiviewImplementationType() const
 {
     ensureCapsInitialized();
@@ -395,57 +379,6 @@ void RendererGL::framebufferFetchBarrier()
     mWorkDoneSinceLastFlush = true;
 }
 
-bool RendererGL::bindWorkerContext(std::string *infoLog)
-{
-    if (mFeatures.disableWorkerContexts.enabled)
-    {
-        return false;
-    }
-
-    std::lock_guard<std::mutex> lock(mWorkerMutex);
-    std::unique_ptr<WorkerContext> workerContext;
-    if (!mWorkerContextPool.empty())
-    {
-        auto it       = mWorkerContextPool.begin();
-        workerContext = std::move(*it);
-        mWorkerContextPool.erase(it);
-    }
-    else
-    {
-        WorkerContext *newContext = createWorkerContext(infoLog);
-        if (newContext == nullptr)
-        {
-            return false;
-        }
-        workerContext.reset(newContext);
-    }
-
-    if (!workerContext->makeCurrent())
-    {
-        mWorkerContextPool.push_back(std::move(workerContext));
-        return false;
-    }
-    mCurrentWorkerContexts[angle::GetCurrentThreadUniqueId()] = std::move(workerContext);
-    return true;
-}
-
-void RendererGL::unbindWorkerContext()
-{
-    std::lock_guard<std::mutex> lock(mWorkerMutex);
-
-    auto it = mCurrentWorkerContexts.find(angle::GetCurrentThreadUniqueId());
-    ASSERT(it != mCurrentWorkerContexts.end());
-    (*it).second->unmakeCurrent();
-    mWorkerContextPool.push_back(std::move((*it).second));
-    mCurrentWorkerContexts.erase(it);
-}
-
-unsigned int RendererGL::getMaxWorkerContexts()
-{
-    // No more than 16 worker contexts.
-    return std::min(16u, std::thread::hardware_concurrency());
-}
-
 bool RendererGL::hasNativeParallelCompile()
 {
     if (mFeatures.disableNativeParallelCompile.enabled)
@@ -480,25 +413,6 @@ void RendererGL::flushIfNecessaryBeforeDeleteTextures()
     {
         (void)flush();
     }
-}
-
-ScopedWorkerContextGL::ScopedWorkerContextGL(RendererGL *renderer, std::string *infoLog)
-    : mRenderer(renderer)
-{
-    mValid = mRenderer->bindWorkerContext(infoLog);
-}
-
-ScopedWorkerContextGL::~ScopedWorkerContextGL()
-{
-    if (mValid)
-    {
-        mRenderer->unbindWorkerContext();
-    }
-}
-
-bool ScopedWorkerContextGL::operator()() const
-{
-    return mValid;
 }
 
 void RendererGL::handleGPUSwitch()

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "mojo/core/node_channel.h"
 
 #include "base/functional/callback_helpers.h"
@@ -25,6 +30,13 @@ using testing::_;
 
 class NodeChannelTest : public testing::Test {
  public:
+  void SetUp() override {
+    if (IsMojoIpczEnabled()) {
+      GTEST_SKIP() << "NodeChannel is never used when ipcz is enabled, so "
+                   << "these tests are neither supported nor relevant.";
+    }
+  }
+
   MockNodeChannelDelegate local_delegate_;
   MockNodeChannelDelegate remote_delegate_;
 };

@@ -8,26 +8,31 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/ui/webui/signin/dice_web_signin_intercept_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/signin_resources.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/webui/resource_path.h"
 #include "ui/base/webui/web_ui_util.h"
-#include "ui/resources/grit/webui_resources.h"
+#include "ui/webui/resources/grit/webui_resources.h"
+#include "ui/webui/webui_util.h"
 #include "url/gurl.h"
+
+using signin::constants::kNoHostedDomainFound;
 
 namespace {
 
 // Helper to create parameters used for testing, when loading the intercept
 // bubble directly with the `debug` query param set.
-DiceWebSigninInterceptor::Delegate::BubbleParameters
+WebSigninInterceptor::Delegate::BubbleParameters
 CreateSampleBubbleParameters() {
   // Looks like the transparent checkerboard.
   std::string small_png =
@@ -36,7 +41,8 @@ CreateSampleBubbleParameters() {
       "+/v7+jQ3Y5AAAADklEQVQI12P4AIX8EAgALgAD/aNpbtEAAAAASUVORK5CYII";
 
   AccountInfo intercepted_account;
-  intercepted_account.account_id = CoreAccountId::FromGaiaId("intercepted_ID");
+  intercepted_account.account_id =
+      CoreAccountId::FromGaiaId(GaiaId("intercepted_ID"));
   intercepted_account.given_name = "Sam";
   intercepted_account.full_name = "Sam Sample";
   intercepted_account.email = "sam.sample@intercepted.com";
@@ -44,15 +50,15 @@ CreateSampleBubbleParameters() {
   intercepted_account.hosted_domain = kNoHostedDomainFound;
 
   AccountInfo primary_account;
-  primary_account.account_id = CoreAccountId::FromGaiaId("primary_ID");
+  primary_account.account_id = CoreAccountId::FromGaiaId(GaiaId("primary_ID"));
   primary_account.given_name = "Tessa";
   primary_account.full_name = "Tessa Tester";
   primary_account.email = "tessa.tester@primary.com";
   primary_account.picture_url = small_png;
   primary_account.hosted_domain = kNoHostedDomainFound;
 
-  return DiceWebSigninInterceptor::Delegate::BubbleParameters(
-      DiceWebSigninInterceptor::SigninInterceptionType::kMultiUser,
+  return WebSigninInterceptor::Delegate::BubbleParameters(
+      WebSigninInterceptor::SigninInterceptionType::kMultiUser,
       intercepted_account, primary_account, SK_ColorMAGENTA);
 }
 
@@ -68,6 +74,8 @@ DiceWebSigninInterceptUI::DiceWebSigninInterceptUI(content::WebUI* web_ui)
   static constexpr webui::ResourcePath kResources[] = {
       {"dice_web_signin_intercept_app.js",
        IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_DICE_WEB_SIGNIN_INTERCEPT_APP_JS},
+      {"dice_web_signin_intercept_app.css.js",
+       IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_DICE_WEB_SIGNIN_INTERCEPT_APP_CSS_JS},
       {"dice_web_signin_intercept_app.html.js",
        IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_DICE_WEB_SIGNIN_INTERCEPT_APP_HTML_JS},
       {"dice_web_signin_intercept_browser_proxy.js",
@@ -80,19 +88,36 @@ DiceWebSigninInterceptUI::DiceWebSigninInterceptUI(content::WebUI* web_ui)
       {"test_loader.js", IDR_WEBUI_JS_TEST_LOADER_JS},
       {"test_loader_util.js", IDR_WEBUI_JS_TEST_LOADER_UTIL_JS},
       {"test_loader.html", IDR_WEBUI_TEST_LOADER_HTML},
+      // Resources for the Chrome signin sub page: /chrome_signin.
+      {chrome::kChromeUIDiceWebSigninInterceptChromeSigninSubPage,
+       IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_CHROME_SIGNIN_CHROME_SIGNIN_HTML},
+      {"chrome_signin/chrome_signin_app.js",
+       IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_CHROME_SIGNIN_CHROME_SIGNIN_APP_JS},
+      {"chrome_signin/chrome_signin_app.css.js",
+       IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_CHROME_SIGNIN_CHROME_SIGNIN_APP_CSS_JS},
+      {"chrome_signin/chrome_signin_app.html.js",
+       IDR_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_CHROME_SIGNIN_CHROME_SIGNIN_APP_HTML_JS},
   };
   source->AddResourcePaths(kResources);
 
-  source->AddLocalizedString("guestLink",
-                             IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_GUEST_LINK);
+  // Adding localized strings for the Chrome Signin sub page: /chrome_signin.
+  source->AddLocalizedString(
+      "chromeSigninAcceptText",
+      IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_ACCEPT_TEXT);
+  source->AddLocalizedString(
+      "chromeSigninDeclineText",
+      IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_DECLINE_TEXT);
+  source->AddLocalizedString(
+      "acceptButtonAriaLabel",
+      IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_ACCEPT_TEXT);
+
   source->UseStringsJs();
+  source->EnableReplaceI18nInJS();
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources chrome://test chrome://webui-test "
-      "'self';");
+      "script-src chrome://resources chrome://webui-test 'self';");
   webui::EnableTrustedTypesCSP(source);
-  webui::SetupChromeRefresh2023(source);
 
   if (web_ui->GetWebContents()->GetVisibleURL().query() == "debug") {
     // Not intended to be hooked to anything. The bubble will not initialize it
@@ -105,8 +130,7 @@ DiceWebSigninInterceptUI::DiceWebSigninInterceptUI(content::WebUI* web_ui)
 DiceWebSigninInterceptUI::~DiceWebSigninInterceptUI() = default;
 
 void DiceWebSigninInterceptUI::Initialize(
-    const DiceWebSigninInterceptor::Delegate::BubbleParameters&
-        bubble_parameters,
+    const WebSigninInterceptor::Delegate::BubbleParameters& bubble_parameters,
     base::OnceCallback<void(int)> show_widget_with_height_callback,
     base::OnceCallback<void(SigninInterceptionUserChoice)>
         completion_callback) {

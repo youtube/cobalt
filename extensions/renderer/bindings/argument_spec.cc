@@ -5,9 +5,9 @@
 #include "extensions/renderer/bindings/argument_spec.h"
 
 #include <cmath>
+#include <string_view>
 
 #include "base/check.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
@@ -61,8 +61,8 @@ const char* GetV8ValueTypeString(v8::Local<v8::Value> value) {
 // |maximum|, populating |error| otherwise.
 template <class T>
 bool CheckFundamentalBounds(T value,
-                            const absl::optional<int>& minimum,
-                            const absl::optional<int>& maximum,
+                            const std::optional<int>& minimum,
+                            const std::optional<int>& maximum,
                             std::string* error) {
   if (minimum && value < *minimum) {
     *error = api_errors::NumberTooSmall(*minimum);
@@ -76,9 +76,6 @@ bool CheckFundamentalBounds(T value,
 }
 
 }  // namespace
-
-ArgumentSpec::ArgumentSpec(const base::Value& value)
-    : ArgumentSpec(value.GetDict()) {}
 
 ArgumentSpec::ArgumentSpec(const base::Value::Dict& dict) {
   optional_ = dict.FindBool("optional").value_or(optional_);
@@ -102,7 +99,7 @@ void ArgumentSpec::InitializeType(const base::Value::Dict& dict) {
     type_ = ArgumentType::CHOICES;
     choices_.reserve(choices->size());
     for (const auto& choice : *choices)
-      choices_.push_back(std::make_unique<ArgumentSpec>(choice));
+      choices_.push_back(std::make_unique<ArgumentSpec>(choice.GetDict()));
     return;
   }
 
@@ -129,12 +126,14 @@ void ArgumentSpec::InitializeType(const base::Value::Dict& dict) {
   else
     NOTREACHED();
 
-  if (absl::optional<int> minimum = dict.FindInt("minimum"))
+  if (std::optional<int> minimum = dict.FindInt("minimum")) {
     minimum_ = *minimum;
-  if (absl::optional<int> maximum = dict.FindInt("maximum"))
+  }
+  if (std::optional<int> maximum = dict.FindInt("maximum")) {
     maximum_ = *maximum;
+  }
 
-  absl::optional<int> min_length = dict.FindInt("minLength");
+  std::optional<int> min_length = dict.FindInt("minLength");
   if (!min_length)
     min_length = dict.FindInt("minItems");
   if (min_length) {
@@ -142,7 +141,7 @@ void ArgumentSpec::InitializeType(const base::Value::Dict& dict) {
     min_length_ = *min_length;
   }
 
-  absl::optional<int> max_length = dict.FindInt("maxLength");
+  std::optional<int> max_length = dict.FindInt("maxLength");
   if (!max_length)
     max_length = dict.FindInt("maxItems");
   if (max_length) {
@@ -154,7 +153,8 @@ void ArgumentSpec::InitializeType(const base::Value::Dict& dict) {
     if (const base::Value::Dict* properties_value =
             dict.FindDict("properties")) {
       for (const auto item : *properties_value) {
-        properties_[item.first] = std::make_unique<ArgumentSpec>(item.second);
+        properties_[item.first] =
+            std::make_unique<ArgumentSpec>(item.second.GetDict());
       }
     }
 
@@ -164,6 +164,10 @@ void ArgumentSpec::InitializeType(const base::Value::Dict& dict) {
           std::make_unique<ArgumentSpec>(*additional_properties_value);
       // Additional properties are always optional.
       additional_properties_->optional_ = true;
+    }
+
+    if (dict.FindBool("ignoreAdditionalProperties").value_or(false)) {
+      ignore_additional_properties_ = true;
     }
   } else if (type_ == ArgumentType::LIST) {
     const base::Value::Dict* item_value = dict.FindDict("items");
@@ -320,7 +324,6 @@ bool ArgumentSpec::ParseArgument(v8::Local<v8::Context> context,
   }
 
   NOTREACHED();
-  return false;
 }
 
 const std::string& ArgumentSpec::GetTypeName() const {
@@ -356,7 +359,7 @@ const std::string& ArgumentSpec::GetTypeName() const {
       type_name_ = ref_->c_str();
       break;
     case ArgumentType::CHOICES: {
-      std::vector<base::StringPiece> choices_strings;
+      std::vector<std::string_view> choices_strings;
       choices_strings.reserve(choices_.size());
       for (const auto& choice : choices_)
         choices_strings.push_back(choice->GetTypeName());
@@ -460,7 +463,6 @@ bool ArgumentSpec::ParseArgumentToFundamental(
     default:
       NOTREACHED();
   }
-  return false;
 }
 
 bool ArgumentSpec::ParseArgumentToObject(
@@ -526,6 +528,9 @@ bool ArgumentSpec::ParseArgumentToObject(
       // functions, or even NaN. If the additional properties are of
       // ArgumentType::ANY, allow anything, even if it doesn't serialize.
       allow_unserializable = property_spec->type_ == ArgumentType::ANY;
+    } else if (ignore_additional_properties_) {
+      // If we're ignoring additional properties, we just skip to the next one.
+      continue;
     } else {
       *error = api_errors::UnexpectedProperty(*utf8_key);
       return false;
@@ -610,7 +615,7 @@ bool ArgumentSpec::ParseArgumentToObject(
       v8::String::Utf8Value constructor(context->GetIsolate(),
                                         current->GetConstructorName());
       if (*instance_of_ ==
-          base::StringPiece(*constructor, constructor.length())) {
+          std::string_view(*constructor, constructor.length())) {
         found = true;
         break;
       }

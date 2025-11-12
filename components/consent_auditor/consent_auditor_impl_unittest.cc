@@ -16,7 +16,7 @@
 #include "base/test/simple_test_clock.h"
 #include "base/time/time.h"
 #include "components/sync/protocol/user_consent_specifics.pb.h"
-#include "components/sync/test/fake_model_type_controller_delegate.h"
+#include "components/sync/test/fake_data_type_controller_delegate.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -36,6 +36,9 @@ namespace {
 // Fake product locate for testing.
 constexpr char kCurrentAppLocale[] = "en-US";
 
+// Fake Gaia ID for testing.
+constexpr GaiaId::Literal kGaiaId("testing_gaia_id");
+
 // Fake message ids.
 constexpr std::array<int, 3> kDescriptionMessageIds = {12, 37, 42};
 constexpr int kConfirmationMessageId = 47;
@@ -51,14 +54,14 @@ class FakeConsentSyncBridge : public ConsentSyncBridge {
     recorded_user_consents_.push_back(*specifics);
   }
 
-  base::WeakPtr<syncer::ModelTypeControllerDelegate> GetControllerDelegate()
+  base::WeakPtr<syncer::DataTypeControllerDelegate> GetControllerDelegate()
       override {
     return delegate_;
   }
 
   // Fake methods.
   void SetControllerDelegate(
-      base::WeakPtr<syncer::ModelTypeControllerDelegate> delegate) {
+      base::WeakPtr<syncer::DataTypeControllerDelegate> delegate) {
     delegate_ = delegate;
   }
 
@@ -67,7 +70,7 @@ class FakeConsentSyncBridge : public ConsentSyncBridge {
   }
 
  private:
-  base::WeakPtr<syncer::ModelTypeControllerDelegate> delegate_;
+  base::WeakPtr<syncer::DataTypeControllerDelegate> delegate_;
   std::vector<UserConsentSpecifics> recorded_user_consents_;
 };
 
@@ -75,12 +78,6 @@ class FakeConsentSyncBridge : public ConsentSyncBridge {
 
 class ConsentAuditorImplTest : public testing::Test {
  public:
-  // Fake account ID for testing.
-  const CoreAccountId kAccountId;
-
-  ConsentAuditorImplTest()
-      : kAccountId(CoreAccountId::FromGaiaId("testing_account_id")) {}
-
   void SetUp() override {
     CreateConsentAuditorImpl(std::make_unique<FakeConsentSyncBridge>());
   }
@@ -100,7 +97,8 @@ class ConsentAuditorImplTest : public testing::Test {
  private:
   // Test helpers.
   base::SimpleTestClock test_clock_;
-  raw_ptr<FakeConsentSyncBridge> consent_sync_bridge_ = nullptr;
+  raw_ptr<FakeConsentSyncBridge, DanglingUntriaged> consent_sync_bridge_ =
+      nullptr;
 
   // Test object to be tested.
   std::unique_ptr<ConsentAuditorImpl> consent_auditor_;
@@ -117,7 +115,7 @@ TEST_F(ConsentAuditorImplTest, RecordGaiaConsentAsUserConsent) {
   for (int id : kDescriptionMessageIds) {
     sync_consent.add_description_grd_ids(id);
   }
-  consent_auditor()->RecordSyncConsent(kAccountId, sync_consent);
+  consent_auditor()->RecordSyncConsent(kGaiaId, sync_consent);
 
   std::vector<UserConsentSpecifics> consents =
       consent_sync_bridge()->GetRecordedUserConsents();
@@ -126,7 +124,7 @@ TEST_F(ConsentAuditorImplTest, RecordGaiaConsentAsUserConsent) {
 
   EXPECT_EQ(now.since_origin().InMicroseconds(),
             consent.client_consent_time_usec());
-  EXPECT_EQ(kAccountId.ToString(), consent.account_id());
+  EXPECT_EQ(kGaiaId.ToString(), consent.obfuscated_gaia_id());
   EXPECT_EQ(kCurrentAppLocale, consent.locale());
 
   EXPECT_TRUE(consent.has_sync_consent());
@@ -148,14 +146,14 @@ TEST_F(ConsentAuditorImplTest, RecordArcPlayConsentRevocation) {
     play_consent.add_description_grd_ids(id);
   }
   play_consent.set_consent_flow(ArcPlayTermsOfServiceConsent::SETTING_CHANGE);
-  consent_auditor()->RecordArcPlayConsent(kAccountId, play_consent);
+  consent_auditor()->RecordArcPlayConsent(kGaiaId, play_consent);
 
   const std::vector<UserConsentSpecifics> consents =
       consent_sync_bridge()->GetRecordedUserConsents();
   ASSERT_EQ(1U, consents.size());
   const UserConsentSpecifics& consent = consents[0];
 
-  EXPECT_EQ(kAccountId.ToString(), consent.account_id());
+  EXPECT_EQ(kGaiaId.ToString(), consent.obfuscated_gaia_id());
   EXPECT_EQ(kCurrentAppLocale, consent.locale());
 
   EXPECT_TRUE(consent.has_arc_play_terms_of_service_consent());
@@ -187,14 +185,14 @@ TEST_F(ConsentAuditorImplTest, RecordArcPlayConsent) {
       reinterpret_cast<const char*>(play_tos_hash), base::kSHA1Length));
   play_consent.set_play_terms_of_service_text_length(7);
 
-  consent_auditor()->RecordArcPlayConsent(kAccountId, play_consent);
+  consent_auditor()->RecordArcPlayConsent(kGaiaId, play_consent);
 
   const std::vector<UserConsentSpecifics> consents =
       consent_sync_bridge()->GetRecordedUserConsents();
   ASSERT_EQ(1U, consents.size());
   const UserConsentSpecifics& consent = consents[0];
 
-  EXPECT_EQ(kAccountId.ToString(), consent.account_id());
+  EXPECT_EQ(kGaiaId.ToString(), consent.obfuscated_gaia_id());
   EXPECT_EQ(kCurrentAppLocale, consent.locale());
 
   EXPECT_TRUE(consent.has_arc_play_terms_of_service_consent());
@@ -215,8 +213,8 @@ TEST_F(ConsentAuditorImplTest, RecordArcPlayConsent) {
 TEST_F(ConsentAuditorImplTest, ShouldReturnSyncDelegateWhenBridgePresent) {
   auto fake_bridge = std::make_unique<FakeConsentSyncBridge>();
 
-  syncer::FakeModelTypeControllerDelegate fake_delegate(
-      syncer::ModelType::USER_CONSENTS);
+  syncer::FakeDataTypeControllerDelegate fake_delegate(
+      syncer::DataType::USER_CONSENTS);
   auto expected_delegate_ptr = fake_delegate.GetWeakPtr();
   DCHECK(expected_delegate_ptr);
   fake_bridge->SetControllerDelegate(expected_delegate_ptr);
@@ -236,7 +234,7 @@ TEST_F(ConsentAuditorImplTest, RecordAssistantActivityControlConsent) {
   assistant_consent.set_ui_audit_key(std::string(ui_audit_key, 3));
   assistant_consent.set_setting_type(AssistantActivityControlConsent::ALL);
 
-  consent_auditor()->RecordAssistantActivityControlConsent(kAccountId,
+  consent_auditor()->RecordAssistantActivityControlConsent(kGaiaId,
                                                            assistant_consent);
 
   std::vector<UserConsentSpecifics> consents =
@@ -244,7 +242,7 @@ TEST_F(ConsentAuditorImplTest, RecordAssistantActivityControlConsent) {
   ASSERT_EQ(consents.size(), 1u);
   const UserConsentSpecifics& consent = consents[0];
 
-  EXPECT_EQ(kAccountId.ToString(), consent.account_id());
+  EXPECT_EQ(kGaiaId.ToString(), consent.obfuscated_gaia_id());
   EXPECT_EQ(kCurrentAppLocale, consent.locale());
 
   EXPECT_TRUE(consent.has_assistant_activity_control_consent());

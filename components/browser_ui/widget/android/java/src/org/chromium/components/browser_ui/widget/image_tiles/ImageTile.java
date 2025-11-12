@@ -6,12 +6,14 @@ package org.chromium.components.browser_ui.widget.image_tiles;
 
 import android.text.TextUtils;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Class encapsulating data needed to render a image tile. An {@link ImageTile} is a tile meant to
  * show an image with some text.
  */
+@NullMarked
 public class ImageTile {
     /** The ID representing this tile. */
     public final String id;
@@ -33,7 +35,8 @@ public class ImageTile {
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof ImageTile)) return false;
         ImageTile other = (ImageTile) obj;
-        return TextUtils.equals(id, other.id) && TextUtils.equals(displayTitle, other.displayTitle)
+        return TextUtils.equals(id, other.id)
+                && TextUtils.equals(displayTitle, other.displayTitle)
                 && TextUtils.equals(accessibilityText, other.accessibilityText);
     }
 }

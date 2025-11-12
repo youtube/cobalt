@@ -14,6 +14,17 @@
 
 namespace media {
 
+TEST(SVCScalabilityModeTest, RoundTrip) {
+  auto hw_supported_svc_modes =
+      ::media::GetSupportedScalabilityModesByHWEncoderForTesting();
+  for (::media::SVCScalabilityMode input_svc_mode : hw_supported_svc_modes) {
+    SVCScalabilityMode output_svc_mode;
+    ASSERT_TRUE(mojo::test::SerializeAndDeserialize<mojom::SVCScalabilityMode>(
+        input_svc_mode, output_svc_mode));
+    EXPECT_EQ(input_svc_mode, output_svc_mode);
+  }
+}
+
 TEST(VideoEncodeAcceleratorSupportedProfile, RoundTrip) {
   ::media::VideoEncodeAccelerator::SupportedProfile input;
   input.profile = VP9PROFILE_PROFILE0;
@@ -25,6 +36,8 @@ TEST(VideoEncodeAcceleratorSupportedProfile, RoundTrip) {
                              VideoEncodeAccelerator::kVariableMode;
   input.scalability_modes.push_back(::media::SVCScalabilityMode::kL1T3);
   input.scalability_modes.push_back(::media::SVCScalabilityMode::kL3T3Key);
+  input.scalability_modes.push_back(::media::SVCScalabilityMode::kS2T3);
+  input.scalability_modes.push_back(::media::SVCScalabilityMode::kS3T1);
 
   ::media::VideoEncodeAccelerator::SupportedProfile output;
   ASSERT_TRUE(mojo::test::SerializeAndDeserialize<
@@ -41,10 +54,10 @@ TEST(VideoEncoderInfoStructTraitTest, RoundTrip) {
   for (size_t i = 0; i < ::media::VideoEncoderInfo::kMaxSpatialLayers; ++i)
     input.fps_allocation[i] = {5, 5, 10};
   // Resolution bitrate limits.
-  input.resolution_bitrate_limits.push_back(::media::ResolutionBitrateLimit(
-      gfx::Size(123, 456), 123456, 123456, 789012));
-  input.resolution_bitrate_limits.push_back(::media::ResolutionBitrateLimit(
-      gfx::Size(789, 1234), 1234567, 1234567, 7890123));
+  input.resolution_rate_limits.push_back(::media::ResolutionRateLimit(
+      gfx::Size(123, 456), 123456, 123456, 789012, 30, 1));
+  input.resolution_rate_limits.push_back(::media::ResolutionRateLimit(
+      gfx::Size(789, 1234), 1234567, 1234567, 7890123, 30, 1));
   // Other bool values.
   input.supports_native_handle = true;
   input.has_trusted_rate_controller = true;
@@ -167,11 +180,12 @@ TEST(VideoEncodeAcceleratorConfigStructTraitTest, RoundTrip) {
 
   ::media::VideoEncodeAccelerator::Config input_config(
       ::media::PIXEL_FORMAT_NV12, kBaseSize, ::media::VP9PROFILE_PROFILE0,
-      kBitrate, kBaseFramerate, absl::nullopt, absl::nullopt, false,
+      kBitrate, kBaseFramerate,
       ::media::VideoEncodeAccelerator::Config::StorageType::kGpuMemoryBuffer,
-      ::media::VideoEncodeAccelerator::Config::ContentType::kCamera,
-      input_spatial_layers,
-      ::media::VideoEncodeAccelerator::Config::InterLayerPredMode::kOnKeyPic);
+      ::media::VideoEncodeAccelerator::Config::ContentType::kCamera);
+  input_config.drop_frame_thresh_percentage = 30;
+  input_config.spatial_layers = input_spatial_layers;
+  input_config.inter_layer_pred = ::media::SVCInterLayerPredMode::kOnKeyPic;
 
   ::media::VideoEncodeAccelerator::Config output_config{};
   ASSERT_TRUE(
@@ -188,7 +202,9 @@ TEST(VideoEncodeAcceleratorConfigStructTraitTest, RoundTripVariableBitrate) {
       ::media::Bitrate::VariableBitrate(kBaseBitrateBps, kMaximumBitrate);
   ::media::VideoEncodeAccelerator::Config input_config(
       ::media::PIXEL_FORMAT_NV12, kBaseSize, ::media::VP9PROFILE_PROFILE0,
-      kBitrate);
+      kBitrate, 30,
+      ::media::VideoEncodeAccelerator::Config::StorageType::kGpuMemoryBuffer,
+      ::media::VideoEncodeAccelerator::Config::ContentType::kCamera);
 
   ::media::VideoEncodeAccelerator::Config output_config{};
   ASSERT_TRUE(
@@ -255,17 +271,41 @@ TEST(BitstreamBufferMetadataTraitTest, RoundTrip) {
   EXPECT_EQ(input_metadata, output_metadata);
   input_metadata.vp8.reset();
 
+  SVCGenericMetadata svc_generic;
+  svc_generic.follow_svc_spec = true;
+  svc_generic.temporal_idx = 2;
+  svc_generic.spatial_idx = 1;
+  svc_generic.refresh_flags = 0b11111111;
+  svc_generic.reference_flags = 0b00000001;
+  input_metadata.svc_generic = svc_generic;
+  output_metadata = ::media::BitstreamBufferMetadata();
+  ASSERT_TRUE(
+      mojo::test::SerializeAndDeserialize<mojom::BitstreamBufferMetadata>(
+          input_metadata, output_metadata));
+  EXPECT_EQ(input_metadata, output_metadata);
+  input_metadata.svc_generic.reset();
+
   Vp9Metadata vp9;
   vp9.inter_pic_predicted = true;
   vp9.temporal_up_switch = true;
   vp9.referenced_by_upper_spatial_layers = true;
   vp9.reference_lower_spatial_layers = true;
-  vp9.end_of_picture = true;
+  vp9.end_of_picture = false;
   vp9.temporal_idx = 2;
   vp9.spatial_idx = 0;
   vp9.spatial_layer_resolutions = {gfx::Size(320, 180), gfx::Size(640, 360)};
   vp9.p_diffs = {0, 1};
   input_metadata.vp9 = vp9;
+  output_metadata = ::media::BitstreamBufferMetadata();
+  ASSERT_TRUE(
+      mojo::test::SerializeAndDeserialize<mojom::BitstreamBufferMetadata>(
+          input_metadata, output_metadata));
+  EXPECT_EQ(input_metadata, output_metadata);
+
+  input_metadata =
+      BitstreamBufferMetadata::CreateForDropFrame(base::Milliseconds(123456),
+                                                  /*spatial_idx=*/1u, false);
+  CHECK(input_metadata.drop);
   output_metadata = ::media::BitstreamBufferMetadata();
   ASSERT_TRUE(
       mojo::test::SerializeAndDeserialize<mojom::BitstreamBufferMetadata>(

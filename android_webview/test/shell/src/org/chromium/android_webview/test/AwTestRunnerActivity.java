@@ -11,13 +11,15 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.LinearLayout;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.shell.AwShellResourceProvider;
 import org.chromium.base.StrictModeContext;
 
-/**
- * This is a lightweight activity for tests that only require WebView functionality.
- */
+/** This is a lightweight activity for tests that only require WebView functionality. */
 public class AwTestRunnerActivity extends Activity {
     public static final String FLAG_HIDE_ACTION_BAR = "hide_action_bar";
 
@@ -37,12 +39,13 @@ public class AwTestRunnerActivity extends Activity {
         mLinearLayout = new LinearLayout(this);
         mLinearLayout.setOrientation(LinearLayout.VERTICAL);
         mLinearLayout.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
-        mLinearLayout.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,
-                LayoutParams.MATCH_PARENT));
+        mLinearLayout.setLayoutParams(
+                new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
         hideActionBarIfNecessary();
 
         setContentView(mLinearLayout);
+        setupEdgeToEdge();
     }
 
     private void hideActionBarIfNecessary() {
@@ -62,18 +65,15 @@ public class AwTestRunnerActivity extends Activity {
         return mLinearLayout.getWidth();
     }
 
-    /**
-     * Adds a view to the main linear layout.
-     */
+    /** Adds a view to the main linear layout. */
     public void addView(View view) {
-        view.setLayoutParams(new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1f));
+        view.setLayoutParams(
+                new LinearLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1f));
         mLinearLayout.addView(view);
     }
 
-    /**
-     * Clears the main linear layout.
-     */
+    /** Clears the main linear layout. */
     public void removeAllViews() {
         mLinearLayout.removeAllViews();
     }
@@ -90,5 +90,24 @@ public class AwTestRunnerActivity extends Activity {
 
     public void setIgnoreStartActivity(boolean ignore) {
         mIgnoreStartActivity = ignore;
+    }
+
+    private void setupEdgeToEdge() {
+        ViewCompat.setOnApplyWindowInsetsListener(
+                mLinearLayout,
+                (v, windowInsets) -> {
+                    Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    // Ensure the LinearLayout (container) view does not overlap with the system
+                    // status bar by adjusting its top padding based on the system window insets.
+                    v.setPadding(
+                            v.getPaddingLeft(),
+                            insets.top,
+                            v.getPaddingRight(),
+                            v.getPaddingBottom());
+
+                    // Return CONSUMED to indicate we have handled the insets for this view
+                    // and don't want them to be passed down to descendant views.
+                    return WindowInsetsCompat.CONSUMED;
+                });
     }
 }

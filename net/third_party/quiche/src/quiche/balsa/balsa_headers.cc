@@ -627,6 +627,7 @@ void BalsaHeaders::RemoveAllOfHeaderInList(const HeaderTokenList& keys) {
   // Better performance can be achieved by asking caller to lower case
   // the keys and RemoveAllOfheaderInlist just does lookup.
   absl::flat_hash_set<std::string> lowercase_keys;
+  lowercase_keys.reserve(keys.size());
   for (const auto& key : keys) {
     MaybeClearSpecialHeaderValues(key);
     lowercase_keys.insert(absl::AsciiStrToLower(key));
@@ -873,8 +874,8 @@ std::string BalsaHeaders::DebugString() const {
 }
 
 bool BalsaHeaders::ForEachHeader(
-    std::function<bool(const absl::string_view key,
-                       const absl::string_view value)>
+    quiche::UnretainedCallback<bool(const absl::string_view key,
+                                    const absl::string_view value)>
         fn) const {
   int s = header_lines_.size();
   for (int i = 0; i < s; ++i) {
@@ -980,7 +981,7 @@ void BalsaHeaders::ReplaceOrAppendAuthority(absl::string_view value) {
 void BalsaHeaders::RemoveAuthority() { RemoveAllOfHeader(kHost); }
 
 void BalsaHeaders::ApplyToCookie(
-    std::function<void(absl::string_view cookie)> f) const {
+    quiche::UnretainedCallback<void(absl::string_view cookie)> f) const {
   f(GetHeader(kCookie));
 }
 
@@ -1117,9 +1118,8 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
   // Tokenize just that line.
   BalsaHeaders::HeaderTokenList tokens;
   // Find where this line is stored.
-  const char* stream_begin = GetPtr(header_line->buffer_base_idx);
   absl::string_view value(
-      stream_begin + header_line->value_begin_idx,
+      GetPtr(header_line->buffer_base_idx) + header_line->value_begin_idx,
       header_line->last_char_idx - header_line->value_begin_idx);
   // Tokenize.
   ParseTokenList(value, &tokens);
@@ -1136,7 +1136,7 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
     absl::string_view new_last_token = tokens[tokens.size() - 2];
     const char* last_char_address =
         new_last_token.data() + new_last_token.size() - 1;
-    const char* stream_begin = GetPtr(header_line->buffer_base_idx);
+    const char* const stream_begin = GetPtr(header_line->buffer_base_idx);
 
     header_line->last_char_idx = last_char_address - stream_begin + 1;
   }

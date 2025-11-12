@@ -12,9 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
+
 config("sabi_flags") {
-  cflags = [
-    "-march=arm64v8a",
+  # TODO: b/454711326 - Use "-march=arm64v8a" once we don't need dotprod
+  # functions for libvpx.
+  if (enable_cobalt_hermetic_hacks) {
+    cflags = [ "-march=armv9-a+sve+sme+dotprod+i8mm" ]
+  } else {
+    cflags = [ "-march=arm64v8a" ]
+  }
+
+  cflags += [
     "-target",
     "arm64v8a-unknown-linux-elf",
 
@@ -35,6 +44,4 @@ config("platform_configuration") {
     "-Wl,-m",
     "-Wl,aarch64elf",
   ]
-  cflags = [ "-isystem" +
-             rebase_path("//third_party/musl/arch/aarch64", root_build_dir) ]
 }

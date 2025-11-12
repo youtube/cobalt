@@ -5,11 +5,8 @@
 #ifndef COBALT_UPDATER_PATCHER_H_
 #define COBALT_UPDATER_PATCHER_H_
 
-#include <memory>
-
-#include "base/memory/scoped_refptr.h"
-
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "components/update_client/patcher.h"
 
 // TODO(b/174699165): Investigate differential updates later.

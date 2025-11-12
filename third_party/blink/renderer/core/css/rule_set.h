@@ -20,40 +20,52 @@
  *
  */
 
+#include "base/memory/stack_allocated.h"
+
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_RULE_SET_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_RULE_SET_H_
 
+#include "base/compiler_specific.h"
+#include "base/gtest_prod_util.h"
 #include "base/substring_set_matcher/substring_set_matcher.h"
 #include "base/types/pass_key.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/cascade_layer.h"
 #include "third_party/blink/renderer/core/css/css_keyframes_rule.h"
-#include "third_party/blink/renderer/core/css/css_position_fallback_rule.h"
+#include "third_party/blink/renderer/core/css/css_position_try_rule.h"
 #include "third_party/blink/renderer/core/css/media_query_evaluator.h"
 #include "third_party/blink/renderer/core/css/resolver/media_query_result.h"
+#include "third_party/blink/renderer/core/css/robin_hood_map.h"
 #include "third_party/blink/renderer/core/css/rule_feature_set.h"
 #include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/core/css/style_rule_counter_style.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_feature_values.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_palette_values.h"
+#include "third_party/blink/renderer/core/css/style_rule_view_transition.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_stack.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
+
+class RuleSet;
 
 using AddRuleFlags = unsigned;
 
 enum AddRuleFlag {
   kRuleHasNoSpecialState = 0,
   kRuleIsVisitedDependent = 1 << 0,
-  kRuleIsInitial = 1 << 1,
+  kRuleIsStartingStyle = 1 << 1,
 };
 
 // Some CSS properties do not apply to certain pseudo-elements, and need to be
-// ignored when resolving styles.
+// ignored when resolving styles. Be aware that these values are used in a
+// bitfield. Make sure that it's large enough to hold new values.
+// See MatchedProperties::Data::valid_property_filter.
 enum class ValidPropertyFilter : unsigned {
   // All properties are valid. This is the common case.
   kNoFilter,
@@ -80,6 +92,12 @@ enum class ValidPropertyFilter : unsigned {
   // ::target-text. Only properties listed in
   // https://drafts.csswg.org/css-pseudo-4/#highlight-styling are valid.
   kHighlight,
+  // Defined in a @position-try rule. Only properties listed in
+  // https://drafts.csswg.org/css-anchor-position-1/#fallback-rule are valid.
+  kPositionTry,
+  // Defined in an @page rule.
+  // See https://drafts.csswg.org/css-page-3/#page-property-list
+  kPageContext,
 };
 
 class CSSSelector;
@@ -96,23 +114,22 @@ class CORE_EXPORT RuleData {
   DISALLOW_NEW();
 
  public:
-  // The `extra_specificity` parameter is added to the specificity of the
-  // RuleData. This is useful for @scope, where inner selectors must gain
-  // additional specificity from the <scope-start> of the enclosing @scope.
-  // https://drafts.csswg.org/css-cascade-6/#scope-atrule
-  //
-  // NOTE: You will want to call ComputeBloomFilterHashes() before actually
-  // using this RuleData for matching. However, the constructor cannot do it
-  // right away, since RuleMap wants to use the space normally used for hashes
-  // for its grouping (before compaction), so it needs to delay the call.
+  // NOTE: If you move the RuleData to a different RuleSet
+  // (and thus a different bloom_hash_backing from what you
+  // give to the constructor), you will need to call
+  // MovedToDifferentRuleSet() below. Otherwise,
+  // DescendantSelectorIdentifierHashes() will return a slice
+  // into a nonexistent backing (and GetPosition() will return
+  // a bogus value, which cannot be used for Seeker lookups).
   RuleData(StyleRule*,
            unsigned selector_index,
            unsigned position,
-           unsigned extra_specificity,
-           AddRuleFlags);
+           const StyleScope*,
+           AddRuleFlags,
+           Vector<uint16_t>& bloom_hash_backing);
 
   unsigned GetPosition() const { return position_; }
-  StyleRule* Rule() const { return rule_; }
+  StyleRule* Rule() const { return rule_.Get(); }
   const CSSSelector& Selector() const {
     return rule_->SelectorAt(selector_index_);
   }
@@ -126,46 +143,24 @@ class CORE_EXPORT RuleData {
   void ComputeEntirelyCoveredByBucketing();
   void ResetEntirelyCoveredByBucketing();
   bool SelectorIsEasy() const { return is_easy_; }
-  bool IsInitial() const { return is_initial_; }
+  bool IsStartingStyle() const { return is_starting_style_; }
 
-  bool ContainsUncommonAttributeSelector() const {
-    return contains_uncommon_attribute_selector_;
-  }
   unsigned Specificity() const { return specificity_; }
   unsigned LinkMatchType() const { return link_match_type_; }
-  ValidPropertyFilter GetValidPropertyFilter(
-      bool is_matching_ua_rules = false) const {
-    return is_matching_ua_rules
-               ? ValidPropertyFilter::kNoFilter
-               : static_cast<ValidPropertyFilter>(valid_property_filter_);
-  }
-  // Try to balance between memory usage (there can be lots of RuleData objects)
-  // and good filtering performance.
-  static const unsigned kMaximumIdentifierCount = 4;
-  const unsigned* DescendantSelectorIdentifierHashes() const {
-    return descendant_selector_identifier_hashes_;
+  ValidPropertyFilter GetValidPropertyFilter() const {
+    return static_cast<ValidPropertyFilter>(valid_property_filter_);
   }
 
-  // Used when the RuleData lives in a RuleMap, to store information about
-  // which bucket (group) in the RuleMap this RuleData lives in. The information
-  // is gone after ComputeBloomFilterHashes() is called.
-  void SetBucketInformation(unsigned bucket_number, unsigned order_in_bucket) {
-    bucket_number_ = bucket_number;
-    order_in_bucket_ = order_in_bucket;
-#if DCHECK_IS_ON()
-    marker_ = 0x12345678;
-#endif
+  // Member functions related to the descendant Bloom filter.
+  const base::span<const uint16_t> DescendantSelectorIdentifierHashes(
+      const Vector<uint16_t>& backing) const {
+    return UNSAFE_TODO({backing.data() + bloom_hash_pos_, bloom_hash_size_});
   }
-  unsigned GetBucketNumber() const {
-    DCHECK_EQ(marker_, 0x12345678U);
-    return bucket_number_;
-  }
-  unsigned GetOrderInBucket() const {
-    DCHECK_EQ(marker_, 0x12345678U);
-    return order_in_bucket_;
-  }
-
-  void ComputeBloomFilterHashes();
+  void ComputeBloomFilterHashes(const StyleScope* style_scope,
+                                Vector<uint16_t>& backing);
+  void MovedToDifferentRuleSet(const Vector<uint16_t>& old_backing,
+                               Vector<uint16_t>& new_backing,
+                               unsigned new_position);
 
   void Trace(Visitor*) const;
 
@@ -183,33 +178,21 @@ class CORE_EXPORT RuleData {
   Member<StyleRule> rule_;
   unsigned selector_index_ : kSelectorIndexBits;
   unsigned position_ : kPositionBits;
-  unsigned contains_uncommon_attribute_selector_ : 1;
-  // 32 bits above
+  unsigned unused_bit_ : 1;
+  // 31 bits above (1 free bit).
   unsigned specificity_ : 24;
   unsigned link_match_type_ : 2;
   unsigned valid_property_filter_ : 3;
   unsigned is_entirely_covered_by_bucketing_ : 1;
-  unsigned is_easy_ : 1;     // See EasySelectorChecker.
-  unsigned is_initial_ : 1;  // Inside @initial {}.
+  unsigned is_easy_ : 1;            // See EasySelectorChecker.
+  unsigned is_starting_style_ : 1;  // Inside @starting-style {}.
   // 32 bits above
-  union {
-    // Used by RuleMap before compaction, to hold what bucket this RuleData
-    // is to be sorted into. (If the RuleData lives in a RuleMap, the hashes
-    // for the Bloom filter are computed after compaction, not right away.)
-    struct {
-      unsigned bucket_number_;
-      unsigned order_in_bucket_;
 
-      // Used only for DCHECKs, to verify that we don't access
-      // these members after compaction.
-      unsigned marker_;
-    };
-
-    // Hashes used for the Bloom filter.
-    // Use plain array instead of a Vector to minimize memory overhead.
-    // Zero-terminated if we do not use all elements.
-    unsigned descendant_selector_identifier_hashes_[kMaximumIdentifierCount];
-  };
+  // Reference into a slice of bloom_hash_backing_ in the parent RuleSet.
+  // We can probably steal a couple of bits here if needed, but if you do,
+  // remember to adjust the clamping in ComputeBloomFilterHashes() too.
+  unsigned bloom_hash_size_ : 8;
+  unsigned bloom_hash_pos_ : 24;
 };
 
 }  // namespace blink
@@ -224,7 +207,6 @@ struct SameSizeAsRuleData {
   unsigned b;
   unsigned c;
   unsigned d;
-  unsigned e[3];
 };
 
 ASSERT_SIZE(RuleData, SameSizeAsRuleData);
@@ -270,14 +252,26 @@ class RuleMap {
   };
 
  public:
-  void Add(const AtomicString& key, const RuleData& rule_data);
+  // Returns false on failure (which should be very rare).
+  bool Add(const AtomicString& key, const RuleData& rule_data);
+  void AddFilteredRulesFromOtherSet(
+      const RuleMap& other,
+      const HeapHashSet<Member<StyleRule>>& only_include,
+      const RuleSet& old_rule_set,
+      RuleSet& new_rule_set);
   base::span<const RuleData> Find(const AtomicString& key) const {
-    DCHECK(buckets.empty() || compacted);
-    auto it = buckets.find(key);
-    if (it == buckets.end()) {
+    // Go through all the buckets and check for equality, brute force.
+    // Note that we don't check for IsNull() to get an early abort
+    // on empty buckets; the comparison of AtomicString is so cheap
+    // that it actually benchmarks negatively. This loop typically
+    // gets unrolled and inlined, resulting in a very tight lookup.
+    const RobinHoodMap<AtomicString, Extent>::Bucket* bucket =
+        buckets.Find(key);
+    if (bucket == nullptr) {
       return {};
     } else {
-      return GetRulesFromExtent(it->value);
+      return UNSAFE_TODO(
+          {backing.begin() + bucket->value.start_index, bucket->value.length});
     }
   }
   bool IsEmpty() const { return backing.empty(); }
@@ -289,7 +283,10 @@ class RuleMap {
   void Trace(Visitor* visitor) const { visitor->Trace(backing); }
 
   struct ConstIterator {
-    HashMap<AtomicString, Extent>::const_iterator sub_it;
+    STACK_ALLOCATED();
+
+   public:
+    RobinHoodMap<AtomicString, Extent>::const_iterator sub_it;
     const RuleMap* rule_map;
 
     WTF::KeyValuePair<AtomicString, base::span<const RuleData>> operator*()
@@ -314,20 +311,26 @@ class RuleMap {
 
  private:
   base::span<RuleData> GetRulesFromExtent(Extent extent) {
-    return {backing.begin() + extent.start_index, extent.length};
+    return UNSAFE_TODO({backing.begin() + extent.start_index, extent.length});
   }
   base::span<const RuleData> GetRulesFromExtent(Extent extent) const {
-    return {backing.begin() + extent.start_index, extent.length};
+    return UNSAFE_TODO({backing.begin() + extent.start_index, extent.length});
+  }
+  base::span<unsigned> GetBucketNumberFromExtent(Extent extent) {
+    return UNSAFE_TODO(
+        {bucket_number_.begin() + extent.start_index, extent.length});
+  }
+  base::span<const unsigned> GetBucketNumberFromExtent(Extent extent) const {
+    return UNSAFE_TODO(
+        {bucket_number_.begin() + extent.start_index, extent.length});
   }
 
-  HashMap<AtomicString, Extent> buckets;
+  RobinHoodMap<AtomicString, Extent> buckets;
 
   // Contains all the rules from all the buckets; after compaction,
   // they will be contiguous in memory and you can do easily lookups
   // on them through Find(); before, they are identified
-  // by having the group number stored in the RuleData itself
-  // (where the hashes for the fast-rejection Bloom filter would
-  // normally live; we delay their computation to after compaction).
+  // by having the group number in bucket_data_.
   //
   // The inline size is, perhaps surprisingly, to reduce GC pressure
   // for _large_ vectors. Setting an inline size (other than zero)
@@ -341,6 +344,11 @@ class RuleMap {
   // that are tiny. Most RuleMaps are either ~1–2 entries or in
   // the hundreds/thousands.
   HeapVector<RuleData, 4> backing;
+
+  // Used by RuleMap before compaction, to hold what bucket the corresponding
+  // RuleData (by index) is to be sorted into (this member is 1:1 with backing).
+  // After compaction, the vector is emptied to save memory.
+  Vector<unsigned> bucket_number_;
 
   wtf_size_t num_buckets = 0;
   bool compacted = false;
@@ -359,15 +367,42 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   RuleSet(const RuleSet&) = delete;
   RuleSet& operator=(const RuleSet&) = delete;
 
-  void AddRulesFromSheet(StyleSheetContents*,
+  void AddRulesFromSheet(const StyleSheetContents*,
                          const MediaQueryEvaluator&,
-                         CascadeLayer* = nullptr);
+                         CascadeLayer* = nullptr,
+                         const StyleScope* = nullptr);
+
+  // “within_mixin” means that we are currently adding this rule
+  // as part of @apply in a mixin, and all rules we add must be
+  // duplicated and reparented. This is also propagated through
+  // AddChildRules().
   void AddStyleRule(StyleRule* style_rule,
+                    StyleRule* parent_rule,
                     const MediaQueryEvaluator& medium,
                     AddRuleFlags add_rule_flags,
+                    bool within_mixin,
                     const ContainerQuery* container_query = nullptr,
                     CascadeLayer* cascade_layer = nullptr,
                     const StyleScope* style_scope = nullptr);
+
+  // Adds RuleDatas (and only RuleDatas) from the other set, but only if they
+  // correspond to rules in “only_include”. This is used when creating diff
+  // rulesets for invalidation, and the resulting RuleSets are not usable
+  // for anything else. In particular, cascade layers are not copied
+  // and RuleData offsets are not adjusted (so CascadePriority would be wrong
+  // if merging RuleDatas from different RuleSets). This means that the only
+  // thing you can really do with this RuleSet afterwards is
+  // ElementRuleCollector's CheckIfAnyRuleMatches(); the regular
+  // Collect*Rules() functions are bound to give you trouble.
+  void AddFilteredRulesFromOtherSet(
+      const RuleSet& other,
+      const HeapHashSet<Member<StyleRule>>& only_include);
+
+  void AddFilteredRulesFromOtherBucket(
+      const RuleSet& other,
+      const HeapVector<RuleData>& src,
+      const HeapHashSet<Member<StyleRule>>& only_include,
+      HeapVector<RuleData>* dst);
 
   const RuleFeatureSet& Features() const { return features_; }
 
@@ -402,9 +437,6 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   }
   base::span<const RuleData> FocusVisiblePseudoClassRules() const {
     return focus_visible_pseudo_class_rules_;
-  }
-  base::span<const RuleData> SpatialNavigationInterestPseudoClassRules() const {
-    return spatial_navigation_interest_class_rules_;
   }
   base::span<const RuleData> RootElementRules() const {
     return root_element_rules_;
@@ -442,15 +474,21 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
       const {
     return font_feature_values_rules_;
   }
-  const HeapVector<Member<StyleRulePositionFallback>>& PositionFallbackRules()
+  const HeapVector<Member<StyleRuleViewTransition>>& ViewTransitionRules()
       const {
-    return position_fallback_rules_;
+    return view_transition_rules_;
+  }
+  const HeapVector<Member<StyleRulePositionTry>>& PositionTryRules() const {
+    return position_try_rules_;
+  }
+  const HeapVector<Member<StyleRuleFunction>>& FunctionRules() const {
+    return function_rules_;
   }
   base::span<const RuleData> SlottedPseudoElementRules() const {
     return slotted_pseudo_element_rules_;
   }
 
-  bool HasCascadeLayers() const { return implicit_outer_layer_; }
+  bool HasCascadeLayers() const { return implicit_outer_layer_ != nullptr; }
   const CascadeLayer& CascadeLayers() const {
     DCHECK(implicit_outer_layer_);
     return *implicit_outer_layer_;
@@ -464,14 +502,39 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
     }
   }
 
+  void AssertCompacted() const { DCHECK(!need_compaction_); }
+
   bool HasSlottedRules() const {
     return !slotted_pseudo_element_rules_.empty();
   }
 
+  bool HasPartPseudoRules() const { return !part_pseudo_rules_.empty(); }
+
   bool HasBucketForStyleAttribute() const { return has_bucket_for_style_attr_; }
 
-  bool NeedsFullRecalcForRuleSetInvalidation() const {
-    return features_.NeedsFullRecalcForRuleSetInvalidation();
+  bool MustCheckUniversalBucketForShadowHost() const {
+    return must_check_universal_bucket_for_shadow_host_;
+  }
+
+  bool HasUAShadowPseudoElementRules() const {
+    return !ua_shadow_pseudo_element_rules_.IsEmpty();
+  }
+
+  // If a single @scope rule covers all rules in this RuleSet,
+  // returns the corresponding StyleScope rule, or returns nullptr otherwise.
+  //
+  // This is useful for rejecting entire RuleSets early when implicit @scopes
+  // aren't in scope.
+  //
+  // See ElementRuleCollector::CanRejectScope.
+  const StyleScope* SingleScope() const {
+    if (scope_intervals_.size() == 1u) {
+      const Interval<StyleScope>& interval = scope_intervals_.front();
+      if (interval.start_position == 0) {
+        return interval.value.Get();
+      }
+    }
+    return nullptr;
   }
 
   bool DidMediaQueryResultsChange(const MediaQueryEvaluator& evaluator) const;
@@ -511,6 +574,9 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   const HeapVector<Interval<StyleScope>>& ScopeIntervals() const {
     return scope_intervals_;
   }
+  const Vector<uint16_t>& BloomHashBacking() const {
+    return bloom_hash_backing_;
+  }
 
 #if DCHECK_IS_ON()
   void Show() const;
@@ -523,6 +589,8 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   FRIEND_TEST_ALL_PREFIXES(RuleSetTest, RuleCountNotIncreasedByInvalidRuleData);
   FRIEND_TEST_ALL_PREFIXES(RuleSetTest, RuleDataPositionLimit);
   friend class RuleSetCascadeLayerTest;
+  friend class RuleMap;  // For scope_intervals_ and
+                         // NewlyAddedFromDifferentRuleSet().
 
   using SubstringMatcherMap =
       HashMap<AtomicString, std::unique_ptr<base::SubstringSetMatcher>>;
@@ -536,16 +604,20 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   void AddCounterStyleRule(StyleRuleCounterStyle*);
   void AddFontPaletteValuesRule(StyleRuleFontPaletteValues*);
   void AddFontFeatureValuesRule(StyleRuleFontFeatureValues*);
-  void AddPositionFallbackRule(StyleRulePositionFallback*);
+  void AddPositionTryRule(StyleRulePositionTry*);
+  void AddFunctionRule(StyleRuleFunction*);
+  void AddViewTransitionRule(StyleRuleViewTransition*);
 
   bool MatchMediaForAddRules(const MediaQueryEvaluator& evaluator,
                              const MediaQuerySet* media_queries);
-  void AddChildRules(const HeapVector<Member<StyleRuleBase>>&,
+  void AddChildRules(StyleRule* parent_rule,
+                     base::span<const Member<StyleRuleBase>>,
                      const MediaQueryEvaluator& medium,
                      AddRuleFlags,
                      const ContainerQuery*,
                      CascadeLayer*,
-                     const StyleScope*);
+                     const StyleScope*,
+                     bool within_mixin);
 
   // Determines whether or not CSSSelector::is_covered_by_bucketing_ should
   // be computed during calls to FindBestRuleSetAndAdd.
@@ -555,7 +627,7 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   };
 
   template <BucketCoverage bucket_coverage>
-  void FindBestRuleSetAndAdd(CSSSelector&, const RuleData&);
+  void FindBestRuleSetAndAdd(CSSSelector&, const RuleData&, const StyleScope*);
 
   void AddRule(StyleRule*,
                unsigned selector_index,
@@ -564,11 +636,25 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
                const CascadeLayer*,
                const StyleScope*);
 
+  // Must be called when a RuleData has been added to this RuleSet
+  // through some form that does not go through AddRule();
+  // used during creation of diff rulesets (AddFilteredRulesFromOtherSet()).
+  // In particular, it will adjust the position of new_rule_data,
+  // add it to the necessary intervals for diff rulesets, and adjust
+  // rule_count_.
+  //
+  // Used only by RuleSet itself, and RuleMap (through a friend declaration).
+  void NewlyAddedFromDifferentRuleSet(const RuleData& old_rule_data,
+                                      const StyleScope* style_scope,
+                                      const RuleSet& old_rule_set,
+                                      RuleData& new_rule_data);
+
   void SortKeyframesRulesIfNeeded();
 
   void CompactRules();
   static void CreateSubstringMatchers(
       RuleMap& attr_map,
+      const HeapVector<Interval<StyleScope>>& scope_intervals,
       SubstringMatcherMap& substring_matcher_map);
 
 #if DCHECK_IS_ON()
@@ -579,7 +665,7 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
     if (!implicit_outer_layer_) {
       implicit_outer_layer_ = MakeGarbageCollected<CascadeLayer>();
     }
-    return implicit_outer_layer_;
+    return implicit_outer_layer_.Get();
   }
 
   CascadeLayer* GetOrAddSubLayer(CascadeLayer*,
@@ -620,7 +706,6 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   HeapVector<RuleData> cue_pseudo_rules_;
   HeapVector<RuleData> focus_pseudo_class_rules_;
   HeapVector<RuleData> focus_visible_pseudo_class_rules_;
-  HeapVector<RuleData> spatial_navigation_interest_class_rules_;
   HeapVector<RuleData> universal_rules_;
   HeapVector<RuleData> shadow_host_rules_;
   HeapVector<RuleData> part_pseudo_rules_;
@@ -632,17 +717,38 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   HeapVector<Member<StyleRuleFontFace>> font_face_rules_;
   HeapVector<Member<StyleRuleFontPaletteValues>> font_palette_values_rules_;
   HeapVector<Member<StyleRuleFontFeatureValues>> font_feature_values_rules_;
+  HeapVector<Member<StyleRuleViewTransition>> view_transition_rules_;
   HeapVector<Member<StyleRuleKeyframes>> keyframes_rules_;
   HeapVector<Member<StyleRuleProperty>> property_rules_;
   HeapVector<Member<StyleRuleCounterStyle>> counter_style_rules_;
-  HeapVector<Member<StyleRulePositionFallback>> position_fallback_rules_;
+  HeapVector<Member<StyleRulePositionTry>> position_try_rules_;
   HeapVector<MediaQuerySetResult> media_query_set_results_;
+  HeapVector<Member<StyleRuleFunction>> function_rules_;
+  HeapHashMap<AtomicString, Member<StyleRuleMixin>> mixins_;
 
   // Whether there is a ruleset bucket for rules with a selector on
   // the style attribute (which is rare, but allowed). If so, the caller
   // may need to take extra steps to synchronize the style attribute on
   // an element before looking for appropriate buckets.
   bool has_bucket_for_style_attr_ = false;
+
+  // Whether we need to check the universal bucket for rules when calculating
+  // style for the shadow host. There are two reasons why this may need to
+  // be checked:
+  //
+  // 1. Since the :scope pseudo-class can match a shadow host when that host
+  //    is the scoping root,
+  //    ElementRuleCollector::CollectMatchingShadowHostRules also needs to
+  //    collect rules from the universal bucket, but this is only required when
+  //    :scope is actually present.
+  //
+  // 2. Combination rules such as :is(:host, .foo) will be bucketed into the
+  //    universal bucket and not into the bucket for :host. If this happens,
+  //    we will need to check the universal bucket, too.
+  //
+  // Nothing else in the universal bucket can match the host from inside
+  // the shadow tree.
+  bool must_check_universal_bucket_for_shadow_host_ = false;
 
   unsigned rule_count_ = 0;
   bool need_compaction_ = false;
@@ -656,8 +762,19 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   // Empty vector if the stylesheet doesn't use any @scopes.
   HeapVector<Interval<StyleScope>> scope_intervals_;
 
+  // Backing store for the Bloom filter hashes for each RuleData.
+  // It is stored here so that we can have a variable number of them
+  // (without the overhead of a Vector in each RuleData).
+  Vector<uint16_t> bloom_hash_backing_;
+
 #if DCHECK_IS_ON()
   HeapVector<RuleData> all_rules_;
+
+  // If true, we don't DCHECK that these are unsorted, since they
+  // came from merged+filtered rulesets, which only happens when
+  // making diff rulesets for invalidation. Those do not care
+  // about the ordering, since they do not use the CascadeLayerSeeker.
+  bool allow_unsorted_ = false;
 #endif  // DCHECK_IS_ON()
 };
 

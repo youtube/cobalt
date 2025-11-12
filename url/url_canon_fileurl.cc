@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Functions for canonicalizing "file:" URLs.
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
 #include "base/strings/string_util.h"
 #include "url/url_canon.h"
 #include "url/url_canon_internal.h"
@@ -18,13 +24,13 @@ namespace {
 bool IsLocalhost(const char* spec, int begin, int end) {
   if (begin > end)
     return false;
-  return base::StringPiece(&spec[begin], end - begin) == "localhost";
+  return std::string_view(&spec[begin], end - begin) == "localhost";
 }
 
 bool IsLocalhost(const char16_t* spec, int begin, int end) {
   if (begin > end)
     return false;
-  return base::StringPiece16(&spec[begin], end - begin) == u"localhost";
+  return std::u16string_view(&spec[begin], end - begin) == u"localhost";
 }
 
 template <typename CHAR>
@@ -126,6 +132,8 @@ bool DoCanonicalizeFileURL(const URLComponentSource<CHAR>& source,
                            CharsetConverter* query_converter,
                            CanonOutput* output,
                            Parsed* new_parsed) {
+  DCHECK(!parsed.has_opaque_path);
+
   // Things we don't set in file: URLs.
   new_parsed->username = Component();
   new_parsed->password = Component();
@@ -134,7 +142,7 @@ bool DoCanonicalizeFileURL(const URLComponentSource<CHAR>& source,
   // Scheme (known, so we don't bother running it through the more
   // complicated scheme canonicalizer).
   new_parsed->scheme.begin = output->length();
-  output->Append("file://", 7);
+  output->Append("file://");
   new_parsed->scheme.len = 4;
 
   // If the host is localhost, and the path starts with a Windows drive letter,
@@ -143,7 +151,7 @@ bool DoCanonicalizeFileURL(const URLComponentSource<CHAR>& source,
   //
   // Note: we do this on every platform per URL Standard, not just Windows.
   //
-  // TODO(https://crbug.com/688961): According to the latest URL spec, this
+  // TODO(crbug.com/41299821): According to the latest URL spec, this
   // transformation should be done regardless of the path.
   Component host_range = parsed.host;
   if (IsLocalhost(source.host, host_range.begin, host_range.end()) &&
@@ -158,13 +166,14 @@ bool DoCanonicalizeFileURL(const URLComponentSource<CHAR>& source,
   // should probably handle validity checking of UNC hosts differently than
   // for regular IP hosts.
   bool success =
-      CanonicalizeHost(source.host, host_range, output, &new_parsed->host);
+      CanonicalizeFileHost(source.host, host_range, *output, new_parsed->host);
   success &= DoFileCanonicalizePath<CHAR, UCHAR>(source.path, parsed.path,
                                     output, &new_parsed->path);
 
-  CanonicalizeQuery(source.query, parsed.query, query_converter,
-                    output, &new_parsed->query);
-  CanonicalizeRef(source.ref, parsed.ref, output, &new_parsed->ref);
+  CanonicalizeQuery(parsed.query.maybe_as_string_view_on(source.query),
+                    query_converter, output, &new_parsed->query);
+  CanonicalizeRef(parsed.ref.maybe_as_string_view_on(source.ref), output,
+                  &new_parsed->ref);
 
   return success;
 }

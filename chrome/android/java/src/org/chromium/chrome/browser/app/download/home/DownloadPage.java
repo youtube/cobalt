@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.app.download.home;
 
 import android.app.Activity;
 
-import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.ThreadUtils;
@@ -15,64 +14,53 @@ import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.download.home.DownloadManagerCoordinator;
 import org.chromium.chrome.browser.download.home.DownloadManagerUiConfig;
 import org.chromium.chrome.browser.download.home.DownloadManagerUiConfigHelper;
-import org.chromium.chrome.browser.profiles.OTRProfileID;
-import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.BasicNativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
-/**
- * Native page for managing downloads handled through Chrome.
- */
+/** Native page for managing downloads handled through Chrome. */
 public class DownloadPage extends BasicNativePage implements DownloadManagerCoordinator.Observer {
     private ActivityStateListener mActivityStateListener;
 
     private DownloadManagerCoordinator mDownloadCoordinator;
-    private String mTitle;
+    private final String mTitle;
 
     /**
      * Create a new instance of the downloads page.
+     *
      * @param activity The activity to get context and manage fragments.
      * @param snackbarManager The {@link SnackbarManager} to show snack bars.
      * @param modalDialogManager The {@link ModalDialogManager} associated with the activity.
-     * @param otrProfileId The {@link OTRProfileID} for the profile. Null for regular profile.
+     * @param otrProfileId The {@link OtrProfileId} for the profile. Null for regular profile.
      * @param host A NativePageHost to load urls.
      */
-    public DownloadPage(Activity activity, SnackbarManager snackbarManager,
-            ModalDialogManager modalDialogManager, OTRProfileID otrProfileId, NativePageHost host) {
+    public DownloadPage(
+            Activity activity,
+            SnackbarManager snackbarManager,
+            ModalDialogManager modalDialogManager,
+            OtrProfileId otrProfileId,
+            NativePageHost host) {
         super(host);
 
         ThreadUtils.assertOnUiThread();
 
         DownloadManagerUiConfig config =
                 DownloadManagerUiConfigHelper.fromFlags()
-                        .setOTRProfileID(otrProfileId)
+                        .setOtrProfileId(otrProfileId)
                         .setIsSeparateActivity(false)
                         .setShowPaginationHeaders(DownloadUtils.shouldShowPaginationHeaders())
                         .build();
 
-        mDownloadCoordinator = DownloadManagerCoordinatorFactoryHelper.create(
-                activity, config, snackbarManager, modalDialogManager);
+        mDownloadCoordinator =
+                DownloadManagerCoordinatorFactoryHelper.create(
+                        activity, config, snackbarManager, modalDialogManager);
 
         mDownloadCoordinator.addObserver(this);
         mTitle = activity.getString(R.string.menu_downloads);
 
-        // #destroy() unregisters the ActivityStateListener to avoid checking for externally removed
-        // downloads after the downloads page is closed. This requires each DownloadPage to have its
-        // own ActivityStateListener. If multiple tabs are showing the downloads page, multiple
-        // requests to check for externally removed downloads will be issued when the activity is
-        // resumed.
-        mActivityStateListener = (activity1, newState) -> {
-            if (newState == ActivityState.RESUMED) {
-                Profile profile = otrProfileId == null
-                        ? Profile.getLastUsedRegularProfile()
-                        : Profile.getLastUsedRegularProfile().getOffTheRecordProfile(
-                                otrProfileId, /*createIfNeeded=*/true);
-                DownloadUtils.checkForExternallyRemovedDownloads(profile.getProfileKey());
-            }
-        };
         ApplicationStatus.registerStateListenerForActivity(mActivityStateListener, activity);
 
         initWithView(mDownloadCoordinator.getView());

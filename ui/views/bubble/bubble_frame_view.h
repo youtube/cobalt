@@ -6,10 +6,13 @@
 #define UI_VIEWS_BUBBLE_BUBBLE_FRAME_VIEW_H_
 
 #include <memory>
+#include <utility>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/color/color_variant.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/bubble/bubble_border.h"
@@ -31,9 +34,37 @@ class FootnoteContainerView;
 class ImageView;
 
 // The non-client frame view of bubble-styled widgets.
+//  +- BubbleFrameView ------------------+
+//  | +- ProgressBar ------------------+ |
+//  | +-----------------------(-)-(x)-+  |
+//  | | HeaderView                    |  |
+//  | +-------------------------------+  |
+//  | +-------------------------------+  |
+//  | | TitleView                     |  |
+//  | +-------------------------------+  |
+//  | +-- DialogClientView------------+  |
+//  | | <<Dialog Contents View>>      |  |
+//  | | <<OK and Cancel Buttons>>     |  |
+//  | | <<...>>                       |  |
+//  | +-------------------------------+  |
+//  | +-------------------------------+  |
+//  | | FootnoteView                  |  |
+//  | +-------------------------------+  |
+//  +------------------------------------+
+// All views are optional except for DialogClientView. An ImageView
+// `main_image` might optionally occupy the top left corner (not
+// illustrated above).
+// If TitleView exists and HeaderView does not exists, the close
+// and the minimize buttons will be positioned at the end of the
+// title row. Otherwise, they will be positioned closer to the frame
+// edge.
 class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
+  METADATA_HEADER(BubbleFrameView, NonClientFrameView)
+
  public:
-  METADATA_HEADER(BubbleFrameView);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMinimizeButtonElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCloseButtonElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kProgressIndicatorElementId);
 
   enum class PreferredArrowAdjustment { kMirror, kOffset };
 
@@ -64,8 +95,10 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   void ResetWindowControls() override;
   void UpdateWindowIcon() override;
   void UpdateWindowTitle() override;
-  void SizeConstraintsChanged() override;
   void InsertClientView(ClientView* client_view) override;
+  void UpdateWindowRoundedCorners() override;
+  bool HasWindowTitle() const override;
+  bool IsWindowTitleVisible() const override;
 
   // Sets a custom view to be the dialog title instead of the |default_title_|
   // label. If there is an existing title view it will be deleted.
@@ -79,16 +112,17 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
 
   // Updates the current progress value of |progress_indicator_|. If progress is
   // absent, hides |the progress_indicator|.
-  void SetProgress(absl::optional<double> progress);
+  void SetProgress(std::optional<double> progress);
   // Returns the current progress value of |progress_indicator_| if
   // |progress_indicator_| is visible.
-  absl::optional<double> GetProgress() const;
+  std::optional<double> GetProgress() const;
 
   // View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& available_size) const override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
-  void Layout() override;
+  void Layout(PassKey) override;
   void OnPaint(gfx::Canvas* canvas) override;
   void PaintChildren(const PaintInfo& paint_info) override;
   void OnThemeChanged() override;
@@ -106,6 +140,8 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
     return const_cast<View*>(
         static_cast<const BubbleFrameView*>(this)->title());
   }
+
+  Label* default_title() { return default_title_.get(); }
 
   void SetContentMargins(const gfx::Insets& content_margins);
   gfx::Insets GetContentMargins() const;
@@ -131,7 +167,7 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   void SetPreferredArrowAdjustment(PreferredArrowAdjustment adjustment);
   PreferredArrowAdjustment GetPreferredArrowAdjustment() const;
 
-  // TODO(crbug.com/1007604): remove this in favor of using
+  // TODO(crbug.com/40100380): remove this in favor of using
   // Widget::InitParams::accept_events. In the mean time, don't add new uses of
   // this flag.
   bool hit_test_transparent() const { return hit_test_transparent_; }
@@ -144,8 +180,8 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   }
 
   // Set the corner radius of the bubble border.
-  void SetCornerRadius(int radius);
-  int GetCornerRadius() const;
+  void SetRoundedCorners(const gfx::RoundedCornersF& radii);
+  gfx::RoundedCornersF GetRoundedCorners() const;
 
   // Set the arrow of the bubble border.
   void SetArrow(BubbleBorder::Arrow arrow);
@@ -156,11 +192,10 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   bool GetDisplayVisibleArrow() const;
 
   // Set the background color of the bubble border.
-  // TODO(b/261653838): Update this function to use color id instead.
-  void SetBackgroundColor(SkColor color);
-  SkColor GetBackgroundColor() const;
+  void SetBackgroundColor(ui::ColorVariant color);
+  ui::ColorVariant background_color() const { return bubble_border_->color(); }
 
-  // For masking reasons, the ClientView may be painted to a textured layer. To
+  // For masking reasons, the ClientView is painted to a textured layer. To
   // ensure bubbles that rely on the frame background color continue to work as
   // expected, we must set the background of the ClientView to match that of the
   // BubbleFrameView.
@@ -175,7 +210,8 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
                                    const gfx::Size& client_size,
                                    bool adjust_to_fit_available_bounds);
 
-  Button* GetCloseButtonForTesting() { return close_; }
+  Button* close_button() { return close_; }
+  const Button* close_button() const { return close_; }
 
   View* GetHeaderViewForTesting() const { return header_view_; }
 
@@ -189,6 +225,14 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   void ResetViewShownTimeStampForTesting();
 
   BubbleBorder* bubble_border() const { return bubble_border_; }
+
+  // Returns the client_view insets from the frame view.
+  gfx::Insets GetClientViewInsets() const;
+
+  using HitTestCallback = base::RepeatingCallback<int(const gfx::Point& point)>;
+  void set_non_client_hit_test_cb(HitTestCallback non_client_hit_test_cb) {
+    non_client_hit_test_cb_ = std::move(non_client_hit_test_cb);
+  }
 
  protected:
   // Returns the available screen bounds if the frame were to show in |rect|.
@@ -226,6 +270,16 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   FRIEND_TEST_ALL_PREFIXES(BubbleDialogDelegateViewTest, CloseMethods);
   FRIEND_TEST_ALL_PREFIXES(BubbleDialogDelegateViewTest, CreateDelegate);
 
+  // The positioning options for the close button and the minimize button.
+  enum class ButtonsPositioning {
+    // The buttons are positioned at the end of the title row.
+    kInTitleRow,
+    // The buttons are positioned on the upper trailing corner of the
+    // bubble. The distance between buttons and the frame edge will be shorter
+    // than `kInTitleRow`.
+    kOnFrameEdge,
+  };
+
   // Mirrors the bubble's arrow location on the |vertical| or horizontal axis,
   // if the generated window bounds don't fit in the given available bounds.
   void MirrorArrowIfOutOfBounds(bool vertical,
@@ -252,6 +306,12 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   // button.
   bool HasTitle() const;
 
+  // Returns the positioning options for the buttons.
+  ButtonsPositioning GetButtonsPositioning() const;
+
+  // Returns true if there're buttons in the title row.
+  bool TitleRowHasButtons() const;
+
   // The insets of the text portion of the title, based on |title_margins_| and
   // whether there is an icon and/or close button. Note there may be no title,
   // in which case only insets required for the close button are returned.
@@ -272,11 +332,18 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
 
   int GetMainImageLeftInsets() const;
 
+  gfx::Point GetButtonAreaTopRight() const;
+
+  gfx::Size GetButtonAreaSize() const;
+
   // Helper method to create a label with text style
   static std::unique_ptr<Label> CreateLabelWithContextAndStyle(
       const std::u16string& label_text,
       style::TextContext text_context,
       style::TextStyle text_style);
+
+  // Note: The method is defined for meta data framework.
+  SkColor GetBackgroundColor() const;
 
   // The bubble border.
   raw_ptr<BubbleBorder> bubble_border_ = nullptr;
@@ -299,18 +366,18 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   raw_ptr<BoxLayoutView> title_container_ = nullptr;
 
   // One of these fields is used as the dialog title. If SetTitleView is called
-  // the custom title view is stored in |custom_title_| and this class assumes
-  // ownership. Otherwise |default_title_| is used.
-  raw_ptr<Label, DanglingUntriaged> default_title_ = nullptr;
-  raw_ptr<View, DanglingUntriaged> custom_title_ = nullptr;
+  // the custom title view is stored in `custom_title_` and this class assumes
+  // ownership. Otherwise `default_title_` is used.
+  raw_ptr<Label> default_title_ = nullptr;
+  raw_ptr<View> custom_title_ = nullptr;
 
   raw_ptr<Label> subtitle_ = nullptr;
 
+  // The optional minimize button (the _).
+  raw_ptr<Button> minimize_ = nullptr;
+
   // The optional close button (the X).
   raw_ptr<Button> close_ = nullptr;
-
-  // The optional minimize button.
-  raw_ptr<Button> minimize_ = nullptr;
 
   // The optional progress bar. Used to indicate bubble pending state. By
   // default it is invisible.
@@ -320,8 +387,7 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   raw_ptr<View> header_view_ = nullptr;
 
   // A view to contain the footnote view, if it exists.
-  raw_ptr<FootnoteContainerView, DanglingUntriaged> footnote_container_ =
-      nullptr;
+  raw_ptr<FootnoteContainerView> footnote_container_ = nullptr;
 
   // Set preference for how the arrow will be adjusted if the window is outside
   // the available bounds.
@@ -335,6 +401,13 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView {
   // If true the bubble will try to stay inside the bounds returned by
   // `GetAvailableAnchorWindowBounds`.
   bool use_anchor_window_bounds_ = true;
+
+  // Set by bubble clients to compose additional non-client hit test rules for
+  // their host bubble. HTNOWHERE should be returned to tell the caller to do
+  // further processing to determine where in the non-client area the tested
+  // point is (if present at all). See NonClientFrameView::NonClientHitTest()
+  // for details.
+  HitTestCallback non_client_hit_test_cb_;
 
   InputEventActivationProtector input_protector_;
 };

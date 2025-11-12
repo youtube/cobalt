@@ -18,9 +18,9 @@ import "layout_key_function.proto";
 // If none of the fields (apart from screen_id) are present, restore the host
 // resolution instead.
 message ClientResolution {
-  // Width and height of the client in Density-Independent Pixels.
-  optional int32 dips_width = 1;
-  optional int32 dips_height = 2;
+  // Width and height of the client in device pixels.
+  optional int32 width_pixels = 1;
+  optional int32 height_pixels = 2;
 
   // Deprecated width and height of the client in device pixels.
   optional int32 width_deprecated = 3;
@@ -143,6 +143,9 @@ message VideoTrackLayout {
   optional int32 x_dpi = 6;
   optional int32 y_dpi = 7;
 
+  // Display name. This is displayed in the client UI and is informational only.
+  optional string display_name = 9;
+
   // TODO(yuweih): Add bpp to the message.
 }
 
@@ -218,4 +221,9 @@ message PeerConnectionParameters {
   // restarting ICE. This can be used to change SDP configuration (for example,
   // switching to a different codec), without needing a full reconnection.
   optional bool request_sdp_restart = 4;
+}
+
+// Next ID: 2
+message ActiveDisplay {
+  optional int64 screen_id = 1;
 }

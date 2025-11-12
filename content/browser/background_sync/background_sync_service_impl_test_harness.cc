@@ -5,8 +5,10 @@
 #include "content/browser/background_sync/background_sync_service_impl_test_harness.h"
 
 #include <stdint.h>
+
 #include <utility>
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
@@ -24,6 +26,11 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
+
+MATCHER_P(PermissionTypeMatcher, id, "") {
+  return ::testing::Matches(::testing::Eq(id))(
+      blink::PermissionDescriptorToPermissionType(arg));
+}
 
 namespace content {
 
@@ -124,6 +131,8 @@ void BackgroundSyncServiceImplTestHarness::TearDown() {
   background_sync_test_util::SetIgnoreNetworkChanges(false);
 
   mojo::SetDefaultProcessErrorHandler(base::NullCallback());
+
+  storage_partition_impl_->OnBrowserContextWillBeDestroyed();
 }
 
 // SetUp helper methods
@@ -132,8 +141,10 @@ void BackgroundSyncServiceImplTestHarness::CreateTestHelper() {
       std::make_unique<EmbeddedWorkerTestHelper>((base::FilePath()));
   std::unique_ptr<MockPermissionManager> mock_permission_manager =
       std::make_unique<testing::NiceMock<MockPermissionManager>>();
-  ON_CALL(*mock_permission_manager,
-          GetPermissionStatus(blink::PermissionType::BACKGROUND_SYNC, _, _))
+  ON_CALL(
+      *mock_permission_manager,
+      GetPermissionStatus(
+          PermissionTypeMatcher(blink::PermissionType::BACKGROUND_SYNC), _, _))
       .WillByDefault(testing::Return(blink::mojom::PermissionStatus::GRANTED));
   TestBrowserContext::FromBrowserContext(
       embedded_worker_helper_->browser_context())
@@ -158,8 +169,8 @@ void BackgroundSyncServiceImplTestHarness::CreateBackgroundSyncContext() {
   background_sync_context_ = base::MakeRefCounted<TestBackgroundSyncContext>();
   background_sync_context_->Init(
       embedded_worker_helper_->context_wrapper(),
-      static_cast<DevToolsBackgroundServicesContextImpl*>(
-          storage_partition_impl_->GetDevToolsBackgroundServicesContext()));
+      CHECK_DEREF(static_cast<DevToolsBackgroundServicesContextImpl*>(
+          storage_partition_impl_->GetDevToolsBackgroundServicesContext())));
 
   // Tests do not expect the sync event to fire immediately after
   // register (and cleanup up the sync registrations).  Prevent the sync

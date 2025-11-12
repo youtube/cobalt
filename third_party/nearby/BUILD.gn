@@ -6,6 +6,7 @@ import("//third_party/protobuf/proto_library.gni")
 if (is_chromeos_device) {
   import("//build/config/chromeos/rules.gni")
 }
+import("//build/config/rust.gni")
 
 # Nearby Config
 config("nearby_include_config") {
@@ -17,8 +18,16 @@ config("nearby_include_config") {
     "//third_party",
 
     # For bloom filter.
-    "//third_party/smhasher",
+    "//third_party/smhasher/src",
   ]
+}
+
+# TODO(crbug.com/362502228): Remove upon completion of BleL2capServerSocket.
+config("unused_private_field_warning") {
+  cflags = []
+  if (is_clang) {
+    cflags += [ "-Wno-unused-private-field" ]
+  }
 }
 
 config("nearby_defines") {
@@ -44,6 +53,7 @@ source_set("connections") {
     ":platform_public_comm",
     ":platform_public_logging",
     ":platform_public_types",
+    ":v3_types",
     "//third_party/abseil-cpp:absl",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -77,6 +87,7 @@ source_set("connections_types") {
   ]
   public_deps = [
     ":connections_enums_proto",
+    ":interop_authentication_status",
     ":platform_base",
     ":platform_public_comm",
     ":platform_public_logging",
@@ -88,23 +99,63 @@ source_set("connections_types") {
 }
 
 # src/connections/implementation
+source_set("connections_implementation_types") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  public = [
+    "src/connections/implementation/pcp.h",
+    "src/connections/implementation/webrtc_state.h",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+source_set("connections_implementation_ble_advertisement") {
+  # TODO(crbug.com/415053888): Remove once usage of the deprecated version of
+  # BluetoothUtils::ToString and BluetoothUtils::FromString have been removed.
+  cflags = [ "-Wno-deprecated-declarations" ]
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  sources = [ "src/connections/implementation/ble_advertisement.cc" ]
+  public = [ "src/connections/implementation/ble_advertisement.h" ]
+  public_deps = [
+    ":connections_implementation_types",
+    ":platform_base",
+    ":platform_base_util",
+    ":platform_public_types",
+    "//third_party/abseil-cpp:absl",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 source_set("connections_implementation") {
+  # TODO(crbug.com/415053888): Remove once usage of the deprecated version of
+  # BluetoothUtils::ToString and BluetoothUtils::FromString have been removed.
+  cflags = [ "-Wno-deprecated-declarations" ]
   public_configs = [
     ":nearby_include_config",
     ":nearby_defines",
   ]
   sources = [
+    "src/connections/implementation/awdl_bwu_handler.cc",
+    "src/connections/implementation/awdl_endpoint_channel.cc",
     "src/connections/implementation/base_bwu_handler.cc",
     "src/connections/implementation/base_endpoint_channel.cc",
     "src/connections/implementation/base_pcp_handler.cc",
-    "src/connections/implementation/ble_advertisement.cc",
     "src/connections/implementation/ble_endpoint_channel.cc",
+    "src/connections/implementation/ble_l2cap_endpoint_channel.cc",
     "src/connections/implementation/ble_v2_endpoint_channel.cc",
     "src/connections/implementation/bluetooth_bwu_handler.cc",
     "src/connections/implementation/bluetooth_device_name.cc",
     "src/connections/implementation/bluetooth_endpoint_channel.cc",
     "src/connections/implementation/bwu_manager.cc",
     "src/connections/implementation/client_proxy.cc",
+    "src/connections/implementation/connections_authentication_transport.cc",
     "src/connections/implementation/encryption_runner.cc",
     "src/connections/implementation/endpoint_channel_manager.cc",
     "src/connections/implementation/endpoint_manager.cc",
@@ -119,6 +170,7 @@ source_set("connections_implementation") {
     "src/connections/implementation/p2p_star_pcp_handler.cc",
     "src/connections/implementation/payload_manager.cc",
     "src/connections/implementation/pcp_manager.cc",
+    "src/connections/implementation/reconnect_manager.cc",
     "src/connections/implementation/service_controller_router.cc",
     "src/connections/implementation/webrtc_bwu_handler.cc",
     "src/connections/implementation/webrtc_endpoint_channel.cc",
@@ -131,11 +183,14 @@ source_set("connections_implementation") {
     "src/connections/implementation/wifi_lan_service_info.cc",
   ]
   public = [
+    "src/connections/implementation/awdl_bwu_handler.h",
+    "src/connections/implementation/awdl_endpoint_channel.h",
     "src/connections/implementation/base_bwu_handler.h",
     "src/connections/implementation/base_endpoint_channel.h",
     "src/connections/implementation/base_pcp_handler.h",
     "src/connections/implementation/ble_advertisement.h",
     "src/connections/implementation/ble_endpoint_channel.h",
+    "src/connections/implementation/ble_l2cap_endpoint_channel.h",
     "src/connections/implementation/ble_v2_endpoint_channel.h",
     "src/connections/implementation/bluetooth_bwu_handler.h",
     "src/connections/implementation/bluetooth_device_name.h",
@@ -143,6 +198,7 @@ source_set("connections_implementation") {
     "src/connections/implementation/bwu_handler.h",
     "src/connections/implementation/bwu_manager.h",
     "src/connections/implementation/client_proxy.h",
+    "src/connections/implementation/connections_authentication_transport.h",
     "src/connections/implementation/encryption_runner.h",
     "src/connections/implementation/endpoint_channel.h",
     "src/connections/implementation/endpoint_channel_manager.h",
@@ -150,7 +206,6 @@ source_set("connections_implementation") {
     "src/connections/implementation/injected_bluetooth_device_store.h",
     "src/connections/implementation/internal_payload.h",
     "src/connections/implementation/internal_payload_factory.h",
-    "src/connections/implementation/message_lite.h",
     "src/connections/implementation/offline_frames.h",
     "src/connections/implementation/offline_frames_validator.h",
     "src/connections/implementation/offline_service_controller.h",
@@ -158,9 +213,9 @@ source_set("connections_implementation") {
     "src/connections/implementation/p2p_point_to_point_pcp_handler.h",
     "src/connections/implementation/p2p_star_pcp_handler.h",
     "src/connections/implementation/payload_manager.h",
-    "src/connections/implementation/pcp.h",
     "src/connections/implementation/pcp_handler.h",
     "src/connections/implementation/pcp_manager.h",
+    "src/connections/implementation/reconnect_manager.h",
     "src/connections/implementation/service_controller.h",
     "src/connections/implementation/service_controller_router.h",
     "src/connections/implementation/webrtc_bwu_handler.h",
@@ -176,10 +231,15 @@ source_set("connections_implementation") {
   public_deps = [
     ":connections_enums_proto",
     ":connections_implementation_analytics",
+    ":connections_implementation_ble_advertisement",
     ":connections_implementation_flags",
     ":connections_implementation_mediums",
     ":connections_implementation_mediums_webrtc",
+    ":connections_implementation_types",
     ":connections_types",
+    ":interop_authentication_status",
+    ":interop_authentication_transport_interface",
+    ":interop_device",
     ":offline_wire_formats_proto",
     ":platform_base",
     ":platform_base_cancellation_flag",
@@ -189,6 +249,8 @@ source_set("connections_implementation") {
     ":platform_public_comm",
     ":platform_public_logging",
     ":platform_public_types",
+    ":platform_wifi_utils",
+    ":v3_types",
     "//third_party/abseil-cpp:absl",
     "//third_party/protobuf:protobuf_lite",
     "//third_party/ukey2",
@@ -196,6 +258,7 @@ source_set("connections_implementation") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
+
 source_set("connections_test_util") {
   testonly = true
   public_configs = [
@@ -265,6 +328,10 @@ source_set("connections_implementation_mediums") {
     ":nearby_defines",
   ]
   sources = [
+    "src/connections/implementation/mediums/advertisements/advertisement_util.cc",
+    "src/connections/implementation/mediums/advertisements/data_element.cc",
+    "src/connections/implementation/mediums/advertisements/dct_advertisement.cc",
+    "src/connections/implementation/mediums/awdl.cc",
     "src/connections/implementation/mediums/ble.cc",
     "src/connections/implementation/mediums/ble_v2.cc",
     "src/connections/implementation/mediums/ble_v2/advertisement_read_result.cc",
@@ -274,15 +341,24 @@ source_set("connections_implementation_mediums") {
     "src/connections/implementation/mediums/ble_v2/ble_utils.cc",
     "src/connections/implementation/mediums/ble_v2/bloom_filter.cc",
     "src/connections/implementation/mediums/ble_v2/discovered_peripheral_tracker.cc",
+    "src/connections/implementation/mediums/ble_v2/instant_on_lost_advertisement.cc",
+    "src/connections/implementation/mediums/ble_v2/instant_on_lost_manager.cc",
     "src/connections/implementation/mediums/bluetooth_classic.cc",
     "src/connections/implementation/mediums/bluetooth_radio.cc",
     "src/connections/implementation/mediums/mediums.cc",
+    "src/connections/implementation/mediums/multiplex/multiplex_frames.cc",
+    "src/connections/implementation/mediums/multiplex/multiplex_output_stream.cc",
+    "src/connections/implementation/mediums/multiplex/multiplex_socket.cc",
     "src/connections/implementation/mediums/webrtc.cc",
     "src/connections/implementation/mediums/wifi_direct.cc",
     "src/connections/implementation/mediums/wifi_hotspot.cc",
     "src/connections/implementation/mediums/wifi_lan.cc",
   ]
   public = [
+    "src/connections/implementation/mediums/advertisements/advertisement_util.h",
+    "src/connections/implementation/mediums/advertisements/data_element.h",
+    "src/connections/implementation/mediums/advertisements/dct_advertisement.h",
+    "src/connections/implementation/mediums/awdl.h",
     "src/connections/implementation/mediums/ble.h",
     "src/connections/implementation/mediums/ble_v2.h",
     "src/connections/implementation/mediums/ble_v2/advertisement_read_result.h",
@@ -293,10 +369,15 @@ source_set("connections_implementation_mediums") {
     "src/connections/implementation/mediums/ble_v2/bloom_filter.h",
     "src/connections/implementation/mediums/ble_v2/discovered_peripheral_callback.h",
     "src/connections/implementation/mediums/ble_v2/discovered_peripheral_tracker.h",
+    "src/connections/implementation/mediums/ble_v2/instant_on_lost_advertisement.h",
+    "src/connections/implementation/mediums/ble_v2/instant_on_lost_manager.h",
     "src/connections/implementation/mediums/bluetooth_classic.h",
     "src/connections/implementation/mediums/bluetooth_radio.h",
     "src/connections/implementation/mediums/lost_entity_tracker.h",
     "src/connections/implementation/mediums/mediums.h",
+    "src/connections/implementation/mediums/multiplex/multiplex_frames.h",
+    "src/connections/implementation/mediums/multiplex/multiplex_output_stream.h",
+    "src/connections/implementation/mediums/multiplex/multiplex_socket.h",
     "src/connections/implementation/mediums/webrtc.h",
     "src/connections/implementation/mediums/wifi_direct.h",
     "src/connections/implementation/mediums/wifi_hotspot.h",
@@ -304,9 +385,14 @@ source_set("connections_implementation_mediums") {
   ]
   public_deps = [
     ":ble_frames_proto",
+    ":connections_implementation_ble_advertisement",
     ":connections_implementation_flags",
     ":connections_implementation_mediums_webrtc",
+    ":connections_implementation_types",
     ":connections_types",
+    ":crypto_cros",
+    ":multiplex_frames_proto",
+    ":platform_api_types",
     ":platform_base",
     ":platform_base_cancellation_flag",
     ":platform_base_util",
@@ -321,6 +407,7 @@ source_set("connections_implementation_mediums") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
+
 source_set("connections_implementation_mediums_utils") {
   public_configs = [
     ":nearby_include_config",
@@ -345,6 +432,7 @@ source_set("connections_implementation_mediums_utils") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
+
 source_set("connections_implementation_mediums_webrtc_data_types") {
   public_configs = [
     ":nearby_include_config",
@@ -363,6 +451,7 @@ source_set("connections_implementation_mediums_webrtc_data_types") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
+
 source_set("connections_implementation_mediums_webrtc") {
   public_configs = [
     ":nearby_include_config",
@@ -395,6 +484,35 @@ source_set("connections_implementation_mediums_webrtc") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
 
+# src/connections/v3
+source_set("v3_types") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  sources = [ "src/connections/v3/connections_device.cc" ]
+  public = [
+    "src/connections/v3/bandwidth_info.h",
+    "src/connections/v3/connection_listening_options.h",
+    "src/connections/v3/connection_result.h",
+    "src/connections/v3/connections_device.h",
+    "src/connections/v3/connections_device_provider.h",
+    "src/connections/v3/listeners.h",
+    "src/connections/v3/params.h",
+  ]
+  public_deps = [
+    ":connections_enums_proto",
+    ":connections_types",
+    ":interop_device",
+    ":nearby_crypto",
+    ":platform_base_connection_info",
+    ":platform_public_types",
+    "//third_party/abseil-cpp:absl",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 ###############################################################################
 # src/internal
 ###############################################################################
@@ -405,6 +523,81 @@ source_set("analytics_event_logger") {
     ":nearby_defines",
   ]
   public = [ "src/internal/analytics/event_logger.h" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  public_deps = [
+    ":connections_log_proto",
+    ":fast_pair_log_proto",
+    ":sharing_log_proto",
+  ]
+}
+
+# src/internal/crypto
+source_set("nearby_crypto") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  sources = [ "src/internal/crypto/ed25519.cc" ]
+  public = [ "src/internal/crypto/ed25519.h" ]
+  public_deps = [
+    ":platform_base_logging",
+    ":platform_public_types",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/boringssl:boringssl",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+# src/internal/crypto_cros
+# NOTE: This is a subset of //crypto that uses different namespaces in order to
+# differentiate between the two when using both.
+source_set("crypto_cros") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  sources = [
+    "src/internal/crypto_cros/aead.cc",
+    "src/internal/crypto_cros/ec_private_key.cc",
+    "src/internal/crypto_cros/ec_signature_creator.cc",
+    "src/internal/crypto_cros/ec_signature_creator_impl.cc",
+    "src/internal/crypto_cros/encryptor.cc",
+    "src/internal/crypto_cros/hkdf.cc",
+    "src/internal/crypto_cros/hmac.cc",
+    "src/internal/crypto_cros/nearby_base.cc",
+    "src/internal/crypto_cros/openssl_util.cc",
+    "src/internal/crypto_cros/rsa_private_key.cc",
+    "src/internal/crypto_cros/secure_hash.cc",
+    "src/internal/crypto_cros/secure_util.cc",
+    "src/internal/crypto_cros/sha2.cc",
+    "src/internal/crypto_cros/signature_verifier.cc",
+    "src/internal/crypto_cros/symmetric_key.cc",
+  ]
+  public = [
+    "src/internal/crypto_cros/aead.h",
+    "src/internal/crypto_cros/ec_private_key.h",
+    "src/internal/crypto_cros/ec_signature_creator.h",
+    "src/internal/crypto_cros/ec_signature_creator_impl.h",
+    "src/internal/crypto_cros/encryptor.h",
+    "src/internal/crypto_cros/hkdf.h",
+    "src/internal/crypto_cros/hmac.h",
+    "src/internal/crypto_cros/nearby_base.h",
+    "src/internal/crypto_cros/openssl_util.h",
+    "src/internal/crypto_cros/rsa_private_key.h",
+    "src/internal/crypto_cros/secure_hash.h",
+    "src/internal/crypto_cros/secure_util.h",
+    "src/internal/crypto_cros/sha2.h",
+    "src/internal/crypto_cros/signature_verifier.h",
+    "src/internal/crypto_cros/symmetric_key.h",
+  ]
+  public_deps = [
+    ":platform_base_logging",
+    "//base:base",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/boringssl:boringssl",
+  ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
@@ -423,9 +616,50 @@ source_set("flags") {
     "src/internal/flags/nearby_flags.h",
   ]
   public_deps = [
-    ":platform_public_types",
+    ":platform_mutex",
     "//third_party/abseil-cpp:absl",
   ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+# src/internal/interop
+source_set("interop_authentication_transport_interface") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  public = [ "src/internal/interop/authentication_transport.h" ]
+  public_deps = [ "//third_party/abseil-cpp:absl" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+source_set("interop_device") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  public = [
+    "src/internal/interop/device.h",
+    "src/internal/interop/device_provider.h",
+  ]
+  public_deps = [
+    ":interop_authentication_status",
+    ":interop_authentication_transport_interface",
+    ":platform_base_connection_info",
+    "//third_party/abseil-cpp:absl",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+source_set("interop_authentication_status") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  public = [ "src/internal/interop/authentication_status.h" ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
@@ -440,12 +674,14 @@ source_set("platform_api_comm") {
     ":nearby_defines",
   ]
   sources = [
+    "src/internal/platform/implementation/awdl.h",
     "src/internal/platform/implementation/ble.h",
     "src/internal/platform/implementation/ble_v2.h",
     "src/internal/platform/implementation/bluetooth_adapter.h",
     "src/internal/platform/implementation/bluetooth_classic.h",
     "src/internal/platform/implementation/credential_callbacks.h",
     "src/internal/platform/implementation/credential_storage.h",
+    "src/internal/platform/implementation/http_loader.h",
     "src/internal/platform/implementation/server_sync.h",
     "src/internal/platform/implementation/webrtc.h",
     "src/internal/platform/implementation/wifi.h",
@@ -466,6 +702,22 @@ source_set("platform_api_comm") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
+
+source_set("platform_wifi_utils") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  sources = [ "src/internal/platform/implementation/wifi_utils.cc" ]
+  public = [
+    "src/internal/platform/implementation/wifi.h",
+    "src/internal/platform/implementation/wifi_utils.h",
+  ]
+  public_deps = [ "//third_party/abseil-cpp:absl" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 source_set("platform_api_types") {
   public_configs = [
     ":nearby_include_config",
@@ -474,8 +726,10 @@ source_set("platform_api_types") {
   sources = [
     "src/internal/platform/implementation/atomic_boolean.h",
     "src/internal/platform/implementation/atomic_reference.h",
+    "src/internal/platform/implementation/bluetooth_adapter.h",
     "src/internal/platform/implementation/cancelable.h",
     "src/internal/platform/implementation/condition_variable.h",
+    "src/internal/platform/implementation/count_down_latch.h",
     "src/internal/platform/implementation/crypto.h",
     "src/internal/platform/implementation/executor.h",
     "src/internal/platform/implementation/future.h",
@@ -488,9 +742,11 @@ source_set("platform_api_types") {
     "src/internal/platform/implementation/settable_future.h",
     "src/internal/platform/implementation/submittable_executor.h",
     "src/internal/platform/implementation/system_clock.h",
+    "src/internal/platform/implementation/timer.h",
   ]
   public_deps = [
     ":platform_base",
+    ":platform_impl_crypto",
     "//crypto:crypto",
     "//third_party/abseil-cpp:absl",
   ]
@@ -523,7 +779,7 @@ source_set("platform_base") {
     "src/internal/platform/base64_utils.cc",
     "src/internal/platform/bluetooth_utils.cc",
     "src/internal/platform/input_stream.cc",
-    "src/internal/platform/nsd_service_info.cc",
+    "src/internal/platform/mac_address.cc",
     "src/internal/platform/prng.cc",
   ]
   public = [
@@ -535,6 +791,7 @@ source_set("platform_base") {
     "src/internal/platform/feature_flags.h",
     "src/internal/platform/input_stream.h",
     "src/internal/platform/listeners.h",
+    "src/internal/platform/mac_address.h",
     "src/internal/platform/nsd_service_info.h",
     "src/internal/platform/os_name.h",
     "src/internal/platform/output_stream.h",
@@ -565,7 +822,7 @@ source_set("platform_base_error_code_recorder") {
   public_deps = [
     ":connections_enums_proto",
     ":error_code_enums_proto",
-    ":platform_base_logging",
+    ":platform_public_logging",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -577,7 +834,11 @@ source_set("platform_base_uuid") {
   ]
   sources = [ "src/internal/platform/uuid.cc" ]
   public = [ "src/internal/platform/uuid.h" ]
-  public_deps = [ ":platform_api_types" ]
+  public_deps = [
+    ":platform_base",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/boringssl:boringssl",
+  ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
@@ -587,16 +848,16 @@ source_set("platform_base_util") {
     ":nearby_defines",
   ]
   sources = [
-    "src/internal/platform/base_input_stream.cc",
-    "src/internal/platform/base_pipe.cc",
+    "src/internal/platform/byte_utils.cc",
+    "src/internal/platform/stream_reader.cc",
+    "src/internal/platform/stream_writer.cc",
   ]
   public = [
-    "src/internal/platform/base_input_stream.h",
-    "src/internal/platform/base_mutex_lock.h",
-    "src/internal/platform/base_pipe.h",
+    "src/internal/platform/byte_utils.h",
+    "src/internal/platform/stream_reader.h",
+    "src/internal/platform/stream_writer.h",
   ]
   public_deps = [
-    ":platform_api_types",
     ":platform_base",
     "//third_party/abseil-cpp:absl",
   ]
@@ -651,6 +912,7 @@ source_set("platform_base_connection_info") {
   ]
   public_deps = [
     ":platform_base",
+    ":platform_base_logging",
     "//third_party/abseil-cpp:absl",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -675,32 +937,58 @@ source_set("platform_impl_shared_file") {
 }
 
 # src/internal/platform
+# TODO(b/360211019): This was moved out of `platform_public_types` due to a
+# circular dependency with `flags`. Move this back into `platform_public_types`
+# once we can resolve the circular dependency.
+source_set("platform_mutex") {
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  public = [
+    "src/internal/platform/mutex.h",
+    "src/internal/platform/mutex_lock.h",
+  ]
+  public_deps = [
+    ":platform_api_platform",
+    ":platform_api_types",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/webrtc_overrides:webrtc_component",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 source_set("platform_public_types") {
   public_configs = [
     ":nearby_include_config",
     ":nearby_defines",
   ]
   sources = [
+    "src/internal/platform/blocking_queue_stream.cc",
     "src/internal/platform/monitored_runnable.cc",
     "src/internal/platform/pending_job_registry.cc",
     "src/internal/platform/pipe.cc",
+    "src/internal/platform/timer_impl.cc",
   ]
   public = [
     "src/internal/platform/atomic_boolean.h",
     "src/internal/platform/atomic_reference.h",
+    "src/internal/platform/blocking_queue_stream.h",
     "src/internal/platform/borrowable.h",
     "src/internal/platform/cancelable.h",
     "src/internal/platform/cancelable_alarm.h",
+    "src/internal/platform/cancellable_task.h",
     "src/internal/platform/condition_variable.h",
     "src/internal/platform/count_down_latch.h",
     "src/internal/platform/crypto.h",
+    "src/internal/platform/direct_executor.h",
     "src/internal/platform/file.h",
     "src/internal/platform/future.h",
+    "src/internal/platform/lockable.h",
     "src/internal/platform/logging.h",
     "src/internal/platform/monitored_runnable.h",
     "src/internal/platform/multi_thread_executor.h",
-    "src/internal/platform/mutex.h",
-    "src/internal/platform/mutex_lock.h",
     "src/internal/platform/pending_job_registry.h",
     "src/internal/platform/pipe.h",
     "src/internal/platform/scheduled_executor.h",
@@ -708,15 +996,23 @@ source_set("platform_public_types") {
     "src/internal/platform/single_thread_executor.h",
     "src/internal/platform/submittable_executor.h",
     "src/internal/platform/system_clock.h",
+    "src/internal/platform/thread_check_callable.h",
+    "src/internal/platform/thread_check_runnable.h",
+    "src/internal/platform/timer.h",
+    "src/internal/platform/timer_impl.h",
   ]
   public_deps = [
+    ":connections_implementation_flags",
+    ":flags",
     ":platform_api_platform",
     ":platform_api_types",
     ":platform_base",
     ":platform_base_cancellation_flag",
     ":platform_base_logging",
     ":platform_base_util",
+    ":platform_mutex",
     ":platform_public_logging",
+    "//crypto:crypto",
     "//third_party/abseil-cpp:absl",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -726,8 +1022,12 @@ source_set("platform_public_comm") {
   public_configs = [
     ":nearby_include_config",
     ":nearby_defines",
+
+    # TODO(crbug.com/362502228): Remove upon completion of BleL2capServerSocket.
+    ":unused_private_field_warning",
   ]
   sources = [
+    "src/internal/platform/awdl.cc",
     "src/internal/platform/ble.cc",
     "src/internal/platform/ble_v2.cc",
     "src/internal/platform/bluetooth_classic.cc",
@@ -736,9 +1036,9 @@ source_set("platform_public_comm") {
     "src/internal/platform/wifi_direct.cc",
     "src/internal/platform/wifi_hotspot.cc",
     "src/internal/platform/wifi_lan.cc",
-    "src/internal/platform/wifi_utils.cc",
   ]
   public = [
+    "src/internal/platform/awdl.h",
     "src/internal/platform/ble.h",
     "src/internal/platform/ble_v2.h",
     "src/internal/platform/bluetooth_adapter.h",
@@ -748,7 +1048,6 @@ source_set("platform_public_comm") {
     "src/internal/platform/wifi_direct.h",
     "src/internal/platform/wifi_hotspot.h",
     "src/internal/platform/wifi_lan.h",
-    "src/internal/platform/wifi_utils.h",
   ]
   public_deps = [
     ":platform_api_comm",
@@ -757,6 +1056,7 @@ source_set("platform_public_comm") {
     ":platform_base_uuid",
     ":platform_public_logging",
     ":platform_public_types",
+    ":platform_wifi_utils",
     "//third_party/abseil-cpp:absl",
     "//third_party/webrtc_overrides:webrtc_component",
   ]
@@ -784,20 +1084,54 @@ source_set("presence") {
     ":nearby_defines",
   ]
   sources = [
-    "src/presence/presence_client.cc",
-    "src/presence/presence_service.cc",
+    "src/presence/presence_client_impl.cc",
+    "src/presence/presence_device_provider.cc",
+    "src/presence/presence_service_impl.cc",
   ]
   public = [
     "src/presence/presence_client.h",
+    "src/presence/presence_client_impl.h",
+    "src/presence/presence_device_provider.h",
     "src/presence/presence_service.h",
+    "src/presence/presence_service_impl.h",
   ]
   public_deps = [
+    ":connections_local_credential_proto",
+    ":connections_metadata_proto",
+    ":interop_authentication_status",
+    ":interop_authentication_transport_interface",
+    ":interop_device",
+    ":platform_api_comm",
+    ":platform_api_types",
+    ":platform_base",
+    ":platform_base_logging",
+    ":platform_public_types",
+    ":presence_frame_proto",
     ":presence_internal",
+    ":presence_mediums",
     ":presence_types",
     "//third_party/abseil-cpp:absl",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+source_set("presence_test") {
+  testonly = true
+  public_configs = [
+    ":nearby_include_config",
+    ":nearby_defines",
+  ]
+  sources = [
+    "src/internal/interop/fake_device_provider.cc",
+    "src/presence/fake_presence_client.cc",
+    "src/presence/fake_presence_service.cc",
+  ]
+  public = [
+    "src/internal/interop/fake_device_provider.h",
+    "src/presence/fake_presence_client.h",
+    "src/presence/fake_presence_service.h",
+  ]
+  deps = [ ":presence" ]
 }
 source_set("presence_types") {
   public_configs = [
@@ -829,6 +1163,8 @@ source_set("presence_types") {
   public_deps = [
     ":connections_credential_proto",
     ":connections_metadata_proto",
+    ":interop_device",
+    ":offline_wire_formats_proto",
     ":platform_base",
     ":platform_base_connection_info",
     ":platform_public_logging",
@@ -846,56 +1182,56 @@ source_set("presence_internal") {
   ]
   sources = [
     "src/presence/implementation/action_factory.cc",
-    "src/presence/implementation/advertisement_decoder.cc",
+    "src/presence/implementation/advertisement_decoder_impl.cc",
     "src/presence/implementation/advertisement_factory.cc",
+    "src/presence/implementation/advertisement_filter.cc",
     "src/presence/implementation/base_broadcast_request.cc",
     "src/presence/implementation/broadcast_manager.cc",
+    "src/presence/implementation/connection_authenticator_impl.cc",
     "src/presence/implementation/credential_manager_impl.cc",
     "src/presence/implementation/ldt.cc",
+    "src/presence/implementation/ldt_stub.c",
     "src/presence/implementation/scan_manager.cc",
     "src/presence/implementation/service_controller_impl.cc",
   ]
   public = [
     "src/presence/implementation/action_factory.h",
     "src/presence/implementation/advertisement_decoder.h",
+    "src/presence/implementation/advertisement_decoder_impl.h",
     "src/presence/implementation/advertisement_factory.h",
+    "src/presence/implementation/advertisement_filter.h",
     "src/presence/implementation/base_broadcast_request.h",
     "src/presence/implementation/broadcast_manager.h",
+    "src/presence/implementation/connection_authenticator.h",
+    "src/presence/implementation/connection_authenticator_impl.h",
     "src/presence/implementation/credential_manager.h",
     "src/presence/implementation/credential_manager_impl.h",
     "src/presence/implementation/ldt.h",
+    "src/presence/implementation/np_ldt.h",
     "src/presence/implementation/scan_manager.h",
     "src/presence/implementation/service_controller.h",
     "src/presence/implementation/service_controller_impl.h",
   ]
   public_deps = [
     ":connections_enums_proto",
+    ":connections_local_credential_proto",
     ":connections_metadata_proto",
+    ":crypto_cros",
+    ":nearby_crypto",
     ":platform_base",
     ":platform_base_uuid",
     ":platform_public_comm",
     ":platform_public_logging",
     ":platform_public_types",
-    ":presence_ldt_stub",
     ":presence_mediums",
     ":presence_types",
-    "//crypto:crypto",
     "//third_party/abseil-cpp:absl",
     "//third_party/boringssl:boringssl",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
-source_set("presence_ldt_stub") {
-  public_configs = [
-    ":nearby_include_config",
-    ":nearby_defines",
-  ]
-  sources = [ "src/presence/implementation/np_ldt.c" ]
-  public = [ "src/presence/implementation/np_ldt.h" ]
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+
 source_set("presence_sensor_fusion") {
   public_configs = [
     ":nearby_include_config",
@@ -917,6 +1253,7 @@ source_set("presence_mediums") {
     ":nearby_defines",
   ]
   public = [
+    "src/presence/implementation/mediums/advertisement_data.h",
     "src/presence/implementation/mediums/ble.h",
     "src/presence/implementation/mediums/mediums.h",
   ]
@@ -939,18 +1276,36 @@ proto_library("connections_enums_proto") {
   proto_out_dir = "third_party/nearby"
 }
 
+proto_library("sharing_enums_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/proto/sharing_enums.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+proto_library("fast_pair_enums_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/proto/fast_pair_enums.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
 # src/internal/proto/analytics
 proto_library("connections_log_proto") {
   proto_in_dir = "src"
   sources = [ "${proto_in_dir}/internal/proto/analytics/connections_log.proto" ]
   proto_out_dir = "third_party/nearby"
-  proto_deps = [
+  deps = [
     ":connections_enums_proto",
     ":error_code_enums_proto",
   ]
-  link_deps = [
-    ":connections_enums_proto",
-    ":error_code_enums_proto",
+}
+
+proto_library("fast_pair_log_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/internal/proto/analytics/fast_pair_log.proto" ]
+  proto_out_dir = "third_party/nearby"
+  deps = [
+    ":connections_log_proto",
+    ":fast_pair_enums_proto",
   ]
 }
 
@@ -965,8 +1320,7 @@ proto_library("connections_local_credential_proto") {
   proto_in_dir = "src"
   sources = [ "${proto_in_dir}/internal/proto/local_credential.proto" ]
   proto_out_dir = "third_party/nearby"
-  proto_deps = [ ":connections_credential_proto" ]
-  link_deps = [ ":connections_credential_proto" ]
+  deps = [ ":connections_credential_proto" ]
 }
 
 proto_library("connections_metadata_proto") {
@@ -979,6 +1333,103 @@ proto_library("connections_metadata_proto") {
 proto_library("offline_wire_formats_proto") {
   proto_in_dir = "src"
   sources = [ "${proto_in_dir}/connections/implementation/proto/offline_wire_formats.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+# src/sharing/proto
+proto_library("encrypted_metadata_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/encrypted_metadata.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+proto_library("enums_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/enums.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+proto_library("field_mask_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/field_mask.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+proto_library("settings_observer_data_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/settings_observer_data.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+proto_library("timestamp_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/timestamp.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
+proto_library("rpc_resources_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/rpc_resources.proto" ]
+  proto_out_dir = "third_party/nearby"
+  deps = [ ":timestamp_proto" ]
+}
+
+proto_library("wire_format_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/wire_format.proto" ]
+  proto_out_dir = "third_party/nearby"
+  deps = [ ":sharing_enums_proto" ]
+}
+
+proto_library("device_rpc_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/device_rpc.proto" ]
+  proto_out_dir = "third_party/nearby"
+  deps = [
+    ":field_mask_proto",
+    ":rpc_resources_proto",
+  ]
+}
+
+proto_library("contact_rpc_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/contact_rpc.proto" ]
+  proto_out_dir = "third_party/nearby"
+  deps = [ ":rpc_resources_proto" ]
+}
+
+proto_library("certificate_rpc_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/sharing/proto/certificate_rpc.proto" ]
+  proto_out_dir = "third_party/nearby"
+  deps = [ ":rpc_resources_proto" ]
+}
+
+config("sharing_log_proto_inputs_config") {
+  inputs = [ "//third_party/protobuf/src/google/protobuf/duration.proto" ]
+}
+
+group("sharing_log_proto_inputs") {
+  public_configs = [ ":sharing_log_proto_inputs_config" ]
+}
+
+# src/sharing/proto/analytics
+proto_library("sharing_log_proto") {
+  proto_in_dir = "src"
+  sources =
+      [ "${proto_in_dir}/sharing/proto/analytics/nearby_sharing_log.proto" ]
+  proto_out_dir = "third_party/nearby"
+  proto_deps = [ ":sharing_log_proto_inputs" ]
+  deps = [ ":sharing_enums_proto" ]
+
+  # For built-in protos, specifically duration.proto.
+  import_dirs = [ "//third_party/protobuf/src" ]
+}
+
+# src/presence/proto
+proto_library("presence_frame_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/presence/proto/presence_frame.proto" ]
   proto_out_dir = "third_party/nearby"
 }
 
@@ -996,6 +1447,12 @@ proto_library("ble_frames_proto") {
   proto_out_dir = "third_party/nearby"
 }
 
+proto_library("multiplex_frames_proto") {
+  proto_in_dir = "src"
+  sources = [ "${proto_in_dir}/proto/mediums/multiplex_frames.proto" ]
+  proto_out_dir = "third_party/nearby"
+}
+
 proto_library("web_rtc_signaling_frames_proto") {
   proto_in_dir = "src"
   sources = [ "${proto_in_dir}/proto/mediums/web_rtc_signaling_frames.proto" ]
@@ -1008,4 +1465,12 @@ if (is_chromeos_device) {
   tast_test("nearby_share_tast_tests") {
     tast_attr_expr = "\"group:nearby-share-remote\""
   }
+}
+
+###############################################################################
+# Chromium platform implementations. These are not third-party code.
+###############################################################################
+source_set("platform_impl_crypto") {
+  sources = [ "platform_impl/crypto.cc" ]
+  deps = [ "//base" ]
 }

@@ -56,7 +56,6 @@ String DataTransferItem::kind() const {
       return kind_file;
   }
   NOTREACHED();
-  return String();
 }
 
 String DataTransferItem::type() const {

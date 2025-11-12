@@ -6,6 +6,7 @@ module network.mojom;
 
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
+import "services/network/public/mojom/integrity_algorithm.mojom";
 import "services/network/public/mojom/source_location.mojom";
 import "services/network/public/mojom/web_sandbox_flags.mojom";
 
@@ -59,15 +60,8 @@ struct CSPSource {
   bool is_port_wildcard = false;
 };
 
-enum CSPHashAlgorithm {
-  None = 0,
-  SHA256 = 1,
-  SHA384 = 2,
-  SHA512 = 4,
-};
-
 struct CSPHashSource {
-  CSPHashAlgorithm algorithm;
+  IntegrityAlgorithm algorithm;
   array<uint8> value;
 };
 
@@ -75,12 +69,18 @@ struct CSPSourceList {
   array<CSPSource> sources;
   array<string> nonces;
   array<CSPHashSource> hashes;
+  // Hashes of URLs allowed. Only valid for script-src-v2 directive.
+  // TODO(crbug.com/414459670): Split this struct into per-directive structs.
+  // Not all directives support all of the sources in this struct.
+  array<CSPHashSource> url_hashes;
+  // Hashes of scripts allowed to be loaded via eval. Only valid for
+  // script-src-v2 directive.
+  array<CSPHashSource> eval_hashes;
 
   // Wildcard hosts and 'self' aren't stored in |sources|, but as attributes
   // on the source list itself.
   bool allow_self = false;
   bool allow_star = false;
-  bool allow_response_redirects = false;
   bool allow_inline = false;
   bool allow_inline_speculation_rules = false;
   bool allow_eval = false;
@@ -89,6 +89,7 @@ struct CSPSourceList {
   bool allow_dynamic = false;
   bool allow_unsafe_hashes = false;
   bool report_sample = false;
+  IntegrityAlgorithm? report_hash_algorithm;
   [EnableIf=cobalt_custom_csp]bool cobalt_insecure_local_network = false;
 };
 
@@ -108,13 +109,13 @@ enum CSPDirectiveName {
   ImgSrc,
   ManifestSrc,
   MediaSrc,
-  NavigateTo,
   ObjectSrc,
   ReportTo,
   ReportURI,
   RequireTrustedTypesFor,
   Sandbox,
   ScriptSrc,
+  ScriptSrcV2,
   ScriptSrcAttr,
   ScriptSrcElem,
   StyleSrc,
@@ -161,7 +162,7 @@ struct ContentSecurityPolicy {
   // Spec: https://www.w3.org/TR/upgrade-insecure-requests/
   //
   // Parsed by both the network and blink CSP parsers.
-  // TODO(https://crbug.com/1076894): Only the value coming from blink is used.
+  // TODO(crbug.com/40128885): Only the value coming from blink is used.
   // We might want to reverse this. The browser could 'push' its value to the
   // renderer instead of 'pulling' it after the navigation commit.
   bool upgrade_insecure_requests = false;

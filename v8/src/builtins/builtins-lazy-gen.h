@@ -17,10 +17,18 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
   explicit LazyBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  void GenerateTailCallToJSFunction(TNode<JSFunction> function);
+
+#ifdef V8_ENABLE_LEAPTIERING
+  template <typename Function>
+  void TieringBuiltinImpl(const Function& Impl);
+
+#else
   void GenerateTailCallToJSCode(TNode<Code> code, TNode<JSFunction> function);
 
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);
+
   void TailCallRuntimeIfStateEquals(TNode<Uint32T> state,
                                     TieringState expected_state,
                                     Runtime::FunctionId function_id,
@@ -28,7 +36,9 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
 
   void MaybeTailCallOptimizedCodeSlot(TNode<JSFunction> function,
                                       TNode<FeedbackVector> feedback_vector);
-  void CompileLazy(TNode<JSFunction> function);
+#endif  // V8_ENABLE_LEAPTIERING
+
+  void CompileLazy(TNode<JSFunction> function, TNode<Context> context);
 };
 
 }  // namespace internal

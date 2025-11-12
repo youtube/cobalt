@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   var {page, session, dp} = await testRunner.startHTML(
     `
     <div id="x" class="container">
@@ -37,7 +37,9 @@
       'Content-Location: ',
     ];
     let cleanData = '';
-    for (const line of data.split('\n')) {
+    for (const line of
+      data.replace(/<script src=3D"cid:js-[^"]*@mhtml.blink">/ms,
+        '<script src=3D"injected">').split('\n')) {
       let cleanLine = line;
       for (const prefix of ignoredPrefixes) {
         if (line.trim().startsWith(prefix)) {

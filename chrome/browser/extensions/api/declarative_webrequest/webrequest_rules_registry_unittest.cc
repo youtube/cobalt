@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -27,14 +28,11 @@
 #include "extensions/browser/api/web_request/web_request_info.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/rules_registry_ids.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest-message.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/lacros/lacros_test_helper.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 namespace helpers = extension_web_request_api_helpers;
 namespace keys = extensions::declarative_webrequest_constants;
@@ -74,7 +72,7 @@ class TestWebRequestRulesRegistry : public WebRequestRulesRegistry {
   explicit TestWebRequestRulesRegistry(content::BrowserContext* context)
       : WebRequestRulesRegistry(context,
                                 nullptr /* cache_delegate */,
-                                RulesRegistryService::kDefaultRulesRegistryID),
+                                rules_registry_ids::kDefaultRulesRegistryID),
         num_clear_cache_calls_(0) {}
 
   // Returns how often the in-memory caches of the renderers were instructed
@@ -88,7 +86,7 @@ class TestWebRequestRulesRegistry : public WebRequestRulesRegistry {
   }
 
  protected:
-  ~TestWebRequestRulesRegistry() override {}
+  ~TestWebRequestRulesRegistry() override = default;
 
   void ClearCacheOnNavigation() override { ++num_clear_cache_calls_; }
 
@@ -134,12 +132,12 @@ class WebRequestRulesRegistryTest : public testing::Test {
     api::events::Rule rule;
     rule.id = kRuleId1;
     rule.priority = 100;
-    rule.actions.emplace_back(action_dict.Clone());
+    rule.actions.Append(std::move(action_dict));
     http_condition_dict.Set(keys2::kSchemesKey, std::move(scheme_http));
     http_condition_url_filter.Set(keys::kUrlKey,
                                   std::move(http_condition_dict));
-    rule.conditions.emplace_back(http_condition_url_filter.Clone());
-    rule.conditions.emplace_back(https_condition_url_filter.Clone());
+    rule.conditions.Append(std::move(http_condition_url_filter));
+    rule.conditions.Append(std::move(https_condition_url_filter));
     return rule;
   }
 
@@ -154,8 +152,8 @@ class WebRequestRulesRegistryTest : public testing::Test {
     api::events::Rule rule;
     rule.id = kRuleId2;
     rule.priority = 100;
-    rule.actions.emplace_back(action_dict.Clone());
-    rule.conditions.emplace_back(condition_dict.Clone());
+    rule.actions.Append(std::move(action_dict));
+    rule.conditions.Append(std::move(condition_dict));
     return rule;
   }
 
@@ -170,8 +168,8 @@ class WebRequestRulesRegistryTest : public testing::Test {
     api::events::Rule rule;
     rule.id = kRuleId3;
     rule.priority = 100;
-    rule.actions.emplace_back(action_dict.Clone());
-    rule.conditions.emplace_back(condition_dict.Clone());
+    rule.actions.Append(std::move(action_dict));
+    rule.conditions.Append(std::move(condition_dict));
     return rule;
   }
 
@@ -191,8 +189,8 @@ class WebRequestRulesRegistryTest : public testing::Test {
     api::events::Rule rule;
     rule.id = kRuleId4;
     rule.priority = 200;
-    rule.actions.emplace_back(action_dict.Clone());
-    rule.conditions.emplace_back(condition_dict.Clone());
+    rule.actions.Append(std::move(action_dict));
+    rule.conditions.Append(std::move(condition_dict));
     return rule;
   }
 
@@ -220,18 +218,14 @@ class WebRequestRulesRegistryTest : public testing::Test {
     api::events::Rule rule;
     rule.id = rule_id;
     rule.priority = 1;
-    rule.actions.emplace_back(action_dict.Clone());
+    rule.actions.Append(std::move(action_dict));
     for (auto* attribute : attributes)
-      rule.conditions.push_back(CreateCondition(*attribute));
+      rule.conditions.Append(CreateCondition(*attribute));
     return rule;
   }
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  chromeos::ScopedLacrosServiceTestHelper lacros_service_test_helper_;
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
   TestingProfile profile_;
   // Two extensions with host permissions for all URLs and the DWR permission.
@@ -258,11 +252,10 @@ void WebRequestRulesRegistryTest::SetUp() {
   CHECK(ExtensionRegistry::Get(&profile_));
   ExtensionRegistry::Get(&profile_)->AddEnabled(extension_);
   ExtensionPrefs::Get(&profile_)->OnExtensionInstalled(
-      extension_.get(), Extension::State::ENABLED, syncer::StringOrdinal(), "");
+      extension_.get(), /*disable_reasons=*/{}, syncer::StringOrdinal(), "");
   ExtensionRegistry::Get(&profile_)->AddEnabled(extension2_);
   ExtensionPrefs::Get(&profile_)->OnExtensionInstalled(
-      extension2_.get(), Extension::State::ENABLED, syncer::StringOrdinal(),
-      "");
+      extension2_.get(), /*disable_reasons=*/{}, syncer::StringOrdinal(), "");
 }
 
 
@@ -538,13 +531,12 @@ TEST_F(WebRequestRulesRegistryTest, IgnoreRulesByTag) {
   base::Value::Dict value1 = base::test::ParseJsonDict(kRule1);
   base::Value::Dict value2 = base::test::ParseJsonDict(kRule2);
 
-  std::vector<const api::events::Rule*> rules;
-  api::events::Rule rule1;
-  api::events::Rule rule2;
-  rules.push_back(&rule1);
-  rules.push_back(&rule2);
-  ASSERT_TRUE(api::events::Rule::Populate(value1, rule1));
-  ASSERT_TRUE(api::events::Rule::Populate(value2, rule2));
+  std::optional<api::events::Rule> rule1 = api::events::Rule::FromValue(value1);
+  std::optional<api::events::Rule> rule2 = api::events::Rule::FromValue(value2);
+  ASSERT_TRUE(rule1);
+  ASSERT_TRUE(rule2);
+  std::vector<const api::events::Rule*> rules = {&rule1.value(),
+                                                 &rule2.value()};
 
   scoped_refptr<WebRequestRulesRegistry> registry(
       new TestWebRequestRulesRegistry(&profile_));
@@ -642,12 +634,12 @@ TEST_F(WebRequestRulesRegistryTest, GetMatchesDifferentUrls) {
 
   std::set<const WebRequestRule*> matches;
 
-  const GURL urls[] = {
-    GURL("http://url.example.com"),  // matching
-    GURL("http://www.example.com")   // non-matching
-  };
+  const auto urls = std::to_array<GURL>({
+      GURL("http://url.example.com"),  // matching
+      GURL("http://www.example.com")   // non-matching
+  });
   // Which rules should match in subsequent test iterations.
-  const char* const matchingRuleIds[] = { kRuleId1, kRuleId2 };
+  const auto matchingRuleIds = std::to_array<const char*>({kRuleId1, kRuleId2});
   static_assert(std::size(urls) == std::size(matchingRuleIds),
                 "urls and matchingRuleIds must have the same number "
                 "of elements");
@@ -696,20 +688,20 @@ TEST(WebRequestRulesRegistrySimpleTest, StageChecker) {
 
   base::Value::Dict value = base::test::ParseJsonDict(kRule);
 
-  api::events::Rule rule;
-  ASSERT_TRUE(api::events::Rule::Populate(value, rule));
+  std::optional<api::events::Rule> rule = api::events::Rule::FromValue(value);
+  ASSERT_TRUE(rule);
 
   std::string error;
   URLMatcher matcher;
   std::unique_ptr<WebRequestConditionSet> conditions =
       WebRequestConditionSet::Create(nullptr, matcher.condition_factory(),
-                                     rule.conditions, &error);
+                                     rule->conditions, &error);
   ASSERT_TRUE(error.empty()) << error;
   ASSERT_TRUE(conditions);
 
   bool bad_message = false;
   std::unique_ptr<WebRequestActionSet> actions = WebRequestActionSet::Create(
-      nullptr, nullptr, rule.actions, &error, &bad_message);
+      nullptr, nullptr, rule->actions, &error, &bad_message);
   ASSERT_TRUE(error.empty()) << error;
   ASSERT_FALSE(bad_message);
   ASSERT_TRUE(actions);
@@ -728,8 +720,8 @@ TEST(WebRequestRulesRegistrySimpleTest, HostPermissionsChecker) {
       "}                                                             ";
   base::Value action_value = base::test::ParseJson(kAction);
 
-  WebRequestActionSet::Values actions;
-  actions.push_back(std::move(action_value));
+  base::Value::List actions;
+  actions.Append(std::move(action_value));
 
   std::string error;
   bool bad_message = false;
@@ -782,10 +774,9 @@ TEST_F(WebRequestRulesRegistryTest, CheckOriginAndPathRegEx) {
 
   base::Value::Dict value = base::test::ParseJsonDict(kRule);
 
-  std::vector<const api::events::Rule*> rules;
-  api::events::Rule rule;
-  rules.push_back(&rule);
-  ASSERT_TRUE(api::events::Rule::Populate(value, rule));
+  std::optional<api::events::Rule> rule = api::events::Rule::FromValue(value);
+  ASSERT_TRUE(rule);
+  std::vector<const api::events::Rule*> rules = {&rule.value()};
 
   scoped_refptr<WebRequestRulesRegistry> registry(
       new TestWebRequestRulesRegistry(&profile_));

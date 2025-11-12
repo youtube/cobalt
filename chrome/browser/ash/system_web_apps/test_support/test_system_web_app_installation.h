@@ -6,18 +6,23 @@
 #define CHROME_BROWSER_ASH_SYSTEM_WEB_APPS_TEST_SUPPORT_TEST_SYSTEM_WEB_APP_INSTALLATION_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_manager.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_web_ui_controller_factory.h"
-#include "chrome/browser/ash/system_web_apps/types/system_web_app_delegate.h"
-#include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chromeos/ash/experiences/system_web_apps/types/system_web_app_delegate.h"
 #include "components/content_settings/core/common/content_settings_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace web_app {
+class FakeWebAppProviderCreator;
+}  // namespace web_app
 
 namespace ash {
+
+class BrowserDelegate;
 
 class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
  public:
@@ -31,45 +36,44 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   ~UnittestingSystemAppDelegate() override;
 
   using LaunchAndNavigateSystemWebAppCallback =
-      base::RepeatingCallback<Browser*(Profile*,
-                                       web_app::WebAppProvider*,
-                                       const GURL&,
-                                       const apps::AppLaunchParams&)>;
+      base::RepeatingCallback<BrowserDelegate*(Profile*,
+                                               web_app::WebAppProvider*,
+                                               const GURL&,
+                                               const apps::AppLaunchParams&)>;
 
-  std::unique_ptr<WebAppInstallInfo> GetWebAppInfo() const override;
+  std::unique_ptr<web_app::WebAppInstallInfo> GetWebAppInfo() const override;
 
   std::vector<std::string> GetAppIdsToUninstallAndReplace() const override;
   gfx::Size GetMinimumWindowSize() const override;
-  Browser* GetWindowForLaunch(Profile* profile, const GURL& url) const override;
+  BrowserDelegate* GetWindowForLaunch(Profile* profile,
+                                      const GURL& url) const override;
   bool ShouldShowNewWindowMenuOption() const override;
   base::FilePath GetLaunchDirectory(
       const apps::AppLaunchParams& params) const override;
   std::vector<int> GetAdditionalSearchTerms() const override;
   bool ShouldShowInLauncher() const override;
-  bool ShouldShowInSearch() const override;
+  bool ShouldShowInSearchAndShelf() const override;
   bool ShouldHandleFileOpenIntents() const override;
   bool ShouldCaptureNavigations() const override;
   bool ShouldAllowResize() const override;
   bool ShouldAllowMaximize() const override;
+  bool ShouldAllowFullscreen() const override;
   bool ShouldHaveTabStrip() const override;
+  bool ShouldHideNewTabButton() const override;
   bool ShouldHaveReloadButtonInMinimalUi() const override;
   bool ShouldAllowScriptsToCloseWindows() const override;
-  absl::optional<SystemWebAppBackgroundTaskInfo> GetTimerInfo() const override;
-  gfx::Rect GetDefaultBounds(Browser* browser) const override;
-  Browser* LaunchAndNavigateSystemWebApp(
+  std::optional<SystemWebAppBackgroundTaskInfo> GetTimerInfo() const override;
+  gfx::Rect GetDefaultBounds(BrowserDelegate* browser) const override;
+  BrowserDelegate* LaunchAndNavigateSystemWebApp(
       Profile* profile,
       web_app::WebAppProvider* provider,
       const GURL& url,
       const apps::AppLaunchParams& params) const override;
   bool IsAppEnabled() const override;
   bool IsUrlInSystemAppScope(const GURL& url) const override;
-  bool PreferManifestBackgroundColor() const override;
   bool UseSystemThemeColor() const override;
-#if BUILDFLAG(IS_CHROMEOS)
   bool ShouldAnimateThemeChanges() const override;
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-  void SetAppIdsToUninstallAndReplace(const std::vector<web_app::AppId>&);
+  void SetAppIdsToUninstallAndReplace(const std::vector<webapps::AppId>&);
   void SetMinimumWindowSize(const gfx::Size&);
   void SetShouldReuseExistingWindow(bool);
   void SetShouldShowNewWindowMenuOption(bool);
@@ -77,29 +81,26 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   void SetEnabledOriginTrials(const OriginTrialsMap&);
   void SetAdditionalSearchTerms(const std::vector<int>&);
   void SetShouldShowInLauncher(bool);
-  void SetShouldShowInSearch(bool);
+  void SetShouldShowInSearchAndShelf(bool);
   void SetShouldHandleFileOpenIntents(bool);
   void SetShouldCaptureNavigations(bool);
   void SetShouldAllowResize(bool);
   void SetShouldAllowMaximize(bool);
   void SetShouldHaveTabStrip(bool);
+  void SetShouldHideNewTabButton(bool);
   void SetShouldHaveReloadButtonInMinimalUi(bool);
   void SetShouldAllowScriptsToCloseWindows(bool);
   void SetTimerInfo(const SystemWebAppBackgroundTaskInfo&);
-  void SetDefaultBounds(base::RepeatingCallback<gfx::Rect(Browser*)>);
+  void SetDefaultBounds(base::RepeatingCallback<gfx::Rect(BrowserDelegate*)>);
   void SetLaunchAndNavigateSystemWebApp(LaunchAndNavigateSystemWebAppCallback);
   void SetIsAppEnabled(bool);
   void SetUrlInSystemAppScope(const GURL& url);
-  void SetPreferManifestBackgroundColor(bool);
   void SetUseSystemThemeColor(bool);
-#if BUILDFLAG(IS_CHROMEOS)
   void SetShouldAnimateThemeChanges(bool);
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
  private:
   web_app::WebAppInstallInfoFactory info_factory_;
-
-  std::vector<web_app::AppId> uninstall_and_replace_;
+  std::vector<webapps::AppId> uninstall_and_replace_;
   gfx::Size minimum_window_size_;
   bool single_window_ = true;
   bool show_new_window_menu_option_ = false;
@@ -111,24 +112,20 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   bool capture_navigations_ = false;
   bool is_resizeable_ = true;
   bool is_maximizable_ = true;
+  bool is_fullscreenable_ = true;
   bool has_tab_strip_ = false;
+  bool hide_new_tab_button_ = false;
   bool should_have_reload_button_in_minimal_ui_ = true;
   bool allow_scripts_to_close_windows_ = false;
   bool is_app_enabled = true;
   GURL url_in_system_app_scope_;
-  bool prefer_manifest_background_color_ = false;
   bool use_system_theme_color_ = true;
-#if BUILDFLAG(IS_CHROMEOS)
   bool should_animate_theme_changes_ = false;
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-  base::RepeatingCallback<gfx::Rect(Browser*)> get_default_bounds_ =
+  base::RepeatingCallback<gfx::Rect(BrowserDelegate*)> get_default_bounds_ =
       base::NullCallback();
-
   LaunchAndNavigateSystemWebAppCallback launch_and_navigate_system_web_apps_ =
       base::NullCallback();
-
-  absl::optional<SystemWebAppBackgroundTaskInfo> timer_info_;
+  std::optional<SystemWebAppBackgroundTaskInfo> timer_info_;
 };
 
 // Class to setup the installation of a test System Web App.
@@ -157,6 +154,8 @@ class TestSystemWebAppInstallation {
 
   static std::unique_ptr<TestSystemWebAppInstallation>
   SetUpAppWithEnabledOriginTrials(const OriginTrialsMap& origin_to_trials);
+
+  static std::unique_ptr<TestSystemWebAppInstallation> SetUpAppLaunchWithUrl();
 
   static std::unique_ptr<TestSystemWebAppInstallation>
   SetUpAppNotShownInLauncher();
@@ -188,7 +187,8 @@ class TestSystemWebAppInstallation {
   SetupAppWithAllowScriptsToCloseWindows(bool value);
 
   static std::unique_ptr<TestSystemWebAppInstallation> SetUpAppWithTabStrip(
-      bool has_tab_strip);
+      bool has_tab_strip,
+      bool hide_new_tab_button);
 
   static std::unique_ptr<TestSystemWebAppInstallation>
   SetUpAppWithDefaultBounds(const gfx::Rect& default_bounds);
@@ -212,10 +212,10 @@ class TestSystemWebAppInstallation {
   SetUpAppsForContestMenuTest();
 
   static std::unique_ptr<TestSystemWebAppInstallation> SetUpAppWithColors(
-      absl::optional<SkColor> theme_color,
-      absl::optional<SkColor> dark_mode_theme_color,
-      absl::optional<SkColor> background_color,
-      absl::optional<SkColor> dark_mode_background_color);
+      std::optional<SkColor> theme_color,
+      std::optional<SkColor> dark_mode_theme_color,
+      std::optional<SkColor> background_color,
+      std::optional<SkColor> dark_mode_background_color);
 
   static std::unique_ptr<TestSystemWebAppInstallation> SetUpAppWithValidIcons();
 
@@ -223,7 +223,7 @@ class TestSystemWebAppInstallation {
 
   void WaitForAppInstall();
 
-  web_app::AppId GetAppId();
+  webapps::AppId GetAppId();
   const GURL& GetAppUrl();
   SystemWebAppDelegate* GetDelegate();
   SystemWebAppType GetType();
@@ -258,7 +258,7 @@ class TestSystemWebAppInstallation {
       test_system_web_app_manager_creator_;
 
   // nullopt if SetUpWithoutApps() was used.
-  const absl::optional<SystemWebAppType> type_;
+  const std::optional<SystemWebAppType> type_;
   std::vector<std::unique_ptr<TestSystemWebAppWebUIControllerFactory>>
       web_ui_controller_factories_;
   std::set<ContentSettingsType> auto_granted_permissions_;

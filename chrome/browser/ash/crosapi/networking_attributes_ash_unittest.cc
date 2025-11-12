@@ -4,13 +4,16 @@
 
 #include "chrome/browser/ash/crosapi/networking_attributes_ash.h"
 
+#include <cstddef>
+
 #include "base/logging.h"
+#include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/dbus/shill/shill_device_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_profile_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_property_changed_observer.h"
@@ -22,6 +25,7 @@
 #include "chromeos/crosapi/mojom/networking_attributes.mojom.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
 #include "content/public/test/browser_task_environment.h"
 #include "dbus/object_path.h"
 #include "net/base/ip_address.h"
@@ -50,9 +54,9 @@ constexpr char kWifiIPConfigV6Path[] = "/ipconfig/stub_wifi-ipv6";
 namespace crosapi {
 
 namespace {
-void EvaluateGetNetworkDetailsResult(base::OnceClosure closure,
-                                     mojom::GetNetworkDetailsResultPtr expected,
-                                     mojom::GetNetworkDetailsResultPtr found) {
+void EvaluateGetNetworkDetailsResult(
+    mojom::GetNetworkDetailsResultPtr found,
+    mojom::GetNetworkDetailsResultPtr expected) {
   ASSERT_EQ(expected->which(), found->which());
   if (expected->which() == mojom::GetNetworkDetailsResult::Tag::kErrorMessage) {
     ASSERT_EQ(expected->get_error_message(), found->get_error_message());
@@ -64,7 +68,6 @@ void EvaluateGetNetworkDetailsResult(base::OnceClosure closure,
     ASSERT_EQ(expected->get_network_details()->ipv6_address,
               found->get_network_details()->ipv6_address);
   }
-  std::move(closure).Run();
 }
 
 void ShillErrorCallbackFunction(const std::string& error_name,
@@ -88,28 +91,31 @@ class NetworkingAttributesAshTest : public testing::Test {
   ~NetworkingAttributesAshTest() override = default;
 
   void SetUp() override {
-    auto fake_user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     networking_attributes_ash_ = std::make_unique<NetworkingAttributesAsh>();
     networking_attributes_ash_->BindReceiver(
         networking_attributes_remote_.BindNewPipeAndPassReceiver());
+
+    profile_manager_ = std::make_unique<TestingProfileManager>(
+        TestingBrowserProcess::GetGlobal(), &local_state_);
+    ASSERT_TRUE(profile_manager_->SetUp());
+    profile_ = profile_manager_->CreateTestingProfile(
+        TestingProfile::kDefaultProfileUserName);
   }
 
-  void TearDown() override { networking_attributes_ash_.reset(); }
+  void TearDown() override {
+    networking_attributes_ash_.reset();
+    profile_ = nullptr;
+    profile_manager_->DeleteAllTestingProfiles();
+  }
 
   void AddUser(bool is_affiliated = true) {
-    AccountId account_id = AccountId::FromUserEmail("user@test.com");
-    ash::FakeChromeUserManager* user_manager =
-        static_cast<ash::FakeChromeUserManager*>(
-            user_manager::UserManager::Get());
-    const user_manager::User* user =
-        user_manager->AddUserWithAffiliation(account_id, is_affiliated);
-    user_manager->UserLoggedIn(account_id, user->username_hash(),
-                               /*browser_restart=*/false, /*is_child=*/false);
-    user_manager->SimulateUserProfileLoad(account_id);
-    ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
-                                                                 &profile_);
+    AccountId account_id =
+        AccountId::FromUserEmail(TestingProfile::kDefaultProfileUserName);
+    fake_user_manager_->AddUserWithAffiliation(account_id, is_affiliated);
+    fake_user_manager_->UserLoggedIn(
+        account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id));
+    fake_user_manager_->SimulateUserProfileLoad(account_id);
   }
 
   void SetUpShillState() {
@@ -146,22 +152,22 @@ class NetworkingAttributesAshTest : public testing::Test {
                   kWifiServicePath, shill::kStateProperty),
               shill::kStateOnline);
 
-    base::RunLoop device_client_mac_address_run_loop;
+    base::test::TestFuture<void> device_client_mac_address_waiter;
     ash::ShillDeviceClient* shill_device_client = ash::ShillDeviceClient::Get();
     shill_device_client->SetProperty(
         dbus::ObjectPath(kWifiDevicePath), shill::kAddressProperty,
         base::Value(kFormattedMacAddress),
-        device_client_mac_address_run_loop.QuitClosure(),
+        device_client_mac_address_waiter.GetCallback(),
         base::BindOnce(&ShillErrorCallbackFunction));
-    device_client_mac_address_run_loop.Run();
+    EXPECT_TRUE(device_client_mac_address_waiter.Wait());
 
-    base::RunLoop device_client_ip_config_run_loop;
+    base::test::TestFuture<void> device_client_ip_config_waiter;
     shill_device_client->SetProperty(
         dbus::ObjectPath(kWifiDevicePath), shill::kIPConfigsProperty,
         base::Value(std::move(ip_configs)),
-        device_client_ip_config_run_loop.QuitClosure(),
+        device_client_ip_config_waiter.GetCallback(),
         base::BindOnce(&ShillErrorCallbackFunction));
-    device_client_ip_config_run_loop.Run();
+    EXPECT_TRUE(device_client_ip_config_waiter.Wait());
 
     testing::StrictMock<MockPropertyChangeObserver> observer;
     ash::ShillServiceClient* shill_service_client =
@@ -169,17 +175,17 @@ class NetworkingAttributesAshTest : public testing::Test {
     shill_service_client->AddPropertyChangedObserver(
         dbus::ObjectPath(kWifiServicePath), &observer);
 
-    base::RunLoop service_client_run_loop;
     base::Value kConnectable(true);
     EXPECT_CALL(observer,
                 OnPropertyChanged(shill::kConnectableProperty,
                                   testing::Eq(testing::ByRef(kConnectable))))
         .Times(1);
+    base::test::TestFuture<void> service_client_waiter;
     shill_service_client->SetProperty(
         dbus::ObjectPath(kWifiServicePath), shill::kConnectableProperty,
-        kConnectable, service_client_run_loop.QuitClosure(),
+        kConnectable, service_client_waiter.GetCallback(),
         base::BindOnce(&ShillErrorCallbackFunction));
-    service_client_run_loop.Run();
+    EXPECT_TRUE(service_client_waiter.Wait());
     testing::Mock::VerifyAndClearExpectations(&observer);
 
     const ash::DeviceState* device_state =
@@ -192,8 +198,10 @@ class NetworkingAttributesAshTest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-  TestingProfile profile_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
+  std::unique_ptr<TestingProfileManager> profile_manager_;
+  raw_ptr<TestingProfile> profile_;
   mojo::Remote<mojom::NetworkingAttributes> networking_attributes_remote_;
   std::unique_ptr<NetworkingAttributesAsh> networking_attributes_ash_;
   ash::NetworkHandlerTestHelper network_handler_test_helper_;
@@ -204,28 +212,23 @@ class NetworkingAttributesAshTest : public testing::Test {
 TEST_F(NetworkingAttributesAshTest, GetNetworkDetailsUserNotAffiliated) {
   AddUser(/*is_affiliated=*/false);
 
-  mojom::GetNetworkDetailsResultPtr expected_result_ptr =
-      mojom::GetNetworkDetailsResult::NewErrorMessage(kErrorUserNotAffiliated);
+  base::test::TestFuture<mojom::GetNetworkDetailsResultPtr> future;
+  networking_attributes_remote_->GetNetworkDetails(future.GetCallback());
 
-  base::RunLoop run_loop;
-  networking_attributes_remote_->GetNetworkDetails(
-      base::BindOnce(&EvaluateGetNetworkDetailsResult, run_loop.QuitClosure(),
-                     std::move(expected_result_ptr)));
-  run_loop.Run();
+  EvaluateGetNetworkDetailsResult(
+      future.Take(),
+      mojom::GetNetworkDetailsResult::NewErrorMessage(kErrorUserNotAffiliated));
 }
 
 TEST_F(NetworkingAttributesAshTest, GetNetworkDetailsNetworkNotConnected) {
   AddUser();
 
-  mojom::GetNetworkDetailsResultPtr expected_result_ptr =
-      mojom::GetNetworkDetailsResult::NewErrorMessage(
-          kErrorNetworkNotConnected);
+  base::test::TestFuture<mojom::GetNetworkDetailsResultPtr> future;
+  networking_attributes_remote_->GetNetworkDetails(future.GetCallback());
 
-  base::RunLoop run_loop;
-  networking_attributes_remote_->GetNetworkDetails(
-      base::BindOnce(&EvaluateGetNetworkDetailsResult, run_loop.QuitClosure(),
-                     std::move(expected_result_ptr)));
-  run_loop.Run();
+  EvaluateGetNetworkDetailsResult(
+      future.Take(), mojom::GetNetworkDetailsResult::NewErrorMessage(
+                         kErrorNetworkNotConnected));
 }
 
 TEST_F(NetworkingAttributesAshTest, GetNetworkDetailsSuccess) {
@@ -242,15 +245,13 @@ TEST_F(NetworkingAttributesAshTest, GetNetworkDetailsSuccess) {
   expected_network_details->mac_address = kFormattedMacAddress;
   expected_network_details->ipv4_address = ipv4_expected;
   expected_network_details->ipv6_address = ipv6_expected;
-  mojom::GetNetworkDetailsResultPtr expected_result_ptr =
-      mojom::GetNetworkDetailsResult::NewNetworkDetails(
-          std::move(expected_network_details));
 
-  base::RunLoop run_loop;
-  networking_attributes_remote_->GetNetworkDetails(
-      base::BindOnce(&EvaluateGetNetworkDetailsResult, run_loop.QuitClosure(),
-                     std::move(expected_result_ptr)));
-  run_loop.Run();
+  base::test::TestFuture<mojom::GetNetworkDetailsResultPtr> future;
+  networking_attributes_remote_->GetNetworkDetails(future.GetCallback());
+
+  EvaluateGetNetworkDetailsResult(
+      future.Take(), mojom::GetNetworkDetailsResult::NewNetworkDetails(
+                         std::move(expected_network_details)));
 }
 
 }  // namespace crosapi

@@ -8,7 +8,7 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
-#include "chrome/browser/ash/arc/process/arc_process_service.h"
+#include "chromeos/ash/experiences/arc/process/arc_process_service.h"
 #include "content/public/browser/browser_thread.h"
 
 namespace task_manager {
@@ -88,7 +88,7 @@ void ArcSharedSampler::OnReceiveMemoryDump(
     if (it == callbacks_.end())
       continue;
     const MemoryFootprintBytes result = proc->private_footprint_kb * 1024;
-    it->second.Run(absl::make_optional<MemoryFootprintBytes>(result));
+    it->second.Run(std::make_optional<MemoryFootprintBytes>(result));
   }
 }
 

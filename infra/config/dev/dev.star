@@ -73,10 +73,54 @@ luci.realm(
     ],
 )
 
+# @project realm.
+luci.realm(
+    name = "@project",
+    bindings = [
+        # Allow everyone (including non-logged-in users) to see chromium tree status.
+        luci.binding(
+            roles = "role/treestatus.limitedReader",
+            groups = [
+                "all",
+            ],
+        ),
+        # Only allow Googlers to see PII.
+        luci.binding(
+            roles = "role/treestatus.reader",
+            groups = [
+                "googlers",
+            ],
+            users = [
+                "luci-notify-dev@appspot.gserviceaccount.com",
+            ],
+        ),
+        # Only allow Googlers and service accounts.
+        luci.binding(
+            roles = "role/treestatus.writer",
+            groups = [
+                "googlers",
+            ],
+            users = [
+                "luci-notify-dev@appspot.gserviceaccount.com",
+            ],
+        ),
+    ],
+)
+
 luci.builder.defaults.test_presentation.set(resultdb.test_presentation(grouping_keys = ["status", "v.test_suite"]))
 
 exec("//dev/swarming.star")
 
 exec("//recipes.star")
+exec("//gn_args/gn_args.star")
+exec("//targets/basic_suites.star")
+exec("//targets/binaries.star")
+exec("//targets/bundles.star")
+exec("//targets/compile_targets.star")
+exec("//targets/compound_suites.star")
+exec("//targets/matrix_compound_suites.star")
+exec("//targets/mixins.star")
+exec("//targets/tests.star")
+exec("//targets/variants.star")
 
 exec("//dev/subprojects/chromium/subproject.star")

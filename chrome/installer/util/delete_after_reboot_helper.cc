@@ -10,9 +10,15 @@
 // This implementation really is not fast, so do not use it where that will
 // matter.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/util/delete_after_reboot_helper.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_enumerator.h"
@@ -327,12 +333,19 @@ HRESULT GetPendingMovesValue(std::vector<PendingMove>* pending_moves) {
 bool MatchPendingDeletePath(const base::FilePath& short_form_needle,
                             const base::FilePath& reg_path) {
   // Stores the path stored in each entry.
-  std::wstring match_path(reg_path.value());
+  std::wstring_view match_path(reg_path.value());
+
+  // Skip past the "*1" prefix, if present (allowing any number).
+  if (match_path.size() >= 2 && match_path[0] == L'*' &&
+      (match_path[1] >= L'0' && match_path[1] <= L'9')) {
+    match_path = match_path.substr(2);
+  }
 
   // First chomp the prefix since that will mess up GetShortPathName.
-  base::WStringPiece prefix(L"\\??\\");
-  if (base::StartsWith(match_path, prefix, base::CompareCase::SENSITIVE))
-    match_path = match_path.substr(prefix.size());
+  static constexpr wchar_t kNtPrefix[] = L"\\??\\";
+  if (base::StartsWith(match_path, kNtPrefix, base::CompareCase::SENSITIVE)) {
+    match_path = match_path.substr(sizeof(kNtPrefix) / sizeof(wchar_t) - 1);
+  }
 
   // Get the short path name of the entry.
   base::FilePath short_match_path(GetShortPathName(base::FilePath(match_path)));

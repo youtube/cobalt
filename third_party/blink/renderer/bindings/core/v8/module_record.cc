@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/bindings/core/v8/module_record.h"
+
 #include "base/feature_list.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/v8_cache_options.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/boxed_v8_module.h"
 #include "third_party/blink/renderer/bindings/core/v8/referrer_script_info.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_common.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 #include "third_party/blink/renderer/core/loader/modulescript/module_script_creation_params.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
@@ -52,11 +54,9 @@ v8::Local<v8::Module> ModuleRecord::Compile(
     const ModuleScriptCreationParams& params,
     const ScriptFetchOptions& options,
     const TextPosition& text_position,
-    ExceptionState& exception_state,
     mojom::blink::V8CacheOptions v8_cache_options,
     ModuleRecordProduceCacheData** out_produce_cache_data) {
   v8::Isolate* isolate = script_state->GetIsolate();
-  v8::TryCatch try_catch(isolate);
   v8::Local<v8::Module> module;
 
   // Module scripts currently don't support |kEagerCompile| which can be
@@ -76,21 +76,23 @@ v8::Local<v8::Module> ModuleRecord::Compile(
         ExecutionContext::GetCodeCacheHostFromContext(execution_context),
         params.GetSourceText());
   }
+  // TODO(chromium:1406506): Add a compile hints solution for module records.
+  constexpr bool kMightGenerateCompileHints = false;
+  constexpr bool kCanUseCrowdsourcedCompileHints = false;
   std::tie(compile_options, produce_cache_options, no_cache_reason) =
-      V8CodeCache::GetCompileOptions(v8_cache_options, params.CacheHandler(),
-                                     params.GetSourceText().length(),
-                                     params.SourceLocationType(),
-                                     params.BaseURL());
+      V8CodeCache::GetCompileOptions(
+          v8_cache_options, params.CacheHandler(),
+          params.GetSourceText().length(), params.SourceLocationType(),
+          params.BaseURL(), kMightGenerateCompileHints,
+          kCanUseCrowdsourcedCompileHints,
+          v8_compile_hints::GetMagicCommentMode(execution_context));
 
   if (!V8ScriptRunner::CompileModule(
            isolate, params, text_position, compile_options, no_cache_reason,
            ReferrerScriptInfo(params.BaseURL(), options))
            .ToLocal(&module)) {
-    DCHECK(try_catch.HasCaught());
-    exception_state.RethrowV8Exception(try_catch.Exception());
     return v8::Local<v8::Module>();
   }
-  DCHECK(!try_catch.HasCaught());
 
   if (out_produce_cache_data) {
     *out_produce_cache_data =
@@ -123,7 +125,9 @@ ScriptValue ModuleRecord::Instantiate(ScriptState* script_state,
                                  ? record->ScriptId()
                                  : v8::UnboundScript::kNoScriptId);
   bool success;
-  if (!record->InstantiateModule(context, &ResolveModuleCallback)
+  if (!record
+           ->InstantiateModule(context, &ResolveModuleCallback,
+                               &ResolveSourceCallback)
            .To(&success) ||
       !success) {
     DCHECK(try_catch.HasCaught());
@@ -158,6 +162,7 @@ Vector<ModuleRequest> ModuleRecord::ModuleRequests(
         v8_module_requests->Get(script_state->GetContext(), i)
             .As<v8::ModuleRequest>();
     v8::Local<v8::String> v8_specifier = v8_module_request->GetSpecifier();
+    v8::ModuleImportPhase import_phase = v8_module_request->GetPhase();
     TextPosition position = TextPosition::MinimumPosition();
     if (needs_text_position) {
       // The source position is only used by DevTools for module requests and
@@ -171,14 +176,15 @@ Vector<ModuleRequest> ModuleRecord::ModuleRequests(
           OrdinalNumber::FromZeroBasedInt(v8_loc.GetLineNumber()),
           OrdinalNumber::FromZeroBasedInt(v8_loc.GetColumnNumber()));
     }
-    Vector<ImportAssertion> import_assertions =
-        ModuleRecord::ToBlinkImportAssertions(
+    Vector<ImportAttribute> import_attributes =
+        ModuleRecord::ToBlinkImportAttributes(
             script_state->GetContext(), record,
-            v8_module_request->GetImportAssertions(),
-            /*v8_import_assertions_has_positions=*/true);
+            v8_module_request->GetImportAttributes(),
+            /*v8_import_attributes_has_positions=*/true);
 
-    requests.emplace_back(ToCoreString(v8_specifier), position,
-                          import_assertions);
+    requests.emplace_back(
+        ToCoreString(script_state->GetIsolate(), v8_specifier), position,
+        import_attributes, import_phase);
   }
 
   return requests;
@@ -192,71 +198,92 @@ v8::Local<v8::Value> ModuleRecord::V8Namespace(v8::Local<v8::Module> record) {
 v8::MaybeLocal<v8::Module> ModuleRecord::ResolveModuleCallback(
     v8::Local<v8::Context> context,
     v8::Local<v8::String> specifier,
-    v8::Local<v8::FixedArray> import_assertions,
+    v8::Local<v8::FixedArray> import_attributes,
     v8::Local<v8::Module> referrer) {
   v8::Isolate* isolate = context->GetIsolate();
-  Modulator* modulator = Modulator::From(ScriptState::From(context));
+  Modulator* modulator = Modulator::From(ScriptState::From(isolate, context));
   DCHECK(modulator);
 
-  ModuleRequest module_request(
-      ToCoreStringWithNullCheck(specifier), TextPosition::MinimumPosition(),
-      ModuleRecord::ToBlinkImportAssertions(
-          context, referrer, import_assertions,
-          /*v8_import_assertions_has_positions=*/true));
+  ModuleRequest module_request(ToCoreStringWithNullCheck(isolate, specifier),
+                               TextPosition::MinimumPosition(),
+                               ModuleRecord::ToBlinkImportAttributes(
+                                   context, referrer, import_attributes,
+                                   /*v8_import_attributes_has_positions=*/true),
+                               ModuleImportPhase::kEvaluation);
 
-  ExceptionState exception_state(isolate, ExceptionState::kExecutionContext,
-                                 "ModuleRecord", "resolveModuleCallback");
   v8::Local<v8::Module> resolved =
-      modulator->GetModuleRecordResolver()->Resolve(module_request, referrer,
-                                                    exception_state);
-  DCHECK(!resolved.IsEmpty());
-  DCHECK(!exception_state.HadException());
-
+      modulator->GetModuleRecordResolver()->Resolve(
+          module_request, referrer, PassThroughException(isolate));
   return resolved;
 }
 
-Vector<ImportAssertion> ModuleRecord::ToBlinkImportAssertions(
+v8::MaybeLocal<v8::Object> ModuleRecord::ResolveSourceCallback(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_attributes,
+    v8::Local<v8::Module> referrer) {
+  v8::Isolate* isolate = context->GetIsolate();
+  ScriptState* script_state = ScriptState::From(isolate, context);
+  Modulator* modulator = Modulator::From(script_state);
+  DCHECK(modulator);
+
+  ModuleRequest module_request(ToCoreStringWithNullCheck(isolate, specifier),
+                               TextPosition::MinimumPosition(),
+                               ModuleRecord::ToBlinkImportAttributes(
+                                   context, referrer, import_attributes,
+                                   /*v8_import_attributes_has_positions=*/true),
+                               ModuleImportPhase::kSource);
+
+  v8::Local<v8::WasmModuleObject> wasm_module_source =
+      modulator->GetModuleRecordResolver()->ResolveSource(
+          module_request, referrer, PassThroughException(isolate));
+
+  return wasm_module_source;
+}
+
+Vector<ImportAttribute> ModuleRecord::ToBlinkImportAttributes(
     v8::Local<v8::Context> context,
     v8::Local<v8::Module> record,
-    v8::Local<v8::FixedArray> v8_import_assertions,
-    bool v8_import_assertions_has_positions) {
-  // If v8_import_assertions_has_positions == true then v8_import_assertions has
+    v8::Local<v8::FixedArray> v8_import_attributes,
+    bool v8_import_attributes_has_positions) {
+  // If v8_import_attributes_has_positions == true then v8_import_attributes has
   // source position information and is given in the form [key1, value1,
   // source_offset1, key2, value2, source_offset2, ...]. Otherwise if
-  // v8_import_assertions_has_positions == false, then v8_import_assertions is
+  // v8_import_attributes_has_positions == false, then v8_import_attributes is
   // in the form [key1, value1, key2, value2, ...].
-  const int kV8AssertionEntrySize = v8_import_assertions_has_positions ? 3 : 2;
+  const int kV8AttributeEntrySize = v8_import_attributes_has_positions ? 3 : 2;
 
-  Vector<ImportAssertion> import_assertions;
-  int number_of_import_assertions =
-      v8_import_assertions->Length() / kV8AssertionEntrySize;
-  import_assertions.ReserveInitialCapacity(number_of_import_assertions);
-  for (int i = 0; i < number_of_import_assertions; ++i) {
-    v8::Local<v8::String> v8_assertion_key =
-        v8_import_assertions->Get(context, i * kV8AssertionEntrySize)
+  v8::Isolate* isolate = context->GetIsolate();
+  Vector<ImportAttribute> import_attributes;
+  int number_of_import_attributes =
+      v8_import_attributes->Length() / kV8AttributeEntrySize;
+  import_attributes.ReserveInitialCapacity(number_of_import_attributes);
+  for (int i = 0; i < number_of_import_attributes; ++i) {
+    v8::Local<v8::String> v8_attribute_key =
+        v8_import_attributes->Get(context, i * kV8AttributeEntrySize)
             .As<v8::String>();
-    v8::Local<v8::String> v8_assertion_value =
-        v8_import_assertions->Get(context, (i * kV8AssertionEntrySize) + 1)
+    v8::Local<v8::String> v8_attribute_value =
+        v8_import_attributes->Get(context, (i * kV8AttributeEntrySize) + 1)
             .As<v8::String>();
-    TextPosition assertion_position = TextPosition::MinimumPosition();
-    if (v8_import_assertions_has_positions) {
-      int32_t v8_assertion_source_offset =
-          v8_import_assertions->Get(context, (i * kV8AssertionEntrySize) + 2)
+    TextPosition attribute_position = TextPosition::MinimumPosition();
+    if (v8_import_attributes_has_positions) {
+      int32_t v8_attribute_source_offset =
+          v8_import_attributes->Get(context, (i * kV8AttributeEntrySize) + 2)
               .As<v8::Int32>()
               ->Value();
-      v8::Location v8_assertion_loc =
-          record->SourceOffsetToLocation(v8_assertion_source_offset);
-      assertion_position = TextPosition(
-          OrdinalNumber::FromZeroBasedInt(v8_assertion_loc.GetLineNumber()),
-          OrdinalNumber::FromZeroBasedInt(v8_assertion_loc.GetColumnNumber()));
+      v8::Location v8_attribute_loc =
+          record->SourceOffsetToLocation(v8_attribute_source_offset);
+      attribute_position = TextPosition(
+          OrdinalNumber::FromZeroBasedInt(v8_attribute_loc.GetLineNumber()),
+          OrdinalNumber::FromZeroBasedInt(v8_attribute_loc.GetColumnNumber()));
     }
 
-    import_assertions.emplace_back(ToCoreString(v8_assertion_key),
-                                   ToCoreString(v8_assertion_value),
-                                   assertion_position);
+    import_attributes.emplace_back(ToCoreString(isolate, v8_attribute_key),
+                                   ToCoreString(isolate, v8_attribute_value),
+                                   attribute_position);
   }
 
-  return import_assertions;
+  return import_attributes;
 }
 
 }  // namespace blink

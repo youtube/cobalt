@@ -7,22 +7,23 @@ package org.chromium.chrome.browser.password_check;
 import android.app.Activity;
 import android.content.Context;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 /**
  * Class handling the communication with the C++ part of the password check feature. It forwards
  * messages to and from its C++ counterpart.
  */
+@NullMarked
 class PasswordCheckBridge {
     private long mNativePasswordCheckBridge;
     private final PasswordCheckObserver mPasswordCheckObserver;
 
-    /**
-     * Observer listening to all messages relevant to the password check.
-     */
+    /** Observer listening to all messages relevant to the password check. */
     interface PasswordCheckObserver {
         /**
          * Called when the compromised credentials found in a previous check are read from disk.
@@ -78,25 +79,43 @@ class PasswordCheckBridge {
     }
 
     @CalledByNative
-    private static void insertCredential(CompromisedCredential[] credentials, int index,
-            String signonRealm, GURL associatedUrl, String username, String displayOrigin,
-            String displayUsername, String password, String passwordChangeUrl, String associatedApp,
-            long creationTime, long lastUsedTime, boolean leaked, boolean phished) {
-        credentials[index] = new CompromisedCredential(signonRealm, associatedUrl, username,
-                displayOrigin, displayUsername, password, passwordChangeUrl, associatedApp,
-                creationTime, lastUsedTime, leaked, phished);
+    private static void insertCredential(
+            CompromisedCredential[] credentials,
+            int index,
+            @JniType("std::string") String signonRealm,
+            GURL associatedUrl,
+            @JniType("std::u16string") String username,
+            @JniType("std::u16string") String displayOrigin,
+            @JniType("std::u16string") String displayUsername,
+            @JniType("std::u16string") String password,
+            @JniType("std::string") String passwordChangeUrl,
+            @JniType("std::string") String associatedApp,
+            long creationTime,
+            long lastUsedTime,
+            boolean leaked,
+            boolean phished) {
+        credentials[index] =
+                new CompromisedCredential(
+                        signonRealm,
+                        associatedUrl,
+                        username,
+                        displayOrigin,
+                        displayUsername,
+                        password,
+                        passwordChangeUrl,
+                        associatedApp,
+                        creationTime,
+                        lastUsedTime,
+                        leaked,
+                        phished);
     }
 
-    /**
-     * Starts the password check.
-     */
+    /** Starts the password check. */
     void startCheck() {
         PasswordCheckBridgeJni.get().startCheck(mNativePasswordCheckBridge);
     }
 
-    /**
-     * Stops the password check.
-     */
+    /** Stops the password check. */
     void stopCheck() {
         PasswordCheckBridgeJni.get().stopCheck(mNativePasswordCheckBridge);
     }
@@ -113,8 +132,8 @@ class PasswordCheckBridge {
      * @return The number of compromised credentials found in the last run password check.
      */
     int getCompromisedCredentialsCount() {
-        return PasswordCheckBridgeJni.get().getCompromisedCredentialsCount(
-                mNativePasswordCheckBridge);
+        return PasswordCheckBridgeJni.get()
+                .getCompromisedCredentialsCount(mNativePasswordCheckBridge);
     }
 
     /**
@@ -130,35 +149,34 @@ class PasswordCheckBridge {
      * @param credentials array to be populated with the compromised credentials.
      */
     void getCompromisedCredentials(CompromisedCredential[] credentials) {
-        PasswordCheckBridgeJni.get().getCompromisedCredentials(
-                mNativePasswordCheckBridge, credentials);
+        PasswordCheckBridgeJni.get()
+                .getCompromisedCredentials(mNativePasswordCheckBridge, credentials);
     }
 
-    /**
-     * Launch the password check in the Google Account.
-     */
+    /** Launch the password check in the Google Account. */
     void launchCheckupInAccount(Activity activity) {
         PasswordCheckBridgeJni.get().launchCheckupInAccount(mNativePasswordCheckBridge, activity);
     }
 
     void updateCredential(CompromisedCredential credential, String newPassword) {
-        PasswordCheckBridgeJni.get().updateCredential(
-                mNativePasswordCheckBridge, credential, newPassword);
+        PasswordCheckBridgeJni.get()
+                .updateCredential(mNativePasswordCheckBridge, credential, newPassword);
     }
 
-    void onEditCredential(
-            CompromisedCredential credential, Context context, SettingsLauncher settingsLauncher) {
-        PasswordCheckBridgeJni.get().onEditCredential(
-                mNativePasswordCheckBridge, credential, context, settingsLauncher);
+    void onEditCredential(CompromisedCredential credential, Context context) {
+        PasswordCheckBridgeJni.get()
+                .onEditCredential(mNativePasswordCheckBridge, credential, context);
     }
 
     void removeCredential(CompromisedCredential credential) {
         PasswordCheckBridgeJni.get().removeCredential(mNativePasswordCheckBridge, credential);
     }
 
-    /**
-     * Destroys its C++ counterpart.
-     */
+    boolean hasAccountForRequest() {
+        return PasswordCheckBridgeJni.get().hasAccountForRequest(mNativePasswordCheckBridge);
+    }
+
+    /** Destroys its C++ counterpart. */
     void destroy() {
         if (mNativePasswordCheckBridge != 0) {
             PasswordCheckBridgeJni.get().destroy(mNativePasswordCheckBridge);
@@ -166,25 +184,38 @@ class PasswordCheckBridge {
         }
     }
 
-    /**
-     * C++ method signatures.
-     */
+    /** C++ method signatures. */
     @NativeMethods
     interface Natives {
         long create(PasswordCheckBridge passwordCheckBridge);
+
         void startCheck(long nativePasswordCheckBridge);
+
         void stopCheck(long nativePasswordCheckBridge);
+
         long getLastCheckTimestamp(long nativePasswordCheckBridge);
+
         int getCompromisedCredentialsCount(long nativePasswordCheckBridge);
+
         int getSavedPasswordsCount(long nativePasswordCheckBridge);
+
         void getCompromisedCredentials(
                 long nativePasswordCheckBridge, CompromisedCredential[] credentials);
+
         void launchCheckupInAccount(long nativePasswordCheckBridge, Activity activity);
-        void updateCredential(long nativePasswordCheckBridge, CompromisedCredential credential,
-                String newPassword);
-        void onEditCredential(long nativePasswordCheckBridge, CompromisedCredential credential,
-                Context context, SettingsLauncher settingsLauncher);
+
+        void updateCredential(
+                long nativePasswordCheckBridge,
+                CompromisedCredential credential,
+                @JniType("std::string") String newPassword);
+
+        void onEditCredential(
+                long nativePasswordCheckBridge, CompromisedCredential credential, Context context);
+
         void removeCredential(long nativePasswordCheckBridge, CompromisedCredential credentials);
+
+        boolean hasAccountForRequest(long nativePasswordCheckBridge);
+
         void destroy(long nativePasswordCheckBridge);
     }
 }

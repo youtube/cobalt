@@ -7,28 +7,28 @@ package org.chromium.chrome.browser.app.bluetooth;
 import android.content.Intent;
 import android.os.IBinder;
 
-import org.chromium.base.ContextUtils;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.bluetooth.BluetoothNotificationManager;
 import org.chromium.chrome.browser.bluetooth.BluetoothNotificationManagerDelegate;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
 
 /**
- * Service that manages the Web Bluetooth notification when a website is either connected
- * to a Bluetooth device or scanning for nearby Bluetooth devices.
+ * Service that manages the Web Bluetooth notification when a website is either connected to a
+ * Bluetooth device or scanning for nearby Bluetooth devices.
  */
 public class BluetoothNotificationServiceImpl extends BluetoothNotificationService.Impl {
-    private BluetoothNotificationManagerDelegate mManagerDelegate =
+    private final BluetoothNotificationManagerDelegate mManagerDelegate =
             new BluetoothNotificationManagerDelegate() {
                 @Override
                 public Intent createTrustedBringTabToFrontIntent(int tabId) {
                     return IntentHandler.createTrustedBringTabToFrontIntent(
                             tabId, IntentHandler.BringToFrontSource.NOTIFICATION);
                 }
+
                 @Override
                 public void stopSelf() {
                     getService().stopSelf();
                 }
+
                 @Override
                 public void stopSelf(int startId) {
                     getService().stopSelf(startId);
@@ -39,9 +39,7 @@ public class BluetoothNotificationServiceImpl extends BluetoothNotificationServi
 
     @Override
     public void onCreate() {
-        mManager = new BluetoothNotificationManager(
-                new NotificationManagerProxyImpl(ContextUtils.getApplicationContext()),
-                mManagerDelegate);
+        mManager = new BluetoothNotificationManager(mManagerDelegate);
         super.onCreate();
     }
 

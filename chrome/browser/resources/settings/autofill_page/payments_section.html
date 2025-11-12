@@ -1,4 +1,4 @@
-<style include="cr-shared-style settings-shared iron-flex passwords-shared">
+<style include="cr-shared-style settings-shared passwords-shared">
   .expiration-column {
     align-items: center;
     display: flex;
@@ -6,7 +6,7 @@
   }
 
   .arrow-icon-down {
-    fill: var(--text-color);
+    fill: currentColor;
     flex-shrink: 0;
     margin-inline-start: 6px;
     margin-inline-end: -6px;
@@ -17,14 +17,6 @@
     padding-inline-start: 20px;
   }
 
-  #migrateCreditCards {
-    border-bottom: var(--cr-separator-line);
-    border-top: none;
-  }
-
-  #migrateCreditCardsButton {
-    margin: 0 auto;
-  }
 </style>
 <settings-toggle-button id="autofillCreditCardToggle"
     no-extension-indicator label="$i18n{enableCreditCardsLabel}"
@@ -32,33 +24,49 @@
     pref="{{prefs.autofill.credit_card_enabled}}">
 </settings-toggle-button>
 <if expr="is_win or is_macosx">
-  <template is="dom-if" if="[[shouldShowMandatoryAuthToggle_(deviceAuthAvailable_, prefs.autofill.credit_card_enabled.value, prefs.autofill.payment_methods_mandatory_reauth.value)]]">
-    <settings-toggle-button id="mandatoryAuthToggle"
-        no-extension-indicator label="$i18n{enableMandatoryAuthToggleLabel}"
-        sub-label="$i18n{enableMandatoryAuthToggleSublabel}"
-        pref="{{prefs.autofill.payment_methods_mandatory_reauth}}">
-    </settings-toggle-button>
-  </template>
+  <settings-toggle-button id="mandatoryAuthToggle"
+      no-extension-indicator label="$i18n{enableMandatoryAuthToggleLabel}"
+      sub-label="$i18n{enableMandatoryAuthToggleSublabel}"
+      pref="{{prefs.autofill.payment_methods_mandatory_reauth}}"
+      disabled="[[shouldDisableAuthToggle_(
+                prefs.autofill.credit_card_enabled.value, deviceAuthAvailable_)]]"
+      on-settings-boolean-control-change="onMandatoryAuthToggleChange_">
+  </settings-toggle-button>
 </if>
+<template is="dom-if" if="[[cvcStorageAvailable_]]">
+  <settings-toggle-button id="cvcStorageToggle"
+        no-extension-indicator label="$i18n{enableCvcStorageLabel}"
+        aria-label="[[getCvcStorageAriaLabel_(creditCards)]]"
+        sub-label-with-link="[[getCvcStorageSublabel_(creditCards)]]"
+        disabled="[[!prefs.autofill.credit_card_enabled.value]]"
+        on-sub-label-link-clicked="onBulkRemoveCvcClick_"
+        pref="{{prefs.autofill.payment_cvc_storage}}">
+    </settings-toggle-button>
+</template>
+<template is="dom-if" if="[[cardBenefitsFlagEnabled_]]">
+  <settings-toggle-button id="cardBenefitsToggle"
+      no-extension-indicator label="$i18n{cardBenefitsLabel}"
+      sub-label-with-link="[[cardBenefitsSublabel_]]"
+      on-sub-label-link-clicked="onCardBenefitsSublabelLinkClick_"
+      disabled="[[!prefs.autofill.credit_card_enabled.value]]"
+      pref="{{prefs.autofill.payment_card_benefits}}">
+  </settings-toggle-button>
+</template>
+<template is="dom-if" if="[[shouldShowPayOverTimeSettings_]]">
+  <settings-toggle-button id="payOverTimeToggle"
+      no-extension-indicator label="$i18n{autofillPayOverTimeSettingsLabel}"
+      sub-label-with-link="[[payOverTimeSublabel_]]"
+      on-sub-label-link-clicked="onPayOverTimeSublabelLinkClick_"
+      disabled="[[!prefs.autofill.credit_card_enabled.value]]"
+      pref="{{prefs.autofill.bnpl_enabled}}">
+  </settings-toggle-button>
+</template>
 <settings-toggle-button id="canMakePaymentToggle"
     aria-label="$i18n{canMakePaymentToggleLabel}"
     label="$i18n{canMakePaymentToggleLabel}"
     pref="{{prefs.payments.can_make_payment_enabled}}"
     on-settings-boolean-control-change="onCanMakePaymentChange_">
 </settings-toggle-button>
-<template is="dom-if"
-    if="[[shouldShowFidoToggle_(
-        prefs.autofill.credit_card_enabled.value,
-        userIsFidoVerifiable_)]]">
-  <settings-toggle-button
-      id="autofillCreditCardFIDOAuthToggle"
-      aria-label="$i18n{creditCards}" no-extension-indicator
-      label="$i18n{enableCreditCardFIDOAuthLabel}"
-      sub-label="$i18n{enableCreditCardFIDOAuthSublabel}"
-      pref="{{prefs.autofill.credit_card_fido_auth_enabled}}"
-      on-change="setFidoAuthenticationEnabledState_">
-  </settings-toggle-button>
-</template>
 <template is="dom-if"
     if="[[prefs.autofill.credit_card_enabled.extensionId]]">
   <div class="cr-row continuation">
@@ -95,7 +103,7 @@
         aria-label="$i18n{addPaymentMethods}"
         hidden$="[[!prefs.autofill.credit_card_enabled.value]]">
       $i18n{add}
-      <iron-icon icon="cr:arrow-drop-down" class="arrow-icon-down"></iron-icon>
+      <cr-icon icon="cr:arrow-drop-down" class="arrow-icon-down"></cr-icon>
     </cr-button>
     <cr-lazy-render id="paymentMethodsActionMenu">
       <template>
@@ -113,17 +121,13 @@
     </cr-lazy-render>
   </template>
 </div>
-<cr-link-row id="migrateCreditCards"
-    hidden$="[[!checkIfMigratable_(creditCards,
-        prefs.autofill.credit_card_enabled.value)]]"
-    on-click="onMigrateCreditCardsClick_"
-    label="$i18n{migrateCreditCardsLabel}"
-    sub-label="[[migratableCreditCardsInfo_]]"></cr-link-row>
 <settings-payments-list id="paymentsList"
-    class$="list-frame [[computeCssClass_(
-        removeCardExpirationAndTypeTitlesEnabled_)]]"
-    credit-cards="[[creditCards]]" ibans="[[ibans]]" upi-ids="[[upiIds]]"
+    class="list-frame payment-list-margin-start"
+    credit-cards="[[creditCards]]"
+    ibans="[[ibans]]"
+    pay-over-time-issuers="[[payOverTimeIssuers]]"
     on-dots-iban-menu-click="onDotsIbanMenuClick_"
+    on-remote-iban-menu-click="onRemoteEditIbanMenuClick_"
     on-dots-card-menu-click="onCreditCardDotsMenuClick_"
     on-remote-card-menu-click="onRemoteEditCreditCardClick_"
     aria-label="$i18n{paymentsMethodsTableAriaLabel}">
@@ -138,11 +142,6 @@
   <button id="menuRemoveCreditCard" class="dropdown-item"
       hidden$="[[!activeCreditCard_.metadata.isLocal]]"
       on-click="onMenuRemoveCreditCardClick_">$i18n{delete}</button>
-  <button id="menuClearCreditCard" class="dropdown-item"
-      on-click="onMenuClearCreditCardClick_"
-      hidden$="[[!activeCreditCard_.metadata.isCached]]">
-    $i18n{clearCreditCard}
-  </button>
 
   <button id="menuAddVirtualCard" class="dropdown-item"
       on-click="onMenuAddVirtualCardClick_"
@@ -173,7 +172,8 @@
 
 <template is="dom-if" if="[[showCreditCardDialog_]]" restamp>
   <settings-credit-card-edit-dialog credit-card="[[activeCreditCard_]]"
-      on-close="onCreditCardDialogClose_" on-save-credit-card="saveCreditCard_">
+      on-close="onCreditCardDialogClose_" on-save-credit-card="saveCreditCard_"
+      prefs="{{prefs}}">
   </settings-credit-card-edit-dialog>
 </template>
 <template is="dom-if" if="[[showIbanDialog_]]" restamp>
@@ -205,5 +205,14 @@
       body-text="$i18n{removeLocalPaymentMethodConfirmationDescription}"
       confirm-text="$i18n{delete}"
       on-close="onLocalIbanRemoveConfirmationDialogClose_">
+  </settings-simple-confirmation-dialog>
+</template>
+
+<template is="dom-if" if="[[showBulkRemoveCvcConfirmationDialog_]]" restamp>
+  <settings-simple-confirmation-dialog id="bulkDeleteCvcConfirmDialog"
+      title-text="$i18n{bulkRemoveCvcConfirmationTitle}"
+      body-text="$i18n{bulkRemoveCvcConfirmationDescription}"
+      confirm-text="$i18n{delete}"
+      on-close="onShowBulkRemoveCvcConfirmationDialogClose_">
   </settings-simple-confirmation-dialog>
 </template>

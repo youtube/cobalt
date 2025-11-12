@@ -31,6 +31,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/timer/elapsed_timer.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -45,7 +46,6 @@
 #include "third_party/blink/renderer/core/dom/cdata_section.h"
 #include "third_party/blink/renderer/core/dom/child_list_mutation_scope.h"
 #include "third_party/blink/renderer/core/dom/comment.h"
-#include "third_party/blink/renderer/core/dom/context_features.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/document_init.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
@@ -59,6 +59,7 @@
 #include "third_party/blink/renderer/core/editing/serializers/styled_markup_serializer.h"
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/core/editing/visible_units.h"
+#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
@@ -67,11 +68,15 @@
 #include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/html/html_head_element.h"
+#include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_quote_element.h"
 #include "third_party/blink/renderer/core/html/html_span_element.h"
+#include "third_party/blink/renderer/core/html/html_style_element.h"
 #include "third_party/blink/renderer/core/html/html_table_cell_element.h"
 #include "third_party/blink/renderer/core/html/html_table_element.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
+#include "third_party/blink/renderer/core/html/parser/html_document_parser_fastpath.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
@@ -80,7 +85,6 @@
 #include "third_party/blink/renderer/core/svg/svg_use_element.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/runtime_call_stats.h"
-#include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/url_loader_client.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
@@ -88,17 +92,13 @@
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
-#if defined(USE_INNER_HTML_PARSER_FAST_PATH)
-#include "third_party/blink/renderer/core/html/parser/html_document_parser_fastpath.h"
-#endif
-
 namespace blink {
 
 class AttributeChange {
   DISALLOW_NEW();
 
  public:
-  AttributeChange() : name_(g_null_atom, g_null_atom, g_null_atom) {}
+  AttributeChange() : name_(QualifiedName::Null()) {}
 
   AttributeChange(Element* element,
                   const QualifiedName& name,
@@ -128,13 +128,14 @@ class EmptyLocalFrameClientWithFailingLoaderFactory final
  public:
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
       override {
-    // TODO(crbug.com/1413912): CreateSanitizedFragmentFromMarkupWithContext may
+    // TODO(crbug.com/1413912): CreateFragmentFromMarkupWithContext may
     // call this method for data: URL resources. But ResourceLoader::Start()
     // don't need to call GetURLLoaderFactory() for data: URL because
     // ResourceLoader handles the data: URL resource load without the returned
     // SharedURLLoaderFactory.
-    // Note: Non-data: URL resource can't be loaded because the CORS check in
-    // BaseFetchContext::CanRequestInternal fails for non-data: URL resources.
+    // Note: Non-data: URL resource can't be loaded because the security checks
+    // in BaseFetchContext::CanRequestInternal fails for non-data: URL
+    // resources.
     return base::MakeRefCounted<network::SingleRequestURLLoaderFactory>(
         WTF::BindOnce(
             [](const network::ResourceRequest& resource_request,
@@ -145,18 +146,12 @@ class EmptyLocalFrameClientWithFailingLoaderFactory final
   }
 };
 
-#if defined(USE_INNER_HTML_PARSER_FAST_PATH)
 void LogFastPathParserTotalTime(base::TimeDelta parse_time) {
   // The time needed to parse is typically < 1ms (even at the 99%).
-  if (!base::TimeTicks::IsHighResolution()) {
-    return;
-  }
-
-  base::UmaHistogramCustomMicrosecondsTimes(
+  UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
       "Blink.HTMLFastPathParser.TotalParseTime2", parse_time,
       base::Microseconds(1), base::Milliseconds(10), 100);
 }
-#endif
 
 }  // namespace
 
@@ -468,7 +463,6 @@ DocumentFragment* CreateFragmentFromMarkupWithContext(
       DocumentInit::Create()
           .WithExecutionContext(document.GetExecutionContext())
           .WithAgent(document.GetAgent()));
-  tagged_document->SetContextFeatures(document.GetContextFeatures());
 
   auto* root =
       MakeGarbageCollected<Element>(QualifiedName::Null(), tagged_document);
@@ -502,8 +496,7 @@ DocumentFragment* CreateFragmentFromMarkupWithContext(
 String CreateMarkup(const Node* node,
                     ChildrenOnly children_only,
                     AbsoluteURLs should_resolve_urls,
-                    IncludeShadowRoots include_shadow_roots,
-                    ClosedRootsSet include_closed_roots) {
+                    const ShadowRootInclusion& shadow_root_inclusion) {
   if (!node)
     return "";
 
@@ -511,7 +504,7 @@ String CreateMarkup(const Node* node,
                                 IsA<HTMLDocument>(node->GetDocument())
                                     ? SerializationType::kHTML
                                     : SerializationType::kXML,
-                                include_shadow_roots, include_closed_roots);
+                                shadow_root_inclusion);
   return accumulator.SerializeNodes<EditingStrategy>(*node, children_only);
 }
 
@@ -611,7 +604,8 @@ DocumentFragment* CreateFragmentFromText(const EphemeralRange& context,
     fragment->AppendChild(document.createTextNode(string));
     if (string.EndsWith('\n')) {
       auto* element = MakeGarbageCollected<HTMLBRElement>(document);
-      element->setAttribute(html_names::kClassAttr, AppleInterchangeNewline);
+      element->setAttribute(html_names::kClassAttr,
+                            AtomicString(AppleInterchangeNewline));
       fragment->AppendChild(element);
     }
     return fragment;
@@ -641,7 +635,8 @@ DocumentFragment* CreateFragmentFromText(const EphemeralRange& context,
     if (s.empty() && i + 1 == num_lines) {
       // For last line, use the "magic BR" rather than a P.
       element = MakeGarbageCollected<HTMLBRElement>(document);
-      element->setAttribute(html_names::kClassAttr, AppleInterchangeNewline);
+      element->setAttribute(html_names::kClassAttr,
+                            AtomicString(AppleInterchangeNewline));
     } else {
       if (use_clones_of_enclosing_block)
         element = &block->CloneWithoutChildren();
@@ -658,8 +653,8 @@ DocumentFragment* CreateFragmentForInnerOuterHTML(
     const String& markup,
     Element* context_element,
     ParserContentPolicy parser_content_policy,
-    const char* method,
-    bool include_shadow_roots,
+    Element::ParseDeclarativeShadowRoots parse_declarative_shadows,
+    Element::ForceHtml force_html,
     ExceptionState& exception_state) {
   DCHECK(context_element);
   const HTMLTemplateElement* template_element =
@@ -673,50 +668,56 @@ DocumentFragment* CreateFragmentForInnerOuterHTML(
           ? context_element->GetDocument().EnsureTemplateDocument()
           : context_element->GetDocument();
   DocumentFragment* fragment = DocumentFragment::Create(document);
-  document.setAllowDeclarativeShadowRoots(include_shadow_roots);
+  document.setAllowDeclarativeShadowRoots(
+      parse_declarative_shadows ==
+      Element::ParseDeclarativeShadowRoots::kParse);
 
-  if (IsA<HTMLDocument>(document)) {
-#if defined(USE_INNER_HTML_PARSER_FAST_PATH)
+  if (IsA<HTMLDocument>(document) || force_html == Element::ForceHtml::kForce) {
     bool log_tag_stats = false;
-    const bool fast_path_enabled =
-        RuntimeEnabledFeatures::InnerHTMLParserFastpathEnabled();
     base::ElapsedTimer parse_timer;
-    if (fast_path_enabled) {
-      const bool parsed_fast_path = TryParsingHTMLFragment(
-          markup, document, *fragment, *context_element, parser_content_policy,
-          include_shadow_roots, &log_tag_stats);
-      if (parsed_fast_path) {
-        LogFastPathParserTotalTime(parse_timer.Elapsed());
-#if DCHECK_IS_ON()
-        // As a sanity check for the fast-path, create another fragment using
-        // the full parser and compare the results.
-        // See https://bugs.chromium.org/p/chromium/issues/detail?id=1407201
-        // for details.
-        DocumentFragment* fragment2 = DocumentFragment::Create(document);
-        fragment2->ParseHTML(markup, context_element, parser_content_policy);
-        DCHECK_EQ(CreateMarkup(fragment), CreateMarkup(fragment2))
-            << " supplied value " << markup;
-        DCHECK(fragment->isEqualNode(fragment2));
-#endif
-        return fragment;
-      } else {
-        fragment = DocumentFragment::Create(document);
-      }
+    HTMLFragmentParsingBehaviorSet parser_behavior;
+    if (parse_declarative_shadows ==
+        Element::ParseDeclarativeShadowRoots::kParse) {
+      parser_behavior.Put(HTMLFragmentParsingBehavior::kIncludeShadowRoots);
     }
+    const bool parsed_fast_path = TryParsingHTMLFragment(
+        markup, document, *fragment, *context_element, parser_content_policy,
+        parser_behavior, &log_tag_stats);
+    if (parsed_fast_path) {
+      if (RuntimeEnabledFeatures::DOMInsertionFasterEnabled()) {
+        fragment->SetHoldsUnnotifiedChildren(true);
+        fragment->ParserFinishedBuildingDocumentFragment(
+            DocumentFragment::ShouldNotifyInsertedNodes::kSkip);
+      } else {
+        fragment->ParserFinishedBuildingDocumentFragment(
+            DocumentFragment::ShouldNotifyInsertedNodes::kNotify);
+      }
+      LogFastPathParserTotalTime(parse_timer.Elapsed());
+#if DCHECK_IS_ON()
+      // As a sanity check for the fast-path, create another fragment using
+      // the full parser and compare the results.
+      // See https://bugs.chromium.org/p/chromium/issues/detail?id=1407201
+      // for details.
+      DocumentFragment* fragment2 = DocumentFragment::Create(document);
+      fragment2->ParseHTML(markup, context_element, parser_content_policy);
+      DCHECK_EQ(CreateMarkup(fragment), CreateMarkup(fragment2))
+          << " supplied value " << markup;
+      DCHECK(fragment->isEqualNode(fragment2));
 #endif
+      return fragment;
+    }
+    fragment = DocumentFragment::Create(document);
     fragment->ParseHTML(markup, context_element, parser_content_policy);
-#if defined(USE_INNER_HTML_PARSER_FAST_PATH)
     LogFastPathParserTotalTime(parse_timer.Elapsed());
     if (log_tag_stats &&
         RuntimeEnabledFeatures::InnerHTMLParserFastpathLogFailureEnabled()) {
       LogTagsForUnsupportedTagTypeFailure(*fragment);
     }
-#endif
     return fragment;
   }
 
-  bool was_valid =
-      fragment->ParseXML(markup, context_element, parser_content_policy);
+  bool was_valid = fragment->ParseXML(markup, context_element, exception_state,
+                                      parser_content_policy);
   if (!was_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
@@ -753,7 +754,7 @@ DocumentFragment* CreateFragmentForTransformToFragment(
     fragment->ParserAppendChild(Text::Create(output_doc, source_string));
   } else {
     bool successful_parse =
-        fragment->ParseXML(source_string, nullptr,
+        fragment->ParseXML(source_string, nullptr, IGNORE_EXCEPTION,
                            kAllowScriptingContentAndDoNotMarkAlreadyStarted);
     if (!successful_parse)
       return nullptr;
@@ -783,8 +784,9 @@ DocumentFragment* CreateContextualFragment(
   DCHECK(element);
 
   DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
-      markup, element, parser_content_policy, "createContextualFragment",
-      /*include_shadow_roots=*/false, exception_state);
+      markup, element, parser_content_policy,
+      Element::ParseDeclarativeShadowRoots::kDontParse,
+      Element::ForceHtml::kDontForce, exception_state);
   if (!fragment)
     return nullptr;
 
@@ -809,10 +811,10 @@ DocumentFragment* CreateContextualFragment(
 void ReplaceChildrenWithFragment(ContainerNode* container,
                                  DocumentFragment* fragment,
                                  ExceptionState& exception_state) {
-  RUNTIME_CALL_TIMER_SCOPE(
-      V8PerIsolateData::MainThreadIsolate(),
-      RuntimeCallStats::CounterId::kReplaceChildrenWithFragment);
   DCHECK(container);
+  RUNTIME_CALL_TIMER_SCOPE(
+      container->GetDocument().GetAgent().isolate(),
+      RuntimeCallStats::CounterId::kReplaceChildrenWithFragment);
   ContainerNode* container_node(container);
 
   ChildListMutationScope mutation(*container_node);
@@ -872,7 +874,8 @@ void MergeWithNextTextNode(Text* text_node, ExceptionState& exception_state) {
 static Document* CreateStagingDocumentForMarkupSanitization(
     AgentGroupScheduler& agent_group_scheduler) {
   Page* page = Page::CreateNonOrdinary(GetStaticEmptyChromeClientInstance(),
-                                       agent_group_scheduler);
+                                       agent_group_scheduler,
+                                       /*color_provider_colors=*/nullptr);
 
   page->GetSettings().SetScriptEnabled(false);
   page->GetSettings().SetPluginsEnabled(false);
@@ -888,8 +891,9 @@ static Document* CreateStagingDocumentForMarkupSanitization(
       nullptr,  // Frame* parent
       nullptr,  // Frame* previous_sibling
       FrameInsertType::kInsertInConstructor, blink::LocalFrameToken(),
-      nullptr,  // WindowAgentFactory*
-      nullptr   // InterfaceRegistry*
+      nullptr,            // WindowAgentFactory*
+      nullptr,            // InterfaceRegistry*
+      mojo::NullRemote()  // BrowserInterfaceBroker
   );
   // Don't leak the actual viewport size to unsanitized markup
   LocalFrameView* frame_view =
@@ -919,19 +923,20 @@ static bool ContainsStyleElements(const DocumentFragment& fragment) {
 }
 
 // Returns true if any svg <use> element is removed.
-static bool StripSVGUseDataURLs(Node& node) {
-  if (IsA<SVGUseElement>(node)) {
-    SVGUseElement& use = To<SVGUseElement>(node);
-    SVGURLReferenceResolver resolver(use.HrefString(), use.GetDocument());
-    if (resolver.AbsoluteUrl().ProtocolIsData())
+static bool StripSVGUseNonLocalHrefs(Node& node) {
+  if (auto* use = DynamicTo<SVGUseElement>(node)) {
+    SVGURLReferenceResolver resolver(use->HrefString(), use->GetDocument());
+    if (!resolver.IsLocal() || resolver.AbsoluteUrl().ProtocolIsData()) {
       node.remove();
+    }
     return true;
   }
   bool stripped = false;
   for (Node* child = node.firstChild(); child;) {
     Node* next = child->nextSibling();
-    if (StripSVGUseDataURLs(*child))
+    if (StripSVGUseNonLocalHrefs(*child)) {
       stripped = true;
+    }
     child = next;
   }
   return stripped;
@@ -943,15 +948,15 @@ constexpr unsigned kMaxSanitizationIterations = 16;
 
 }  // namespace
 
-String CreateSanitizedMarkupWithContext(Document& document,
-                                        const String& raw_markup,
-                                        unsigned fragment_start,
-                                        unsigned fragment_end,
-                                        const String& base_url,
-                                        ChildrenOnly children_only,
-                                        AbsoluteURLs should_resolve_urls,
-                                        IncludeShadowRoots include_shadow_roots,
-                                        ClosedRootsSet include_closed_roots) {
+String CreateStrictlyProcessedMarkupWithContext(
+    Document& document,
+    const String& raw_markup,
+    unsigned fragment_start,
+    unsigned fragment_end,
+    const String& base_url,
+    ChildrenOnly children_only,
+    AbsoluteURLs should_resolve_urls,
+    const ShadowRootInclusion& shadow_root_inclusion) {
   if (raw_markup.empty())
     return String();
 
@@ -978,8 +983,9 @@ String CreateSanitizedMarkupWithContext(Document& document,
     bool needs_sanitization = false;
     if (ContainsStyleElements(*fragment))
       needs_sanitization = true;
-    if (StripSVGUseDataURLs(*fragment))
+    if (StripSVGUseNonLocalHrefs(*fragment)) {
       needs_sanitization = true;
+    }
 
     if (!needs_sanitization) {
       markup = CreateMarkup(fragment);
@@ -1009,21 +1015,20 @@ String CreateSanitizedMarkupWithContext(Document& document,
     DocumentFragment* final_fragment =
         CreateFragmentFromMarkup(*staging_document, markup, base_url,
                                  kDisallowScriptingAndPluginContent);
-    final_markup =
-        CreateMarkup(final_fragment, children_only, should_resolve_urls,
-                     include_shadow_roots, include_closed_roots);
+    final_markup = CreateMarkup(final_fragment, children_only,
+                                should_resolve_urls, shadow_root_inclusion);
   }
   staging_document->GetPage()->WillBeDestroyed();
   return final_markup;
 }
 
-DocumentFragment* CreateSanitizedFragmentFromMarkupWithContext(
+DocumentFragment* CreateStrictlyProcessedFragmentFromMarkupWithContext(
     Document& document,
     const String& raw_markup,
     unsigned fragment_start,
     unsigned fragment_end,
     const String& base_url) {
-  String sanitized_markup = CreateSanitizedMarkupWithContext(
+  String sanitized_markup = CreateStrictlyProcessedMarkupWithContext(
       document, raw_markup, fragment_start, fragment_end, KURL());
   if (sanitized_markup.IsNull())
     return nullptr;

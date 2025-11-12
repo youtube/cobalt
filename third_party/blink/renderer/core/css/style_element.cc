@@ -40,10 +40,8 @@
 
 namespace blink {
 
-static bool IsCSS(const Element& element, const AtomicString& type) {
-  return type.empty() ||
-         (element.IsHTMLElement() ? EqualIgnoringASCIICase(type, "text/css")
-                                  : (type == "text/css"));
+static bool IsCSS(const AtomicString& type) {
+  return type.empty() || EqualIgnoringASCIICase(type, "text/css");
 }
 
 StyleElement::StyleElement(Document* document, bool created_by_parser)
@@ -169,7 +167,7 @@ StyleElement::ProcessingResult StyleElement::CreateSheet(Element& element,
 
   // If type is empty or CSS, this is a CSS style sheet.
   const AtomicString& type = this->type();
-  if (IsCSS(element, type) && passes_content_security_policy_checks) {
+  if (IsCSS(type) && passes_content_security_policy_checks) {
     MediaQuerySet* media_queries = nullptr;
     const AtomicString& media_string = media();
     bool media_query_matches = true;
@@ -177,8 +175,9 @@ StyleElement::ProcessingResult StyleElement::CreateSheet(Element& element,
       media_queries =
           MediaQuerySet::Create(media_string, element.GetExecutionContext());
       if (LocalFrame* frame = document.GetFrame()) {
-        MediaQueryEvaluator evaluator(frame);
-        media_query_matches = evaluator.Eval(*media_queries);
+        MediaQueryEvaluator* evaluator =
+            MakeGarbageCollected<MediaQueryEvaluator>(frame);
+        media_query_matches = evaluator->Eval(*media_queries);
       }
     }
     auto type_and_behavior = ComputePendingSheetTypeAndRenderBlockingBehavior(
@@ -211,7 +210,7 @@ bool StyleElement::IsLoading() const {
   if (loading_) {
     return true;
   }
-  return sheet_ ? sheet_->IsLoading() : false;
+  return sheet_ && sheet_->IsLoading();
 }
 
 bool StyleElement::SheetLoaded(Document& document) {
@@ -247,8 +246,8 @@ void StyleElement::BlockingAttributeChanged(Element& element) {
   if (pending_sheet_type_ != PendingSheetType::kDynamicRenderBlocking) {
     return;
   }
-  if (!IsA<HTMLElement>(element) ||
-      To<HTMLElement>(element).IsPotentiallyRenderBlocking()) {
+  if (const auto* html_element = DynamicTo<HTMLElement>(element);
+      !html_element || html_element->IsPotentiallyRenderBlocking()) {
     return;
   }
   element.GetDocument().GetStyleEngine().RemovePendingBlockingSheet(

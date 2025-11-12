@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/dns/address_sorter_posix.h"
 
 #include <memory>
@@ -11,6 +16,7 @@
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "net/base/ip_address.h"
@@ -68,6 +74,8 @@ class TestUDPClientSocket : public DatagramClientSocket {
   int SetReceiveBufferSize(int32_t) override { return OK; }
   int SetSendBufferSize(int32_t) override { return OK; }
   int SetDoNotFragment() override { return OK; }
+  int SetRecvTos() override { return OK; }
+  int SetTos(DiffServCodePoint dscp, EcnCodePoint ecn) override { return OK; }
 
   void Close() override {}
   int GetPeerAddress(IPEndPoint* address) const override {
@@ -148,6 +156,8 @@ class TestUDPClientSocket : public DatagramClientSocket {
   const NetLogWithSource& NetLog() const override { return net_log_; }
 
   void FinishConnect() { std::move(finish_connect_callback_).Run(); }
+
+  DscpAndEcn GetLastTos() const override { return {DSCP_DEFAULT, ECN_DEFAULT}; }
 
  private:
   void RunConnectCallback(CompletionOnceCallback callback, int rv) {

@@ -15,7 +15,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/media_galleries/media_galleries_dialog_controller_test_util.h"
 #include "chrome/browser/media_galleries/media_galleries_preferences.h"
@@ -26,10 +25,15 @@
 #include "components/storage_monitor/test_storage_monitor.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/users/scoped_test_user_manager.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/login/users/user_manager_delegate_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chrome/browser/browser_process.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 #endif
 
 using storage_monitor::StorageInfo;
@@ -158,9 +162,13 @@ class MediaGalleriesPermissionControllerTest : public ::testing::Test {
 
   scoped_refptr<extensions::Extension> extension_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
-  ash::ScopedTestUserManager test_user_manager_;
+  user_manager::ScopedUserManager user_manager_{
+      std::make_unique<user_manager::UserManagerImpl>(
+          std::make_unique<ash::UserManagerDelegateImpl>(),
+          g_browser_process->local_state(),
+          ash::CrosSettings::Get())};
 #endif
 
   TestStorageMonitor monitor_;
@@ -213,8 +221,9 @@ void MediaGalleriesPermissionControllerTest::TestForgottenType(
 
   // Add back and test whether the same pref id is preserved.
   StartDialog();
-  controller()->FileSelected(MakeMediaGalleriesTestingPath("forgotten1"), 0,
-                             nullptr);
+  ui::SelectedFileInfo file(MakeMediaGalleriesTestingPath("forgotten1"),
+                            MakeMediaGalleriesTestingPath("forgotten1"));
+  controller()->FileSelected(file, 0);
   controller()->DialogFinished(true);
   EXPECT_EQ(2U, gallery_prefs()->GalleriesForExtension(*extension()).size());
   MediaGalleryPrefInfo retrieved_info;
@@ -260,7 +269,7 @@ TEST_F(MediaGalleriesPermissionControllerTest, TestNameGeneration) {
       StorageInfo::FIXED_MASS_STORAGE, "/path/to/gallery");
   gallery.type = MediaGalleryPrefInfo::kAutoDetected;
   std::string galleryName("/path/to/gallery");
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   galleryName = "gallery";
 #endif
   EXPECT_EQ(galleryName, GalleryName(gallery));
@@ -274,7 +283,7 @@ TEST_F(MediaGalleriesPermissionControllerTest, TestNameGeneration) {
 
   gallery.path = base::FilePath(FILE_PATH_LITERAL("sub/gallery2"));
   galleryName = "/path/to/gallery/sub/gallery2";
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   galleryName = "gallery2";
 #endif
 #if BUILDFLAG(IS_WIN)

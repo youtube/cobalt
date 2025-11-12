@@ -24,7 +24,7 @@ class GetDetailsForEnrollmentRequestTest
   ~GetDetailsForEnrollmentRequestTest() override = default;
 
   void SetUp() override {
-    PaymentsClient::GetDetailsForEnrollmentRequestDetails request_details;
+    GetDetailsForEnrollmentRequestDetails request_details;
     request_details.instrument_id = 11223344;
     request_details.app_locale = "en";
     request_details.billing_customer_number = 55667788;
@@ -36,8 +36,7 @@ class GetDetailsForEnrollmentRequestTest
 
   GetDetailsForEnrollmentRequest* GetRequest() const { return request_.get(); }
 
-  const PaymentsClient::GetDetailsForEnrollmentResponseDetails&
-  GetParsedResponse() const {
+  const GetDetailsForEnrollmentResponseDetails& GetParsedResponse() const {
     return request_->response_details_;
   }
 
@@ -73,15 +72,13 @@ TEST_P(GetDetailsForEnrollmentRequestTest, GetRequestContent) {
       break;
     case VirtualCardEnrollmentSource::kNone:
       NOTREACHED();
-      ASSERT_TRUE(false);
-      break;
   }
   EXPECT_TRUE(GetRequest()->GetRequestContent().find(channel_type) !=
               std::string::npos);
 }
 
 TEST_P(GetDetailsForEnrollmentRequestTest, ParseResponse) {
-  absl::optional<base::Value> response = base::JSONReader::Read(
+  std::optional<base::Value> response = base::JSONReader::Read(
       "{ \"google_legal_message\": {}, \"external_legal_message\": {}, "
       "\"context_token\": \"some_token\" }");
   ASSERT_TRUE(response.has_value());

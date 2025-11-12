@@ -36,7 +36,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_periodic_wave_constraints.h"
-#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -58,6 +57,7 @@
 #include "third_party/blink/renderer/modules/webaudio/channel_splitter_node.h"
 #include "third_party/blink/renderer/modules/webaudio/constant_source_node.h"
 #include "third_party/blink/renderer/modules/webaudio/convolver_node.h"
+#include "third_party/blink/renderer/modules/webaudio/cross_thread_audio_worklet_processor_info.h"
 #include "third_party/blink/renderer/modules/webaudio/delay_node.h"
 #include "third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.h"
 #include "third_party/blink/renderer/modules/webaudio/gain_node.h"
@@ -74,6 +74,7 @@
 #include "third_party/blink/renderer/modules/webaudio/stereo_panner_node.h"
 #include "third_party/blink/renderer/modules/webaudio/wave_shaper_node.h"
 #include "third_party/blink/renderer/platform/audio/fft_frame.h"
+#include "third_party/blink/renderer/platform/audio/hrtf_database_loader.h"
 #include "third_party/blink/renderer/platform/audio/iir_filter.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -86,16 +87,15 @@
 namespace blink {
 
 // Constructor for rendering to the audio hardware.
-BaseAudioContext::BaseAudioContext(Document* document,
-                                   enum ContextType context_type)
+BaseAudioContext::BaseAudioContext(LocalDOMWindow* window,
+                                   ContextType context_type)
     : ActiveScriptWrappable<BaseAudioContext>({}),
-      ExecutionContextLifecycleStateObserver(document->GetExecutionContext()),
-      InspectorHelperMixin(*AudioGraphTracer::FromDocument(*document),
-                           String()),
+      ExecutionContextLifecycleStateObserver(window),
+      InspectorHelperMixin(*AudioGraphTracer::FromWindow(*window), String()),
       destination_node_(nullptr),
-      task_runner_(document->GetTaskRunner(TaskType::kInternalMedia)),
+      task_runner_(window->GetTaskRunner(TaskType::kInternalMedia)),
       deferred_task_handler_(DeferredTaskHandler::Create(
-          document->GetTaskRunner(TaskType::kInternalMedia))),
+          window->GetTaskRunner(TaskType::kInternalMedia))),
       periodic_wave_sine_(nullptr),
       periodic_wave_square_(nullptr),
       periodic_wave_sawtooth_(nullptr),
@@ -105,7 +105,7 @@ BaseAudioContext::~BaseAudioContext() {
   {
     // We may need to destroy summing junctions, which must happen while this
     // object is still valid and with the graph lock held.
-    GraphAutoLocker locker(this);
+    DeferredTaskHandler::GraphAutoLocker locker(this);
     destination_handler_ = nullptr;
   }
 
@@ -171,12 +171,12 @@ void BaseAudioContext::Uninitialize() {
   RejectPendingResolvers();
 
   DCHECK(listener_);
-  listener_->WaitForHRTFDatabaseLoaderThreadCompletion();
+  listener_->Handler().WaitForHRTFDatabaseLoaderThreadCompletion();
 
   Clear();
 
   DCHECK(!is_resolving_resume_promises_);
-  DCHECK_EQ(resume_resolvers_.size(), 0u);
+  DCHECK_EQ(pending_promises_resolvers_.size(), 0u);
 }
 
 void BaseAudioContext::Dispose() {
@@ -220,24 +220,26 @@ AudioDestinationNode* BaseAudioContext::destination() const {
   // Cannot be called from the audio thread because this method touches objects
   // managed by Oilpan, and the audio thread is not managed by Oilpan.
   DCHECK(!IsAudioThread());
-  return destination_node_;
+  return destination_node_.Get();
 }
 
 void BaseAudioContext::WarnIfContextClosed(const AudioHandler* handler) const {
   DCHECK(handler);
 
-  if (IsContextCleared() && GetDocument()) {
-    GetDocument()->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
-        mojom::ConsoleMessageSource::kOther,
-        mojom::ConsoleMessageLevel::kWarning,
-        "Construction of " + handler->NodeTypeName() +
-            " is not useful when context is closed."));
+  if (IsContextCleared() && GetExecutionContext()) {
+    GetExecutionContext()->AddConsoleMessage(
+        MakeGarbageCollected<ConsoleMessage>(
+            mojom::ConsoleMessageSource::kOther,
+            mojom::ConsoleMessageLevel::kWarning,
+            "Construction of " + handler->NodeTypeName() +
+                " is not useful when context is closed."));
   }
 }
 
 void BaseAudioContext::WarnForConnectionIfContextClosed() const {
-  if (IsContextCleared() && GetDocument()) {
-    GetDocument()->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+  if (IsContextCleared() && GetExecutionContext()) {
+    GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
+                                             ConsoleMessage>(
         mojom::ConsoleMessageSource::kOther,
         mojom::ConsoleMessageLevel::kWarning,
         "Connecting nodes after the context has been closed is not useful."));
@@ -291,7 +293,7 @@ AudioBuffer* BaseAudioContext::createBuffer(uint32_t number_of_channels,
   return buffer;
 }
 
-ScriptPromise BaseAudioContext::decodeAudioData(
+ScriptPromise<AudioBuffer> BaseAudioContext::decodeAudioData(
     ScriptState* script_state,
     DOMArrayBuffer* audio_data,
     ExceptionState& exception_state) {
@@ -299,7 +301,7 @@ ScriptPromise BaseAudioContext::decodeAudioData(
                          exception_state);
 }
 
-ScriptPromise BaseAudioContext::decodeAudioData(
+ScriptPromise<AudioBuffer> BaseAudioContext::decodeAudioData(
     ScriptState* script_state,
     DOMArrayBuffer* audio_data,
     V8DecodeSuccessCallback* success_callback,
@@ -308,7 +310,7 @@ ScriptPromise BaseAudioContext::decodeAudioData(
                          exception_state);
 }
 
-ScriptPromise BaseAudioContext::decodeAudioData(
+ScriptPromise<AudioBuffer> BaseAudioContext::decodeAudioData(
     ScriptState* script_state,
     DOMArrayBuffer* audio_data,
     V8DecodeSuccessCallback* success_callback,
@@ -321,34 +323,36 @@ ScriptPromise BaseAudioContext::decodeAudioData(
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Cannot decode audio data: The document is no longer active.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   v8::Isolate* isolate = script_state->GetIsolate();
   ArrayBufferContents buffer_contents;
+  DOMException* dom_exception = nullptr;
   // Detach the audio array buffer from the main thread and start
   // async decoding of the data.
   if (!audio_data->IsDetachable(isolate) || audio_data->IsDetached()) {
     // If audioData is already detached (neutered) we need to reject the
     // promise with an error.
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataCloneError,
-                                      "Cannot decode detached ArrayBuffer");
+    dom_exception = MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kDataCloneError,
+        "Cannot decode detached ArrayBuffer");
     // Fall through in order to invoke the error_callback.
-  } else if (!audio_data->Transfer(isolate, buffer_contents, exception_state)) {
+  } else if (!audio_data->Transfer(isolate, buffer_contents,
+                                   IGNORE_EXCEPTION)) {
     // Transfer may throw a TypeError, which is not a DOMException. However, the
-    // spec requires throwing a DOMException with kDataCloneError. Hence
-    // re-throw a DOMException.
+    // spec requires throwing a DOMException with kDataCloneError. Hence ignore
+    // that exception and throw a DOMException instead.
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-    exception_state.ClearException();
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataCloneError,
-                                      "Cannot transfer the ArrayBuffer");
+    dom_exception = MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kDataCloneError, "Cannot transfer the ArrayBuffer");
     // Fall through in order to invoke the error_callback.
   } else {  // audio_data->Transfer succeeded.
     DOMArrayBuffer* audio = DOMArrayBuffer::Create(buffer_contents);
 
-    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<AudioBuffer>>(
         script_state, exception_state.GetContext());
-    ScriptPromise promise = resolver->Promise();
+    auto promise = resolver->Promise();
     decode_audio_resolvers_.insert(resolver);
 
     audio_decoder_.DecodeAsync(audio, sampleRate(), success_callback,
@@ -357,25 +361,18 @@ ScriptPromise BaseAudioContext::decodeAudioData(
   }
 
   // Forward the exception to the callback.
-  DCHECK(exception_state.HadException());
+  DCHECK(dom_exception);
   if (error_callback) {
-    // Use of NonThrowableExceptionState:
-    // 1. The exception being thrown must be a DOMException, hence no chance
-    //   for NativeValueTraits<T>::NativeValue to fail.
-    // 2. `exception_state` already holds an exception being thrown and it's
-    //   wrong to throw another exception in `exception_state`.
-    DOMException* dom_exception = NativeValueTraits<DOMException>::NativeValue(
-        isolate, exception_state.GetException(),
-        NonThrowableExceptionState().ReturnThis());
     error_callback->InvokeAndReportException(this, dom_exception);
   }
 
-  return ScriptPromise();
+  return ScriptPromise<AudioBuffer>::RejectWithDOMException(script_state,
+                                                            dom_exception);
 }
 
 void BaseAudioContext::HandleDecodeAudioData(
     AudioBuffer* audio_buffer,
-    ScriptPromiseResolver* resolver,
+    ScriptPromiseResolver<AudioBuffer>* resolver,
     V8DecodeSuccessCallback* success_callback,
     V8DecodeErrorCallback* error_callback,
     ExceptionContext exception_context) {
@@ -397,20 +394,11 @@ void BaseAudioContext::HandleDecodeAudioData(
     }
   } else {
     // Reject the promise and run the error callback
-    ExceptionState exception_state(resolver_script_state->GetIsolate(),
-                                   exception_context);
-    // Create DOM exception from the exception state since it gives more info
-    // and return it using resolver as it's expected by interface specification.
-    exception_state.ThrowDOMException(DOMExceptionCode::kEncodingError,
-                                      "Unable to decode audio data");
-    v8::Local<v8::Value> error = exception_state.GetException();
-    exception_state.ClearException();
-    resolver->Reject(error);
+    auto* dom_exception = MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kEncodingError, "Unable to decode audio data");
+    resolver->Reject(dom_exception);
     if (error_callback) {
-      error_callback->InvokeAndReportException(
-          this,
-          NativeValueTraits<DOMException>::NativeValue(
-              resolver_script_state->GetIsolate(), error, exception_state));
+      error_callback->InvokeAndReportException(this, dom_exception);
     }
   }
 
@@ -624,72 +612,79 @@ PeriodicWave* BaseAudioContext::GetPeriodicWave(int type) {
       if (!periodic_wave_sine_) {
         periodic_wave_sine_ = PeriodicWave::CreateSine(sampleRate());
       }
-      return periodic_wave_sine_;
+      return periodic_wave_sine_.Get();
     case OscillatorHandler::SQUARE:
       // Initialize the table if necessary
       if (!periodic_wave_square_) {
         periodic_wave_square_ = PeriodicWave::CreateSquare(sampleRate());
       }
-      return periodic_wave_square_;
+      return periodic_wave_square_.Get();
     case OscillatorHandler::SAWTOOTH:
       // Initialize the table if necessary
       if (!periodic_wave_sawtooth_) {
         periodic_wave_sawtooth_ = PeriodicWave::CreateSawtooth(sampleRate());
       }
-      return periodic_wave_sawtooth_;
+      return periodic_wave_sawtooth_.Get();
     case OscillatorHandler::TRIANGLE:
       // Initialize the table if necessary
       if (!periodic_wave_triangle_) {
         periodic_wave_triangle_ = PeriodicWave::CreateTriangle(sampleRate());
       }
-      return periodic_wave_triangle_;
+      return periodic_wave_triangle_.Get();
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
-String BaseAudioContext::state() const {
-  // These strings had better match the strings for AudioContextState in
-  // AudioContext.idl.
-  switch (context_state_) {
-    case kSuspended:
-      return "suspended";
-    case kRunning:
-      return "running";
-    case kClosed:
-      return "closed";
-  }
-  NOTREACHED();
-  return "";
+V8AudioContextState BaseAudioContext::state() const {
+  return V8AudioContextState(control_thread_state_);
 }
 
-void BaseAudioContext::SetContextState(AudioContextState new_state) {
+void BaseAudioContext::SetContextState(V8AudioContextState::Enum new_state) {
   DCHECK(IsMainThread());
 
-  // If there's no change in the current state, there's nothing that needs to be
-  // done.
-  if (new_state == context_state_) {
+  // The closed AudioContext does not accept any state change.
+  if (control_thread_state_ == V8AudioContextState::Enum::kClosed) {
     return;
   }
 
-  // Validate the transitions.  The valid transitions are Suspended->Running,
-  // Running->Suspended, and anything->Closed.
+  if (!RuntimeEnabledFeatures::AudioContextInterruptedStateEnabled() &&
+      new_state == V8AudioContextState::Enum::kInterrupted) {
+    return;
+  }
+
+  // If there's no change in the current state, there's nothing that needs to be
+  // done.
+  if (new_state == control_thread_state_) {
+    return;
+  }
+
+  // Validate the transitions.  The valid transitions are:
+  // Suspended ---> Running or Interrupted,
+  // Running -----> Suspended or Interrupted,
+  // Interrupted -> Running or Suspended,
+  // anything ----> Closed.
   switch (new_state) {
-    case kSuspended:
-      DCHECK_EQ(context_state_, kRunning);
+    case V8AudioContextState::Enum::kSuspended:
+      DCHECK(control_thread_state_ == V8AudioContextState::Enum::kRunning ||
+             control_thread_state_ == V8AudioContextState::Enum::kInterrupted);
       break;
-    case kRunning:
-      DCHECK_EQ(context_state_, kSuspended);
+    case V8AudioContextState::Enum::kRunning:
+      DCHECK(control_thread_state_ == V8AudioContextState::Enum::kSuspended ||
+             control_thread_state_ == V8AudioContextState::Enum::kInterrupted);
       break;
-    case kClosed:
-      DCHECK_NE(context_state_, kClosed);
+    case V8AudioContextState::Enum::kClosed:
+      DCHECK_NE(control_thread_state_, V8AudioContextState::Enum::kClosed);
+      break;
+    case V8AudioContextState::Enum::kInterrupted:
+      DCHECK(control_thread_state_ == V8AudioContextState::Enum::kSuspended ||
+             control_thread_state_ == V8AudioContextState::Enum::kRunning);
       break;
   }
 
-  context_state_ = new_state;
+  control_thread_state_ = new_state;
 
-  if (new_state == kClosed) {
+  if (new_state == V8AudioContextState::Enum::kClosed) {
     GetDeferredTaskHandler().StopAcceptingTailProcessing();
   }
 
@@ -716,14 +711,13 @@ void BaseAudioContext::NotifySourceNodeFinishedProcessing(
   GetDeferredTaskHandler().GetFinishedSourceHandlers()->push_back(handler);
 }
 
-Document* BaseAudioContext::GetDocument() const {
-  LocalDOMWindow* window = To<LocalDOMWindow>(GetExecutionContext());
-  return window ? window->document() : nullptr;
+LocalDOMWindow* BaseAudioContext::GetWindow() const {
+  return To<LocalDOMWindow>(GetExecutionContext());
 }
 
 void BaseAudioContext::NotifySourceNodeStartedProcessing(AudioNode* node) {
   DCHECK(IsMainThread());
-  GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(this);
 
   GetDeferredTaskHandler().GetActiveSourceHandlers()->insert(&node->Handler());
   node->Handler().MakeConnection();
@@ -732,7 +726,7 @@ void BaseAudioContext::NotifySourceNodeStartedProcessing(AudioNode* node) {
 void BaseAudioContext::ReleaseActiveSourceNodes() {
   DCHECK(IsMainThread());
 
-  GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(this);
 
   for (auto source_handler :
        *GetDeferredTaskHandler().GetActiveSourceHandlers()) {
@@ -754,9 +748,9 @@ void BaseAudioContext::HandleStoppableSourceNodes() {
     // long as the active nodes eventually get stopped if they're done.
     for (auto handler : *active_source_handlers) {
       switch (handler->GetNodeType()) {
-        case AudioHandler::kNodeTypeAudioBufferSource:
-        case AudioHandler::kNodeTypeOscillator:
-        case AudioHandler::kNodeTypeConstantSource: {
+        case AudioHandler::NodeType::kNodeTypeAudioBufferSource:
+        case AudioHandler::NodeType::kNodeTypeOscillator:
+        case AudioHandler::NodeType::kNodeTypeConstantSource: {
           AudioScheduledSourceHandler* source_handler =
               static_cast<AudioScheduledSourceHandler*>(handler.get());
           source_handler->HandleStoppableSourceNode();
@@ -777,20 +771,20 @@ void BaseAudioContext::PerformCleanupOnMainThread() {
     return;
   }
 
-  GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(this);
 
   if (is_resolving_resume_promises_) {
-    for (auto& resolver : resume_resolvers_) {
-      if (context_state_ == kClosed) {
+    for (auto& resolver : pending_promises_resolvers_) {
+      if (control_thread_state_ == V8AudioContextState::Enum::kClosed) {
         resolver->Reject(MakeGarbageCollected<DOMException>(
             DOMExceptionCode::kInvalidStateError,
             "Cannot resume a context that has been closed"));
       } else {
-        SetContextState(kRunning);
+        SetContextState(V8AudioContextState::Enum::kRunning);
         resolver->Resolve();
       }
     }
-    resume_resolvers_.clear();
+    pending_promises_resolvers_.clear();
     is_resolving_resume_promises_ = false;
   }
 
@@ -825,11 +819,11 @@ void BaseAudioContext::RejectPendingResolvers() {
   // Audio context is closing down so reject any resume promises that are still
   // pending.
 
-  for (auto& resolver : resume_resolvers_) {
+  for (auto& resolver : pending_promises_resolvers_) {
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kInvalidStateError, "Audio context is going away"));
   }
-  resume_resolvers_.clear();
+  pending_promises_resolvers_.clear();
   is_resolving_resume_promises_ = false;
 
   RejectPendingDecodeAudioDataResolvers();
@@ -851,7 +845,7 @@ void BaseAudioContext::StartRendering() {
   DCHECK(IsMainThread());
   DCHECK(destination_node_);
 
-  if (context_state_ == kSuspended) {
+  if (control_thread_state_ == V8AudioContextState::Enum::kSuspended) {
     destination()->GetAudioDestinationHandler().StartRendering();
   }
 }
@@ -859,7 +853,7 @@ void BaseAudioContext::StartRendering() {
 void BaseAudioContext::Trace(Visitor* visitor) const {
   visitor->Trace(destination_node_);
   visitor->Trace(listener_);
-  visitor->Trace(resume_resolvers_);
+  visitor->Trace(pending_promises_resolvers_);
   visitor->Trace(decode_audio_resolvers_);
   visitor->Trace(periodic_wave_sine_);
   visitor->Trace(periodic_wave_square_);
@@ -867,7 +861,7 @@ void BaseAudioContext::Trace(Visitor* visitor) const {
   visitor->Trace(periodic_wave_triangle_);
   visitor->Trace(audio_worklet_);
   InspectorHelperMixin::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleStateObserver::Trace(visitor);
 }
 
@@ -890,7 +884,7 @@ void BaseAudioContext::NotifyWorkletIsReady() {
   {
     // `audio_worklet_thread_` is constantly peeked by the rendering thread,
     // So we protect it with the graph lock.
-    GraphAutoLocker locker(this);
+    DeferredTaskHandler::GraphAutoLocker locker(this);
 
     // At this point, the WorkletGlobalScope must be ready so it is safe to keep
     // the reference to the AudioWorkletThread for the future worklet operation.
@@ -899,20 +893,21 @@ void BaseAudioContext::NotifyWorkletIsReady() {
   }
 
   switch (ContextState()) {
-    case kRunning:
+    case V8AudioContextState::Enum::kRunning:
       // If the context is running, restart the destination to switch the render
       // thread with the worklet thread right away.
       destination()->GetAudioDestinationHandler().RestartRendering();
       break;
-    case kSuspended:
-      // For the suspended context, the destination will use the worklet task
-      // runner for rendering. This also prevents the regular audio thread from
-      // touching worklet-related objects by blocking an invalid transitory
-      // state where the context state is suspended and the destination state is
-      // running. See: crbug.com/1403515
+    case V8AudioContextState::Enum::kSuspended:
+    case V8AudioContextState::Enum::kInterrupted:
+      // For suspended and interrupted contexts, the destination will use the
+      // worklet task runner for rendering. This also prevents the regular audio
+      // thread from touching worklet-related objects by blocking an invalid
+      // transitory state where the context state is suspended or interrupted
+      // and the destination state is running. See: crbug.com/1403515
       destination()->GetAudioDestinationHandler().PrepareTaskRunnerForWorklet();
       break;
-    case kClosed:
+    case V8AudioContextState::Enum::kClosed:
       // When the context is closed, no preparation for the worklet operations
       // is necessary.
       return;

@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash, "Non ChromeOS builds must not depend on //chromeos/ash")
+assert(is_chromeos, "Non ChromeOS builds must not depend on //chromeos/ash")
 
 component("login_state") {
   defines = [ "IS_LOGIN_STATE_IMPL" ]
@@ -12,6 +10,7 @@ component("login_state") {
     "//ash/constants",
     "//base",
     "//components/device_event_log",
+    "//components/user_manager",
   ]
   sources = [
     "login_state.cc",
@@ -40,7 +39,8 @@ source_set("unit_tests") {
     ":login_state",
     "//ash/constants",
     "//base",
-    "//testing/gmock",
+    "//components/prefs:test_support",
+    "//components/user_manager:test_support",
     "//testing/gtest",
   ]
   sources = [ "login_state_unittest.cc" ]

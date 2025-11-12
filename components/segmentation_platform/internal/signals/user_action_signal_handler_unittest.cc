@@ -7,6 +7,7 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/test/task_environment.h"
 #include "components/segmentation_platform/internal/database/mock_signal_database.h"
+#include "components/segmentation_platform/internal/database/mock_ukm_database.h"
 #include "components/segmentation_platform/public/proto/types.pb.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -17,8 +18,15 @@ using testing::Eq;
 namespace segmentation_platform {
 
 namespace {
+
+const char kProfileId[] = "12";
 const char kExpectedUserAction[] = "some_event";
 const uint64_t kExpectedHash = base::HashMetricName(kExpectedUserAction);
+
+MATCHER_P(SampleEq, hash, "") {
+  EXPECT_EQ(arg.type, proto::SignalType::USER_ACTION);
+  return arg.name_hash == hash;
+}
 
 }  // namespace
 
@@ -31,8 +39,9 @@ class UserActionSignalHandlerTest : public testing::Test {
     base::SetRecordActionTaskRunner(
         task_environment_.GetMainThreadTaskRunner());
     signal_database_ = std::make_unique<MockSignalDatabase>();
-    user_action_signal_handler_ =
-        std::make_unique<UserActionSignalHandler>(signal_database_.get());
+    ukm_db_ = std::make_unique<MockUkmDatabase>();
+    user_action_signal_handler_ = std::make_unique<UserActionSignalHandler>(
+        kProfileId, signal_database_.get(), ukm_db_.get());
   }
 
   void SetupUserActions() {
@@ -43,6 +52,7 @@ class UserActionSignalHandlerTest : public testing::Test {
 
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<MockSignalDatabase> signal_database_;
+  std::unique_ptr<MockUkmDatabase> ukm_db_;
   std::unique_ptr<UserActionSignalHandler> user_action_signal_handler_;
 };
 
@@ -54,7 +64,8 @@ TEST_F(UserActionSignalHandlerTest, UserActionsAreRecorded) {
   // Fire a registered user action. It should be recorded.
   EXPECT_CALL(*signal_database_,
               WriteSample(proto::SignalType::USER_ACTION, kExpectedHash,
-                          Eq(absl::nullopt), _));
+                          Eq(std::nullopt), _));
+  EXPECT_CALL(*ukm_db_, AddUmaMetric(kProfileId, SampleEq(kExpectedHash)));
   base::RecordComputedActionAt(kExpectedUserAction, base::TimeTicks::Now());
 
   // Fire an unrelated user action. It should be ignored.
@@ -62,7 +73,10 @@ TEST_F(UserActionSignalHandlerTest, UserActionsAreRecorded) {
   EXPECT_CALL(*signal_database_,
               WriteSample(proto::SignalType::USER_ACTION,
                           base::HashMetricName(kUnrelatedUserAction),
-                          Eq(absl::nullopt), _))
+                          Eq(std::nullopt), _))
+      .Times(0);
+  EXPECT_CALL(*ukm_db_, AddUmaMetric(kProfileId, SampleEq(base::HashMetricName(
+                                                     kUnrelatedUserAction))))
       .Times(0);
   base::RecordComputedActionAt(kUnrelatedUserAction, base::TimeTicks::Now());
 }
@@ -75,7 +89,11 @@ TEST_F(UserActionSignalHandlerTest, DisableMetrics) {
   EXPECT_CALL(*signal_database_,
               WriteSample(proto::SignalType::USER_ACTION,
                           base::HashMetricName(kExpectedUserAction),
-                          Eq(absl::nullopt), _))
+                          Eq(std::nullopt), _))
+      .Times(0);
+  EXPECT_CALL(*ukm_db_,
+              AddUmaMetric(kProfileId,
+                           SampleEq(base::HashMetricName(kExpectedUserAction))))
       .Times(0);
   base::RecordComputedActionAt(kExpectedUserAction, time);
 
@@ -84,8 +102,10 @@ TEST_F(UserActionSignalHandlerTest, DisableMetrics) {
   EXPECT_CALL(*signal_database_,
               WriteSample(proto::SignalType::USER_ACTION,
                           base::HashMetricName(kExpectedUserAction),
-                          Eq(absl::nullopt), _))
+                          Eq(std::nullopt), _))
       .Times(1);
+  EXPECT_CALL(*ukm_db_, AddUmaMetric(kProfileId, SampleEq(base::HashMetricName(
+                                                     kExpectedUserAction))));
   base::RecordComputedActionAt(kExpectedUserAction, time);
 
   // Disable metrics again.
@@ -93,7 +113,11 @@ TEST_F(UserActionSignalHandlerTest, DisableMetrics) {
   EXPECT_CALL(*signal_database_,
               WriteSample(proto::SignalType::USER_ACTION,
                           base::HashMetricName(kExpectedUserAction),
-                          Eq(absl::nullopt), _))
+                          Eq(std::nullopt), _))
+      .Times(0);
+  EXPECT_CALL(*ukm_db_,
+              AddUmaMetric(kProfileId,
+                           SampleEq(base::HashMetricName(kExpectedUserAction))))
       .Times(0);
   base::RecordComputedActionAt(kExpectedUserAction, time);
 
@@ -102,8 +126,10 @@ TEST_F(UserActionSignalHandlerTest, DisableMetrics) {
   EXPECT_CALL(*signal_database_,
               WriteSample(proto::SignalType::USER_ACTION,
                           base::HashMetricName(kExpectedUserAction),
-                          Eq(absl::nullopt), _))
+                          Eq(std::nullopt), _))
       .Times(1);
+  EXPECT_CALL(*ukm_db_, AddUmaMetric(kProfileId, SampleEq(base::HashMetricName(
+                                                     kExpectedUserAction))));
   base::RecordComputedActionAt(kExpectedUserAction, time);
 }
 

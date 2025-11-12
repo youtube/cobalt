@@ -7,12 +7,15 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
 #include "base/containers/circular_deque.h"
+#include "base/containers/heap_array.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
@@ -22,7 +25,6 @@
 #include "media/base/stream_parser_buffer.h"
 #include "media/formats/webm/webm_parser.h"
 #include "media/formats/webm/webm_tracks_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -30,7 +32,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
  public:
   using TrackId = StreamParser::TrackId;
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
-  using TextBufferQueueMap = std::map<TrackId, const BufferQueue>;
 
   // Numbers chosen to estimate the duration of a buffer if none is set and
   // there is not enough information to get a better estimate.
@@ -47,7 +48,11 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // significant bits of the first byte. The index in this array corresponds
   // to the duration of each frame of the packet in microseconds. See
   // https://tools.ietf.org/html/rfc6716#page-14
-  static const uint16_t kOpusFrameDurationsMu[];
+  static constexpr auto kOpusFrameDurationsMu = std::to_array<uint16_t>(
+      {10000, 20000, 40000, 60000, 10000, 20000, 40000, 60000,
+       10000, 20000, 40000, 60000, 10000, 20000, 10000, 20000,
+       2500,  5000,  10000, 20000, 2500,  5000,  10000, 20000,
+       2500,  5000,  10000, 20000, 2500,  5000,  10000, 20000});
 
   WebMClusterParser() = delete;
   WebMClusterParser(const WebMClusterParser&) = delete;
@@ -151,15 +156,12 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
     raw_ptr<MediaLog> media_log_;
   };
 
-  typedef std::map<int, Track> TextTrackMap;
-
  public:
   WebMClusterParser(int64_t timecode_scale_ns,
                     int audio_track_num,
                     base::TimeDelta audio_default_duration,
                     int video_track_num,
                     base::TimeDelta video_default_duration,
-                    const WebMTracksParser::TextTracks& text_tracks,
                     const std::set<int64_t>& ignored_tracks,
                     const std::string& audio_encryption_key_id,
                     const std::string& video_encryption_key_id,
@@ -189,22 +191,9 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // The returned deques are cleared by Parse() or Reset() and updated by the
   // next calls to Get{Audio,Video}Buffers().
   // If no Parse() or Reset() has occurred since the last call to Get{Audio,
-  // Video,Text}Buffers(), then the previous BufferQueue& is returned again
+  // Video}Buffers(), then the previous BufferQueue& is returned again
   // without any recalculation.
   void GetBuffers(StreamParser::BufferQueueMap* buffers);
-
-  // Constructs and returns a subset of |text_track_map_| containing only
-  // tracks with non-empty buffer queues produced by the last Parse() and
-  // filtered to exclude any buffers that have (decode) timestamp same or
-  // greater than the lowest (decode) timestamp across all tracks of any buffer
-  // held aside due to missing duration (unless the end of cluster has been
-  // reached).
-  // The returned map is cleared by Parse() or Reset() and updated by the next
-  // call to GetTextBuffers().
-  // If no Parse() or Reset() has occurred since the last call to
-  // GetTextBuffers(), then the previous TextBufferQueueMap& is returned again
-  // without any recalculation.
-  const TextBufferQueueMap& GetTextBuffers();
 
   // Returns true if the last Parse() call stopped at the end of a cluster.
   bool cluster_ended() const { return cluster_ended_; }
@@ -218,7 +207,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   bool ParseBlock(bool is_simple_block,
                   const uint8_t* buf,
-                  int size,
+                  size_t size,
                   const uint8_t* additional,
                   int additional_size,
                   int duration,
@@ -229,34 +218,22 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
                int timecode,
                int duration,
                const uint8_t* data,
-               int size,
+               size_t size,
                const uint8_t* additional,
-               int additional_size,
+               size_t additional_size,
                int64_t discard_padding,
                bool is_keyframe);
 
-  // Resets the Track objects associated with each text track.
-  void ResetTextTracks();
-
-  // Clears the the ready buffers associated with each text track.
-  void ClearTextTrackReadyBuffers();
-
-  // Helper method for Get{Audio,Video,Text}Buffers() that recomputes
+  // Helper method for Get{Audio,Video}Buffers() that recomputes
   // |ready_buffer_upper_bound_| and calls ExtractReadyBuffers() on each track.
   // If |cluster_ended_| is true, first applies duration estimate if needed for
   // |audio_| and |video_| and sets |ready_buffer_upper_bound_| to
   // kInfiniteDuration. Otherwise, sets |ready_buffer_upper_bound_| to the
-  // minimum upper bound across |audio_| and |video_|. (Text tracks can have no
-  // buffers missing duration, so they are not involved in calculating the upper
-  // bound.)
+  // minimum upper bound across |audio_| and |video_|.
   // Parse() or Reset() must be called between calls to UpdateReadyBuffers() to
   // clear each track's ready buffers and to reset |ready_buffer_upper_bound_|
   // to kNoDecodeTimestamp.
   void UpdateReadyBuffers();
-
-  // Search for the indicated track_num among the text tracks.  Returns NULL
-  // if that track num is not a text track.
-  Track* FindTextTrack(int track_num);
 
   // Attempts to read the duration from the encoded audio data, returning as
   // TimeDelta or kNoTimestamp if duration cannot be retrieved. This obviously
@@ -287,18 +264,14 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   // A |last_block_timecode_| value of -1 is not enough to indicate it is unset
   // now that negative block timecodes are allowed, so we explicitly use
-  // absl::optional to know if it is currently set.
-  absl::optional<int64_t> last_block_timecode_ = absl::nullopt;
+  // std::optional to know if it is currently set.
+  std::optional<int64_t> last_block_timecode_ = std::nullopt;
 
-  std::unique_ptr<uint8_t[]> block_data_;
-  int block_data_size_ = -1;
+  std::optional<base::HeapArray<uint8_t>> block_data_;
   int64_t block_duration_ = -1;
   int64_t block_add_id_ = -1;
 
-  std::unique_ptr<uint8_t[]> block_additional_data_;
-  // Must be 0 if |block_additional_data_| is null. Must be > 0 if
-  // |block_additional_data_| is NOT null.
-  int block_additional_data_size_ = 0;
+  std::optional<base::HeapArray<uint8_t>> block_additional_data_;
 
   int64_t discard_padding_ = -1;
   bool discard_padding_set_ = false;
@@ -311,17 +284,11 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   Track audio_;
   Track video_;
-  TextTrackMap text_track_map_;
 
-  // Subset of |text_track_map_| maintained by GetTextBuffers(), and cleared by
-  // ClearTextTrackReadyBuffers(). Callers of GetTextBuffers() get a const-ref
-  // to this member.
-  TextBufferQueueMap text_buffers_map_;
-
-  // Limits the range of buffers returned by Get{Audio,Video,Text}Buffers() to
+  // Limits the range of buffers returned by Get{Audio,Video}Buffers() to
   // this exclusive upper bound. Set to kNoDecodeTimestamp, meaning not yet
   // calculated, by Reset() and Parse(). If kNoDecodeTimestamp, then
-  // Get{Audio,Video,Text}Buffers() will calculate it to be the minimum (decode)
+  // Get{Audio,Video}Buffers() will calculate it to be the minimum (decode)
   // timestamp across all tracks' |last_buffer_missing_duration_|, or
   // kInfiniteDuration if no buffers are currently missing duration.
   DecodeTimestamp ready_buffer_upper_bound_;

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {EMOJI_TEXT_BUTTON_CLICK} from 'chrome://emoji-picker/events.js';
-import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {EMOJI_TEXT_BUTTON_CLICK} from 'chrome://emoji-picker/emoji_picker.js';
+import type {CrIconButtonElement} from 'chrome://resources/ash/common/cr_elements/cr_icon_button/cr_icon_button.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -14,7 +14,7 @@ const ACTIVE_CATEGORY_BUTTON = 'category-button-active';
 
 function isCategoryButtonActive(element: Element|null|undefined) {
   assert(element, 'category button element should not be null.');
-  return element!.classList.contains(ACTIVE_CATEGORY_BUTTON);
+  return element.classList.contains(ACTIVE_CATEGORY_BUTTON);
 }
 
 function categoryGroupSelector(category: string) {
@@ -58,7 +58,7 @@ export function categoryTestSuite(category: string) {
 
     test(
         category + ' category button should be active after clicking at it.',
-        () => {
+        async () => {
           const allCategoryButtons =
               Array
                   .from(findInEmojiPicker('emoji-search')!.shadowRoot!
@@ -69,6 +69,9 @@ export function categoryTestSuite(category: string) {
           const categoryButton = allCategoryButtons[categoryIndex];
           categoryButton!.click();
           flush();
+          await waitForCondition(
+              () => isCategoryButtonActive(categoryButton),
+              'wait for category button active');
           assertTrue(isCategoryButtonActive(categoryButton));
           allCategoryButtons.forEach((categoryButtonItem, index) => {
             if (index !== categoryIndex) {
@@ -111,8 +114,9 @@ export function categoryTestSuite(category: string) {
           for (let idx = 0; idx < allGroups.length; ++idx) {
             const group = allGroups[idx];
             const actualFirstGroupName =
-                (group!.shadowRoot!.querySelector('#heading-left')!.innerHTML
-                     .trim())!.replace('&amp;', '&');
+                (group!.shadowRoot!.querySelector(
+                                       '#heading-left')!.innerHTML.trim())
+                    .replace('&amp;', '&');
             const expectedFirstGroupName = groupElements[idx + 1]!.name;
             assertEquals(expectedFirstGroupName, actualFirstGroupName);
             assertEquals(
@@ -139,7 +143,7 @@ export function categoryTestSuite(category: string) {
                     assertEquals(expectedName, event.detail.name);
                     resolve();
                   }));
-          firstButton!.click();
+          firstButton.click();
           await flush();
           await waitWithTimeout(
               buttonClickPromise, 1000,
@@ -190,7 +194,7 @@ export function categoryTestSuite(category: string) {
                     resolve();
                   }));
 
-          recentlyUsedButton!.click();
+          recentlyUsedButton.click();
           await waitWithTimeout(
               buttonClickPromise, 1000,
               `Clicking at recently used ${category} buttons does not ` +

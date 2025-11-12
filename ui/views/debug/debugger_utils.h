@@ -5,19 +5,20 @@
 #ifndef UI_VIEWS_DEBUG_DEBUGGER_UTILS_H_
 #define UI_VIEWS_DEBUG_DEBUGGER_UTILS_H_
 
-#include <ostream>
+#include <stdint.h>
+
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace views::debug {
 
 // This class acts as a "view" over the View class. This has been done to allow
-// debugger extensions to remnain resillient to structure and version changes in
-// the code base.
+// debugger extensions to remain resilient to structure and version changes in
+// the codebase.
 // TODO(tluk): Replace use of //ui/views/debug_utils.h with this.
 class ViewDebugWrapper {
  public:
@@ -38,14 +39,10 @@ class ViewDebugWrapper {
   virtual bool GetEnabled() = 0;
   virtual std::vector<ViewDebugWrapper*> GetChildren() = 0;
   virtual void ForAllProperties(PropCallback callback) {}
-  virtual absl::optional<intptr_t> GetAddress();
+  virtual std::optional<intptr_t> GetAddress();
 };
 
-void PrintViewHierarchy(std::ostream* out,
-                        ViewDebugWrapper* view,
-                        bool verbose = false,
-                        int depth = -1,
-                        size_t column_limit = 240);
+std::string PrintViewHierarchy(ViewDebugWrapper* view, bool verbose = false);
 
 }  // namespace views::debug
 

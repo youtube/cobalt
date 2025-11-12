@@ -76,6 +76,15 @@
       name: "range",
     },
     {
+      name: "result",
+    },
+    {
+      name: "navigation",
+    },
+    {
+      name: "types",
+    },
+    {
       name: "size-adjust",
     },
     {

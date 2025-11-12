@@ -106,7 +106,7 @@ class LocalNetworkRequestsPageLoadMetricsObserverTest
     ASSERT_TRUE(address.AssignFromIPLiteral(resource.host_ip));
     page_load_metrics::ExtraRequestCompleteInfo request_info(
         url::SchemeHostPort(GURL(resource.url)),
-        net::IPEndPoint(address, resource.port), -1 /* frame_tree_node_id */,
+        net::IPEndPoint(address, resource.port), content::FrameTreeNodeId(),
         !net_error /* was_cached */,
         (net_error ? 1024 * 20 : 0) /* raw_body_bytes */,
         0 /* original_network_content_length */,
@@ -141,7 +141,7 @@ class LocalNetworkRequestsPageLoadMetricsObserverTest
     auto entries = tester()->test_ukm_recorder().GetEntriesByName(
         ukm::builders::PageDomainInfo::kEntryName);
     EXPECT_EQ(1u, entries.size());
-    for (const auto* const entry : entries) {
+    for (const ukm::mojom::UkmEntry* const entry : entries) {
       tester()->test_ukm_recorder().ExpectEntrySourceHasUrl(entry,
                                                             GURL(page.url));
       tester()->test_ukm_recorder().ExpectEntryMetric(
@@ -551,7 +551,7 @@ TEST_F(LocalNetworkRequestsPageLoadMetricsObserverTest,
   // socket address for some reason.
   PageLoadMetricsObserverTestHarness::tester()->SimulateLoadedResource(
       {url::SchemeHostPort(GURL(internal::kDiffSubnetRequest2.url)),
-       net::IPEndPoint(), -1 /* frame_tree_node_id */, true /* was_cached */,
+       net::IPEndPoint(), content::FrameTreeNodeId(), true /* was_cached */,
        1024 * 20 /* raw_body_bytes */, 0 /* original_network_content_length */,
        network::mojom::RequestDestination::kDocument, 0,
        nullptr /* load_timing_info */},
@@ -573,7 +573,7 @@ TEST_F(LocalNetworkRequestsPageLoadMetricsObserverTest,
   // empty socket address (e.g., failed DNS resolution).
   PageLoadMetricsObserverTestHarness::tester()->SimulateLoadedResource(
       {url::SchemeHostPort(GURL(internal::kPrivatePage.url)), net::IPEndPoint(),
-       -1 /* frame_tree_node_id */, false /* was_cached */,
+       content::FrameTreeNodeId(), false /* was_cached */,
        0 /* raw_body_bytes */, 0 /* original_network_content_length */,
        network::mojom::RequestDestination::kDocument, -20,
        nullptr /* load_timing_info */},

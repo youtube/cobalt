@@ -15,6 +15,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/nine_image_painter.h"
 #include "ui/gfx/scoped_canvas.h"
@@ -32,10 +33,11 @@ class SolidRoundRectPainter : public Painter {
  public:
   SolidRoundRectPainter(SkColor bg_color,
                         SkColor stroke_color,
-                        float radius,
+                        gfx::RoundedCornersF radii,
                         const gfx::Insets& insets,
                         SkBlendMode blend_mode,
-                        bool antialias);
+                        bool antialias,
+                        bool should_border_scale);
 
   SolidRoundRectPainter(const SolidRoundRectPainter&) = delete;
   SolidRoundRectPainter& operator=(const SolidRoundRectPainter&) = delete;
@@ -49,24 +51,27 @@ class SolidRoundRectPainter : public Painter {
  private:
   const SkColor bg_color_;
   const SkColor stroke_color_;
-  const float radius_;
+  const gfx::RoundedCornersF radii_;
   const gfx::Insets insets_;
   const SkBlendMode blend_mode_;
   const bool antialias_;
+  const bool should_border_scale_;
 };
 
 SolidRoundRectPainter::SolidRoundRectPainter(SkColor bg_color,
                                              SkColor stroke_color,
-                                             float radius,
+                                             gfx::RoundedCornersF radii,
                                              const gfx::Insets& insets,
                                              SkBlendMode blend_mode,
-                                             bool antialias)
+                                             bool antialias,
+                                             bool should_border_scale)
     : bg_color_(bg_color),
       stroke_color_(stroke_color),
-      radius_(radius),
+      radii_(radii),
       insets_(insets),
       blend_mode_(blend_mode),
-      antialias_(antialias) {}
+      antialias_(antialias),
+      should_border_scale_(should_border_scale) {}
 
 SolidRoundRectPainter::~SolidRoundRectPainter() = default;
 
@@ -80,26 +85,44 @@ void SolidRoundRectPainter::Paint(gfx::Canvas* canvas, const gfx::Size& size) {
 
   gfx::Rect inset_rect(size);
   inset_rect.Inset(insets_);
-  gfx::RectF fill_rect(gfx::ScaleToEnclosingRect(inset_rect, scale));
+  gfx::RectF fill_rect(gfx::ScaleToEnclosedRect(inset_rect, scale));
   gfx::RectF stroke_rect = fill_rect;
-  float scaled_radius = radius_ * scale;
 
   cc::PaintFlags flags;
   flags.setBlendMode(blend_mode_);
-  if (antialias_)
+  if (antialias_) {
     flags.setAntiAlias(true);
+  }
   flags.setStyle(cc::PaintFlags::kFill_Style);
   flags.setColor(bg_color_);
-  canvas->DrawRoundRect(fill_rect, scaled_radius, flags);
+  SkPath fill_path;
+  const std::array<SkScalar, 8> scaled_radii = {
+      {radii_.upper_left() * scale, radii_.upper_left() * scale,
+       radii_.upper_right() * scale, radii_.upper_right() * scale,
+       radii_.lower_right() * scale, radii_.lower_right() * scale,
+       radii_.lower_left() * scale, radii_.lower_left() * scale}};
+
+  UNSAFE_TODO(fill_path.addRoundRect(gfx::RectFToSkRect(fill_rect),
+                                     scaled_radii.data()));
+  canvas->DrawPath(fill_path, flags);
 
   if (stroke_color_ != SK_ColorTRANSPARENT) {
-    constexpr float kStrokeWidth = 1.0f;
-    stroke_rect.Inset(gfx::InsetsF(kStrokeWidth / 2));
-    scaled_radius -= kStrokeWidth / 2;
+    const float stroke_width = should_border_scale_ ? scale : 1.0f;
+    const float stroke_inset = stroke_width / 2;
+    stroke_rect.Inset(gfx::InsetsF(stroke_inset));
     flags.setStyle(cc::PaintFlags::kStroke_Style);
-    flags.setStrokeWidth(kStrokeWidth);
+    flags.setStrokeWidth(stroke_width);
     flags.setColor(stroke_color_);
-    canvas->DrawRoundRect(stroke_rect, scaled_radius, flags);
+
+    SkPath stroke_path;
+    std::array<SkScalar, 8> stroke_radii;
+    for (size_t i = 0; i < 8; i++) {
+      stroke_radii[i] = scaled_radii[i] - stroke_width / 2;
+    }
+
+    UNSAFE_TODO(stroke_path.addRoundRect(gfx::RectFToSkRect(stroke_rect),
+                                         stroke_radii.data()));
+    canvas->DrawPath(stroke_path, flags);
   }
 }
 
@@ -241,8 +264,9 @@ void Painter::PaintPainterAt(gfx::Canvas* canvas,
 void Painter::PaintFocusPainter(View* view,
                                 gfx::Canvas* canvas,
                                 Painter* focus_painter) {
-  if (focus_painter && view->HasFocus())
+  if (focus_painter && view->HasFocus()) {
     PaintPainterAt(canvas, focus_painter, view->GetLocalBounds());
+  }
 }
 
 // static
@@ -253,7 +277,19 @@ std::unique_ptr<Painter> Painter::CreateSolidRoundRectPainter(
     SkBlendMode blend_mode,
     bool antialias) {
   return std::make_unique<SolidRoundRectPainter>(
-      color, SK_ColorTRANSPARENT, radius, insets, blend_mode, antialias);
+      color, SK_ColorTRANSPARENT, gfx::RoundedCornersF(radius), insets,
+      blend_mode, antialias, false);
+}
+
+// static
+std::unique_ptr<Painter> Painter::CreateSolidRoundRectPainterWithVariableRadius(
+    SkColor color,
+    gfx::RoundedCornersF radii,
+    const gfx::Insets& insets,
+    SkBlendMode blend_mode,
+    bool antialias) {
+  return std::make_unique<SolidRoundRectPainter>(
+      color, SK_ColorTRANSPARENT, radii, insets, blend_mode, antialias, false);
 }
 
 // static
@@ -262,9 +298,24 @@ std::unique_ptr<Painter> Painter::CreateRoundRectWith1PxBorderPainter(
     SkColor stroke_color,
     float radius,
     SkBlendMode blend_mode,
-    bool antialias) {
+    bool antialias,
+    bool should_border_scale) {
   return std::make_unique<SolidRoundRectPainter>(
-      bg_color, stroke_color, radius, gfx::Insets(), blend_mode, antialias);
+      bg_color, stroke_color, gfx::RoundedCornersF(radius), gfx::Insets(),
+      blend_mode, antialias, should_border_scale);
+}
+
+// static
+std::unique_ptr<Painter> Painter::CreateRoundRectWith1PxBorderPainter(
+    SkColor bg_color,
+    SkColor stroke_color,
+    gfx::RoundedCornersF radii,
+    SkBlendMode blend_mode,
+    bool antialias,
+    bool should_border_scale) {
+  return std::make_unique<SolidRoundRectPainter>(
+      bg_color, stroke_color, radii, gfx::Insets(), blend_mode, antialias,
+      should_border_scale);
 }
 
 // static

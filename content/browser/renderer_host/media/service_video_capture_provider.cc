@@ -9,9 +9,8 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/trace_event/common/trace_event_common.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/renderer_host/media/service_video_capture_device_launcher.h"
 #include "content/browser/renderer_host/media/virtual_video_capture_devices_changed_observer.h"
@@ -28,19 +27,22 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/video_capture/public/mojom/video_capture_service.mojom.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "content/public/browser/chromeos/delegate_to_browser_gpu_service_accelerator_factory.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+using GetSourceInfosResult =
+    video_capture::mojom::VideoSourceProvider::GetSourceInfosResult;
+
+#if BUILDFLAG(IS_CHROMEOS)
 std::unique_ptr<video_capture::mojom::AcceleratorFactory>
 CreateAcceleratorFactory() {
   return std::make_unique<
       content::DelegateToBrowserGpuServiceAcceleratorFactory>();
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Do not reorder, used for UMA Media.VideoCapture.GetDeviceInfosResult
 enum class GetDeviceInfosResult {
@@ -51,7 +53,18 @@ enum class GetDeviceInfosResult {
   kMaxValue = kFailureAfterRetry,
 };
 
-void LogGetDeviceInfosResult(GetDeviceInfosResult result) {
+void LogGetDeviceInfosResult(
+    std::optional<GetSourceInfosResult> get_source_infos_result,
+    bool get_device_infos_retried) {
+  GetDeviceInfosResult result;
+  if (get_source_infos_result &&
+      *get_source_infos_result == GetSourceInfosResult::kSuccess) {
+    result = get_device_infos_retried ? GetDeviceInfosResult::kSucessAfterRetry
+                                      : GetDeviceInfosResult::kSucessNoRetry;
+  } else {
+    result = get_device_infos_retried ? GetDeviceInfosResult::kFailureAfterRetry
+                                      : GetDeviceInfosResult::kFailureNoRetry;
+  }
   base::UmaHistogramEnumeration("Media.VideoCapture.GetDeviceInfosResult",
                                 result);
 }
@@ -105,7 +118,7 @@ class ServiceVideoCaptureProvider::ServiceProcessObserver
   const base::RepeatingClosure stop_callback_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 ServiceVideoCaptureProvider::ServiceVideoCaptureProvider(
     base::RepeatingCallback<void(const std::string&)> emit_log_message_cb)
     : ServiceVideoCaptureProvider(base::NullCallback(),
@@ -117,12 +130,12 @@ ServiceVideoCaptureProvider::ServiceVideoCaptureProvider(
     : create_accelerator_factory_cb_(std::move(create_accelerator_factory_cb)),
       emit_log_message_cb_(std::move(emit_log_message_cb)),
       launcher_has_connected_to_source_provider_(false) {
-#else   // BUILDFLAG(IS_CHROMEOS_ASH)
+#else   // BUILDFLAG(IS_CHROMEOS)
 ServiceVideoCaptureProvider::ServiceVideoCaptureProvider(
     base::RepeatingCallback<void(const std::string&)> emit_log_message_cb)
     : emit_log_message_cb_(std::move(emit_log_message_cb)),
       launcher_has_connected_to_source_provider_(false) {
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
   if (features::IsVideoCaptureServiceEnabledForOutOfProcess()) {
     service_process_observer_.emplace(
         GetUIThreadTaskRunner({}),
@@ -168,6 +181,20 @@ ServiceVideoCaptureProvider::CreateDeviceLauncher() {
       base::BindRepeating(
           &ServiceVideoCaptureProvider::OnLauncherConnectingToSourceProvider,
           weak_ptr_factory_.GetWeakPtr()));
+}
+
+void ServiceVideoCaptureProvider::OpenNativeScreenCapturePicker(
+    DesktopMediaID::Type type,
+    base::OnceCallback<void(DesktopMediaID::Id)> created_callback,
+    base::OnceCallback<void(webrtc::DesktopCapturer::Source)> picker_callback,
+    base::OnceCallback<void()> cancel_callback,
+    base::OnceCallback<void()> error_callback) {
+  NOTREACHED();
+}
+
+void ServiceVideoCaptureProvider::CloseNativeScreenCapturePicker(
+    DesktopMediaID device_id) {
+  NOTREACHED();
 }
 
 void ServiceVideoCaptureProvider::OnServiceStarted() {
@@ -223,7 +250,7 @@ ServiceVideoCaptureProvider::LazyConnectToService() {
   time_of_last_connect_ = base::TimeTicks::Now();
 
   auto ui_task_runner = GetUIThreadTaskRunner({});
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   mojo::PendingRemote<video_capture::mojom::AcceleratorFactory>
       accelerator_factory;
   if (!create_accelerator_factory_cb_)
@@ -234,7 +261,7 @@ ServiceVideoCaptureProvider::LazyConnectToService() {
       accelerator_factory.InitWithNewPipeAndPassReceiver());
   GetVideoCaptureService().InjectGpuDependencies(
       std::move(accelerator_factory));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
   // Pass active gpu info.
@@ -280,14 +307,24 @@ void ServiceVideoCaptureProvider::GetDeviceInfosAsyncForRetry() {
 
 void ServiceVideoCaptureProvider::OnDeviceInfosReceived(
     scoped_refptr<RefCountedVideoSourceProvider> service_connection,
+    GetSourceInfosResult result,
     const std::vector<media::VideoCaptureDeviceInfo>& infos) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
-  LogGetDeviceInfosResult(get_device_infos_retried_
-                              ? GetDeviceInfosResult::kSucessAfterRetry
-                              : GetDeviceInfosResult::kSucessNoRetry);
+  LogGetDeviceInfosResult(result, get_device_infos_retried_);
   for (GetDeviceInfosCallback& callback : get_device_infos_pending_callbacks_) {
-    std::move(callback).Run(media::mojom::DeviceEnumerationResult::kSuccess,
-                            infos);
+    media::mojom::DeviceEnumerationResult callback_result;
+    switch (result) {
+      case GetSourceInfosResult::kSuccess:
+        callback_result = media::mojom::DeviceEnumerationResult::kSuccess;
+        break;
+      case GetSourceInfosResult::kErrorDroppedRequest:
+        callback_result = media::mojom::DeviceEnumerationResult::
+            kErrorCaptureServiceDroppedRequest;
+        break;
+      default:
+        NOTREACHED() << "Invalid GetSourceInfosResult result " << result;
+    }
+    std::move(callback).Run(callback_result, infos);
   }
   get_device_infos_pending_callbacks_.clear();
 }
@@ -309,9 +346,8 @@ void ServiceVideoCaptureProvider::OnDeviceInfosRequestDropped(
         "retries");
   }
 
-  LogGetDeviceInfosResult(get_device_infos_retried_
-                              ? GetDeviceInfosResult::kFailureAfterRetry
-                              : GetDeviceInfosResult::kFailureNoRetry);
+  LogGetDeviceInfosResult(/*get_source_infos_result=*/std::nullopt,
+                          get_device_infos_retried_);
 
   // After too many retries, we just return an empty list
   for (GetDeviceInfosCallback& callback : get_device_infos_pending_callbacks_) {

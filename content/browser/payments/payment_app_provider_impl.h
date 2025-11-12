@@ -45,13 +45,14 @@ class CONTENT_EXPORT PaymentAppProviderImpl
       const SupportedDelegations& supported_delegations,
       RegistrationIdCallback registration_id_callback,
       InvokePaymentAppCallback callback) override;
-  void UpdatePaymentAppIcon(int64_t registration_id,
-                            const std::string& instrument_key,
-                            const std::string& name,
-                            const std::string& string_encoded_icon,
-                            const std::string& method_name,
-                            const SupportedDelegations& supported_delegations,
-                            UpdatePaymentAppIconCallback callback) override;
+  void UpdatePaymentAppMetadata(
+      int64_t registration_id,
+      const std::string& instrument_key,
+      const std::string& name,
+      const std::string& string_encoded_icon,
+      const std::string& method_name,
+      const SupportedDelegations& supported_delegations,
+      UpdatePaymentAppMetadataCallback callback) override;
   void CanMakePayment(int64_t registration_id,
                       const url::Origin& sw_origin,
                       const std::string& payment_request_id,
@@ -66,6 +67,9 @@ class CONTENT_EXPORT PaymentAppProviderImpl
   void OnClosingOpenedWindow(
       payments::mojom::PaymentEventResponseType reason) override;
 
+  DevToolsBackgroundServicesContextImpl* GetDevTools(
+      const url::Origin& sw_origin);
+
   void InstallPaymentAppForTesting(
       const SkBitmap& app_icon,
       const GURL& sw_js_url,
@@ -78,8 +82,6 @@ class CONTENT_EXPORT PaymentAppProviderImpl
   friend class WebContentsUserData<PaymentAppProviderImpl>;
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 
-  scoped_refptr<DevToolsBackgroundServicesContextImpl> GetDevTools(
-      const url::Origin& sw_origin);
   void StartServiceWorkerForDispatch(
       int64_t registration_id,
       PaymentEventDispatcher::ServiceWorkerStartCallback callback);

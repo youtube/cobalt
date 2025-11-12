@@ -6,7 +6,7 @@
 
 #include "base/android/android_hardware_buffer_compat.h"
 #include "base/containers/contains.h"
-#include "base/numerics/math_constants.h"
+#include "base/numerics/angle_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 
 namespace {}
@@ -23,14 +23,14 @@ ArCore::MinMaxRange FakeArCore::GetTargetFramerateRange() {
   return {30.f, 30.f};
 }
 
-absl::optional<ArCore::InitializeResult> FakeArCore::Initialize(
+std::optional<ArCore::InitializeResult> FakeArCore::Initialize(
     base::android::ScopedJavaLocalRef<jobject> application_context,
     const std::unordered_set<device::mojom::XRSessionFeature>&
         required_features,
     const std::unordered_set<device::mojom::XRSessionFeature>&
         optional_features,
     const std::vector<device::mojom::XRTrackedImagePtr>& tracked_images,
-    absl::optional<ArCore::DepthSensingConfiguration> depth_sensing_config) {
+    std::optional<ArCore::DepthSensingConfiguration> depth_sensing_config) {
   DCHECK(IsOnGlThread());
 
   std::unordered_set<device::mojom::XRSessionFeature> enabled_features;
@@ -40,7 +40,7 @@ absl::optional<ArCore::InitializeResult> FakeArCore::Initialize(
   // Fake device does not support depth for now:
   if (base::Contains(required_features,
                      device::mojom::XRSessionFeature::DEPTH)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (base::Contains(optional_features,
@@ -48,7 +48,7 @@ absl::optional<ArCore::InitializeResult> FakeArCore::Initialize(
     enabled_features.erase(device::mojom::XRSessionFeature::DEPTH);
   }
 
-  return ArCore::InitializeResult(enabled_features, absl::nullopt);
+  return ArCore::InitializeResult(enabled_features, std::nullopt);
 }
 
 void FakeArCore::SetDisplayGeometry(
@@ -100,7 +100,7 @@ std::vector<float> FakeArCore::TransformDisplayUvCoords(
   //    uv[4]=(0.0325521, 0)
   //    uv[6]=(0.967448, 0)
   //
-  // TODO(https://crbug.com/1382576): This logic is quite complicated,
+  // TODO(crbug.com/40877372): This logic is quite complicated,
   // and the current arcore_device_unittest doesn't really care about
   // the details.
 
@@ -192,7 +192,7 @@ gfx::Transform FakeArCore::GetProjectionMatrix(float near, float far) {
   // simulation of ArCore should apply cropping to the underlying fixed-aspect
   // simulated camera image.
   constexpr float fov_half_angle_degrees = 30.f;
-  float base_tan = tanf(fov_half_angle_degrees * base::kPiFloat / 180.f);
+  float base_tan = tanf(base::DegToRad(fov_half_angle_degrees));
   float right_tan;
   float up_tan;
   if (display_rotation_ == display::Display::Rotation::ROTATE_0 ||
@@ -249,20 +249,18 @@ bool FakeArCore::RequestHitTest(
   return true;
 }
 
-absl::optional<uint64_t> FakeArCore::SubscribeToHitTest(
+std::optional<uint64_t> FakeArCore::SubscribeToHitTest(
     mojom::XRNativeOriginInformationPtr nativeOriginInformation,
     const std::vector<mojom::EntityTypeForHitTest>& entity_types,
     mojom::XRRayPtr ray) {
   NOTREACHED();
-  return absl::nullopt;
 }
 
-absl::optional<uint64_t> FakeArCore::SubscribeToHitTestForTransientInput(
+std::optional<uint64_t> FakeArCore::SubscribeToHitTestForTransientInput(
     const std::string& profile_name,
     const std::vector<mojom::EntityTypeForHitTest>& entity_types,
     mojom::XRRayPtr ray) {
   NOTREACHED();
-  return absl::nullopt;
 }
 
 mojom::XRHitTestSubscriptionResultsDataPtr
@@ -324,15 +322,20 @@ mojom::XRLightEstimationDataPtr FakeArCore::GetLightEstimationData() {
   result->light_probe->spherical_harmonics->coefficients.resize(9);
 
   // Initialize reflection_probe to black
+  const uint32_t cube_map_side_size = 16;
+  const uint64_t num_components = mojom::XRCubeMap::kNumComponentsPerPixel;
+  const size_t cube_map_size =
+      cube_map_side_size * cube_map_side_size * num_components;
+
   result->reflection_probe = mojom::XRReflectionProbe::New();
   result->reflection_probe->cube_map = mojom::XRCubeMap::New();
-  result->reflection_probe->cube_map->width_and_height = 16;
-  result->reflection_probe->cube_map->positive_x.resize(16 * 16);
-  result->reflection_probe->cube_map->negative_x.resize(16 * 16);
-  result->reflection_probe->cube_map->positive_y.resize(16 * 16);
-  result->reflection_probe->cube_map->negative_y.resize(16 * 16);
-  result->reflection_probe->cube_map->positive_z.resize(16 * 16);
-  result->reflection_probe->cube_map->negative_z.resize(16 * 16);
+  result->reflection_probe->cube_map->width_and_height = cube_map_side_size;
+  result->reflection_probe->cube_map->positive_x.resize(cube_map_size);
+  result->reflection_probe->cube_map->negative_x.resize(cube_map_size);
+  result->reflection_probe->cube_map->positive_y.resize(cube_map_size);
+  result->reflection_probe->cube_map->negative_y.resize(cube_map_size);
+  result->reflection_probe->cube_map->positive_z.resize(cube_map_size);
+  result->reflection_probe->cube_map->negative_z.resize(cube_map_size);
 
   return result;
 }
@@ -346,7 +349,7 @@ void FakeArCore::CreatePlaneAttachedAnchor(
     const device::Pose& native_origin_from_anchor,
     uint64_t plane_id,
     CreateAnchorCallback callback) {
-  // TODO(992035): Fix this when implementing tests.
+  // TODO(crbug.com/41475117): Fix this when implementing tests.
   std::move(callback).Run(mojom::CreateAnchorResult::FAILURE, 0);
 }
 
@@ -371,7 +374,7 @@ void FakeArCore::DetachAnchor(uint64_t anchor_id) {
 
 mojom::XRTrackedImagesDataPtr FakeArCore::GetTrackedImages() {
   std::vector<mojom::XRTrackedImageDataPtr> images_data;
-  return mojom::XRTrackedImagesData::New(std::move(images_data), absl::nullopt);
+  return mojom::XRTrackedImagesData::New(std::move(images_data), std::nullopt);
 }
 
 void FakeArCore::Pause() {

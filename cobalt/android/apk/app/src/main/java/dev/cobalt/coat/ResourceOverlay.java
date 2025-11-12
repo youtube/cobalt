@@ -15,7 +15,7 @@
 package dev.cobalt.coat;
 
 import android.content.Context;
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
 /**
  * A class for managing the resource overlays of Cobalt. Client can turn on certain feature by

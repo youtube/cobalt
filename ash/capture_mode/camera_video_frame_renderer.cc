@@ -9,10 +9,14 @@
 #include <memory>
 #include <vector>
 
+#include "ash/capture_mode/capture_mode_camera_controller.h"
+#include "ash/capture_mode/capture_mode_controller.h"
 #include "base/check.h"
 #include "cc/trees/layer_tree_frame_sink.h"
 #include "components/viz/common/hit_test/hit_test_region_list.h"
+#include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/returned_resource.h"
+#include "gpu/ipc/client/client_shared_image_interface.h"
 #include "media/renderers/video_resource_updater.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window_tree_host.h"
@@ -37,11 +41,10 @@ CameraVideoFrameRenderer::CameraVideoFrameRenderer(
     const media::VideoCaptureFormat& capture_format,
     bool should_flip_frames_horizontally)
     : host_window_(/*delegate=*/nullptr),
-      video_frame_handler_(/*delegate=*/this,
+      video_frame_handler_(GetContextFactory(),
                            std::move(camera_video_source),
                            capture_format),
-      context_provider_(GetContextFactory()->SharedMainThreadContextProvider()),
-      raster_context_provider_(
+      context_provider_(
           GetContextFactory()->SharedMainThreadRasterContextProvider()),
       should_flip_frames_horizontally_(should_flip_frames_horizontally) {
   host_window_.set_owned_by_parent(false);
@@ -66,15 +69,13 @@ void CameraVideoFrameRenderer::Initialize() {
   layer_tree_frame_sink_->BindToClient(this);
 
   const int max_texture_size =
-      raster_context_provider_->ContextCapabilities().max_texture_size;
+      context_provider_->ContextCapabilities().max_texture_size;
   video_resource_updater_ = std::make_unique<media::VideoResourceUpdater>(
-      context_provider_.get(), raster_context_provider_.get(),
-      layer_tree_frame_sink_.get(), &client_resource_provider_,
-      /*use_stream_video_draw_quad=*/false,
-      /*use_gpu_memory_buffer_resources=*/false,
-      /*use_r16_texture=*/false, max_texture_size);
+      context_provider_.get(), &client_resource_provider_,
+      layer_tree_frame_sink_->shared_image_interface(),
+      /*use_gpu_memory_buffer_resources=*/false, max_texture_size);
 
-  video_frame_handler_.StartHandlingFrames();
+  video_frame_handler_.StartHandlingFrames(/*delegate=*/this);
 }
 
 void CameraVideoFrameRenderer::OnCameraVideoFrame(
@@ -83,6 +84,13 @@ void CameraVideoFrameRenderer::OnCameraVideoFrame(
   DCHECK(video_resource_updater_);
 
   current_video_frame_ = std::move(frame);
+}
+
+void CameraVideoFrameRenderer::OnFatalErrorOrDisconnection() {
+  CaptureModeController::Get()->camera_controller()->OnFrameHandlerFatalError();
+  // `this` will be deleted soon after the above call. "Soon" here because the
+  // `camera_preview_widget_` which indirectly owns `this` is destroyed
+  // asynchronously when `Close()` is called on it.
 }
 
 void CameraVideoFrameRenderer::OnBeginFrameSourcePausedChanged(bool paused) {}
@@ -109,12 +117,12 @@ bool CameraVideoFrameRenderer::OnBeginFrameDerivedImpl(
     frame_for_test = current_video_frame_;
 
   pending_compositor_frame_ack_ = true;
-  video_resource_updater_->ObtainFrameResources(current_video_frame_);
+  video_resource_updater_->ObtainFrameResource(current_video_frame_);
   layer_tree_frame_sink_->SubmitCompositorFrame(
       CreateCompositorFrame(current_begin_frame_ack,
                             std::move(current_video_frame_)),
       /*hit_test_data_changed=*/false);
-  video_resource_updater_->ReleaseFrameResources();
+  video_resource_updater_->ReleaseFrameResource();
 
   if (on_video_frame_rendered_for_test_) {
     DCHECK(frame_for_test);
@@ -136,9 +144,9 @@ void CameraVideoFrameRenderer::SetBeginFrameSource(
     begin_frame_source_->AddObserver(this);
 }
 
-absl::optional<viz::HitTestRegionList>
+std::optional<viz::HitTestRegionList>
 CameraVideoFrameRenderer::BuildHitTestData() {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void CameraVideoFrameRenderer::ReclaimResources(
@@ -258,28 +266,26 @@ viz::CompositorFrame CameraVideoFrameRenderer::CreateCompositorFrame(
   transform.Translate(x_offset, y_offset);
 
   const bool context_opaque = media::IsOpaque(video_frame->format());
-  // Note that `video_frame`'s ownership is moved into `AppendQuads()`. Do not
+  // Note that `video_frame`'s ownership is moved into `AppendQuad()`. Do not
   // access after the `std::move()` below.
-  video_resource_updater_->AppendQuads(
+  video_resource_updater_->AppendQuad(
       render_pass.get(), std::move(video_frame), transform, quad_rect,
       /*visible_quad_rect=*/quad_rect,
       /*mask_filter_info=*/gfx::MaskFilterInfo(),
-      /*clip_rect=*/absl::nullopt, context_opaque,
+      /*clip_rect=*/std::nullopt, context_opaque,
       /*draw_opacity=*/1.0f, /*sorting_context_id=*/0);
   compositor_frame.render_pass_list.emplace_back(std::move(render_pass));
 
   const auto& quad_list = compositor_frame.render_pass_list.back()->quad_list;
   DCHECK_EQ(quad_list.size(), 1u);
-  const viz::DrawQuad::Resources& resources = quad_list.front()->resources;
-  std::vector<viz::ResourceId> resource_ids;
-  resource_ids.reserve(resources.count);
-  for (uint32_t i = 0; i < resources.count; ++i)
-    resource_ids.push_back(resources.ids[i]);
 
-  std::vector<viz::TransferableResource> resource_list;
-  client_resource_provider_.PrepareSendToParent(resource_ids, &resource_list,
-                                                raster_context_provider_.get());
-  compositor_frame.resource_list = std::move(resource_list);
+  auto resource_id = quad_list.front()->resource_id;
+  if (resource_id != viz::kInvalidResourceId) {
+    std::vector<viz::TransferableResource> resource_list;
+    client_resource_provider_.PrepareSendToParent({resource_id}, &resource_list,
+                                                  context_provider_.get());
+    compositor_frame.resource_list = std::move(resource_list);
+  }
 
   return compositor_frame;
 }

@@ -4,41 +4,63 @@
 
 package org.chromium.components.webauthn;
 
+import android.content.Context;
+
+import org.chromium.base.ContextUtils;
 import org.chromium.blink.mojom.Authenticator;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.RenderFrameHost;
-import org.chromium.content_public.browser.WebAuthenticationDelegate;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsStatics;
 import org.chromium.services.service_manager.InterfaceFactory;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.url.Origin;
 
-/**
- * Factory class registered to create Authenticators upon request.
- */
-public class AuthenticatorFactory implements InterfaceFactory<Authenticator> {
+/** Factory class registered to create Authenticators upon request. */
+@NullMarked
+public class AuthenticatorFactory implements InterfaceFactory<@Nullable Authenticator> {
     private final RenderFrameHost mRenderFrameHost;
+    private final CreateConfirmationUiDelegate.Factory mConfirmationFactory;
 
-    public AuthenticatorFactory(RenderFrameHost renderFrameHost) {
+    public AuthenticatorFactory(
+            RenderFrameHost renderFrameHost,
+            CreateConfirmationUiDelegate.Factory confirmationFactory) {
         mRenderFrameHost = renderFrameHost;
+        mConfirmationFactory = confirmationFactory;
     }
 
     @Override
-    public Authenticator createImpl() {
+    public @Nullable Authenticator createImpl() {
         if (mRenderFrameHost == null) {
             return null;
         }
         WebContents webContents = WebContentsStatics.fromRenderFrameHost(mRenderFrameHost);
-        if (webContents == null) {
+        if (webContents == null
+                || WebauthnModeProvider.getInstance().getWebauthnMode(webContents)
+                        == WebauthnMode.NONE) {
             return null;
         }
 
-        WebAuthenticationDelegate delegate = new WebAuthenticationDelegate();
-        @WebAuthenticationDelegate.Support
-        int supportLevel = delegate.getSupportLevel(webContents);
-        if (supportLevel == WebAuthenticationDelegate.Support.NONE) {
-            return null;
+        WindowAndroid window = webContents.getTopLevelNativeWindow();
+        Context context = null;
+        // In practice, `window` is sometimes null for unclear reasons (crbug.com/1459476).
+        if (window != null) {
+            context = window.getActivity().get();
+        }
+        if (context == null) {
+            context = ContextUtils.getApplicationContext();
         }
 
+        CreateConfirmationUiDelegate createConfirmationUiDelegate =
+                mConfirmationFactory == null ? null : mConfirmationFactory.create(webContents);
+        Origin topOrigin = webContents.getMainFrame().getLastCommittedOrigin();
         return new AuthenticatorImpl(
-                delegate.getIntentSender(webContents), mRenderFrameHost, supportLevel);
+                context,
+                webContents,
+                new AuthenticatorImpl.WindowIntentSender(window),
+                createConfirmationUiDelegate,
+                mRenderFrameHost,
+                topOrigin);
     }
 }

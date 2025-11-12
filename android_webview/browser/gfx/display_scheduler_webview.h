@@ -25,6 +25,7 @@ class OverlaysInfoProvider {
   virtual bool IsFrameSinkOverlayed(viz::FrameSinkId frame_sink_id) = 0;
 };
 
+// Lifetime: WebView
 class DisplaySchedulerWebView : public viz::DisplaySchedulerBase,
                                 public viz::SurfaceObserver,
                                 public viz::FrameSinkObserver {
@@ -42,9 +43,12 @@ class DisplaySchedulerWebView : public viz::DisplaySchedulerBase,
   void OutputSurfaceLost() override;
   void ReportFrameTime(
       base::TimeDelta frame_time,
-      base::flat_set<base::PlatformThreadId> thread_ids) override {}
+      base::flat_set<base::PlatformThreadId> animation_thread_ids,
+      base::flat_set<base::PlatformThreadId> renderer_main_thread_ids,
+      base::TimeTicks draw_start,
+      viz::HintSession::BoostType boost_type) override {}
 
-  // DisplayDamageTrackerObserver implementation.
+  // DisplayDamageTracker::Delegate implementation.
   void OnDisplayDamaged(viz::SurfaceId surface_id) override;
   void OnRootFrameMissing(bool missing) override {}
   void OnPendingSurfacesChanged() override {}
@@ -54,24 +58,6 @@ class DisplaySchedulerWebView : public viz::DisplaySchedulerBase,
       const viz::SurfaceId& surface_id) override;
 
   // FrameSinkObserver implementation.
-  void OnRegisteredFrameSinkId(const viz::FrameSinkId& frame_sink_id) override {
-  }
-  void OnInvalidatedFrameSinkId(
-      const viz::FrameSinkId& frame_sink_id) override {}
-  void OnCreatedCompositorFrameSink(const viz::FrameSinkId& frame_sink_id,
-                                    bool is_root) override {}
-  void OnDestroyedCompositorFrameSink(
-      const viz::FrameSinkId& frame_sink_id) override {}
-  void OnRegisteredFrameSinkHierarchy(
-      const viz::FrameSinkId& parent_frame_sink_id,
-      const viz::FrameSinkId& child_frame_sink_id) override {}
-  void OnUnregisteredFrameSinkHierarchy(
-      const viz::FrameSinkId& parent_frame_sink_id,
-      const viz::FrameSinkId& child_frame_sink_id) override {}
-  void OnFrameSinkDidBeginFrame(const viz::FrameSinkId& frame_sink_id,
-                                const viz::BeginFrameArgs& args) override {}
-  void OnFrameSinkDidFinishFrame(const viz::FrameSinkId& frame_sink_id,
-                                 const viz::BeginFrameArgs& args) override {}
   void OnCaptureStarted(const viz::FrameSinkId& frame_sink_id) override;
 
  private:

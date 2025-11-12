@@ -12,10 +12,12 @@
 
 #include <limits>
 
+#include "api/environment/environment.h"
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video_codecs/video_codec.h"
 #include "media/base/media_constants.h"
+#include "modules/video_coding/codecs/av1/dav1d_decoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
@@ -29,14 +31,36 @@ namespace {
 
 constexpr TimeDelta kMaxNextFrameWaitTimeout = TimeDelta::Seconds(1);
 
+std::unique_ptr<VideoDecoder> CreateDecoder(const Environment& env,
+                                            VideoCodecType codec_type) {
+  switch (codec_type) {
+    case VideoCodecType::kVideoCodecVP8:
+      return CreateVp8Decoder(env);
+    case VideoCodecType::kVideoCodecVP9:
+      return VP9Decoder::Create();
+    case VideoCodecType::kVideoCodecH264:
+      return H264Decoder::Create();
+    case VideoCodecType::kVideoCodecAV1:
+      return CreateDav1dDecoder(env);
+    case VideoCodecType::kVideoCodecH265:
+      // No H.265 SW decoder implementation will be provided.
+      return nullptr;
+    case VideoCodecType::kVideoCodecGeneric:
+      return nullptr;
+  }
+}
+
 }  // namespace
 
-IvfVideoFrameGenerator::IvfVideoFrameGenerator(const std::string& file_name)
+IvfVideoFrameGenerator::IvfVideoFrameGenerator(const Environment& env,
+                                               absl::string_view file_name,
+                                               std::optional<int> fps_hint)
     : callback_(this),
       file_reader_(IvfFileReader::Create(FileWrapper::OpenReadOnly(file_name))),
-      video_decoder_(CreateVideoDecoder(file_reader_->GetVideoCodecType())),
-      width_(file_reader_->GetFrameWidth()),
-      height_(file_reader_->GetFrameHeight()) {
+      video_decoder_(CreateDecoder(env, file_reader_->GetVideoCodecType())),
+      original_resolution_({.width = file_reader_->GetFrameWidth(),
+                            .height = file_reader_->GetFrameHeight()}),
+      fps_hint_(fps_hint) {
   RTC_CHECK(video_decoder_) << "No decoder found for file's video codec type";
   VideoDecoder::Settings decoder_settings;
   decoder_settings.set_codec_type(file_reader_->GetVideoCodecType());
@@ -61,7 +85,7 @@ IvfVideoFrameGenerator::~IvfVideoFrameGenerator() {
   video_decoder_.reset();
   {
     MutexLock frame_lock(&frame_decode_lock_);
-    next_frame_ = absl::nullopt;
+    next_frame_ = std::nullopt;
     // Set event in case another thread is waiting on it.
     next_frame_decoded_.Set();
   }
@@ -74,40 +98,58 @@ FrameGeneratorInterface::VideoFrameData IvfVideoFrameGenerator::NextFrame() {
   if (!file_reader_->HasMoreFrames()) {
     file_reader_->Reset();
   }
-  absl::optional<EncodedImage> image = file_reader_->NextFrame();
+  std::optional<EncodedImage> image = file_reader_->NextFrame();
   RTC_CHECK(image);
   // Last parameter is undocumented and there is no usage of it found.
   RTC_CHECK_EQ(WEBRTC_VIDEO_CODEC_OK,
-               video_decoder_->Decode(*image, /*missing_frames=*/false,
-                                      /*render_time_ms=*/0));
+               video_decoder_->Decode(*image, /*render_time_ms=*/0));
   bool decoded = next_frame_decoded_.Wait(kMaxNextFrameWaitTimeout);
   RTC_CHECK(decoded) << "Failed to decode next frame in "
                      << kMaxNextFrameWaitTimeout << ". Can't continue";
 
   MutexLock frame_lock(&frame_decode_lock_);
-  rtc::scoped_refptr<VideoFrameBuffer> buffer =
-      next_frame_->video_frame_buffer();
-  if (width_ != static_cast<size_t>(buffer->width()) ||
-      height_ != static_cast<size_t>(buffer->height())) {
+  scoped_refptr<VideoFrameBuffer> buffer = next_frame_->video_frame_buffer();
+
+  // Set original resolution to resolution of decoded frame.
+  original_resolution_ = {.width = static_cast<size_t>(buffer->width()),
+                          .height = static_cast<size_t>(buffer->width())};
+
+  if (output_resolution_.has_value() &&
+      (output_resolution_->width != original_resolution_.width ||
+       output_resolution_->height != original_resolution_.height)) {
     // Video adapter has requested a down-scale. Allocate a new buffer and
     // return scaled version.
-    rtc::scoped_refptr<I420Buffer> scaled_buffer =
-        I420Buffer::Create(width_, height_);
+    scoped_refptr<I420Buffer> scaled_buffer = I420Buffer::Create(
+        output_resolution_->width, output_resolution_->height);
     scaled_buffer->ScaleFrom(*buffer->ToI420());
     buffer = scaled_buffer;
   }
   return VideoFrameData(buffer, next_frame_->update_rect());
 }
 
+void IvfVideoFrameGenerator::SkipNextFrame() {
+  MutexLock lock(&lock_);
+  next_frame_decoded_.Reset();
+  RTC_CHECK(file_reader_);
+  if (!file_reader_->HasMoreFrames()) {
+    file_reader_->Reset();
+  }
+  std::optional<EncodedImage> image = file_reader_->NextFrame();
+  RTC_CHECK(image);
+  // Last parameter is undocumented and there is no usage of it found.
+  // Frame has to be decoded in case it is a key frame.
+  RTC_CHECK_EQ(WEBRTC_VIDEO_CODEC_OK,
+               video_decoder_->Decode(*image, /*render_time_ms=*/0));
+}
+
 void IvfVideoFrameGenerator::ChangeResolution(size_t width, size_t height) {
   MutexLock lock(&lock_);
-  width_ = width;
-  height_ = height;
+  output_resolution_ = {.width = width, .height = height};
 }
 
 FrameGeneratorInterface::Resolution IvfVideoFrameGenerator::GetResolution()
     const {
-  return {.width = width_, .height = height_};
+  return output_resolution_.value_or(original_resolution_);
 }
 
 int32_t IvfVideoFrameGenerator::DecodedCallback::Decoded(
@@ -123,8 +165,8 @@ int32_t IvfVideoFrameGenerator::DecodedCallback::Decoded(
 }
 void IvfVideoFrameGenerator::DecodedCallback::Decoded(
     VideoFrame& decoded_image,
-    absl::optional<int32_t> decode_time_ms,
-    absl::optional<uint8_t> qp) {
+    std::optional<int32_t> decode_time_ms,
+    std::optional<uint8_t> qp) {
   reader_->OnFrameDecoded(decoded_image);
 }
 
@@ -132,20 +174,6 @@ void IvfVideoFrameGenerator::OnFrameDecoded(const VideoFrame& decoded_frame) {
   MutexLock lock(&frame_decode_lock_);
   next_frame_ = decoded_frame;
   next_frame_decoded_.Set();
-}
-
-std::unique_ptr<VideoDecoder> IvfVideoFrameGenerator::CreateVideoDecoder(
-    VideoCodecType codec_type) {
-  if (codec_type == VideoCodecType::kVideoCodecVP8) {
-    return VP8Decoder::Create();
-  }
-  if (codec_type == VideoCodecType::kVideoCodecVP9) {
-    return VP9Decoder::Create();
-  }
-  if (codec_type == VideoCodecType::kVideoCodecH264) {
-    return H264Decoder::Create();
-  }
-  return nullptr;
 }
 
 }  // namespace test

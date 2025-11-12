@@ -29,6 +29,12 @@ class ShortcutsProvider : public AutocompleteProvider,
   // AutocompleteMatch struct.  Avoiding constructing the larger struct for
   // every such match can save significant time when there are many shortcut
   // matches to process.
+  // TODO(manukh): We should probably merge `ShortcutMatch` into
+  //   `ShortcutsDatabase::Shortcut`. There's a 4-deep hierarchy of structs:
+  //   - `AutocompleteMatch` are created from `ShortcutMatch`es
+  //   - `ShortcutMatch`es own `ShortcutsDatabase::Shortcut`s
+  //   - `ShortcutsDatabase::Shortcut`s own
+  //     `ShortcutsDatabase::Shortcut::MatchCore`s
   struct ShortcutMatch {
     ShortcutMatch(int relevance,
                   int aggregate_number_of_hits,
@@ -72,8 +78,8 @@ class ShortcutsProvider : public AutocompleteProvider,
   // Performs the autocomplete matching and scoring. Populates matches results
   // with scoring signals for ML models if enabled. Only populates signals for
   // ULR matches for now.
-  void GetMatches(const AutocompleteInput& input,
-                  bool populate_scoring_signals);
+  void DoAutocomplete(const AutocompleteInput& input,
+                      bool populate_scoring_signals);
 
   // Creates a shortcut match by aggregating the scoring factors from a vector
   // of `shortcuts`. Specifically:
@@ -83,23 +89,21 @@ class ShortcutsProvider : public AutocompleteProvider,
   // - Considers the shortest contents when picking a shortcut.
   // Returns the shortcut match with the aggregated score.
   ShortcutMatch CreateScoredShortcutMatch(
-      const std::u16string& terms,
+      size_t input_length,
       const GURL& stripped_destination_url,
       const std::vector<const ShortcutsDatabase::Shortcut*>& shortcuts,
       int max_relevance);
 
-  // Returns an AutocompleteMatch corresponding to `shortcut`. Assigns it
-  // `stripped_destination_url` and `relevance` in the process, and highlights
+  // Returns an AutocompleteMatch corresponding to `shortcut_match`. Highlights
   // the description and contents against `input`, which should be the
   // normalized version of the user's input. `input` and `fixed_up_input_text`
   // are used to decide what can be inlined.
-  AutocompleteMatch ShortcutToACMatch(
-      const ShortcutsDatabase::Shortcut& shortcut,
-      const GURL& stripped_destination_url,
+  AutocompleteMatch ShortcutMatchToACMatch(
+      const ShortcutMatch& shortcut_match,
       int relevance,
       const AutocompleteInput& input,
       const std::u16string& fixed_up_input_text,
-      const std::u16string term_string);
+      const std::u16string& lower_input);
 
   // Returns iterator to first item in |shortcuts_map_| matching |keyword|.
   // Returns shortcuts_map_.end() if there are no matches.
@@ -110,8 +114,8 @@ class ShortcutsProvider : public AutocompleteProvider,
   // The default max relevance unless overridden by a field trial.
   static const int kShortcutsProviderDefaultMaxRelevance;
 
-  raw_ptr<AutocompleteProviderClient> client_{};
-  scoped_refptr<ShortcutsBackend> backend_{};
+  raw_ptr<AutocompleteProviderClient> client_ = nullptr;
+  scoped_refptr<ShortcutsBackend> backend_;
   bool initialized_{};
 };
 

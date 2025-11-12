@@ -14,6 +14,7 @@
 #include "chrome/browser/ash/crostini/crostini_security_delegate.h"
 #include "chrome/browser/ash/guest_os/guest_os_security_delegate.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_service.h"
+#include "chrome/browser/ash/guest_os/public/guest_os_service_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -34,14 +35,14 @@ GuestOsWaylandServer::ScopedServer::~ScopedServer() = default;
 void GuestOsWaylandServer::ListenOnSocket(
     const vm_tools::wl::ListenOnSocketRequest& request,
     base::ScopedFD socket_fd,
-    base::OnceCallback<void(absl::optional<std::string>)> response_callback) {
+    base::OnceCallback<void(std::optional<std::string>)> response_callback) {
   Profile* profile = ProfileManager::GetPrimaryUserProfile();
   if (!profile || ash::ProfileHelper::GetUserIdHashFromProfile(profile) !=
                       request.desc().owner_id()) {
     std::move(response_callback).Run({"Invalid owner_id"});
     return;
   }
-  GuestOsService::GetForProfile(profile)->WaylandServer()->Listen(
+  GuestOsServiceFactory::GetForProfile(profile)->WaylandServer()->Listen(
       std::move(socket_fd), request.desc().type(), request.desc().name(),
       std::move(response_callback));
 }
@@ -49,22 +50,34 @@ void GuestOsWaylandServer::ListenOnSocket(
 // static
 void GuestOsWaylandServer::CloseSocket(
     const vm_tools::wl::CloseSocketRequest& request,
-    base::OnceCallback<void(absl::optional<std::string>)> response_callback) {
+    base::OnceCallback<void(std::optional<std::string>)> response_callback) {
   Profile* profile = ProfileManager::GetPrimaryUserProfile();
   if (!profile || ash::ProfileHelper::GetUserIdHashFromProfile(profile) !=
                       request.desc().owner_id()) {
     std::move(response_callback).Run({"Invalid owner_id"});
     return;
   }
-  GuestOsService::GetForProfile(profile)->WaylandServer()->Close(
+  GuestOsServiceFactory::GetForProfile(profile)->WaylandServer()->Close(
       request.desc().type(), request.desc().name(),
       std::move(response_callback));
 }
 
 GuestOsWaylandServer::GuestOsWaylandServer(Profile* profile)
-    : profile_(profile) {}
+    : profile_(profile) {
+  // Cleanup is best-effort, so don't bother if for some reason we
+  // can't get a handle to the service (like tests).
+  if (auto* concierge = ash::ConciergeClient::Get(); concierge) {
+    concierge->AddObserver(this);
+  }
+}
 
-GuestOsWaylandServer::~GuestOsWaylandServer() = default;
+GuestOsWaylandServer::~GuestOsWaylandServer() {
+  // ConciergeClient may be destroyed prior to GuestOsWaylandServer in tests.
+  // Therefore we do this instead of ScopedObservation.
+  if (auto* concierge = ash::ConciergeClient::Get(); concierge) {
+    concierge->RemoveObserver(this);
+  }
+}
 
 // Returns a weak handle to the security delegate for the VM with the given
 // |name| and |type|, if one exists, and nullptr otherwise.
@@ -93,22 +106,23 @@ void GuestOsWaylandServer::Listen(base::ScopedFD fd,
   switch (type) {
     case vm_tools::apps::TERMINA:
       crostini::CrostiniSecurityDelegate::Build(
-          profile_,
+          profile_, name,
           base::BindOnce(&GuestOsWaylandServer::OnSecurityDelegateCreated,
                          weak_factory_.GetWeakPtr(), std::move(fd), type, name,
                          std::move(callback)));
       return;
     case vm_tools::apps::BOREALIS:
       borealis::BorealisSecurityDelegate::Build(
-          profile_,
+          profile_, name,
           base::BindOnce(&GuestOsWaylandServer::OnSecurityDelegateCreated,
                          weak_factory_.GetWeakPtr(), std::move(fd), type, name,
                          std::move(callback)));
       return;
     default:
       // For all other VMs, provide the minimal capability-set.
-      OnSecurityDelegateCreated(std::move(fd), type, name, std::move(callback),
-                                std::make_unique<GuestOsSecurityDelegate>());
+      OnSecurityDelegateCreated(
+          std::move(fd), type, name, std::move(callback),
+          std::make_unique<GuestOsSecurityDelegate>(name));
       return;
   }
 }
@@ -120,7 +134,7 @@ void GuestOsWaylandServer::Close(vm_tools::apps::VmType type,
     LOG(WARNING) << "Trying to close non-existent server for " << name
                  << "(type=" << type << ")";
   }
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
 }
 
 void GuestOsWaylandServer::OnSecurityDelegateCreated(
@@ -153,7 +167,15 @@ void GuestOsWaylandServer::OnServerCreated(
   servers_[type].insert_or_assign(
       std::move(name),
       std::make_unique<ScopedServer>(std::move(handle), delegate));
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
+}
+
+void GuestOsWaylandServer::ConciergeServiceStarted() {
+  // Do nothing.
+}
+
+void GuestOsWaylandServer::ConciergeServiceStopped() {
+  servers_.clear();
 }
 
 }  // namespace guest_os

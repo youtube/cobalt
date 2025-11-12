@@ -36,6 +36,7 @@ PASS screen.onchange == "LEFTOVER" is false
 PASS screen.orientation == "LEFTOVER" is false
 PASS screen.pixelDepth == "LEFTOVER" is false
 PASS screen.removeEventListener == "LEFTOVER" is false
+PASS screen.when == "LEFTOVER" is false
 PASS screen.width == "LEFTOVER" is false
 PASS scrollbars.visible == "LEFTOVER" is false
 PASS statusbar.visible == "LEFTOVER" is false

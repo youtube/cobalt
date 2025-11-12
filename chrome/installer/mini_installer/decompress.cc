@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/mini_installer/decompress.h"
 
 #include <windows.h>
@@ -218,7 +223,7 @@ bool InitializeFdi() {
         L"C:\\Windows\\system32\\cabinet.dll",
     };
 
-    wchar_t path[MAX_PATH] = {0};
+    wchar_t path[MAX_PATH] = {};
     for (size_t i = 0; i < _countof(candidate_paths); ++i) {
       path[0] = L'\0';
       DWORD result =
@@ -278,8 +283,15 @@ bool Expand(const wchar_t* source, const wchar_t* destination) {
   g_FDICopy(fdi, source_name_utf8, source_path_utf8, 0, &Notify, nullptr,
             &context);
   g_FDIDestroy(fdi);
-  if (context.succeeded)
+  if (context.succeeded) {
+    // https://crbug.com/1443320: We see crashes on Windows 10 when running
+    // setup.exe in which it appears that an entire hunk of the file is zeros or
+    // random memory. There is nothing out of the ordinary in the way that this
+    // file is written (0x8000 byte chunks via normal WriteFile calls). As an
+    // experiment, flush the file before closing it.
+    ::FlushFileBuffers(context.dest_file.GetHandleUnsafe());
     return true;
+  }
 
   // Delete the output file if it was created.
   if (context.dest_file.IsValid())

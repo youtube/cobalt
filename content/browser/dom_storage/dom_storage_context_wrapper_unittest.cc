@@ -4,12 +4,14 @@
 
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/uuid.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/origin_agent_cluster_isolation_state.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
@@ -39,8 +41,11 @@ class DOMStorageContextWrapperTest : public testing::Test {
     security_policy->AddFutureIsolatedOrigins(
         {test_storage_key1_.origin(), test_storage_key2_.origin()},
         ChildProcessSecurityPolicy::IsolatedOriginSource::TEST);
-    IsolationContext isolation_context(BrowsingInstanceId(1), &browser_context_,
-                                       /*is_guest=*/false, /*is_fenced=*/false);
+    IsolationContext isolation_context(
+        BrowsingInstanceId(1), &browser_context_,
+        /*is_guest=*/false, /*is_fenced=*/false,
+        OriginAgentClusterIsolationState::CreateForDefaultIsolation(
+            &browser_context_));
     security_policy->LockProcessForTesting(
         isolation_context, kTestProcessIdOrigin1,
         test_storage_key1_.origin().GetURL());
@@ -61,7 +66,7 @@ class DOMStorageContextWrapperTest : public testing::Test {
   }
 
  protected:
-  void OnBadMessage(base::StringPiece reason) {
+  void OnBadMessage(std::string_view reason) {
     bad_message_called_ = true;
     bad_message_ = std::string(reason);
   }
@@ -96,7 +101,7 @@ class DOMStorageContextWrapperTest : public testing::Test {
 TEST_F(DOMStorageContextWrapperTest,
        OpenLocalStorageProcessLockedToOtherStorageKey) {
   mojo::Remote<blink::mojom::StorageArea> area;
-  context_->OpenLocalStorage(test_storage_key2_, absl::nullopt,
+  context_->OpenLocalStorage(test_storage_key2_, std::nullopt,
                              area.BindNewPipeAndPassReceiver(),
                              CreateSecurityPolicyHandle(kTestProcessIdOrigin1),
                              MakeBadMessageCallback());
@@ -123,7 +128,7 @@ TEST_F(DOMStorageContextWrapperTest,
 TEST_F(DOMStorageContextWrapperTest,
        BindStorageAreaProcessLockedToOtherStorageKey) {
   mojo::Remote<blink::mojom::StorageArea> area;
-  context_->BindStorageArea(test_storage_key2_, absl::nullopt,
+  context_->BindStorageArea(test_storage_key2_, std::nullopt,
                             test_namespace_id_,
                             area.BindNewPipeAndPassReceiver(),
                             CreateSecurityPolicyHandle(kTestProcessIdOrigin1),

@@ -9,10 +9,12 @@
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "base/metrics/histogram_functions.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "media/capture/video/fake_video_capture_device.h"
 #include "media/capture/video/video_capture_device_info.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -70,7 +72,7 @@ static void DiscardDeviceInfosAndCallContinuation(
 
 namespace video_capture {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 DeviceFactoryImpl::DeviceFactoryImpl(
     std::unique_ptr<media::VideoCaptureSystem> capture_system,
     media::MojoMjpegDecodeAcceleratorFactoryCB jpeg_decoder_factory_callback,
@@ -78,6 +80,10 @@ DeviceFactoryImpl::DeviceFactoryImpl(
     : capture_system_(std::move(capture_system)),
       jpeg_decoder_factory_callback_(std::move(jpeg_decoder_factory_callback)),
       jpeg_decoder_task_runner_(std::move(jpeg_decoder_task_runner)),
+      collision_delay_timer_(FROM_HERE,
+                             base::Seconds(3),
+                             this,
+                             &DeviceFactoryImpl::RecordCollision),
       has_called_get_device_infos_(false),
       weak_factory_(this) {}
 #else
@@ -85,7 +91,7 @@ DeviceFactoryImpl::DeviceFactoryImpl(
     std::unique_ptr<media::VideoCaptureSystem> capture_system)
     : capture_system_(std::move(capture_system)),
       has_called_get_device_infos_(false) {}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 DeviceFactoryImpl::~DeviceFactoryImpl() = default;
 
@@ -95,33 +101,34 @@ void DeviceFactoryImpl::GetDeviceInfos(GetDeviceInfosCallback callback) {
   has_called_get_device_infos_ = true;
 }
 
-void DeviceFactoryImpl::CreateDevice(const std::string& device_id,
-                                     CreateDeviceCallback callback) {
-  CreateDeviceInternal(device_id, /*device_receiver=*/absl::nullopt,
-                       std::move(callback));
+#if BUILDFLAG(IS_CHROMEOS)
+void DeviceFactoryImpl::RecordCollision() {
+  base::UmaHistogramBoolean("ChromeOS.Camera.ConcurrentAccess", true);
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-void DeviceFactoryImpl::CreateDeviceInternal(
-    const std::string& device_id,
-    absl::optional<mojo::PendingReceiver<mojom::Device>> device_receiver,
-    absl::optional<CreateDeviceCallback> create_callback) {
+void DeviceFactoryImpl::CreateDevice(const std::string& device_id,
+                                     CreateDeviceCallback create_callback) {
+#if BUILDFLAG(IS_CHROMEOS)
   auto active_device_iter = active_devices_by_id_.find(device_id);
   if (active_device_iter != active_devices_by_id_.end()) {
-    // The requested device is already in use.
-    // Revoke the access and close the device, then callback the device or bind
-    // to the new receiver.
-    std::unique_ptr<DeviceMediaToMojoAdapter>& device_entry =
-        active_device_iter->second;
-    device_entry->Stop();
-    DCHECK(create_callback);
-    DeviceInfo info{device_entry.get(), media::VideoCaptureError::kNone};
-    std::move(*create_callback).Run(std::move(info));
+    // The requested device is already in use, this only happens when lacros and
+    // ash tries to access the camera at the same time.
+    // In this case, the second request will be rejected.
+    DeviceInfo info{
+        nullptr,
+        media::VideoCaptureError::kVideoCaptureDeviceFactorySecondCreateDenied};
+    std::move(create_callback).Run(std::move(info));
+    collision_delay_timer_.Reset();
     return;
   }
 
+  base::UmaHistogramBoolean("ChromeOS.Camera.ConcurrentAccess", false);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   auto create_and_add_new_device_cb = base::BindOnce(
       &DeviceFactoryImpl::CreateAndAddNewDevice, weak_factory_.GetWeakPtr(),
-      device_id, std::move(device_receiver), std::move(create_callback));
+      device_id, std::move(create_callback));
 
   if (has_called_get_device_infos_) {
     std::move(create_and_add_new_device_cb).Run();
@@ -168,16 +175,12 @@ void DeviceFactoryImpl::RegisterVirtualDevicesChangedObserver(
 
 void DeviceFactoryImpl::CreateAndAddNewDevice(
     const std::string& device_id,
-    absl::optional<mojo::PendingReceiver<mojom::Device>> device_receiver,
-    absl::optional<CreateDeviceCallback> create_callback) {
-  DCHECK(create_callback);
-
+    CreateDeviceCallback create_callback) {
   media::VideoCaptureErrorOrDevice device_status =
       capture_system_->CreateDevice(device_id);
   if (!device_status.ok()) {
-    DCHECK(create_callback);
     DeviceInfo info{nullptr, device_status.error()};
-    std::move(*create_callback).Run(std::move(info));
+    std::move(create_callback).Run(std::move(info));
     return;
   }
 
@@ -186,20 +189,20 @@ void DeviceFactoryImpl::CreateAndAddNewDevice(
   std::unique_ptr<media::VideoCaptureDevice> media_device =
       device_status.ReleaseDevice();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   device_entry = std::make_unique<DeviceMediaToMojoAdapter>(
       std::move(media_device), jpeg_decoder_factory_callback_,
       jpeg_decoder_task_runner_);
-#elif BUILDFLAG(IS_WIN)  // BUILDFLAG(IS_CHROMEOS_ASH)
+#elif BUILDFLAG(IS_WIN)  // BUILDFLAG(IS_CHROMEOS)
   device_entry = std::make_unique<DeviceMediaToMojoAdapter>(
       std::move(media_device), capture_system_->GetFactory());
 #else                    // BUILDFLAG(IS_WIN)
   device_entry =
       std::make_unique<DeviceMediaToMojoAdapter>(std::move(media_device));
-#endif                   // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_WIN)
+#endif                   // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_WIN)
 
   DeviceInfo info{device_entry.get(), media::VideoCaptureError::kNone};
-  std::move(*create_callback).Run(std::move(info));
+  std::move(create_callback).Run(std::move(info));
 
   active_devices_by_id_[device_id] = std::move(device_entry);
 }

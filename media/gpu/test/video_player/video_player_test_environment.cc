@@ -9,11 +9,10 @@
 #include <utility>
 
 #include "base/system/sys_info.h"
-#include "build/chromeos_buildflags.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_types.h"
 #include "media/gpu/buildflags.h"
-#include "media/gpu/test/video.h"
+#include "media/gpu/test/video_bitstream.h"
 #include "media/gpu/test/video_player/decoder_wrapper.h"
 
 namespace media {
@@ -33,49 +32,35 @@ VideoPlayerTestEnvironment* VideoPlayerTestEnvironment::Create(
     const base::FilePath& output_folder,
     const FrameOutputConfig& frame_output_config,
     const std::vector<base::test::FeatureRef>& enabled_features,
-    const std::vector<base::test::FeatureRef>& disabled_features) {
-  auto video = std::make_unique<media::test::Video>(
+    const std::vector<base::test::FeatureRef>& disabled_features,
+    const bool need_task_environment) {
+  auto video = VideoBitstream::Create(
       video_path.empty() ? base::FilePath(kDefaultTestVideoPath) : video_path,
       video_metadata_path);
-  if (!video->Load()) {
+  if (!video) {
     LOG(ERROR) << "Failed to load " << video_path;
     return nullptr;
   }
 
-  // TODO(b/182008564) Add checks to make sure no features are duplicated, and
-  // there is no intersection between the enabled and disabled set.
-  std::vector<base::test::FeatureRef> combined_enabled_features(
-      enabled_features);
-  std::vector<base::test::FeatureRef> combined_disabled_features(
-      disabled_features);
-#if BUILDFLAG(USE_VAAPI)
-  // Disable this feature so that the decoder test can test a
-  // resolution which is denied for the sake of performance. See
-  // b/171041334.
-  combined_disabled_features.push_back(
-      media::kVaapiEnforceVideoMinMaxResolution);
-#endif
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-  // TODO(b/255626192): remove once enabled by default.
-  combined_enabled_features.push_back(media::kChromeOSHWAV1Decoder);
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-
   return new VideoPlayerTestEnvironment(
       std::move(video), validator_type, implementation, linear_output,
-      output_folder, frame_output_config, combined_enabled_features,
-      combined_disabled_features);
+      output_folder, frame_output_config, enabled_features, disabled_features,
+      need_task_environment);
 }
 
 VideoPlayerTestEnvironment::VideoPlayerTestEnvironment(
-    std::unique_ptr<media::test::Video> video,
+    std::unique_ptr<media::test::VideoBitstream> video,
     ValidatorType validator_type,
     const DecoderImplementation implementation,
     bool linear_output,
     const base::FilePath& output_folder,
     const FrameOutputConfig& frame_output_config,
     const std::vector<base::test::FeatureRef>& enabled_features,
-    const std::vector<base::test::FeatureRef>& disabled_features)
-    : VideoTestEnvironment(enabled_features, disabled_features),
+    const std::vector<base::test::FeatureRef>& disabled_features,
+    const bool need_task_environment)
+    : VideoTestEnvironment(enabled_features,
+                           disabled_features,
+                           need_task_environment),
       video_(std::move(video)),
       validator_type_(validator_type),
       implementation_(implementation),
@@ -85,7 +70,7 @@ VideoPlayerTestEnvironment::VideoPlayerTestEnvironment(
 
 VideoPlayerTestEnvironment::~VideoPlayerTestEnvironment() = default;
 
-const media::test::Video* VideoPlayerTestEnvironment::Video() const {
+const media::test::VideoBitstream* VideoPlayerTestEnvironment::Video() const {
   return video_.get();
 }
 

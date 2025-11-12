@@ -7,12 +7,13 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "build/buildflag.h"
+#include "components/guest_view/buildflags/buildflags.h"
 #include "components/security_interstitials/content/security_interstitial_page.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/cert/cert_status_flags.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_GUEST_VIEW)
 #include "components/guest_view/browser/guest_view_base.h"
 #endif
 
@@ -22,21 +23,18 @@ namespace {
 // that uses SSL interstitials. Returns false if a plain error page should be
 // used instead.
 bool WebContentsUsesInterstitials(content::NavigationHandle* handle) {
-  content::WebContents* web_contents = handle->GetWebContents();
-  if (web_contents == web_contents->GetResponsibleWebContents()) {
-    // Outermost contents (e.g. regular tabs) use interstitials.
-    return true;
-  }
-
-#if BUILDFLAG(IS_ANDROID)
-  return false;
+#if !BUILDFLAG(ENABLE_GUEST_VIEW)
+  // Guests are the only remaining use of inner WebContents, so without them
+  // `handle`'s WebContents is always the outermost one, and should use
+  // interstitials.
+  return true;
 #else
   guest_view::GuestViewBase* guest =
-      guest_view::GuestViewBase::FromWebContents(web_contents);
+      guest_view::GuestViewBase::FromNavigationHandle(handle);
   if (!guest) {
-    // Non-guest view inner WebContents should always show error pages instead
-    // of interstitials.
-    return false;
+    // GuestViews are the only remaining inner WebContents, so show an
+    // interstitial if this isn't a guest.
+    return true;
   }
 
   // Some guest view types still show SSL interstitials.
@@ -47,15 +45,13 @@ bool WebContentsUsesInterstitials(content::NavigationHandle* handle) {
 }  // namespace
 
 SSLErrorNavigationThrottle::SSLErrorNavigationThrottle(
-    content::NavigationHandle* navigation_handle,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
+    content::NavigationThrottleRegistry& registry,
     SSLErrorNavigationThrottle::HandleSSLErrorCallback
         handle_ssl_error_callback,
     IsInHostedAppCallback is_in_hosted_app_callback,
     ShouldIgnoreInterstitialBecauseNavigationDefaultedToHttpsCallback
         should_ignore_interstitial_because_navigation_defaulted_to_https_callback)
-    : content::NavigationThrottle(navigation_handle),
-      ssl_cert_reporter_(std::move(ssl_cert_reporter)),
+    : content::NavigationThrottle(registry),
       handle_ssl_error_callback_(std::move(handle_ssl_error_callback)),
       is_in_hosted_app_callback_(std::move(is_in_hosted_app_callback)),
       should_ignore_interstitial_because_navigation_defaulted_to_https_callback_(
@@ -63,7 +59,7 @@ SSLErrorNavigationThrottle::SSLErrorNavigationThrottle(
               should_ignore_interstitial_because_navigation_defaulted_to_https_callback)) {
 }
 
-SSLErrorNavigationThrottle::~SSLErrorNavigationThrottle() {}
+SSLErrorNavigationThrottle::~SSLErrorNavigationThrottle() = default;
 
 content::NavigationThrottle::ThrottleCheckResult
 SSLErrorNavigationThrottle::WillFailRequest() {
@@ -79,9 +75,10 @@ SSLErrorNavigationThrottle::WillFailRequest() {
   }
 
   // Do not set special error page HTML for non-primary pages (e.g. regular
-  // subframe, prerendering, fenced-frame, portal). Those are handled as normal
-  // network errors.
-  if (!handle->IsInPrimaryMainFrame() ||
+  // subframe, prerendering, fenced-frame). Those are handled as normal
+  // network errors. Some guest views are an exception if kGuestViewMPArch is
+  // enabled, as their main frame won't be a primary main frame.
+  if (!(handle->IsInPrimaryMainFrame() || handle->IsGuestViewMainFrame()) ||
       !WebContentsUsesInterstitials(handle)) {
     return content::NavigationThrottle::PROCEED;
   }
@@ -100,8 +97,7 @@ SSLErrorNavigationThrottle::WillFailRequest() {
   int cert_status = info.cert_status;
   QueueShowInterstitial(std::move(handle_ssl_error_callback_),
                         handle->GetWebContents(), handle->GetNetErrorCode(),
-                        cert_status, info, handle->GetURL(),
-                        std::move(ssl_cert_reporter_));
+                        cert_status, info, handle->GetURL());
   return content::NavigationThrottle::ThrottleCheckResult(
       content::NavigationThrottle::DEFER);
 }
@@ -117,9 +113,9 @@ SSLErrorNavigationThrottle::WillProcessResponse() {
   }
 
   // Do not set special error page HTML for non-primary pages (e.g. regular
-  // subframe, prerendering, fenced-frame, portal). Those are handled as normal
+  // subframe, prerendering, fenced-frame). Those are handled as normal
   // network errors.
-  if (!handle->IsInPrimaryMainFrame() ||
+  if (!(handle->IsInPrimaryMainFrame() || handle->IsGuestViewMainFrame()) ||
       !WebContentsUsesInterstitials(handle)) {
     return content::NavigationThrottle::PROCEED;
   }
@@ -130,14 +126,14 @@ SSLErrorNavigationThrottle::WillProcessResponse() {
   // through the interstitial will continue the navigation in a regular browser
   // window.
   if (std::move(is_in_hosted_app_callback_).Run(handle->GetWebContents())) {
-    QueueShowInterstitial(
-        std::move(handle_ssl_error_callback_), handle->GetWebContents(),
-        // The navigation handle's net error code will be
-        // net::OK, because the net stack has allowed the
-        // response to proceed. Synthesize a net error from
-        // the cert status instead.
-        net::MapCertStatusToNetError(cert_status), cert_status, info,
-        handle->GetURL(), std::move(ssl_cert_reporter_));
+    QueueShowInterstitial(std::move(handle_ssl_error_callback_),
+                          handle->GetWebContents(),
+                          // The navigation handle's net error code will be
+                          // net::OK, because the net stack has allowed the
+                          // response to proceed. Synthesize a net error from
+                          // the cert status instead.
+                          net::MapCertStatusToNetError(cert_status),
+                          cert_status, info, handle->GetURL());
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::DEFER);
   }
@@ -155,14 +151,12 @@ void SSLErrorNavigationThrottle::QueueShowInterstitial(
     int net_error,
     int cert_status,
     const net::SSLInfo& ssl_info,
-    const GURL& request_url,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter) {
+    const GURL& request_url) {
   // It is safe to call this without posting because SSLErrorHandler will always
   // call ShowInterstitial asynchronously, giving the throttle time to defer the
   // navigation.
   std::move(handle_ssl_error_callback)
       .Run(web_contents, net_error, ssl_info, request_url,
-           std::move(ssl_cert_reporter),
            base::BindOnce(&SSLErrorNavigationThrottle::ShowInterstitial,
                           weak_ptr_factory_.GetWeakPtr(), net_error));
 }
@@ -177,10 +171,10 @@ void SSLErrorNavigationThrottle::ShowInterstitial(
   content::NavigationHandle* handle = navigation_handle();
 
   // Do not display insterstitials for SSL errors from non-primary pages (e.g.
-  // prerendering, fenced-frame, portal). For prerendering specifically, we
+  // prerendering, fenced-frame). For prerendering specifically, we
   // should already have canceled the prerender from OnSSLCertificateError
   // before the throttle runs.
-  DCHECK(handle->IsInPrimaryMainFrame());
+  DCHECK(handle->IsInPrimaryMainFrame() || handle->IsGuestViewMainFrame());
 
   security_interstitials::SecurityInterstitialTabHelper::AssociateBlockingPage(
       handle, std::move(blocking_page));

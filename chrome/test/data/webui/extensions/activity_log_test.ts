@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ActivityLogExtensionPlaceholder, ExtensionsActivityLogElement, navigation, Page} from 'chrome://extensions/extensions.js';
-
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {ActivityLogExtensionPlaceholder, ExtensionsActivityLogElement} from 'chrome://extensions/extensions.js';
+import {navigation, Page} from 'chrome://extensions/extensions.js';
 import {assertDeepEquals, assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
+
 import {TestService} from './test_service.js';
 import {createExtensionInfo, testVisible} from './test_util.js';
 
@@ -75,29 +76,28 @@ suite('ExtensionsActivityLogTest', function() {
   // needed for iron-list as it reuses components but hides them when not in
   // use.
   function getStreamItems() {
-    return activityLog.shadowRoot!.querySelector('activity-log-stream')!
-        .shadowRoot!.querySelectorAll('activity-log-stream-item:not([hidden])');
+    return activityLog.shadowRoot.querySelector('activity-log-stream')!
+        .shadowRoot.querySelectorAll('activity-log-stream-item:not([hidden])');
   }
 
-  test('clicking on back button navigates to the details page', function() {
-    flush();
-
+  test('clicking on back button navigates to the details page', async () => {
     let currentPage = null;
     navigation.addListener(newPage => {
       currentPage = newPage;
     });
 
     activityLog.$.closeButton.click();
+    await microtasksFinished();
     assertDeepEquals(
         currentPage, {page: Page.DETAILS, extensionId: EXTENSION_ID});
   });
 
   test(
       'clicking on back button for a placeholder page navigates to list view',
-      function() {
+      async () => {
         activityLog.extensionInfo = {id: EXTENSION_ID, isPlaceholder: true};
 
-        flush();
+        await microtasksFinished();
 
         let currentPage = null;
         navigation.addListener(newPage => {
@@ -105,40 +105,41 @@ suite('ExtensionsActivityLogTest', function() {
         });
 
         activityLog.$.closeButton.click();
+        await microtasksFinished();
         assertDeepEquals(currentPage, {page: Page.LIST});
       });
 
   test('tab transitions', async () => {
-    flush();
-
     // Default view should be the history view.
     boundTestVisible('activity-log-history', true);
 
     // Navigate to the activity log stream.
-    activityLog.shadowRoot!.querySelector('cr-tabs')!.selected = 1;
-    flush();
+    activityLog.$.tabs.selected = 1;
+    await microtasksFinished();
 
     // One activity is recorded and should appear in the stream.
     proxyDelegate.getOnExtensionActivity().callListeners(activity1);
+    await eventToPromise('viewport-filled', activityLog);
 
-    flush();
     boundTestVisible('activity-log-stream', true);
     assertEquals(1, getStreamItems().length);
 
     // Navigate back to the activity log history tab.
-    activityLog.shadowRoot!.querySelector('cr-tabs')!.selected = 0;
+    activityLog.$.tabs.selected = 0;
+    await microtasksFinished();
 
     // Expect a refresh of the activity log.
     await proxyDelegate.whenCalled('getExtensionActivityLog');
-    flush();
+    await microtasksFinished();
     boundTestVisible('activity-log-history', true);
 
     // Another activity is recorded, but should not appear in the stream as
     // the stream is inactive.
     proxyDelegate.getOnExtensionActivity().callListeners(activity1);
+    await microtasksFinished();
 
-    activityLog.shadowRoot!.querySelector('cr-tabs')!.selected = 1;
-    flush();
+    activityLog.$.tabs.selected = 1;
+    await microtasksFinished();
 
     // The one activity in the stream should have persisted between tab
     // switches.

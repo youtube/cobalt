@@ -9,19 +9,19 @@
 #include <algorithm>
 #include <limits>
 #include <set>
+#include <string>
 #include <utility>
 
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/policy/core/browser/configuration_policy_handler.h"
 #include "components/policy/core/browser/url_blocklist_policy_handler.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -33,19 +33,16 @@
 #include "url/url_constants.h"
 #include "url/url_util.h"
 
-using url_matcher::URLMatcher;
-using url_matcher::URLMatcherCondition;
-using url_matcher::URLMatcherConditionFactory;
-using url_matcher::URLMatcherConditionSet;
-using url_matcher::URLMatcherPortFilter;
-using url_matcher::URLMatcherSchemeFilter;
-using url_matcher::URLQueryElementMatcherCondition;
+#if BUILDFLAG(IS_IOS)
+#include <string_view>
+
+#include "base/strings/string_util.h"
+#endif
 
 namespace policy {
 
-using url_matcher::util::CreateConditionSet;
+using url_matcher::URLMatcher;
 using url_matcher::util::FilterComponents;
-using url_matcher::util::FilterToComponents;
 
 namespace {
 
@@ -85,8 +82,8 @@ std::unique_ptr<URLBlocklist> BuildBlocklist(const base::Value::List* block,
   return blocklist;
 }
 
-const base::Value::List* GetPrefList(PrefService* pref_service,
-                                     absl::optional<std::string> pref_path) {
+const base::Value::List* GetPrefList(const PrefService* pref_service,
+                                     std::optional<std::string> pref_path) {
   DCHECK(pref_service);
 
   if (!pref_path)
@@ -114,7 +111,7 @@ bool BypassBlocklistWildcardForURL(const GURL& url) {
   // Compare the URL scheme and path to the about:newtab version of the NTP URL.
   // Leading and trailing slashes must be removed because the host name is
   // parsed as the URL path (which may contain slashes).
-  base::StringPiece trimmed_path =
+  const std::string_view trimmed_path =
       base::TrimString(url.path_piece(), "/", base::TrimPositions::TRIM_ALL);
   if (scheme == kIosNtpAboutScheme && trimmed_path == kIosNtpHost) {
     return true;
@@ -123,20 +120,117 @@ bool BypassBlocklistWildcardForURL(const GURL& url) {
   return false;
 }
 
+bool IsWildcardBlocklist(const FilterComponents& filter) {
+  return !filter.allow && filter.IsWildcard();
+}
+
+// Determines if the left-hand side `lhs` filter takes precedence over the
+// right-hand side `rhs` filter. Returns true if `lhs` takes precedence over
+// `rhs`, false otherwise.
+bool FilterTakesPrecedence(const FilterComponents& lhs,
+                           const FilterComponents& rhs) {
+  // The "*" wildcard in the blocklist is the lowest priority filter.
+  if (IsWildcardBlocklist(rhs)) {
+    return true;
+  }
+
+  if (IsWildcardBlocklist(lhs)) {
+    return false;
+  }
+
+  if (lhs.match_subdomains && !rhs.match_subdomains) {
+    return false;
+  }
+  if (!lhs.match_subdomains && rhs.match_subdomains) {
+    return true;
+  }
+
+  const size_t host_length = lhs.host.length();
+  const size_t other_host_length = rhs.host.length();
+  if (host_length != other_host_length) {
+    return host_length > other_host_length;
+  }
+
+  const size_t path_length = lhs.path.length();
+  const size_t other_path_length = rhs.path.length();
+  if (path_length != other_path_length) {
+    return path_length > other_path_length;
+  }
+
+  if (lhs.number_of_url_matching_conditions !=
+      rhs.number_of_url_matching_conditions) {
+    return lhs.number_of_url_matching_conditions >
+           rhs.number_of_url_matching_conditions;
+  }
+
+  if (lhs.allow && !rhs.allow) {
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
+
+// BlocklistSource implementation that blocks URLs, domains and schemes
+// specified by the preference  `blocklist_pref_path`. The `allowlist_pref_path`
+// preference specifies exceptions to the blocklist.
+// Note that this implementation only supports one observer at a time. Adding a
+// new observer will remove the previous one.
+class DefaultBlocklistSource : public BlocklistSource {
+ public:
+  DefaultBlocklistSource(PrefService* pref_service,
+                         std::optional<std::string> blocklist_pref_path,
+                         std::optional<std::string> allowlist_pref_path)
+      : blocklist_pref_path_(blocklist_pref_path),
+        allowlist_pref_path_(allowlist_pref_path) {
+    pref_change_registrar_.Init(pref_service);
+  }
+  DefaultBlocklistSource(const DefaultBlocklistSource&) = delete;
+  DefaultBlocklistSource& operator=(const DefaultBlocklistSource&) = delete;
+  ~DefaultBlocklistSource() override = default;
+
+  const base::Value::List* GetBlocklistSpec() const override {
+    return GetPrefList(pref_change_registrar_.prefs(), blocklist_pref_path_);
+  }
+
+  const base::Value::List* GetAllowlistSpec() const override {
+    return GetPrefList(pref_change_registrar_.prefs(), allowlist_pref_path_);
+  }
+
+  // Adds an observer which will be notified when the blocklist is updated, i.e.
+  // when the preferences `blocklist_pref_path_` and/or `allowlist_pref_path_`
+  // have new values. If an observer already exists, it will be removed.
+  void SetBlocklistObserver(base::RepeatingClosure observer) override {
+    pref_change_registrar_.RemoveAll();
+    if (blocklist_pref_path_) {
+      pref_change_registrar_.Add(*blocklist_pref_path_, observer);
+    }
+    if (allowlist_pref_path_) {
+      pref_change_registrar_.Add(*allowlist_pref_path_, observer);
+    }
+  }
+
+ private:
+  std::optional<std::string> blocklist_pref_path_;
+  std::optional<std::string> allowlist_pref_path_;
+  PrefChangeRegistrar pref_change_registrar_;
+};
 
 URLBlocklist::URLBlocklist() : url_matcher_(new URLMatcher) {}
 
 URLBlocklist::~URLBlocklist() = default;
 
 void URLBlocklist::Block(const base::Value::List& filters) {
-  url_matcher::util::AddFilters(url_matcher_.get(), false, &id_, filters,
-                                &filters_);
+  url_matcher::util::AddFiltersWithLimit(url_matcher_.get(), /*allow=*/false,
+                                         &id_, filters, &filters_,
+                                         kMaxUrlFiltersPerPolicy);
 }
 
 void URLBlocklist::Allow(const base::Value::List& filters) {
-  url_matcher::util::AddFilters(url_matcher_.get(), true, &id_, filters,
-                                &filters_);
+  url_matcher::util::AddFiltersWithLimit(url_matcher_.get(), /*allow=*/true,
+                                         &id_, filters, &filters_,
+                                         kMaxUrlFiltersPerPolicy);
 }
 
 bool URLBlocklist::IsURLBlocked(const GURL& url) const {
@@ -146,106 +240,71 @@ bool URLBlocklist::IsURLBlocked(const GURL& url) const {
 
 URLBlocklist::URLBlocklistState URLBlocklist::GetURLBlocklistState(
     const GURL& url) const {
-  std::set<base::MatcherStringPattern::ID> matching_ids =
-      url_matcher_->MatchURL(url);
-
-  const FilterComponents* max = nullptr;
-  for (auto id = matching_ids.begin(); id != matching_ids.end(); ++id) {
-    auto it = filters_.find(*id);
-    DCHECK(it != filters_.end());
-    const FilterComponents& filter = it->second;
-    if (!max || FilterTakesPrecedence(filter, *max))
-      max = &filter;
-  }
-
+  const FilterComponents* highest_priority_filter =
+      GetHighestPriorityFilterFor(url);
   // Default neutral.
-  if (!max)
+  if (!highest_priority_filter) {
     return URLBlocklist::URLBlocklistState::URL_NEUTRAL_STATE;
+  }
 
   // Some of the internal Chrome URLs are not affected by the "*" in the
   // blocklist. Note that the "*" is the lowest priority filter possible, so
   // any higher priority filter will be applied first.
-  if (!max->allow && max->IsWildcard() && BypassBlocklistWildcardForURL(url))
+  if (IsWildcardBlocklist(*highest_priority_filter) &&
+      BypassBlocklistWildcardForURL(url)) {
     return URLBlocklist::URLBlocklistState::URL_IN_ALLOWLIST;
+  }
 
-  return max->allow ? URLBlocklist::URLBlocklistState::URL_IN_ALLOWLIST
-                    : URLBlocklist::URLBlocklistState::URL_IN_BLOCKLIST;
+  return highest_priority_filter->allow
+             ? URLBlocklist::URLBlocklistState::URL_IN_ALLOWLIST
+             : URLBlocklist::URLBlocklistState::URL_IN_BLOCKLIST;
 }
 
-size_t URLBlocklist::Size() const {
-  return filters_.size();
-}
-
-// static
-bool URLBlocklist::FilterTakesPrecedence(const FilterComponents& lhs,
-                                         const FilterComponents& rhs) {
-  // The "*" wildcard in the blocklist is the lowest priority filter.
-  if (!rhs.allow && rhs.IsWildcard())
-    return true;
-
-  if (lhs.match_subdomains && !rhs.match_subdomains)
-    return false;
-  if (!lhs.match_subdomains && rhs.match_subdomains)
-    return true;
-
-  size_t host_length = lhs.host.length();
-  size_t other_host_length = rhs.host.length();
-  if (host_length != other_host_length)
-    return host_length > other_host_length;
-
-  size_t path_length = lhs.path.length();
-  size_t other_path_length = rhs.path.length();
-  if (path_length != other_path_length)
-    return path_length > other_path_length;
-
-  if (lhs.number_of_url_matching_conditions !=
-      rhs.number_of_url_matching_conditions)
-    return lhs.number_of_url_matching_conditions >
-           rhs.number_of_url_matching_conditions;
-
-  if (lhs.allow && !rhs.allow)
-    return true;
-
-  return false;
+const FilterComponents* URLBlocklist::GetHighestPriorityFilterFor(
+    const GURL& url) const {
+  const FilterComponents* highest_priority_filter = nullptr;
+  for (const auto& pattern_id : url_matcher_->MatchURL(url)) {
+    const auto it = filters_.find(pattern_id);
+    CHECK(it != filters_.end());
+    const FilterComponents& filter = it->second;
+    if (!highest_priority_filter ||
+        FilterTakesPrecedence(filter, *highest_priority_filter)) {
+      highest_priority_filter = &filter;
+    }
+  }
+  return highest_priority_filter;
 }
 
 URLBlocklistManager::URLBlocklistManager(
     PrefService* pref_service,
-    absl::optional<std::string> blocklist_pref_path,
-    absl::optional<std::string> allowlist_pref_path)
-    : pref_service_(pref_service),
-      blocklist_pref_path_(std::move(blocklist_pref_path)),
-      allowlist_pref_path_(std::move(allowlist_pref_path)),
-      blocklist_(new URLBlocklist) {
-  DCHECK(blocklist_pref_path_ || allowlist_pref_path_);
+    std::optional<std::string> blocklist_pref_path,
+    std::optional<std::string> allowlist_pref_path)
+    : blocklist_(new URLBlocklist) {
+  DCHECK(blocklist_pref_path || allowlist_pref_path);
 
   // This class assumes that it is created on the same thread that
   // |pref_service_| lives on.
   ui_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   background_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
-      {base::TaskPriority::BEST_EFFORT});
+      {base::TaskPriority::USER_VISIBLE});
 
-  pref_change_registrar_.Init(pref_service_);
-  base::RepeatingClosure callback = base::BindRepeating(
-      &URLBlocklistManager::ScheduleUpdate, base::Unretained(this));
-  if (blocklist_pref_path_)
-    pref_change_registrar_.Add(*blocklist_pref_path_, callback);
-  if (allowlist_pref_path_)
-    pref_change_registrar_.Add(*allowlist_pref_path_, callback);
+  default_blocklist_source_ = std::make_unique<DefaultBlocklistSource>(
+      pref_service, blocklist_pref_path, allowlist_pref_path);
 
+  default_blocklist_source_->SetBlocklistObserver(base::BindRepeating(
+      &URLBlocklistManager::ScheduleUpdate, base::Unretained(this)));
   // Start enforcing the policies without a delay when they are present at
   // startup.
   const base::Value::List* block =
-      GetPrefList(pref_service_, blocklist_pref_path_);
+      default_blocklist_source_->GetBlocklistSpec();
   const base::Value::List* allow =
-      GetPrefList(pref_service_, allowlist_pref_path_);
+      default_blocklist_source_->GetAllowlistSpec();
   if (block || allow)
     SetBlocklist(BuildBlocklist(block, allow));
 }
 
 URLBlocklistManager::~URLBlocklistManager() {
   DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
-  pref_change_registrar_.RemoveAll();
 }
 
 void URLBlocklistManager::ScheduleUpdate() {
@@ -264,10 +323,14 @@ void URLBlocklistManager::Update() {
 
   // The URLBlocklist is built in the background. Once it's ready, it is passed
   // to the URLBlocklistManager back on ui_task_runner_.
-  const base::Value::List* block =
-      GetPrefList(pref_service_, blocklist_pref_path_);
-  const base::Value::List* allow =
-      GetPrefList(pref_service_, allowlist_pref_path_);
+
+  const BlocklistSource* current_source = override_blocklist_source_
+                                              ? override_blocklist_source_.get()
+                                              : default_blocklist_source_.get();
+
+  const base::Value::List* block = current_source->GetBlocklistSpec();
+  const base::Value::List* allow = current_source->GetAllowlistSpec();
+
   background_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
@@ -307,9 +370,29 @@ void URLBlocklistManager::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterListPref(policy_prefs::kUrlBlocklist);
   registry->RegisterListPref(policy_prefs::kUrlAllowlist);
+#if BUILDFLAG(IS_CHROMEOS)
+  registry->RegisterListPref(policy_prefs::kAlwaysOnVpnPreConnectUrlAllowlist);
+#endif
   registry->RegisterIntegerPref(
       policy_prefs::kSafeSitesFilterBehavior,
       static_cast<int>(SafeSitesFilterBehavior::kSafeSitesFilterDisabled));
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_MAC)
+  registry->RegisterListPref(policy_prefs::kPasswordManagerBlocklist);
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_MAC)
+}
+
+void URLBlocklistManager::SetOverrideBlockListSource(
+    std::unique_ptr<BlocklistSource> blocklist_source) {
+  if (blocklist_source) {
+    override_blocklist_source_ = std::move(blocklist_source);
+    override_blocklist_source_->SetBlocklistObserver(base::BindRepeating(
+        &URLBlocklistManager::ScheduleUpdate, base::Unretained(this)));
+  } else {
+    override_blocklist_source_.reset();
+  }
+  ScheduleUpdate();
 }
 
 }  // namespace policy

@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import androidx.annotation.LayoutRes;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -19,10 +20,13 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor.ViewBinder;
 /**
  * A {@link RecyclerView.ViewHolder} specifically meant to display a credential {@link Credential}.
  */
+@NullMarked
 class AllPasswordsBottomSheetViewHolder extends RecyclerView.ViewHolder {
     private final ViewBinder<PropertyModel, View, PropertyKey> mViewBinder;
 
-    AllPasswordsBottomSheetViewHolder(ViewGroup parent, @LayoutRes int layout,
+    AllPasswordsBottomSheetViewHolder(
+            ViewGroup parent,
+            @LayoutRes int layout,
             ViewBinder<PropertyModel, View, PropertyKey> viewBinder) {
         super(LayoutInflater.from(parent.getContext()).inflate(layout, parent, false));
         mViewBinder = viewBinder;

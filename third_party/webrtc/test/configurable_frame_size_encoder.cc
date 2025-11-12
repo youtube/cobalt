@@ -26,7 +26,7 @@ namespace test {
 
 ConfigurableFrameSizeEncoder::ConfigurableFrameSizeEncoder(
     size_t max_frame_size)
-    : callback_(NULL),
+    : callback_(nullptr),
       current_frame_size_(max_frame_size),
       codec_type_(kVideoCodecGeneric) {}
 
@@ -53,7 +53,7 @@ int32_t ConfigurableFrameSizeEncoder::Encode(
   encodedImage._encodedHeight = inputImage.height();
   encodedImage._encodedWidth = inputImage.width();
   encodedImage._frameType = VideoFrameType::kVideoFrameKey;
-  encodedImage.SetTimestamp(inputImage.timestamp());
+  encodedImage.SetRtpTimestamp(inputImage.rtp_timestamp());
   encodedImage.capture_time_ms_ = inputImage.render_time_ms();
   CodecSpecificInfo specific{};
   specific.codecType = codec_type_;

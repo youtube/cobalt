@@ -54,7 +54,8 @@ void OverlayScrollBar::Thumb::Init() {
   layer()->SetAnimator(ui::LayerAnimator::CreateImplicitAnimator());
 }
 
-gfx::Size OverlayScrollBar::Thumb::CalculatePreferredSize() const {
+gfx::Size OverlayScrollBar::Thumb::CalculatePreferredSize(
+    const SizeBounds& /*available_size*/) const {
   // The visual size of the thumb is kThumbThickness, but it slides back and
   // forth by kThumbHoverOffset. To make event targetting work well, expand the
   // width of the thumb such that it's always taking up the full width of the
@@ -112,8 +113,9 @@ void OverlayScrollBar::Thumb::OnBoundsChanged(
     const gfx::Rect& previous_bounds) {
   scroll_bar_->Show();
   // Don't start the hide countdown if the thumb is still hovered or pressed.
-  if (GetState() == Button::STATE_NORMAL)
+  if (GetState() == Button::STATE_NORMAL) {
     scroll_bar_->StartHideCountdown();
+  }
 }
 
 void OverlayScrollBar::Thumb::OnStateChanged() {
@@ -125,15 +127,20 @@ void OverlayScrollBar::Thumb::OnStateChanged() {
                       IsHorizontal() ? kThumbHoverOffset : 0));
     layer()->SetTransform(translation);
 
-    if (GetWidget())
+    if (GetWidget()) {
       scroll_bar_->StartHideCountdown();
+    }
   } else {
     layer()->SetTransform(gfx::Transform());
   }
   SchedulePaint();
 }
 
-OverlayScrollBar::OverlayScrollBar(bool horizontal) : ScrollBar(horizontal) {
+BEGIN_METADATA(OverlayScrollBar, Thumb)
+END_METADATA
+
+OverlayScrollBar::OverlayScrollBar(Orientation orientation)
+    : ScrollBar(orientation) {
   SetNotifyEnterExitOnChild(true);
   SetPaintToLayer();
   layer()->SetMasksToBounds(true);
@@ -151,8 +158,9 @@ OverlayScrollBar::OverlayScrollBar(bool horizontal) : ScrollBar(horizontal) {
 OverlayScrollBar::~OverlayScrollBar() = default;
 
 gfx::Insets OverlayScrollBar::GetInsets() const {
-  return IsHorizontal() ? gfx::Insets::TLBR(-kThumbHoverOffset, 0, 0, 0)
-                        : gfx::Insets::TLBR(0, -kThumbHoverOffset, 0, 0);
+  return GetOrientation() == Orientation::kHorizontal
+             ? gfx::Insets::TLBR(-kThumbHoverOffset, 0, 0, 0)
+             : gfx::Insets::TLBR(0, -kThumbHoverOffset, 0, 0);
 }
 
 void OverlayScrollBar::OnMouseEntered(const ui::MouseEvent& event) {
@@ -187,14 +195,15 @@ void OverlayScrollBar::Hide() {
 }
 
 void OverlayScrollBar::StartHideCountdown() {
-  if (IsMouseHovered())
+  if (IsMouseHovered()) {
     return;
+  }
   hide_timer_.Start(
       FROM_HERE, ui::kOverlayScrollbarFadeDelay,
       base::BindOnce(&OverlayScrollBar::Hide, base::Unretained(this)));
 }
 
-BEGIN_METADATA(OverlayScrollBar, ScrollBar)
+BEGIN_METADATA(OverlayScrollBar)
 END_METADATA
 
 }  // namespace views

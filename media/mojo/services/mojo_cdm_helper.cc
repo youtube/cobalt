@@ -6,7 +6,6 @@
 
 #include <tuple>
 
-#include "base/containers/cxx20_erase.h"
 #include "build/build_config.h"
 #include "media/base/cdm_context.h"
 #include "media/cdm/cdm_helpers.h"
@@ -14,11 +13,21 @@
 #include "media/mojo/services/mojo_cdm_file_io.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/metrics/public/cpp/mojo_ukm_recorder.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace media {
 
 MojoCdmHelper::MojoCdmHelper(mojom::FrameInterfaceFactory* frame_interfaces)
-    : frame_interfaces_(frame_interfaces) {}
+    : frame_interfaces_(frame_interfaces) {
+  // Retrieve the Ukm recording objects in the constructor of MojoCdmHelper
+  // because the connection to the renderer frame host might be disconnected at
+  // any time and we record the Ukm in the destructor of CdmAdapter, so we
+  // should store the objects as early as possible.
+  RetrieveUkmRecordingObjects();
+}
 
 MojoCdmHelper::~MojoCdmHelper() = default;
 
@@ -114,7 +123,7 @@ void MojoCdmHelper::GetStorageId(uint32_t version, StorageIdCB callback) {
 
 void MojoCdmHelper::CloseCdmFileIO(MojoCdmFileIO* cdm_file_io) {
   DVLOG(3) << __func__ << ": cdm_file_io = " << cdm_file_io;
-  base::EraseIf(cdm_file_io_set_,
+  std::erase_if(cdm_file_io_set_,
                 [cdm_file_io](const std::unique_ptr<MojoCdmFileIO>& ptr) {
                   return ptr.get() == cdm_file_io;
                 });
@@ -124,6 +133,45 @@ void MojoCdmHelper::ReportFileReadSize(int file_size_bytes) {
   DVLOG(3) << __func__ << ": file_size_bytes = " << file_size_bytes;
   if (file_read_cb_)
     file_read_cb_.Run(file_size_bytes);
+}
+
+void MojoCdmHelper::RecordUkm(const CdmMetricsData& cdm_metrics_data) {
+  ukm::SourceId source_id = ukm::ConvertToSourceId(ukm::AssignNewSourceId(),
+                                                   ukm::SourceIdType::CDM_ID);
+  ukm_recorder_->UpdateSourceURL(source_id,
+                                 cdm_metrics_data.cdm_origin.GetURL());
+
+  auto ukm_builder = ukm::builders::Media_EME_CdmMetrics(source_id);
+
+  if (cdm_metrics_data.license_sdk_version.has_value()) {
+    ukm_builder.SetLicenseSdkVersion(
+        cdm_metrics_data.license_sdk_version.value());
+  }
+
+  ukm_builder.SetNumberOfUpdateCalls(cdm_metrics_data.number_of_update_calls);
+
+  ukm_builder.SetNumberOfOnMessageEvents(
+      cdm_metrics_data.number_of_on_message_events);
+
+  if (cdm_metrics_data.certificate_serial_number.has_value()) {
+    ukm_builder.SetCertificateSerialNumber(
+        cdm_metrics_data.certificate_serial_number.value());
+  }
+
+  if (cdm_metrics_data.decoder_bypass_block_count.has_value()) {
+    ukm_builder.SetDecoderBypassBlockCount(
+        cdm_metrics_data.decoder_bypass_block_count.value());
+  }
+
+  ukm_builder.SetNumberOfVideoFrames(cdm_metrics_data.video_frames_processed);
+
+  ukm_builder.Record(ukm_recorder_.get());
+}
+
+void MojoCdmHelper::RetrieveUkmRecordingObjects() {
+  ConnectToUkmRecorderFactory();
+
+  ukm_recorder_ = ukm::MojoUkmRecorder::Create(*ukm_recorder_factory_);
 }
 
 void MojoCdmHelper::ConnectToOutputProtection() {
@@ -141,6 +189,16 @@ void MojoCdmHelper::ConnectToCdmDocumentService() {
     DVLOG(2) << "Connect to mojom::CdmDocumentService";
     frame_interfaces_->BindEmbedderReceiver(
         cdm_document_service_.BindNewPipeAndPassReceiver());
+    // No reset_on_disconnect() since MediaInterfaceProxy should be destroyed
+    // when document is destroyed, which will destroy MojoCdmHelper as well.
+  }
+}
+
+void MojoCdmHelper::ConnectToUkmRecorderFactory() {
+  if (!ukm_recorder_factory_) {
+    DVLOG(2) << "Connect to ukm::mojom::UkmRecorderFactory";
+    frame_interfaces_->BindEmbedderReceiver(
+        ukm_recorder_factory_.BindNewPipeAndPassReceiver());
     // No reset_on_disconnect() since MediaInterfaceProxy should be destroyed
     // when document is destroyed, which will destroy MojoCdmHelper as well.
   }

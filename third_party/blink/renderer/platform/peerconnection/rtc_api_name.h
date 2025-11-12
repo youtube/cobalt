@@ -21,7 +21,9 @@ enum class RTCAPIName {
   kVideoCaptureStream,
   kGetDisplayMedia,
   kGetCurrentBrowsingContextMedia,  // Deprecated.
-  kGetDisplayMediaSet,
+  kGetDisplayMediaSet,              // Deprecated.
+  kGetAllScreensMedia,
+  kSetPreferredSinkId,
   kInvalidName
 };
 

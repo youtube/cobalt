@@ -5,7 +5,8 @@
 #include "ash/style/rounded_label.h"
 
 #include "ash/public/cpp/style/color_provider.h"
-#include "chromeos/constants/chromeos_features.h"
+#include "ash/style/ash_color_id.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -23,45 +24,34 @@ RoundedLabel::RoundedLabel(int horizontal_padding,
       preferred_height_(preferred_height) {
   SetBorder(views::CreateEmptyBorder(
       gfx::Insets::VH(vertical_padding, horizontal_padding)));
-
-  SetBackground(views::CreateSolidBackground(SK_ColorTRANSPARENT));
+  SetBackground(views::CreateSolidBackground(kColorAshShieldAndBase80));
+  SetEnabledColor(kColorAshTextColorPrimary);
+  SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
   SetHorizontalAlignment(gfx::ALIGN_CENTER);
+
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
   layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
-  const gfx::RoundedCornersF radii(rounding_dp);
-  layer()->SetRoundedCornerRadius(radii);
+  layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+  layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(rounding_dp));
   layer()->SetIsFastRoundedCorner(true);
 }
 
 RoundedLabel::~RoundedLabel() = default;
 
-gfx::Size RoundedLabel::CalculatePreferredSize() const {
-  return gfx::Size(views::Label::CalculatePreferredSize().width(),
+gfx::Size RoundedLabel::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  return gfx::Size(views::Label::CalculatePreferredSize(available_size).width(),
                    preferred_height_);
-}
-
-int RoundedLabel::GetHeightForWidth(int width) const {
-  return preferred_height_;
-}
-
-void RoundedLabel::OnThemeChanged() {
-  views::Label::OnThemeChanged();
-  auto* color_provider = ColorProvider::Get();
-  const SkColor background_color = color_provider->GetBaseLayerColor(
-      ColorProvider::BaseLayerType::kTransparent80);
-  background()->SetNativeControlColor(background_color);
-  SetBackgroundColor(background_color);
-  SetEnabledColor(color_provider->GetContentLayerColor(
-      ColorProvider::ContentLayerType::kTextColorPrimary));
 }
 
 void RoundedLabel::OnPaintBorder(gfx::Canvas* canvas) {
   views::HighlightBorder::PaintBorderToCanvas(
       canvas, *this, GetLocalBounds(), gfx::RoundedCornersF(rounding_dp_),
-      chromeos::features::IsJellyrollEnabled()
-          ? views::HighlightBorder::Type::kHighlightBorderNoShadow
-          : views::HighlightBorder::Type::kHighlightBorder2);
+      views::HighlightBorder::Type::kHighlightBorderNoShadow);
 }
+
+BEGIN_METADATA(RoundedLabel)
+END_METADATA
 
 }  // namespace ash
