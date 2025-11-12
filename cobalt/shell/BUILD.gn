@@ -366,6 +366,13 @@ static_library("cobalt_shell_app") {
     "app/shell_main_delegate.h",
   ]
   public_deps = [ ":cobalt_shell_app_deps" ]
+
+  if (is_apple) {
+    sources += [
+      "app/paths_mac.h",
+      "app/paths_mac.mm",
+    ]
+  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
