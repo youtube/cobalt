@@ -823,7 +823,7 @@ bool CrashpadClient::StartHandlerAtCrash(
     const base::FilePath& metrics_dir,
     const std::string& url,
 #if BUILDFLAG(IS_STARBOARD)
-    const std::string& ca_certificates_path,
+    const base::FilePath& ca_certificates_path,
 #endif
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,

@@ -104,7 +104,7 @@ class SSLStream : public Stream {
   SSLStream& operator=(const SSLStream&) = delete;
 
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  bool Initialize(const std::string& root_cert_directory_path,
+  bool Initialize(const base::FilePath& root_cert_directory_path,
 #else
   bool Initialize(const base::FilePath& root_cert_path,
 #endif
@@ -129,7 +129,9 @@ class SSLStream : public Stream {
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     if (!root_cert_directory_path.empty()) {
       if (SSL_CTX_load_verify_locations(
-              ctx_.get(), nullptr, root_cert_directory_path.c_str()) <= 0) {
+              ctx_.get(),
+              nullptr,
+              root_cert_directory_path.value().c_str()) <= 0) {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
         return false;
       }

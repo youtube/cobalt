@@ -48,6 +48,10 @@
 #include "util/ios/scoped_background_task.h"
 #endif  // BUILDFLAG(IS_IOS)
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#include "base/files/file_path.h"
+#endif
+
 namespace crashpad {
 
 namespace {
@@ -90,7 +94,7 @@ CrashReportUploadThread::CrashReportUploadThread(
     CrashReportDatabase* database,
     const std::string& url,
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-    const std::string& ca_certificates_path,
+    const base::FilePath& ca_certificates_path,
 #endif
     const Options& options,
     ProcessPendingReportsObservationCallback callback)

@@ -27,6 +27,10 @@
 #include "util/thread/stoppable.h"
 #include "util/thread/worker_thread.h"
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#include "base/files/file_path.h"
+#endif
+
 namespace crashpad {
 
 //! \brief A thread that processes pending crash reports in a
@@ -91,7 +95,7 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   CrashReportUploadThread(CrashReportDatabase* database,
                           const std::string& url,
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-                          const std::string& ca_certificates_path,
+                          const base::FilePath& ca_certificates_path,
 #endif
                           const Options& options,
                           ProcessPendingReportsObservationCallback callback);
@@ -234,7 +238,7 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   const ProcessPendingReportsObservationCallback callback_;
   const std::string url_;
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  const std::string ca_certificates_path_;
+  const base::FilePath  ca_certificates_path_;
 #endif
   WorkerThread thread_;
   ThreadSafeVector<UUID> known_pending_report_uuids_;

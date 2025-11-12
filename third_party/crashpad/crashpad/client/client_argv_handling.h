@@ -46,7 +46,7 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
-    const std::string& ca_certificates_path,
+    const base::FilePath& ca_certificates_path,
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments = {});

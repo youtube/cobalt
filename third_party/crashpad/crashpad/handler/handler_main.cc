@@ -247,7 +247,7 @@ struct Options {
   bool shared_client_connection;
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
   VMAddress evergreen_information_address;
-  std::string ca_certificates_path;
+  base::FilePath ca_certificates_path;
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 #if BUILDFLAG(IS_ANDROID)
   bool write_minidump_to_log;
@@ -914,7 +914,8 @@ int HandlerMain(int argc,
         break;
       }
       case kOptionCACertificatesPath: {
-        options.ca_certificates_path = optarg;
+        options.ca_certificates_path = base::FilePath(
+            ToolSupport::CommandLineArgumentToFilePathStringType(optarg));
         break;
       }
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)

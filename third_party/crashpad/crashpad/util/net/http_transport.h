@@ -84,7 +84,7 @@ class HTTPTransport {
   //!
   //! \param[in] path The path to a directory containing cert files in PEM
   //!     format to be used for TLS connections.
-  void SetRootCACertificatesDirectoryPath(const std::string& path);
+  void SetRootCACertificatesDirectoryPath(const base::FilePath& path);
 #else  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 
   //! \brief Sets a certificate file to be used in lieu of the system CA cert
@@ -118,7 +118,7 @@ class HTTPTransport {
   HTTPBodyStream* body_stream() const { return body_stream_.get(); }
   double timeout() const { return timeout_; }
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  const std::string& root_ca_certificates_directory_path() const {
+  const base::FilePath& root_ca_certificates_directory_path() const {
     return root_ca_certificates_directory_path_;
   }
 #else  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
@@ -131,7 +131,7 @@ class HTTPTransport {
   std::string url_;
   std::string method_;
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-  std::string root_ca_certificates_directory_path_;
+  base::FilePath root_ca_certificates_directory_path_;
 #else
   base::FilePath root_ca_certificate_path_;
 #endif

@@ -257,8 +257,8 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
                                    default_metrics_dir, kUploadUrl,
-                                   ca_certificates_path, default_annotations,
-                                   default_arguments)) {
+                                   base::FilePath(ca_certificates_path.c_str()),
+                                   default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);

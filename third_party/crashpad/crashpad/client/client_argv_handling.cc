@@ -34,7 +34,7 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const base::FilePath& metrics_dir,
     const std::string& url,
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
-    const std::string& ca_certificates_path,
+    const base::FilePath& ca_certificates_path,
 #endif
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
@@ -61,7 +61,7 @@ std::vector<std::string> BuildHandlerArgvStrings(
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
   if (!ca_certificates_path.empty()) {
     argv_strings.push_back(FormatArgumentString("ca-certificates-path",
-                                                ca_certificates_path));
+                                                ca_certificates_path.value()));
   }
 #endif
 
@@ -87,11 +87,12 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments) {
+  base::FilePath empty_path;
   return BuildHandlerArgvStrings(handler,
                                  database,
                                  metrics_dir,
                                  url,
-                                 "",
+                                 empty_path,
                                  annotations,
                                  arguments,
                                  attachments);

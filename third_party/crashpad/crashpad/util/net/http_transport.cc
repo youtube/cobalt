@@ -55,7 +55,7 @@ void HTTPTransport::SetTimeout(double timeout) {
 
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 void HTTPTransport::SetRootCACertificatesDirectoryPath(
-    const std::string& path) {
+    const base::FilePath& path) {
   root_ca_certificates_directory_path_ = path;
 }
 #else  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
