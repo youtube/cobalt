@@ -25,6 +25,7 @@
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
 #include "starboard/xb1/shared/internal_shims.h"
+#include "starboard/xb1/shared/video_decoder_uwp.h"
 #if defined(INTERNAL_BUILD)
 #include "internal/starboard/xb1/dav1d_video_decoder.h"
 #include "internal/starboard/xb1/vpx_video_decoder.h"
@@ -391,6 +392,8 @@ bool ExtendedResourcesManager::StartCompileShaders() {
   return true;
 }
 
+using MftVideoDecoder = ::starboard::xb1::shared::VideoDecoderUwp;
+
 void ExtendedResourcesManager::CompileShadersAsynchronously() {
   // Shaders compilation may take several seconds that is why it is good to run
   // it asynchronously. We may not wait until its compilation is completed and
@@ -400,45 +403,64 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
   Concurrency::create_task([this] {
     ScopedLock scoped_lock(mutex_);
 #if defined(INTERNAL_BUILD)
-    if (!is_av1_shader_compiled_) {
-      SB_LOG(INFO) << "Start to compile AV1 decoder shaders.";
-      if (HasNonrecoverableFailure()) {
-        SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
-                           "shader compile.";
-        return;
-      }
-      if (Dav1dVideoDecoder::CompileShaders(d3d12device_)) {
-        is_av1_shader_compiled_ = true;
-        SB_LOG(INFO) << "Gpu based AV1 decoder finished compiling its shaders.";
-      } else {
-        SB_LOG(WARNING)
-            << "Failed to compile AV1 decoder shaders, next attempt "
-               "will happen right on the AV1 decoder instantiation.";
-      }
-    } else {
-      SB_LOG(INFO) << "AV1 decoder shaders are already compiled.";
+    if (MftVideoDecoder::IsHardwareAv1DecoderSupported()) {
+      SB_LOG(INFO) << "AV1 decoder doesn't need shader compilation";
+      is_av1_shader_compiled_ = true;
     }
-    if (!is_vp9_shader_compiled_) {
-      SB_LOG(INFO) << "Start to compile VP9 decoder shaders.";
-      if (HasNonrecoverableFailure()) {
-        SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
-                           "shader compile.";
-        return;
+    else {
+      if (!is_av1_shader_compiled_) {
+        SB_LOG(INFO) << "Start to compile AV1 decoder shaders.";
+        if (HasNonrecoverableFailure()) {
+          SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
+                             "shader compile.";
+          return;
+        }
+        if (Dav1dVideoDecoder::CompileShaders(d3d12device_)) {
+          is_av1_shader_compiled_ = true;
+          SB_LOG(INFO)
+              << "Gpu based AV1 decoder finished compiling its shaders.";
+        }
+        else {
+          SB_LOG(WARNING)
+              << "Failed to compile AV1 decoder shaders, next attempt will "
+                 "happen right on the AV1 decoder instantiation.";
+        }
       }
-      if (VpxVideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
-                                          d3d12queue_.Get())) {
-        is_vp9_shader_compiled_ = true;
-        SB_LOG(INFO) << "Gpu based VP9 decoder finished compiling its shaders.";
-      } else {
-        // This warning means that not all the shaders has been compiled
-        // successfully, It will try to compile the shaders again, right before
-        // the start of playback, in function |VideoDecoder::InitializeCodec()|.
-        SB_LOG(WARNING)
-            << "Failed to compile VP9 decoder shaders, next attempt "
-               "will happen right on the VP9 decoder instantiation.";
+      else {
+        SB_LOG(INFO) << "AV1 decoder shaders are already compiled.";
       }
-    } else {
-      SB_LOG(INFO) << "VP9 decoder shaders are already compiled.";
+    }
+    if (MftVideoDecoder::IsHardwareVp9DecoderSupported()) {
+      SB_LOG(INFO) << "Vp9 decoder doesn't need shader compilation";
+      is_vp9_shader_compiled_ = true;
+    }
+    else {
+      if (!is_vp9_shader_compiled_) {
+        SB_LOG(INFO) << "Start to compile VP9 decoder shaders.";
+        if (HasNonrecoverableFailure()) {
+          SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
+                             "shader compile.";
+          return;
+        }
+        if (VpxVideoDecoder::CompileShaders(
+                 d3d12device_, d3d12FrameBuffersHeap_, d3d12queue_.Get())) {
+          is_vp9_shader_compiled_ = true;
+          SB_LOG(INFO)
+              << "Gpu based VP9 decoder finished compiling its shaders.";
+        }
+        else {
+          // This warning means that not all the shaders has been compiled
+          // successfully, It will try to compile the shaders again,
+          // right before the start of playback,
+          // in function |VideoDecoder::InitializeCodec()|.
+          SB_LOG(WARNING)
+              << "Failed to compile VP9 decoder shaders, next attempt will "
+                 "happen right on the VP9 decoder instantiation.";
+        }
+      }
+      else {
+        SB_LOG(INFO) << "VP9 decoder shaders are already compiled.";
+      }
     }
 #endif  // defined(INTERNAL_BUILD)
 
