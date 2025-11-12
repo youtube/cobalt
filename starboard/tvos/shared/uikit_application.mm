@@ -341,7 +341,6 @@ id<SBDStarboardApplication> SBDGetApplication() {
   ApplicationDarwin::Get()->Freeze(NULL, &SuspendDone);
 
   // Wait for the application to finish processing the suspend event.
-  CFRunLoopRef main_loop = CFRunLoopGetMain();
   while (g_suspend_event_counter_) {
     // Run runloop until it processes an event or until timeout. SuspendDone()
     // sends a block to the main thread, it would be executed on main thread and

@@ -473,7 +473,6 @@ void TvosVideoDecoder::DestroyFormatAndSession() {
 
 void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
                                     CVImageBufferRef image_buffer) {
-  const GLenum formats[] = {GL_LUMINANCE, GL_LUMINANCE_ALPHA};
   SB_DCHECK(CFGetTypeID(image_buffer) == CVPixelBufferGetTypeID());
   SB_DCHECK(texture_cache_);
 

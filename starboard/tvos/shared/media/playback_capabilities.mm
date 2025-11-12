@@ -135,7 +135,7 @@ class PlaybackCapabilitiesImpl {
           removeObserver:app_status_observer_];
     }
     ObserverRegistry::UnregisterObserver(&observer_);
-  };
+  }
 
   bool IsHwVp9Supported() const { return is_hw_vp9_supported_; }
 
@@ -143,7 +143,7 @@ class PlaybackCapabilitiesImpl {
 
   bool IsAppleTV4K() const { return is_apple_tv_4k_; }
 
-  bool GetAudioConfiguration(int index,
+  bool GetAudioConfiguration(size_t index,
                              SbMediaAudioConfiguration* configuration) {
     ScopedLock scoped_lock(mutex_);
     if (is_audio_configurations_dirty_) {
@@ -231,7 +231,7 @@ class PlaybackCapabilitiesImpl {
 
 }  // namespace
 
-SB_ONCE_INITIALIZE_FUNCTION(PlaybackCapabilitiesImpl, GetInstance);
+SB_ONCE_INITIALIZE_FUNCTION(PlaybackCapabilitiesImpl, GetInstance)
 
 // static
 void PlaybackCapabilities::InitializeInBackground() {
@@ -258,7 +258,7 @@ bool PlaybackCapabilities::IsAppleTV4K() {
 
 // static
 bool PlaybackCapabilities::GetAudioConfiguration(
-    int index,
+    size_t index,
     SbMediaAudioConfiguration* configuration) {
   return GetInstance()->GetAudioConfiguration(index, configuration);
 }
