@@ -103,7 +103,7 @@ void freelocale(locale_t loc) {
 }
 
 struct lconv* localeconv(void) {
-  return reinterpret_cast<lconv*>(g_current_locale);
+  return const_cast<struct lconv*>(GetCLocaleConv());
 }
 
 locale_t duplocale(locale_t loc) {
