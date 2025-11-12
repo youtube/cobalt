@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
+#include <jni.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -23,11 +25,19 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 namespace starboard {
+
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
+enum ExoPlayerRendererType {
+  EXOPLAYER_RENDERER_TYPE_AUDIO = 0,  // Must match kSbMediaTypeAudio.
+  EXOPLAYER_RENDERER_TYPE_VIDEO = 1,  // Must match kSbMediaTypeVideo.
+
+  EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
+};
 
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
@@ -55,25 +65,23 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void Stop() const;
 
   MediaInfo GetMediaInfo() const;
+  bool CanAcceptMoreData(SbMediaType type) const;
 
   // Native callbacks.
-  void OnInitialized(JNIEnv* env);
-  void OnBuffering(JNIEnv* env);
-  void OnReady(JNIEnv* env);
+  void OnInitialized(JNIEnv*);
+  void OnBuffering(JNIEnv*);
+  void OnReady(JNIEnv*);
   void OnError(JNIEnv* env, jstring msg);
-  void OnEnded(JNIEnv* env) const;
+  void OnEnded(JNIEnv*) const;
   void OnDroppedVideoFrames(JNIEnv* env, jint count);
 
-  bool is_valid() const { return !j_exoplayer_bridge_.is_null(); }
+  bool is_valid() const { return j_exoplayer_manager_ && j_exoplayer_bridge_; }
 
  private:
   bool ShouldAbortOperation() const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
-  base::android::ScopedJavaGlobalRef<jobject> j_audio_media_source_;
-  base::android::ScopedJavaGlobalRef<jobject> j_video_media_source_;
-  base::android::ScopedJavaGlobalRef<jobject> j_output_surface_;
   base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
 
   std::atomic_bool player_is_destroying_;
@@ -89,6 +97,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   std::mutex mutex_;
   std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
+
+  bool owns_surface_;
 };
 
 }  // namespace starboard

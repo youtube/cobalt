@@ -19,7 +19,6 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::shared::starboard::media {
@@ -44,11 +43,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
            ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;
   }
-  // ExoPlayer cannot support decode-to-texture video.
-  if (features::FeatureList::IsEnabled(features::kEnableExoPlayer) &&
-      decode_to_texture_required) {
-    return false;
-  }
+  // While not necessarily true, for now we assume that all Android devices
+  // can play decode-to-texture video just as well as normal video.
 
   bool must_support_tunnel_mode = false;
   if (mime_type) {

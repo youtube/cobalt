@@ -18,7 +18,7 @@
 #include <jni.h>
 
 #include "base/android/jni_android.h"
-#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/media.h"
 
 namespace starboard {
 

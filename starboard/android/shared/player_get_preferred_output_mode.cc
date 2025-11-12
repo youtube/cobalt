@@ -17,7 +17,6 @@
 #include <algorithm>
 
 #include "starboard/configuration.h"
-#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
@@ -52,11 +51,6 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     SB_LOG(ERROR) << "creation_param->video_stream_info.max_video_capabilities"
                   << " cannot be NULL";
     return kSbPlayerOutputModeInvalid;
-  }
-
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kEnableExoPlayer)) {
-    return kSbPlayerOutputModePunchOut;
   }
 
   auto codec = video_stream_info.codec;

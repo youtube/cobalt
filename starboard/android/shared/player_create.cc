@@ -17,8 +17,6 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
 #include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
@@ -204,7 +202,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   }
 
   std::unique_ptr<PlayerWorker::Handler> handler;
-  if (starboard::features::FeatureList::IsEnabled(
+  if (creation_param->drm_system == kSbDrmSystemInvalid &&
+      starboard::features::FeatureList::IsEnabled(
           starboard::features::kEnableExoPlayer)) {
     handler = std::make_unique<ExoPlayerWorkerHandler>(creation_param);
   } else {

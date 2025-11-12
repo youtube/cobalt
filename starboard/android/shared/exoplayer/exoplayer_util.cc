@@ -33,8 +33,6 @@ using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
 // From //starboard/android/shared/video_decoder.cc.
-// TODO: abstract this into it's own helper class that's shared with the video
-// decoder
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
 constexpr jint COLOR_RANGE_FULL = 1;
@@ -175,8 +173,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
 
   starboard::shared::starboard::media::MimeType mime_type(stream_info.mime);
   if (mime_type.is_valid()) {
-    framerate = mime_type.GetParamIntValue("framerate", 0);
-    bitrate = mime_type.GetParamIntValue("bitrate", 0);
+    framerate = mime_type.GetParamIntValue("framerate", -1);
+    bitrate = mime_type.GetParamIntValue("bitrate", -1);
   }
 
   ScopedJavaLocalRef<jobject> j_color_info =

@@ -25,6 +25,8 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
+#include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
@@ -32,13 +34,8 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-
-#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
-#include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
-#include "cobalt/android/jni_headers/ExoPlayerMediaSource_jni.h"
 
 namespace starboard {
 namespace {
@@ -64,36 +61,35 @@ ExoPlayerBridge::ExoPlayerBridge(
       underflow_(false),
       initialized_(false),
       seeking_(false),
-      dropped_frames_(0) {
+      dropped_frames_(0),
+      owns_surface_(false) {
   JNIEnv* env = AttachCurrentThread();
 
+  ScopedJavaLocalRef<jobject> j_audio_media_source;
+  ScopedJavaLocalRef<jobject> j_video_media_source;
+  ScopedJavaGlobalRef<jobject> j_output_surface;
+
   if (audio_stream_info.codec != kSbMediaAudioCodecNone) {
-    ScopedJavaLocalRef<jobject> j_audio_media_source =
-        CreateAudioMediaSource(audio_stream_info);
+    j_audio_media_source = CreateAudioMediaSource(audio_stream_info);
     if (!j_audio_media_source) {
       SB_LOG(ERROR) << "Could not create ExoPlayer audio MediaSource.";
       return;
     }
-
-    j_audio_media_source_.Reset(j_audio_media_source);
   }
 
   if (video_stream_info.codec != kSbMediaVideoCodecNone) {
-    ScopedJavaLocalRef<jobject> j_video_media_source =
-        CreateVideoMediaSource(video_stream_info);
+    j_video_media_source = CreateVideoMediaSource(video_stream_info);
     if (!j_video_media_source) {
       SB_LOG(ERROR) << "Could not create ExoPlayer video MediaSource.";
       return;
     }
 
-    j_video_media_source_.Reset(j_video_media_source);
-
-    ScopedJavaGlobalRef<jobject> j_output_surface(env, AcquireVideoSurface());
+    j_output_surface.Reset(env, AcquireVideoSurface());
     if (!j_output_surface) {
       SB_LOG(ERROR) << "Could not acquire video surface for ExoPlayer.";
       return;
     }
-    j_output_surface_.Reset(j_output_surface);
+    owns_surface_ = true;
   }
 
   ScopedJavaLocalRef<jobject> j_exoplayer_manager(
@@ -102,13 +98,12 @@ ExoPlayerBridge::ExoPlayerBridge(
     SB_LOG(ERROR) << "Failed to fetch ExoPlayerManager.";
     return;
   }
-
   j_exoplayer_manager_.Reset(j_exoplayer_manager);
 
   ScopedJavaLocalRef<jobject> j_exoplayer_bridge =
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
-          j_audio_media_source_, j_video_media_source_, j_output_surface_,
+          j_audio_media_source, j_video_media_source, j_output_surface,
           false /* prefer_tunnel_mode */);
   if (!j_exoplayer_bridge) {
     SB_LOG(ERROR) << "Could not create Java ExoPlayerBridge.";
@@ -121,15 +116,18 @@ ExoPlayerBridge::ExoPlayerBridge(
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
-  player_is_destroying_.store(true);
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
+  player_is_destroying_.store(true);
 
   if (is_valid()) {
     Java_ExoPlayerManager_destroyExoPlayerBridge(
         AttachCurrentThread(), j_exoplayer_manager_, j_exoplayer_bridge_);
   }
-  ClearVideoWindow(true);
-  ReleaseVideoSurface();
+
+  if (owns_surface_) {
+    ClearVideoWindow(true);
+    ReleaseVideoSurface();
+  }
 }
 
 void ExoPlayerBridge::OnSurfaceDestroyed() {
@@ -182,7 +180,6 @@ bool ExoPlayerBridge::Seek(int64_t timestamp) {
                             timestamp);
   underflow_.store(false);
   seeking_.store(true);
-  dropped_frames_.store(0);
   return true;
 }
 
@@ -192,27 +189,20 @@ bool ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
     return false;
   }
 
-  SB_CHECK_EQ(input_buffers.size(), 1U);
+  SB_DCHECK_EQ(input_buffers.size(), 1U);
 
   JNIEnv* env = AttachCurrentThread();
 
-  bool is_key_frame;
-  int offset;
-  ScopedJavaLocalRef<jobject> j_media_source;
+  bool is_key_frame = true;
+  int offset = 0;
   auto input_buffer = input_buffers.front();
 
   if (type == kSbMediaTypeAudio) {
-    SB_CHECK(j_audio_media_source_);
-    is_key_frame = true;
     offset = input_buffer->audio_stream_info().codec == kSbMediaAudioCodecAac
                  ? kADTSHeaderSize
                  : 0;
-    j_media_source.Reset(j_audio_media_source_);
   } else {
-    SB_CHECK(j_video_media_source_);
     is_key_frame = input_buffer->video_sample_info().is_key_frame;
-    offset = 0;
-    j_media_source.Reset(j_video_media_source_);
   }
 
   int size = input_buffer->size() - offset;
@@ -222,9 +212,9 @@ bool ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
   ScopedJavaLocalRef<jbyteArray> sample_data_local_ref(
       env, static_cast<jbyteArray>(env->NewLocalRef(j_sample_data_.obj())));
 
-  Java_ExoPlayerMediaSource_writeSample(
-      env, j_media_source, sample_data_local_ref, size,
-      input_buffer->timestamp(), is_key_frame);
+  Java_ExoPlayerBridge_writeSample(
+      env, j_exoplayer_bridge_, sample_data_local_ref, size,
+      input_buffer->timestamp(), is_key_frame, type);
 
   return true;
 }
@@ -234,16 +224,8 @@ bool ExoPlayerBridge::WriteEOS(SbMediaType type) {
     return false;
   }
 
-  ScopedJavaLocalRef<jobject> j_media_source;
-
-  if (type == kSbMediaTypeAudio) {
-    j_media_source.Reset(j_audio_media_source_);
-  } else {
-    j_media_source.Reset(j_video_media_source_);
-  }
-
-  Java_ExoPlayerMediaSource_writeEndOfStream(AttachCurrentThread(),
-                                             j_media_source);
+  Java_ExoPlayerBridge_writeEndOfStream(AttachCurrentThread(),
+                                        j_exoplayer_bridge_, type);
   return true;
 }
 
@@ -267,6 +249,7 @@ bool ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
   if (ShouldAbortOperation()) {
     return false;
   }
+
   Java_ExoPlayerBridge_setPlaybackRate(AttachCurrentThread(),
                                        j_exoplayer_bridge_,
                                        static_cast<float>(playback_rate));
@@ -277,6 +260,7 @@ void ExoPlayerBridge::SetVolume(const double volume) const {
   if (ShouldAbortOperation()) {
     return;
   }
+
   Java_ExoPlayerBridge_setVolume(AttachCurrentThread(), j_exoplayer_bridge_,
                                  static_cast<float>(volume));
 }
@@ -285,6 +269,7 @@ void ExoPlayerBridge::Stop() const {
   if (ShouldAbortOperation()) {
     return;
   }
+
   Java_ExoPlayerBridge_stop(AttachCurrentThread(), j_exoplayer_bridge_);
 }
 
@@ -292,16 +277,27 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
   if (ShouldAbortOperation()) {
     return MediaInfo();
   }
+
   int64_t media_time_usec = Java_ExoPlayerBridge_getCurrentPositionUs(
       AttachCurrentThread(), j_exoplayer_bridge_);
 
   return MediaInfo{media_time_usec, dropped_frames_.load(), underflow_.load()};
 }
 
-void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
-  if (initialized_.exchange(true)) {
-    SB_LOG(WARNING) << "ExoPlayer called OnInitialized more than once.";
+bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) const {
+  if (ShouldAbortOperation()) {
+    return false;
   }
+  return Java_ExoPlayerBridge_canAcceptMoreData(AttachCurrentThread(),
+                                                j_exoplayer_bridge_, type);
+}
+
+void ExoPlayerBridge::OnInitialized(JNIEnv*) {
+  if (initialized_.exchange(true)) {
+    SB_LOG(WARNING)
+        << "ExoPlayer called OnInitialized again after initialization.";
+  }
+  std::lock_guard lock(mutex_);
   initialized_cv_.notify_one();
 }
 
@@ -313,9 +309,9 @@ void ExoPlayerBridge::OnBuffering(JNIEnv*) {
 
 void ExoPlayerBridge::OnReady(JNIEnv*) {
   SB_CHECK(prerolled_cb_);
-  prerolled_cb_();
   underflow_.store(false);
   seeking_.store(false);
+  prerolled_cb_();
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
