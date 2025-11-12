@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/directory.h"
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   if (!out_path || path_size <= 0) {

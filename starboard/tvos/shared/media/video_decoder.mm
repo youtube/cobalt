@@ -20,7 +20,6 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/tvos/shared/media/decode_target_internal.h"
@@ -282,7 +281,7 @@ void TvosVideoDecoder::Reset() {
   stream_ended_ = false;
   error_occurred_ = false;
   decoding_frames_.store(0);
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   frame_counter_ = 0;
   last_frame_ = nullptr;
   last_decoded_image_ = nullptr;

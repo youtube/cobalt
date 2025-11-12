@@ -15,7 +15,8 @@
 #ifndef STARBOARD_TVOS_SHARED_MEDIA_AVC_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
 #define STARBOARD_TVOS_SHARED_MEDIA_AVC_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
 
-#include "starboard/common/optional.h"
+#include <optional>
+
 #include "starboard/shared/starboard/media/codec_util.h"
 #import "starboard/tvos/shared/media/av_video_sample_buffer_builder.h"
 
@@ -40,7 +41,7 @@ class AvcAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
   bool RefreshAVCFormatDescription(
       const starboard::media::AvcParameterSets& parameter_sets);
 
-  optional<starboard::media::VideoConfig> video_config_;
+  std::optional<VideoConfig> video_config_;
   uint64_t frame_counter_ = 0;
   CMFormatDescriptionRef format_description_ = nullptr;
 };
