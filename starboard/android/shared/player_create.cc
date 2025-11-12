@@ -33,7 +33,6 @@
 using starboard::ExoPlayerWorkerHandler;
 using starboard::FilterBasedPlayerWorkerHandler;
 using starboard::PlayerWorker;
-using starboard::SbPlayerPrivateImpl;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
