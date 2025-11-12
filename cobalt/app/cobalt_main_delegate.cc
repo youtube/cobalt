@@ -30,8 +30,7 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests) {}
+CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
@@ -157,6 +156,7 @@ void CobaltMainDelegate::InitializeHangWatcher() {
   }
   const bool emit_crashes = false;
 
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type, emit_crashes);
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type,
+                                            emit_crashes);
 }
 }  // namespace cobalt

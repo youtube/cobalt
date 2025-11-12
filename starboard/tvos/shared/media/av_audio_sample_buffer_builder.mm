@@ -16,9 +16,7 @@
 
 #include <vector>
 
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
-#include "starboard/string.h"
 #include "third_party/opus/src/include/opus.h"
 #include "third_party/opus/src/include/opus_multistream.h"
 

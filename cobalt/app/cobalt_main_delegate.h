@@ -29,7 +29,7 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(bool is_content_browsertests = false);
+  explicit CobaltMainDelegate();
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;

@@ -40,7 +40,7 @@ int g_main_argc_ = 0;
 char** g_main_argv_ = nullptr;
 int64_t app_start_time_stamp = 0;
 
-volatile int g_suspend_event_counter_ = 0;
+std::atomic_int32_t g_suspend_event_counter_{0};
 
 /**
  *  @brief Pointer to the starboard application.

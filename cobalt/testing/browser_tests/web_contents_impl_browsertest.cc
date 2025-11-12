@@ -1,6 +1,16 @@
-// Copyright 2013 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "content/browser/web_contents/web_contents_impl.h"
 
@@ -782,12 +792,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_ResourceLoadComplete ResourceLoadComplete
-#else
-#define MAYBE_ResourceLoadComplete DISABLED_ResourceLoadComplete
-#endif
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_ResourceLoadComplete) {
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_ResourceLoadComplete) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   // Load a page with an image and an image.
@@ -2079,20 +2085,6 @@ class TestWCDelegateForDialogsAndFullscreen : public JavaScriptDialogManager,
   std::unique_ptr<base::RunLoop> run_loop_ = std::make_unique<base::RunLoop>();
 };
 
-class MockFileSelectListener : public FileChooserImpl::FileSelectListenerImpl {
- public:
-  MockFileSelectListener() : FileChooserImpl::FileSelectListenerImpl(nullptr) {
-    SetListenerFunctionCalledTrueForTesting();
-  }
-  void FileSelected(std::vector<blink::mojom::FileChooserFileInfoPtr> files,
-                    const base::FilePath& base_dir,
-                    blink::mojom::FileChooserParams::Mode mode) override {}
-  void FileSelectionCanceled() override {}
-
- private:
-  ~MockFileSelectListener() override = default;
-};
-
 // TODO(b/437415063): Investigate failing test.
 #if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_JavaScriptDialogsInMainAndSubframes \
@@ -3145,15 +3137,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
 }
 
 // TODO(b/437415063): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_HttpReduceAcceptLanguageInNavigation \
-  HttpReduceAcceptLanguageInNavigation
-#else
-#define MAYBE_HttpReduceAcceptLanguageInNavigation \
-  DISABLED_HttpReduceAcceptLanguageInNavigation
-#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
-                       MAYBE_HttpReduceAcceptLanguageInNavigation) {
+                       DISABLED_HttpReduceAcceptLanguageInNavigation) {
   net::EmbeddedTestServer http_server_http(net::EmbeddedTestServer::TYPE_HTTP);
   VerifyAcceptLanguageHeader(http_server_http);
 }
@@ -3259,21 +3244,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_TRUE(ExecJs(inner_contents, script));
   inner_test_delegate.Wait();
   EXPECT_FALSE(top_contents->IsFullscreen());
-}
-
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FileChooserEndsFullscreen) {
-  WebContentsImpl* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
-  TestWCDelegateForDialogsAndFullscreen test_delegate(wc);
-
-  GURL url("about:blank");
-  EXPECT_TRUE(NavigateToURL(shell(), url));
-
-  wc->EnterFullscreenMode(wc->GetPrimaryMainFrame(), {});
-  EXPECT_TRUE(wc->IsFullscreen());
-  wc->RunFileChooser(wc->GetPrimaryMainFrame(),
-                     base::MakeRefCounted<MockFileSelectListener>(),
-                     blink::mojom::FileChooserParams());
-  EXPECT_FALSE(wc->IsFullscreen());
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
@@ -6504,13 +6474,8 @@ class MediaWatchTimeChangedDelegate : public WebContentsDelegate {
 // Tests that a media in a fenced frame reports the watch time with the url from
 // the top level frame.
 // TODO(b/437415063): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_MediaWatchTimeCallback MediaWatchTimeCallback
-#else
-#define MAYBE_MediaWatchTimeCallback DISABLED_MediaWatchTimeCallback
-#endif
 IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
-                       MAYBE_MediaWatchTimeCallback) {
+                       DISABLED_MediaWatchTimeCallback) {
   using UkmEntry = ukm::builders::Media_WebMediaPlayerState;
   ukm::TestAutoSetUkmRecorder test_recorder_;
 

@@ -14,7 +14,8 @@
 
 #import <UIKit/UIKit.h>
 
-#include "starboard/atomic.h"
+#include <atomic>
+
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
@@ -62,7 +63,7 @@ class SurroundAwarePlayerComponents : public PlayerComponents {
     if (!is_5_1_playback_) {
       return;
     }
-    if (SbAtomicNoBarrier_Increment(&s_active_5_1_playback, 1) == 1) {
+    if (s_active_5_1_playback.fetch_add(1, std::memory_order_relaxed) == 1) {
       SetPreferredOutputNumberOfChannels(6);
     }
   }
@@ -73,7 +74,7 @@ class SurroundAwarePlayerComponents : public PlayerComponents {
     if (!is_5_1_playback_) {
       return;
     }
-    if (SbAtomicNoBarrier_Increment(&s_active_5_1_playback, -1) == 0) {
+    if (s_active_5_1_playback.fetch_sub(1, std::memory_order_relaxed) == 0) {
       SetPreferredOutputNumberOfChannels(2);
     }
   }
@@ -108,13 +109,13 @@ class SurroundAwarePlayerComponents : public PlayerComponents {
     }
   }
 
-  static SbAtomic32 s_active_5_1_playback;
+  static std::atomic_int32_t s_active_5_1_playback;
 
   const bool is_5_1_playback_;
   std::unique_ptr<PlayerComponents> components_;
 };
 
-SbAtomic32 SurroundAwarePlayerComponents::s_active_5_1_playback = 0;
+std::atomic_int32_t SurroundAwarePlayerComponents::s_active_5_1_playback{0};
 
 class AVSampleBufferPlayerComponentsImpl : public PlayerComponents {
  public:
@@ -284,6 +285,12 @@ bool PlayerComponents::Factory::OutputModeSupported(
     SbDrmSystem drm_system) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture ||
             output_mode == kSbPlayerOutputModePunchOut);
+
+  // b/447334535: Decode to texture mode is being redesigned in main and the
+  // C25 tvOS implementation needs to be rewritten for Chromium integration.
+  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    return false;
+  }
 
   if (codec == kSbMediaVideoCodecNone || codec == kSbMediaVideoCodecH264) {
     return true;

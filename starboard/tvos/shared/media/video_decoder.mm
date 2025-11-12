@@ -20,7 +20,6 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/tvos/shared/media/decode_target_internal.h"
@@ -41,7 +40,7 @@ using starboard::media::VideoConfig;
 const size_t kDecodeTargetReleaseQueueDepth = 1;
 
 // Increment when UIApplicationWillResignActiveNotification is received.
-volatile SbAtomic32 s_application_inactive_counter = 0;
+volatile std::atomic_int32_t s_application_inactive_counter{0};
 
 void OnUIApplicationWillResignActive(CFNotificationCenterRef center,
                                      void* observer,
@@ -52,7 +51,7 @@ void OnUIApplicationWillResignActive(CFNotificationCenterRef center,
   // videos are playing.  In such case the counter will be incremented multiple
   // times when the app is inactive, this is ok given that we only care whether
   // the counter has been changed during the life time of the video decoder.
-  SbAtomicBarrier_Increment(&s_application_inactive_counter, 1);
+  s_application_inactive_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
 class VideoFrameImpl : public shared::starboard::player::filter::VideoFrame {
@@ -181,7 +180,7 @@ TvosVideoDecoder::TvosVideoDecoder(SbPlayerOutputMode output_mode,
                                    SbDecodeTargetGraphicsContextProvider*
                                        decode_target_graphics_context_provider)
     : application_inactive_counter_(
-          SbAtomicAcquire_Load(&s_application_inactive_counter)),
+          s_application_inactive_counter.load(std::memory_order_acquire)),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider) {
   CFNotificationCenterAddObserver(
@@ -252,7 +251,7 @@ void TvosVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   const auto& input_buffer = input_buffers[0];
   job_thread_->job_queue()->Schedule(std::bind(
       &TvosVideoDecoder::WriteInputBufferInternal, this, input_buffer));
-  if (decoding_frames_.increment() < kMaxDecodingFrames) {
+  if (++decoding_frames_ < kMaxDecodingFrames) {
     decoder_status_cb_(kNeedMoreInput, nullptr);
   }
 }
@@ -282,7 +281,7 @@ void TvosVideoDecoder::Reset() {
   stream_ended_ = false;
   error_occurred_ = false;
   decoding_frames_.store(0);
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   frame_counter_ = 0;
   last_frame_ = nullptr;
   last_decoded_image_ = nullptr;
@@ -477,7 +476,7 @@ void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
   SB_DCHECK(CFGetTypeID(image_buffer) == CVPixelBufferGetTypeID());
   SB_DCHECK(texture_cache_);
 
-  decoding_frames_.decrement();
+  decoding_frames_--;
 
   scoped_refptr<DecodedImage> current_decoded_image =
       new DecodedImage(presentation_time, image_buffer);
@@ -527,7 +526,7 @@ void TvosVideoDecoder::ReportOSError(const char* action, OSStatus status) {
 
   std::stringstream ss;
   if (application_inactive_counter_ ==
-      SbAtomicAcquire_Load(&s_application_inactive_counter)) {
+      s_application_inactive_counter.load(std::memory_order_acquire)) {
     ss << action << " failed with error " << status;
   } else {
     ss << action << " failed with error " << status

@@ -16,15 +16,14 @@
 #include <pthread.h>
 
 #include <algorithm>
+#include <atomic>
 #include <list>
 #include <vector>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
-#include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -96,7 +95,7 @@ class TvosAudioSink : public SbAudioSinkPrivate {
   std::vector<AudioQueueBufferRef> audio_queue_buffers_;
   int frames_in_out_buffer_ = 0;
   Mutex audio_queue_buffer_mutex_;
-  atomic_bool is_paused_;
+  std::atomic_bool is_paused_{false};
   bool audio_queue_is_playing_ = false;
 };
 
@@ -160,8 +159,7 @@ TvosAudioSink::TvosAudioSink(
       sample_type_(sample_type),
       frame_buffers_size_in_frames_(frame_buffers_size_in_frames),
       frame_buffer_(static_cast<uint8_t*>(frame_buffers[0])),
-      bytes_per_frame_(number_of_channels * GetBytesPerSample(sample_type)),
-      is_paused_(false) {
+      bytes_per_frame_(number_of_channels * GetBytesPerSample(sample_type)) {
   ApplicationDarwin::IncrementIdleTimerLockCount();
 }
 
@@ -459,7 +457,7 @@ bool TvosAudioSinkType::BelongToAudioThread() const {
 
 // static
 void* TvosAudioSinkType::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "tvos_audio_out");
+  pthread_setname_np("tvos_audio_out");
   pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
   SB_DCHECK(context);
   TvosAudioSinkType* type = static_cast<TvosAudioSinkType*>(context);

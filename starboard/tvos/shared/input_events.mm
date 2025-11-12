@@ -18,7 +18,6 @@
 
 #include "starboard/common/time.h"
 #include "starboard/input.h"
-#include "starboard/memory.h"
 #include "starboard/tvos/shared/application_darwin.h"
 #import "starboard/tvos/shared/defines.h"
 
