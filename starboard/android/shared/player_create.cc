@@ -30,6 +30,10 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
+using starboard::ExoPlayerWorkerHandler;
+using starboard::FilterBasedPlayerWorkerHandler;
+using starboard::PlayerWorker;
+
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,

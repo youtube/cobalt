@@ -25,6 +25,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/media.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
@@ -79,6 +80,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
  private:
   bool ShouldAbortOperation() const;
+  void ReportError(JNIEnv* env, SbPlayerError error, std::string& msg) const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
@@ -99,6 +101,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
 
   bool owns_surface_;
+  std::string init_error_msg_;
 };
 
 }  // namespace starboard
