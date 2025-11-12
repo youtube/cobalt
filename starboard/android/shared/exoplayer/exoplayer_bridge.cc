@@ -319,8 +319,9 @@ void ExoPlayerBridge::OnBuffering(JNIEnv*) {
 void ExoPlayerBridge::OnReady(JNIEnv*) {
   SB_CHECK(prerolled_cb_);
   underflow_.store(false);
-  seeking_.store(false);
-  prerolled_cb_();
+  if (seeking_.exchange(false)) {
+    prerolled_cb_();
+  }
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
