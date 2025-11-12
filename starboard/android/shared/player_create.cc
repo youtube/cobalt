@@ -35,7 +35,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-using starboard::ExoPlayerPlayerWorkerHandler;
+using starboard::ExoPlayerWorkerHandler;
 using starboard::FilterBasedPlayerWorkerHandler;
 using starboard::PlayerWorker;
 

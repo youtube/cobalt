@@ -72,7 +72,8 @@ ExoPlayerBridge::ExoPlayerBridge(
   if (audio_stream_info.codec != kSbMediaAudioCodecNone) {
     j_audio_media_source = CreateAudioMediaSource(audio_stream_info);
     if (!j_audio_media_source) {
-      SB_LOG(ERROR) << "Could not create ExoPlayer audio MediaSource.";
+      init_error_msg_ = "Could not create ExoPlayer audio MediaSource";
+      SB_LOG(ERROR) << init_error_msg_;
       return;
     }
   }
@@ -80,13 +81,15 @@ ExoPlayerBridge::ExoPlayerBridge(
   if (video_stream_info.codec != kSbMediaVideoCodecNone) {
     j_video_media_source = CreateVideoMediaSource(video_stream_info);
     if (!j_video_media_source) {
-      SB_LOG(ERROR) << "Could not create ExoPlayer video MediaSource.";
+      init_error_msg_ = "Could not create ExoPlayer video MediaSource";
+      SB_LOG(ERROR) << init_error_msg_;
       return;
     }
 
     j_output_surface.Reset(env, AcquireVideoSurface());
     if (!j_output_surface) {
-      SB_LOG(ERROR) << "Could not acquire video surface for ExoPlayer.";
+      init_error_msg_ = "Could not acquire video surface for ExoPlayer";
+      SB_LOG(ERROR) << init_error_msg_;
       return;
     }
     owns_surface_ = true;
@@ -95,7 +98,8 @@ ExoPlayerBridge::ExoPlayerBridge(
   ScopedJavaLocalRef<jobject> j_exoplayer_manager(
       StarboardBridge::GetInstance()->GetExoPlayerManager(env));
   if (!j_exoplayer_manager) {
-    SB_LOG(ERROR) << "Failed to fetch ExoPlayerManager.";
+    init_error_msg_ = "Failed to fetch ExoPlayerManager";
+    SB_LOG(ERROR) << init_error_msg_;
     return;
   }
   j_exoplayer_manager_.Reset(j_exoplayer_manager);
@@ -106,7 +110,8 @@ ExoPlayerBridge::ExoPlayerBridge(
           j_audio_media_source, j_video_media_source, j_output_surface,
           false /* prefer_tunnel_mode */);
   if (!j_exoplayer_bridge) {
-    SB_LOG(ERROR) << "Could not create Java ExoPlayerBridge.";
+    init_error_msg_ = "Could not create Java ExoPlayerBridge";
+    SB_LOG(ERROR) << init_error_msg_;
     return;
   }
 
@@ -135,7 +140,7 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
     std::string msg = "ExoPlayer surface is destroyed before playback ended";
     SB_LOG(ERROR) << msg;
     playback_error_occurred_.store(true);
-    error_cb_(kSbPlayerErrorDecode, msg);
+    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, msg);
   }
 }
 
@@ -153,6 +158,10 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
   prerolled_cb_ = std::move(prerolled_cb);
   ended_cb_ = std::move(ended_cb);
 
+  if (!init_error_msg_.empty()) {
+    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, init_error_msg_);
+  }
+
   bool completed_init;
   {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -164,7 +173,7 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
   if (!completed_init) {
     std::string msg = "ExoPlayer failed to initialize in time";
     SB_LOG(ERROR) << msg;
-    error_cb_(kSbPlayerErrorDecode, msg.c_str());
+    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, msg);
     return false;
   }
 
@@ -315,11 +324,10 @@ void ExoPlayerBridge::OnReady(JNIEnv*) {
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
-  SB_CHECK(error_cb_);
   playback_error_occurred_.store(true);
-  SB_LOG(ERROR) << "Reporting error with message "
-                << ConvertJavaStringToUTF8(env, msg);
-  error_cb_(kSbPlayerErrorDecode, ConvertJavaStringToUTF8(env, msg));
+  std::string error_msg = ConvertJavaStringToUTF8(env, msg);
+  SB_LOG(ERROR) << "Reporting playback error with message " << error_msg;
+  ReportError(env, kSbPlayerErrorDecode, error_msg);
 }
 
 void ExoPlayerBridge::OnEnded(JNIEnv*) const {
@@ -338,6 +346,13 @@ bool ExoPlayerBridge::ShouldAbortOperation() const {
     return true;
   }
   return false;
+}
+
+void ExoPlayerBridge::ReportError(JNIEnv* env,
+                                  SbPlayerError error,
+                                  std::string& msg) const {
+  SB_CHECK(error_cb_);
+  error_cb_(kSbPlayerErrorDecode, msg);
 }
 
 }  // namespace starboard
