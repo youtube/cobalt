@@ -212,6 +212,7 @@ static_library("starboard_platform") {
   public_deps = [ "//starboard/win/shared:starboard_platform" ]
 
   deps = [
+    "//starboard/common:socket_log_handler",
     "//third_party/angle:translator",
     "//third_party/opus",
   ]
