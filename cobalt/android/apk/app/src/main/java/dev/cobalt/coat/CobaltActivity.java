@@ -73,6 +73,7 @@ import org.chromium.net.NetworkChangeNotifier;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final int NETWORK_CHECK_TIMEOUT_MS = 10000;
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -642,15 +643,16 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  // Try generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
+  // Try to generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
   // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
+    // Keep a separate timeout for edge cases in case a DNS error occurs
     if (timeoutRunnable != null) {
       timeoutHandler.removeCallbacks(timeoutRunnable);
     }
     timeoutRunnable =
       () -> {
-        Log.w(TAG, "Charley: Active Network check timed out after 5 seconds.");
+        Log.w(TAG, "Active Network check timed out after 10 seconds.");
         if (mPlatformError == null || !mPlatformError.isShowing()) {
           mPlatformError =
               new PlatformError(
@@ -660,7 +662,7 @@ public abstract class CobaltActivity extends Activity {
         mShouldReloadOnResume = true;
         timeoutRunnable = null;
       };
-    timeoutHandler.postDelayed(timeoutRunnable, 10000);
+    timeoutHandler.postDelayed(timeoutRunnable, NETWORK_CHECK_TIMEOUT_MS);
 
     new Thread(
       () -> {
@@ -668,8 +670,8 @@ public abstract class CobaltActivity extends Activity {
         try {
           URL url = new URL("https://www.google.com/generate_204");
           urlConnection = (HttpURLConnection) url.openConnection();
-          urlConnection.setConnectTimeout(5000);
-          urlConnection.setReadTimeout(5000);
+          urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
+          urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
           urlConnection.connect();
           if (urlConnection.getResponseCode() != 204) {
             throw new IOException("Bad response code: " + urlConnection.getResponseCode());
