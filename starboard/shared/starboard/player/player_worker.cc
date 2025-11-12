@@ -27,6 +27,10 @@
 #include "starboard/common/player.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
+#if defined(ANDROID)
+#include "starboard/android/shared/jni_state.h"
+#endif
+
 namespace starboard::shared::starboard::player {
 
 namespace {
@@ -202,6 +206,9 @@ void* PlayerWorker::ThreadEntryPoint(void* context) {
     param->condition_variable.Signal();
   }
   player_worker->RunLoop();
+#if defined(ANDROID)
+  android::shared::JNIState::GetVM()->DetachCurrentThread();
+#endif
   return NULL;
 }
 

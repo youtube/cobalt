@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/common/check_op.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
@@ -96,6 +97,7 @@ void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);
   tester->TesterThreadFunc();
+  JNIState::GetVM()->DetachCurrentThread();
   return NULL;
 }
 
