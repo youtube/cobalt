@@ -113,8 +113,8 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kLatestConfigHash,
       std::move(
           experiment_config.Find(cobalt::kLatestConfigHash)->GetString()));
-  // TODO (b/442825834): Remove CommitPendingWrite to decrease storage writes
-  // TODO (b/456583508): Without CommitPendingWrite, we should still write to
+  // TODO: b/442825834 - Remove CommitPendingWrite to decrease storage writes
+  // TODO: b/456583508 - Without CommitPendingWrite, we should still write to
   // storage if we shutdown early
   global_features->metrics_local_state()->CommitPendingWrite();
   experiment_config_ptr->CommitPendingWrite();
@@ -126,8 +126,8 @@ void H5vccExperimentsImpl::ResetExperimentState(
   PrefService* experiment_config =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
   experiment_config->ClearPref(cobalt::kExperimentConfig);
-  // TODO (b/442825834): Remove CommitPendingWrite to decrease storage writes
-  // TODO (b/456583508): Without CommitPendingWrite, we should still write to
+  // TODO: b/442825834 - Remove CommitPendingWrite to decrease storage writes
+  // TODO: b/456583508 - Without CommitPendingWrite, we should still write to
   // storage if we shutdown early
   experiment_config->CommitPendingWrite();
   std::move(callback).Run();
