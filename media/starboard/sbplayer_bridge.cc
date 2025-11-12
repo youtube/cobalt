@@ -948,7 +948,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     sample_info.buffer_size = buffer->size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
-    if (buffer->side_data()) {
+    if (buffer->side_data() && !buffer->side_data()->alpha_data.empty()) {
       // We only support at most one side data currently.
       side_data->type = kMatroskaBlockAdditional;
       side_data->data = buffer->side_data()->alpha_data.data();

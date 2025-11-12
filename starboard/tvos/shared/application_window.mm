@@ -688,13 +688,13 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
 - (void)updateSearchResultsForSearchController:
     (UISearchController*)searchController {
-  static NSDate* _searchResultLastDate;
-  static NSString* _searchResultLastString;
+  static NSDate* searchResultLastDate;
+  static NSString* searchResultLastString;
 
   if (!_keyboardShowing) {
     return;
   }
-  _searchResultLastDate = [NSDate date];
+  searchResultLastDate = [NSDate date];
 
   // Debouncing searchResults to avoid sending too many intermediate input
   // events to Kabuki and a bug where voice search queries are cleared.
@@ -702,16 +702,15 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
       dispatch_time(DISPATCH_TIME_NOW,
                     (int64_t)(kSearchResultDebounceTime * NSEC_PER_SEC)),
       dispatch_get_main_queue(), ^{
-        if (-_searchResultLastDate.timeIntervalSinceNow <=
+        if (-searchResultLastDate.timeIntervalSinceNow <=
             kSearchResultDebounceTime) {
           return;
         }
         NSString* searchString = searchController.searchBar.text;
-        if (_searchResultLastString &&
-            _searchResultLastString == searchString) {
+        if (searchResultLastString && searchResultLastString == searchString) {
           return;
         }
-        _searchResultLastString = searchString;
+        searchResultLastString = searchString;
         SBDWindowManager* windowManager = SBDGetApplication().windowManager;
         [windowManager.currentApplicationWindow.keyboardInputDevice
             onScreenKeyboardTextEntered:searchString];
