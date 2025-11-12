@@ -19,7 +19,9 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/exoplayer/exoplayer_player_worker_handler.h"
+#include "starboard/player.h"
+
+#include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -204,15 +206,30 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
-  bool use_exoplayer = starboard::features::FeatureList::IsEnabled(
-      starboard::features::kEnableExoPlayer);
-  if (use_exoplayer &&
-      (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
-       creation_param->drm_system != kSbDrmSystemInvalid)) {
-    SB_LOG(WARNING)
-        << "ExoPlayer does not support decode-to-texture mode or DRM playback, "
-           "defaulting to FilterBasedPlayerWorkerHandler.";
-    use_exoplayer = false;
+  std::unique_ptr<PlayerWorker::Handler> handler;
+  if (creation_param->drm_system == kSbDrmSystemInvalid &&
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
+    handler = std::make_unique<ExoPlayerWorkerHandler>(creation_param);
+  } else {
+    handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
+                                                               provider);
+  }
+
+  handler->SetMaxVideoInputSize(
+      starboard::GetMaxVideoInputSizeForCurrentThread());
+  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
+      player_status_func, player_error_func, context, std::move(handler));
+
+  if (SbPlayerIsValid(player)) {
+    if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+      // TODO: accomplish this through more direct means.
+      // Set the bounds to initialize the VideoSurfaceView. The initial values
+      // don't matter.
+      SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
+    }
+    return player;
   }
 
   std::unique_ptr<PlayerWorker::Handler> handler;
