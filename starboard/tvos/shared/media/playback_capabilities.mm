@@ -23,7 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/observer_registry.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"

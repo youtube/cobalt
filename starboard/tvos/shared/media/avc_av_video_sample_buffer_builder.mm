@@ -41,7 +41,7 @@ int64_t AvcAVVideoSampleBufferBuilder::DecodingTimeNeededPerFrame() const {
 void AvcAVVideoSampleBufferBuilder::Reset() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   AVVideoSampleBufferBuilder::Reset();
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   if (format_description_) {
     CFRelease(format_description_);
     format_description_ = nullptr;
