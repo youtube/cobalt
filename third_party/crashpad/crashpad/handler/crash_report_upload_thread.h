@@ -79,6 +79,10 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   //!
   //! \param[in] database The database to upload crash reports from.
   //! \param[in] url The URL of the server to upload crash reports to.
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+  //! \param[in] ca_certificates_path The absolute path to a directory
+  //!   containing CA root certificates.
+#endif
   //! \param[in] options Options for the report uploads.
   //! \param[in] callback Optional callback invoked zero or more times
   //!     on a background thread each time the this object finishes
@@ -86,6 +90,9 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   //!     If this callback is empty, it is not invoked.
   CrashReportUploadThread(CrashReportDatabase* database,
                           const std::string& url,
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+                          const std::string& ca_certificates_path,
+#endif
                           const Options& options,
                           ProcessPendingReportsObservationCallback callback);
 
@@ -226,6 +233,9 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   const Options options_;
   const ProcessPendingReportsObservationCallback callback_;
   const std::string url_;
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+  const std::string ca_certificates_path_;
+#endif
   WorkerThread thread_;
   ThreadSafeVector<UUID> known_pending_report_uuids_;
 #if BUILDFLAG(IS_IOS)
