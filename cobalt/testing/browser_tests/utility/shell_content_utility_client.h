@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
-#define COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
+#define COBALT_TESTING_BROWSER_TESTS_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
 
 #include "content/public/test/audio_service_test_helper.h"
 #include "content/public/test/network_service_test_helper.h"
@@ -24,7 +24,7 @@ namespace content {
 
 class ShellContentUtilityClient : public ContentUtilityClient {
  public:
-  explicit ShellContentUtilityClient(bool is_browsertest = false);
+  explicit ShellContentUtilityClient();
 
   ShellContentUtilityClient(const ShellContentUtilityClient&) = delete;
   ShellContentUtilityClient& operator=(const ShellContentUtilityClient&) =
@@ -44,4 +44,4 @@ class ShellContentUtilityClient : public ContentUtilityClient {
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
