@@ -189,6 +189,8 @@ static_library("starboard_platform") {
     "egl_swap_buffers.cc",
     "exoplayer/exoplayer_bridge.cc",
     "exoplayer/exoplayer_bridge.h",
+    "exoplayer/exoplayer_util.cc",
+    "exoplayer/exoplayer_util.h",
     "exoplayer/exoplayer_worker_handler.cc",
     "exoplayer/exoplayer_worker_handler.h",
     "features_extension.cc",

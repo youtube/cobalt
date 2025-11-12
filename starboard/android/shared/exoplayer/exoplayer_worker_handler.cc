@@ -14,12 +14,21 @@
 
 #include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
 
+#include <memory>
+#include <string>
+
+#include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
+#include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/common/player.h"
+#include "starboard/media.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/player_worker.h"
 
 namespace starboard {
 namespace {
 
-using HandlerResult = PlayerWorker::Handler::HandlerResult;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -29,163 +38,155 @@ const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 ExoPlayerWorkerHandler::ExoPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
-      audio_stream_info_(creation_param->audio_stream_info),
-      video_stream_info_(creation_param->video_stream_info),
       update_job_(std::bind(&ExoPlayerWorkerHandler::Update, this)),
-      bridge_(std::make_unique<ExoPlayerBridge>(audio_stream_info_,
-                                                video_stream_info_)) {}
+      bridge_(
+          std::make_unique<ExoPlayerBridge>(creation_param->audio_stream_info,
+                                            creation_param->video_stream_info)),
+      audio_eos_written_(false),
+      video_eos_written_(false) {
+  SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut);
+}
 
-HandlerResult ExoPlayerWorkerHandler::Init(
+Result<void> ExoPlayerWorkerHandler::Init(
     SbPlayer player,
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
     UpdatePlayerStateCB update_player_state_cb,
     UpdatePlayerErrorCB update_player_error_cb) {
-  // This function should only be called once.
   SB_CHECK(!update_media_info_cb_);
 
-  // All parameters have to be valid.
+  // Ensure all parameters have to be valid.
   SB_CHECK(SbPlayerIsValid(player));
   SB_CHECK(update_media_info_cb);
   SB_CHECK(get_player_state_cb);
   SB_CHECK(update_player_state_cb);
 
-  AttachToCurrentThread();
-
-  player_ = player;
   update_media_info_cb_ = update_media_info_cb;
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
 
-  bridge_->SetCallbacks(
-      std::bind(&ExoPlayerWorkerHandler::OnError, this, _1, _2),
-      std::bind(&ExoPlayerWorkerHandler::OnPrerolled, this),
-      std::bind(&ExoPlayerWorkerHandler::OnEnded, this));
-  if (!bridge_->EnsurePlayerIsInitialized()) {
-    return Failure("Failed to initialize ExoPlayer.");
+  AttachToCurrentThread();
+
+  if (!bridge_->is_valid() ||
+      !bridge_->Init(std::bind(&ExoPlayerWorkerHandler::OnError, this, _1, _2),
+                     std::bind(&ExoPlayerWorkerHandler::OnPrerolled, this),
+                     std::bind(&ExoPlayerWorkerHandler::OnEnded, this))) {
+    return Failure("Failed to initialize the ExoPlayer.");
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
-  if (!bridge_->is_valid()) {
-    return Failure("Failed to initialize ExoPlayer.");
-  }
-
   return Success();
 }
 
-HandlerResult ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
-  SB_CHECK(bridge_);
+Result<void> ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
+  SB_CHECK(bridge_->is_valid());
 
-  if (seek_to_time < 0) {
-    SB_DLOG(ERROR) << "Tried to seek to negative timestamp " << seek_to_time;
-    seek_to_time = 0;
-  }
+  audio_eos_written_ = false;
+  video_eos_written_ = false;
 
-  bridge_->Pause();
-  bridge_->Seek(seek_to_time);
-
-  // Seek is executed asynchronously on the ExoPlayer. We return true here and
-  // later report an error if seek fails.
-  return Success();
+  return bridge_->SetPause(true /* pause */) && bridge_->Seek(seek_to_time)
+             ? Success()
+             : Failure("Failed ExoPlayer seek.");
 }
 
-HandlerResult ExoPlayerWorkerHandler::WriteSamples(
+Result<void> ExoPlayerWorkerHandler::WriteSamples(
     const InputBuffers& input_buffers,
     int* samples_written) {
+  SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(!input_buffers.empty());
-  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(bridge_->is_valid());
   SB_CHECK(samples_written);
-  SB_CHECK(bridge_);
+
   for (const auto& input_buffer : input_buffers) {
-    SB_CHECK(input_buffer);
+    SB_DCHECK(input_buffer);
   }
 
+  SbMediaType sample_type = input_buffers.front()->sample_type();
   *samples_written = 0;
-  if (input_buffers.front()->sample_type() == kSbMediaTypeAudio) {
-    if (bridge_->IsEndOfStreamWritten(kSbMediaTypeAudio)) {
-      SB_LOG(WARNING) << "Tried to write audio sample after EOS is reached";
-    }
+  if (IsEOSWritten(sample_type)) {
+    SB_LOG(WARNING) << "Tried to write "
+                    << (sample_type == kSbMediaTypeAudio ? "audio" : "video")
+                    << " sample after EOS is written.";
   } else {
-    SB_CHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
-    if (bridge_->IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-      SB_LOG(WARNING) << "Tried to write video sample after EOS is reached";
+    if (!bridge_->CanAcceptMoreData(sample_type)) {
+      return Success();
     }
+    if (!bridge_->WriteSamples(input_buffers, sample_type)) {
+      return Failure("Failed to write samples to the ExoPlayer.");
+    }
+    *samples_written = static_cast<int>(input_buffers.size());
   }
 
-  *samples_written += input_buffers.size();
-  bridge_->WriteSamples(input_buffers);
   return Success();
 }
 
-HandlerResult ExoPlayerWorkerHandler::WriteEndOfStream(
-    SbMediaType sample_type) {
+Result<void> ExoPlayerWorkerHandler::WriteEndOfStream(SbMediaType sample_type) {
   SB_CHECK(BelongsToCurrentThread());
-  if (sample_type == kSbMediaTypeAudio) {
-    if (bridge_->IsEndOfStreamWritten(kSbMediaTypeAudio)) {
-      SB_LOG(WARNING) << "Tried to write audio EOS after EOS is enqueued";
+  SB_CHECK(bridge_->is_valid());
+
+  if (bridge_->WriteEOS(sample_type)) {
+    if (sample_type == kSbMediaTypeAudio) {
+      audio_eos_written_ = true;
     } else {
-      SB_LOG(INFO) << "Audio EOS enqueued";
-      bridge_->WriteEndOfStream(kSbMediaTypeAudio);
+      video_eos_written_ = true;
     }
-  } else {
-    if (bridge_->IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-      SB_LOG(WARNING) << "Tried to write video EOS after EOS is enqueued";
-    } else {
-      SB_LOG(INFO) << "Video EOS enqueued";
-      bridge_->WriteEndOfStream(kSbMediaTypeVideo);
-    }
+    return Success();
   }
 
-  return Success();
+  return Failure("Failed to write end of stream to ExoPlayer.");
 }
 
-HandlerResult ExoPlayerWorkerHandler::SetPause(bool pause) {
+Result<void> ExoPlayerWorkerHandler::SetPause(bool pause) {
   SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(bridge_->is_valid());
 
-  paused_ = pause;
-
-  if (pause) {
-    bridge_->Pause();
-  } else {
-    bridge_->Play();
-  }
-
-  Update();
-  return Success();
+  return bridge_->SetPause(pause)
+             ? Success()
+             : Failure("Failed to execute ExoPlayerWorkerHandler::SetPause().");
 }
 
-HandlerResult ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
+Result<void> ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(bridge_->is_valid());
 
-  playback_rate_ = playback_rate;
-
-  bridge_->SetPlaybackRate(playback_rate_);
-
-  Update();
-  return Success();
+  return bridge_->SetPlaybackRate(playback_rate)
+             ? Success()
+             : Failure("Failed to set ExoPlayer playback rate.");
 }
 
 void ExoPlayerWorkerHandler::SetVolume(double volume) {
   SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(bridge_->is_valid());
 
-  volume_ = volume;
-  bridge_->SetVolume(volume_);
+  bridge_->SetVolume(volume);
+}
+
+void ExoPlayerWorkerHandler::Stop() {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(bridge_->is_valid());
+
+  RemoveJobByToken(update_job_token_);
+
+  bridge_->Stop();
+
+  update_media_info_cb_ = nullptr;
+  get_player_state_cb_ = nullptr;
+  update_player_state_cb_ = nullptr;
+  update_player_error_cb_ = nullptr;
 }
 
 void ExoPlayerWorkerHandler::Update() {
-  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(bridge_->is_valid());
 
-  if (get_player_state_cb_() == kSbPlayerStatePresenting) {
-    int dropped_frames = 0;
-    if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
-      dropped_frames = bridge_->GetDroppedFrames();
-    }
-
-    ExoPlayerBridge::MediaInfo info;
-    auto media_time = bridge_->GetCurrentMediaTime(info);
-    update_media_info_cb_(media_time, dropped_frames, !info.is_underflow);
+  if (get_player_state_cb_ &&
+      get_player_state_cb_() == kSbPlayerStatePresenting) {
+    ExoPlayerBridge::MediaInfo info = bridge_->GetMediaInfo();
+    SB_DCHECK(update_media_info_cb_);
+    update_media_info_cb_(info.media_time_usec, info.dropped_frames,
+                          !info.underflow);
   }
 
   RemoveJobByToken(update_job_token_);
@@ -213,16 +214,14 @@ void ExoPlayerWorkerHandler::OnPrerolled() {
     return;
   }
 
-  SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
-      << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
+  if (get_player_state_cb_) {
+    SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
+        << "Invalid player state "
+        << GetPlayerStateName(get_player_state_cb_());
+  }
 
-  update_player_state_cb_(kSbPlayerStatePresenting);
-  // The call is required to improve the calculation of media time in
-  // PlayerInternal, because it updates the system monotonic time used as the
-  // base of media time extrapolation.
-  Update();
-  if (!paused_) {
-    bridge_->Play();
+  if (update_player_state_cb_) {
+    update_player_state_cb_(kSbPlayerStatePresenting);
   }
 }
 
@@ -232,19 +231,13 @@ void ExoPlayerWorkerHandler::OnEnded() {
     return;
   }
 
-  SB_LOG(INFO) << "Playback ended.";
-
-  update_player_state_cb_(kSbPlayerStateEndOfStream);
+  if (update_player_state_cb_) {
+    update_player_state_cb_(kSbPlayerStateEndOfStream);
+  }
 }
 
-void ExoPlayerWorkerHandler::Stop() {
-  SB_CHECK(BelongsToCurrentThread());
-
-  SB_LOG(INFO) << "ExoPlayerWorkerHandler stopped.";
-
-  RemoveJobByToken(update_job_token_);
-
-  bridge_->Stop();
+bool ExoPlayerWorkerHandler::IsEOSWritten(SbMediaType type) const {
+  return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
 }
 
 }  // namespace starboard
