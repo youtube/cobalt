@@ -790,10 +790,10 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
   // Convert from points to pixels.
   CGFloat scale = UIScreen.mainScreen.scale;
-  return {static_cast<int>(keyboardFrame.origin.x * scale),
-          static_cast<int>(keyboardFrame.origin.y * scale),
-          static_cast<int>(keyboardFrame.size.width * scale),
-          static_cast<int>(keyboardFrame.size.height * scale)};
+  return {static_cast<float>(keyboardFrame.origin.x * scale),
+          static_cast<float>(keyboardFrame.origin.y * scale),
+          static_cast<float>(keyboardFrame.size.width * scale),
+          static_cast<float>(keyboardFrame.size.height * scale)};
 }
 
 - (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket {
