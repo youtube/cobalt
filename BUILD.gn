@@ -631,7 +631,7 @@ group("gn_all") {
         deps += [ "//chrome/test:chrome_app_unittests" ]
       }
 
-      if (!is_debug && !is_component_build && !is_castos) {
+      if (!is_debug && !is_component_build && !exclude_chrome_build) {
         deps += [ "//chrome/tools/service_discovery_sniffer" ]
       }
     }
