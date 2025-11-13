@@ -211,7 +211,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   bool _insufficientExternalProtection;
 }
 
-@synthesize duration = _duration;
 @synthesize playbackRate = _playbackRate;
 @synthesize totalDroppedFrames = _totalDroppedFrames;
 @synthesize totalFrames = _totalFrames;
