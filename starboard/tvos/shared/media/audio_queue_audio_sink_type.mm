@@ -25,9 +25,9 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/thread.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
@@ -458,7 +458,7 @@ bool TvosAudioSinkType::BelongToAudioThread() const {
 // static
 void* TvosAudioSinkType::ThreadEntryPoint(void* context) {
   pthread_setname_np("tvos_audio_out");
-  pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
   SB_DCHECK(context);
   TvosAudioSinkType* type = static_cast<TvosAudioSinkType*>(context);
   type->AudioThreadFunc();
