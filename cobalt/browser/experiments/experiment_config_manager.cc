@@ -174,7 +174,7 @@ void ExperimentConfigManager::StoreSafeConfig() {
       experiment_config_->GetString(kExperimentConfigMinVersion));
   experiment_config_->SetTime(
       variations::prefs::kVariationsSafeSeedFetchTime,
-      experiment_config_->GetTime(kVariationsLastFetchTime));
+      experiment_config_->GetTime(variations::prefs::kVariationsLastFetchTime));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }

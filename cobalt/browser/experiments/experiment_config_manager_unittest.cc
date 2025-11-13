@@ -52,6 +52,8 @@ class ExperimentConfigManagerTest : public testing::Test {
     pref_service_->registry()->RegisterDictionaryPref(kFinchParameters);
     pref_service_->registry()->RegisterTimePref(
         variations::prefs::kVariationsLastFetchTime, base::Time());
+    pref_service_->registry()->RegisterTimePref(
+        variations::prefs::kVariationsSafeSeedFetchTime, base::Time());
     metrics_pref_service_ = std::make_unique<TestingPrefServiceSimple>();
     metrics_pref_service_->registry()->RegisterIntegerPref(
         variations::prefs::kVariationsCrashStreak, 0);
@@ -475,6 +477,21 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetString(kSafeConfigMinVersion, "");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
+TEST_F(ExperimentConfigManagerTest, StoreSafeConfigSetsFetchTime) {
+  base::Time fetch_time = base::Time::Now() - base::Days(5);
+  pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
+                         fetch_time);
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+
+  experiment_config_manager_->StoreSafeConfig();
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(
+      experiment_config_manager_->has_called_store_safe_config_for_testing());
+  EXPECT_EQ(
+      pref_service_->GetTime(variations::prefs::kVariationsSafeSeedFetchTime),
+      fetch_time);
 }
 
 }  // namespace cobalt
