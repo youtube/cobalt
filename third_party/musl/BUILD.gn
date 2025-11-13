@@ -455,7 +455,6 @@ static_library("c_internal") {
     "src/stdio/fscanf.c",
     "src/stdio/fseek.c",
     "src/stdio/ftell.c",
-    "src/stdio/fwide.c",
     "src/stdio/fwrite.c",
     "src/stdio/getc.c",
     "src/stdio/getwc.c",
