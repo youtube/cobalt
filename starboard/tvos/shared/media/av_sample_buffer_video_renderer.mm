@@ -68,8 +68,7 @@ static NSString* kDummyMasterPlaylistFormatString =
     @"cobalt://dummy_video.m3u8r";
 
 - (instancetype)initWithTransferId:(SbMediaTransferId)transfer_id
-                         frameRate:(int)frame_rate;
-{
+                         frameRate:(int)frame_rate {
   self = [super init];
   switch (transfer_id) {
     case kSbMediaTransferIdBt709:
