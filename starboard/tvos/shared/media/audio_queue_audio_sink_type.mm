@@ -448,7 +448,7 @@ void TvosAudioSinkType::Destroy(SbAudioSink audio_sink) {
   audio_thread_condition_.notify_one();
   {
     std::unique_lock lock(audio_thread_mutex_);
-    destroy_condition_.wait(lock, [&]() { return sinks_to_destroy_.empty(); });
+    destroy_condition_.wait(lock, [&] { return sinks_to_destroy_.empty(); });
   }
   delete audio_sink;
 }
