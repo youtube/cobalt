@@ -440,9 +440,9 @@ void ChunkDemuxerStream::SetStreamMemoryLimit(size_t memory_limit) {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void ChunkDemuxerStream::SetAndApplyStreamMemoryLimitClamp(size_t memory_limit_clamp) {
+void ChunkDemuxerStream::SetStreamMemoryLimitClamp(size_t memory_limit_clamp) {
   base::AutoLock auto_lock(lock_);
-  stream_->set_and_apply_memory_limit_clamp(memory_limit_clamp);
+  stream_->set_memory_limit_clamp(memory_limit_clamp);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

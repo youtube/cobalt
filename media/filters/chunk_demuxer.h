@@ -161,10 +161,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void SetStreamMemoryLimit(size_t memory_limit);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Sets the memory limit and memory limit clamp, in bytes, on the SourceBufferStream. If 
-  // the memory limit is greater than the |memory_limit_clamp|, the memory limit will be 
-  //set to the clamp value.
-  void SetAndApplyStreamMemoryLimitClamp(size_t memory_limit_clamp);
+  // Sets the memory limit and memory limit clamp, in bytes, on the SourceBufferStream. If
+  // the memory limit is greater than the |memory_limit_clamp|, the memory limit will be
+  // set to the clamp value.
+  void SetStreamMemoryLimitClamp(size_t memory_limit_clamp);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void SetLiveness(StreamLiveness liveness);

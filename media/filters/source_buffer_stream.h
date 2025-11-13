@@ -184,7 +184,7 @@ class MEDIA_EXPORT SourceBufferStream {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void set_and_apply_memory_limit_clamp(size_t memory_limit_clamp) {
+  void set_memory_limit_clamp(size_t memory_limit_clamp) {
     memory_limit_clamp_ = memory_limit_clamp;
     memory_limit_ = std::min(memory_limit_, memory_limit_clamp);
   }

@@ -969,7 +969,7 @@ void SourceBufferState::SetStreamMemoryLimits() {
         << "Custom video per-track SourceBuffer size clamp limit(MiB)="
         << (video_buf_size_limit_clamp / 1024 / 1024);
     for (const auto& it : video_streams_)
-      it.second->SetAndApplyStreamMemoryLimitClamp(video_buf_size_limit_clamp);
+      it.second->SetStreamMemoryLimitClamp(video_buf_size_limit_clamp);
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }

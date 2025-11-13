@@ -1875,6 +1875,8 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Dynamically increase |memory_limit_| when video resolution goes up.
+  // Note: m138+ introduces new ways to set the stream memory limit.
+  // TODO: b/460460519 - Readjust this code after rebasing to m138+.
   memory_limit_ = std::max(
       memory_limit_,
       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,

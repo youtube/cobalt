@@ -30,13 +30,11 @@ namespace cobalt {
 
 namespace {
 
-constexpr auto kVideoBufferSizeClampSetting = "Media.UseVideoBufferSizeClamp";
-
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
 // corresponding value.
-const base::flat_map<std::string, const char*> kSettingToSwitchMap = {
-    {kVideoBufferSizeClampSetting, switches::kMSEVideoBufferSizeLimitClampMb},
+const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
+    {"Media.VideoBufferSizeClampMb", switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
@@ -94,20 +92,41 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
+// TODO: b/460292554 - This code is a tentative solution, and will be replaced
+// once base::Feature is fully supported.
+//
 // Append the h5vcc setting to the corresponding media switch, if such mapping
-// exists.
-void AppendSettingToSwitch(
-    const std::string& switch_name,
+// exists. H5vcc settings are either pass their value to a media switch for code
+// in /media to use, or are given to Starboard Renderer for direct usage.
+bool AppendSettingToSwitch(
+    const std::string& setting_name,
     const cobalt::mojom::SettingValuePtr& setting_value) {
-  if (setting_value->is_int_value()) {
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-        switch_name, base::NumberToString(setting_value->get_int_value()));
-    LOG(INFO) << "Applied command line switch: " << switch_name << " = "
-              << setting_value->get_int_value();
-  } else {
-    LOG(WARNING) << "Attempted to apply switch " << switch_name
-                 << " but the setting value was not an integer.";
+  auto it = kH5vccSettingToSwitchMap.find(setting_name);
+  if (it == kH5vccSettingToSwitchMap.end()) {
+    return false;
   }
+  std::string switch_name = it->second;
+  std::string setting_str;
+  switch (setting_value->which()) {
+    case cobalt::mojom::SettingValue::Tag::kStringValue: {
+      setting_str = setting_value->get_string_value();
+      break;
+    }
+    case cobalt::mojom::SettingValue::Tag::kIntValue: {
+      setting_str = base::NumberToString(setting_value->get_int_value());
+      break;
+    }
+    default: {
+      LOG(WARNING) << "Attempted to apply switch " << switch_name
+                   << " but the setting value was not an integer or string.";
+      return false;
+    }
+  }
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
+                                                            setting_str);
+  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+            << setting_str;
+  return true;
 }
 
 }  // namespace
@@ -229,20 +248,17 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 
   cobalt::mojom::SettingsPtr settings;
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
-    // H5vcc settings are either given to Starboard Renderer for direct usage,
-    // or pass their value to a media switch for code in //media to use.
     for (auto& [key, value] : settings->settings) {
-      auto it = kSettingToSwitchMap.find(key);
-      if (it != kSettingToSwitchMap.end()) {
-        AppendSettingToSwitch(it->second, value);
-      } else if (value->is_string_value()) {
-        renderer_factory_traits->h5vcc_settings.emplace(
-            key, std::move(value->get_string_value()));
-      } else if (value->is_int_value()) {
-        renderer_factory_traits->h5vcc_settings.emplace(key,
-                                                        value->get_int_value());
-      } else {
-        NOTREACHED();
+      if (!AppendSettingToSwitch(key, value)) {
+        if (value->is_string_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, std::move(value->get_string_value()));
+        } else if (value->is_int_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, value->get_int_value());
+        } else {
+          NOTREACHED();
+        }
       }
     }
   }
