@@ -11,9 +11,6 @@
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
 #include "third_party/jni_zero/logging.h"
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/jni_zero/cobalt_for_google3_buildflags.h"
-#endif
 #if defined(JNI_ZERO_MULTIPLEXING_ENABLED)
 extern const int64_t kJniZeroHashWhole;
 extern const int64_t kJniZeroHashPriority;
@@ -32,45 +29,9 @@ void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
    For every class org.chromium.foo moves them to cobalt.org.chromium.foo
    This works around link-time conflicts when building the final
    package against other Chromium release artifacts. */
-#if BUILDFLAG(IS_COBALT)
-const char* COBALT_ORG_CHROMIUM = "cobalt/org/chromium";
-const char* ORG_CHROMIUM = "org/chromium";
-
-std::string getRepackagedName(const char* signature) {
-  std::string holder(signature);
-  size_t pos = 0;
-  while ((pos = holder.find(ORG_CHROMIUM, pos)) != std::string::npos) {
-    holder.replace(pos, strlen(ORG_CHROMIUM), COBALT_ORG_CHROMIUM);
-    pos += strlen(COBALT_ORG_CHROMIUM);
-  }
-  return holder;
-}
-
-bool shouldAddCobaltPrefix() {
-#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
-  return true;
-#else
-  return false;
-#endif
-}
-#endif
-
 jclass GetClassInternal(JNIEnv* env,
-#if BUILDFLAG(IS_COBALT)
-                        const char* original_class_name,
-                        const char* split_name) {
-  const char* class_name;
-  std::string holder;
-  if (shouldAddCobaltPrefix()) {
-    holder = getRepackagedName(original_class_name);
-    class_name = holder.c_str();
-  } else {
-    class_name = original_class_name;
-  }
-#else
                         const char* class_name,
                         const char* split_name) {
-#endif
   jclass clazz;
   if (g_class_resolver != nullptr) {
     clazz = g_class_resolver(env, class_name, split_name);
@@ -277,17 +238,7 @@ jmethodID MethodID::LazyGet(JNIEnv* env,
   if (value) {
     return value;
   }
-#if BUILDFLAG(IS_COBALT)
-  jmethodID id;
-  if (shouldAddCobaltPrefix()) {
-    std::string holder = getRepackagedName(jni_signature);
-    id = MethodID::Get<type>(env, clazz, method_name, holder.c_str());
-  } else {
-    id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
-  }
-#else
   jmethodID id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
-#endif
   atomic_method_id->store(id, std::memory_order_release);
   return id;
 }
