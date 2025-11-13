@@ -21,8 +21,6 @@
 #include <sstream>
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace avutil {
 
 typedef std::function<void(NSString* key_path)> KVOProxyObserverCallback;
@@ -32,8 +30,6 @@ NSObject* CreateKVOProxyObserver(KVOProxyObserverCallback callback);
 void AppendAVErrorDetails(NSError* error, std::stringstream* ss);
 
 }  // namespace avutil
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AVUTIL_UTILS_H_

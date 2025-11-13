@@ -17,18 +17,18 @@
 #include <string>
 
 @interface KVOProxyObserver : NSObject {
-  starboard::shared::uikit::avutil::KVOProxyObserverCallback callback_;
+  starboard::avutil::KVOProxyObserverCallback callback_;
 }
 
 - (instancetype)initWithCB:
-    (starboard::shared::uikit::avutil::KVOProxyObserverCallback)callback;
+    (starboard::avutil::KVOProxyObserverCallback)callback;
 
 @end
 
 @implementation KVOProxyObserver
 
 - (instancetype)initWithCB:
-    (starboard::shared::uikit::avutil::KVOProxyObserverCallback)callback {
+    (starboard::avutil::KVOProxyObserverCallback)callback {
   if ([super init]) {
     callback_ = callback;
   }
@@ -46,8 +46,6 @@
 @end
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace avutil {
 namespace {
 
@@ -92,6 +90,4 @@ void AppendAVErrorDetails(NSError* error, std::stringstream* ss) {
 }
 
 }  // namespace avutil
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

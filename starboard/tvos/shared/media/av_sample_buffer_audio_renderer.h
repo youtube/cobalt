@@ -28,24 +28,13 @@
 #import "starboard/tvos/shared/media/av_audio_sample_buffer_builder.h"
 #import "starboard/tvos/shared/media/drm_system_platform.h"
 #include "starboard/tvos/shared/observer_registry.h"
-#include "starboard/types.h"
 
 @class AVSBAudioRendererStatusObserver;
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class AVSBAudioRenderer : public starboard::player::filter::AudioRenderer,
-                          private starboard::player::JobQueue::JobOwner {
+class AVSBAudioRenderer : public AudioRenderer, private JobQueue::JobOwner {
  public:
-  typedef starboard::media::AudioStreamInfo AudioStreamInfo;
-  typedef starboard::player::InputBuffer InputBuffer;
-  typedef starboard::player::InputBuffers InputBuffers;
-  typedef starboard::player::filter::ErrorCB ErrorCB;
-  typedef starboard::player::filter::PrerolledCB PrerolledCB;
-  typedef starboard::player::filter::EndedCB EndedCB;
-
   AVSBAudioRenderer(const AudioStreamInfo& audio_stream_info,
                     SbDrmSystem drm_system);
 
@@ -103,8 +92,6 @@ class AVSBAudioRenderer : public starboard::player::filter::AudioRenderer,
   bool is_underflow_ = false;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AV_SAMPLE_BUFFER_AUDIO_RENDERER_H_

@@ -33,12 +33,8 @@
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class TvosVideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class TvosVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   TvosVideoDecoder(SbPlayerOutputMode output_mode,
                    SbDecodeTargetGraphicsContextProvider*
@@ -83,8 +79,7 @@ class TvosVideoDecoder
   void WriteInputBufferInternal(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStreamInternal();
 
-  OSStatus RefreshFormatAndSession(
-      const starboard::media::AvcParameterSets& parameter_sets);
+  OSStatus RefreshFormatAndSession(const AvcParameterSets& parameter_sets);
   void DestroyFormatAndSession();
   void OnCompletion(int64_t presentation_time, CVImageBufferRef image_buffer);
   void DestroyFrame(DecodedImage* decoded_image);
@@ -101,7 +96,7 @@ class TvosVideoDecoder
   DecoderStatusCB decoder_status_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
 
-  starboard::player::ScopedJobThreadPtr job_thread_;
+  std::unique_ptr<JobThread> job_thread_;
 
   CVOpenGLESTextureCacheRef texture_cache_ = nullptr;
   CMFormatDescriptionRef format_description_ = nullptr;
@@ -125,8 +120,6 @@ class TvosVideoDecoder
   std::vector<SbDecodeTarget> decode_targets_to_release_;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_VIDEO_DECODER_H_

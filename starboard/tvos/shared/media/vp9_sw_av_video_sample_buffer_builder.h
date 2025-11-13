@@ -32,8 +32,6 @@
 // #define VP9_SW_DECODER_PRINT_OUT_DECODING_TIME 1
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
  public:
@@ -119,8 +117,6 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
 #endif  // VP9_SW_DECODER_PRINT_OUT_DECODING_TIME
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_VP9_SW_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
