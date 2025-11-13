@@ -35,7 +35,7 @@ void AVSBSynchronizer::Play() {
   SB_DCHECK(BelongsToCurrentThread());
   @autoreleasepool {
     {
-      ScopedLock lock(mutex_);
+      std::lock_guard lock(mutex_);
       paused_ = false;
       // Set media time at the first time Play() is called after seeking.
       if (seeking_) {
@@ -61,7 +61,7 @@ void AVSBSynchronizer::Pause() {
     synchronizer_.rate = 0.0;
   }  // @autoreleasepool
   {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     paused_ = true;
   }
   UpdateIdleTimer();
@@ -93,7 +93,7 @@ void AVSBSynchronizer::Seek(int64_t seek_to_time) {
     CMTime media_time = CMTimeConvertScale(synchronizer_.currentTime, 1000000,
                                            kCMTimeRoundingMethod_QuickTime);
     {
-      ScopedLock lock(mutex_);
+      std::lock_guard lock(mutex_);
       seeking_ = true;
       if (seek_to_time < media_time.value + 1000000) {
         // It's very hard to exceed int64 value range and should be safe.
@@ -125,7 +125,7 @@ int64_t AVSBSynchronizer::GetCurrentMediaTime(bool* is_playing,
   SB_DCHECK(playback_rate);
 
   @autoreleasepool {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     *is_playing = !paused_ && !seeking_;
     *is_eos_played = false;  // It's not used.
     *is_underflow = *is_playing && is_underflow_;
@@ -197,7 +197,7 @@ void AVSBSynchronizer::CheckUnderflow() {
       SB_LOG(WARNING) << "Resume the playback from underflow.";
       synchronizer_.rate = playback_rate_;
     }
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     is_underflow_ = is_underflow;
   }
 }

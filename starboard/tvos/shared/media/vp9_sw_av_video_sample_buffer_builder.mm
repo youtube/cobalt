@@ -549,7 +549,7 @@ void Vp9SwAVVideoSampleBufferBuilder::Reset() {
   AVVideoSampleBufferBuilder::Reset();
   // Clear pending buffers to avoid unnecessary decoding.
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     while (!pending_input_buffers_.empty()) {
       pending_input_buffers_.pop();
     }
@@ -557,7 +557,7 @@ void Vp9SwAVVideoSampleBufferBuilder::Reset() {
   // Clear holding decoded images. As we don't need it anymore, no need to build
   // sample buffers for pending decoded images.
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     while (!decoded_images_.empty()) {
       decoded_images_.pop();
     }
@@ -617,7 +617,7 @@ void Vp9SwAVVideoSampleBufferBuilder::WriteInputBuffer(
   SB_DCHECK(media_time_offset_ == media_time_offset);
 
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     pending_input_buffers_.push(input_buffer);
   }
   decoder_thread_->job_queue()->Schedule(
@@ -723,7 +723,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
     return;
   }
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     // We don't want to hold too many decoded images. It would increase the
     // memory usage of vpx decoder and would be released only after vpx decoder
     // is destroyed.
@@ -737,7 +737,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
 
   scoped_refptr<InputBuffer> input_buffer;
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     if (pending_input_buffers_.empty()) {
       // |pending_input_buffers_| may be empty when and only when the decoder is
       // resetting.
@@ -855,7 +855,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream() {
     return;
   }
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     if (!pending_input_buffers_.empty()) {
       decoder_thread_->job_queue()->Schedule(
           std::bind(&Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream, this),
@@ -937,7 +937,7 @@ bool Vp9SwAVVideoSampleBufferBuilder::TryGetOneFrame() {
   SB_DCHECK(decoding_input_buffers_.find(timestamp) !=
             decoding_input_buffers_.end());
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     decoded_images_.emplace(
         new VpxImageWrapper(decoding_input_buffers_[timestamp], *vpx_image));
   }
@@ -983,7 +983,7 @@ void Vp9SwAVVideoSampleBufferBuilder::BuildSampleBuffer() {
 
   std::unique_ptr<VpxImageWrapper> image_wrapper;
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     // |decoded_images_| may be empty when and only when the decoder is
     // resetting.
     if (decoded_images_.empty()) {

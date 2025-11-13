@@ -17,6 +17,8 @@
 
 #import <AVFoundation/AVFoundation.h>
 
+#include <mutex>
+
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/tvos/shared/media/av_sample_buffer_audio_renderer.h"
@@ -56,7 +58,7 @@ class AVSBSynchronizer : public MediaTimeProvider, private JobQueue::JobOwner {
   AVSBAudioRenderer* audio_renderer_ = nullptr;
   AVSBVideoRenderer* video_renderer_ = nullptr;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   int64_t seek_to_time_ = 0;
   int64_t media_time_offset_ = 10 * 1000000;  // 10s
   double playback_rate_ = 1.0;

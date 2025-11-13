@@ -21,6 +21,7 @@
 #include <limits>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <vector>
 
@@ -110,9 +111,10 @@ class TvosVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   scoped_refptr<VideoFrame> last_frame_;
   scoped_refptr<DecodedImage> last_decoded_image_;
 
-  Mutex decoded_images_mutex_;
+  std::mutex decoded_images_mutex_;
   SbDecodeTarget current_decode_target_ = kSbDecodeTargetInvalid;
-  std::list<scoped_refptr<DecodedImage>> decoded_images_;
+  std::list<scoped_refptr<DecodedImage>>
+      decoded_images_;  // Guarded by |decoded_images_mutex_|.
   // Holding onto |kDecodeTargetReleaseQueueDepth| of decode targets before
   // release them just in case they are still being processed by the graphics
   // runtime.  Note that every decode target at 1080p holds ~3MB of memory,

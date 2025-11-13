@@ -281,7 +281,7 @@ void TvosVideoDecoder::Reset() {
 }
 
 SbDecodeTarget TvosVideoDecoder::GetCurrentDecodeTarget() {
-  ScopedLock lock(decoded_images_mutex_);
+  std::lock_guard lock(decoded_images_mutex_);
   if (decoded_images_.empty()) {
     if (SbDecodeTargetIsValid(current_decode_target_)) {
       return new SbDecodeTargetPrivate(*current_decode_target_);
@@ -411,7 +411,7 @@ void TvosVideoDecoder::WriteEndOfStreamInternal() {
   if (last_frame_) {
     SB_DCHECK(last_decoded_image_);
     {
-      ScopedLock lock(decoded_images_mutex_);
+      std::lock_guard lock(decoded_images_mutex_);
       decoded_images_.push_back(last_decoded_image_);
     }
     decoder_status_cb_(kBufferFull, last_frame_);
@@ -488,7 +488,7 @@ void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
     std::swap(last_decoded_image_, current_decoded_image);
   }
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     decoded_images_.push_back(current_decoded_image);
   }
   decoder_status_cb_(kNeedMoreInput, current_frame);
@@ -496,7 +496,7 @@ void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
 
 void TvosVideoDecoder::DestroyFrame(DecodedImage* decoded_image) {
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     // The list is usually small, so a linear search is ok.
     for (auto iter = decoded_images_.begin(); iter != decoded_images_.end();
          ++iter) {

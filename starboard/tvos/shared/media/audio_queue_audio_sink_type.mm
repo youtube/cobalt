@@ -17,12 +17,13 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <list>
+#include <mutex>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -88,9 +89,10 @@ class TvosAudioSink : public SbAudioSinkPrivate {
 
   Float64 last_sample_timestamp_ = 0;
   AudioQueueRef audio_queue_ = nullptr;
-  std::vector<AudioQueueBufferRef> audio_queue_buffers_;
+  std::vector<AudioQueueBufferRef>
+      audio_queue_buffers_;  // Protected by |audio_queue_buffer_mutex_|.
   int frames_in_out_buffer_ = 0;
-  Mutex audio_queue_buffer_mutex_;
+  std::mutex audio_queue_buffer_mutex_;
   std::atomic_bool is_paused_{false};
   bool audio_queue_is_playing_ = false;
 };
@@ -130,9 +132,9 @@ class TvosAudioSinkType : public SbAudioSinkPrivate::Type {
   std::vector<TvosAudioSink*> sinks_to_add_;
   std::vector<TvosAudioSink*> sinks_to_destroy_;
   pthread_t audio_thread_ = 0;
-  Mutex audio_thread_mutex_;
-  ConditionVariable audio_thread_condition_;
-  ConditionVariable destroy_condition_;
+  std::mutex audio_thread_mutex_;
+  std::condition_variable audio_thread_condition_;
+  std::condition_variable destroy_condition_;
   bool destroying_ = false;
 };
 
@@ -285,7 +287,7 @@ void TvosAudioSink::AudioQueueOutputCallback(void* context,
   SB_DCHECK(context);
   TvosAudioSink* sink = static_cast<TvosAudioSink*>(context);
   {
-    ScopedLock lock(sink->audio_queue_buffer_mutex_);
+    std::lock_guard lock(sink->audio_queue_buffer_mutex_);
     sink->audio_queue_buffers_.push_back(buffer);
   }
 }
@@ -342,7 +344,7 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
       kMaxFramesToConsumePerRequest;
   AudioQueueBufferRef audio_buffers[kAudioQueueBufferNum];
   {
-    ScopedLock lock(audio_queue_buffer_mutex_);
+    std::lock_guard lock(audio_queue_buffer_mutex_);
     buffers_num =
         std::min(static_cast<int>(audio_queue_buffers_.size()), buffers_num);
     for (int i = 0; i < buffers_num; i++) {
@@ -378,15 +380,13 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
           (offset_in_frames + frames_to_write) % frame_buffers_size_in_frames_;
     } else {
       SB_LOG(ERROR) << "Error: cannot enqueue buffer (" << status << ").";
-      ScopedLock lock(audio_queue_buffer_mutex_);
+      std::lock_guard lock(audio_queue_buffer_mutex_);
       audio_queue_buffers_.push_back(audio_out_buffer);
     }
   }
 }
 
-TvosAudioSinkType::TvosAudioSinkType()
-    : audio_thread_condition_(audio_thread_mutex_),
-      destroy_condition_(audio_thread_mutex_) {
+TvosAudioSinkType::TvosAudioSinkType() {
   pthread_create(&audio_thread_, nullptr, &TvosAudioSinkType::ThreadEntryPoint,
                  this);
   SB_DCHECK(audio_thread_ != 0);
@@ -394,9 +394,9 @@ TvosAudioSinkType::TvosAudioSinkType()
 
 TvosAudioSinkType::~TvosAudioSinkType() {
   {
-    ScopedLock lock(audio_thread_mutex_);
+    std::unique_lock lock(audio_thread_mutex_);
     destroying_ = true;
-    audio_thread_condition_.Signal();
+    audio_thread_condition_.notify_one();
   }
   pthread_join(audio_thread_, NULL);
   SB_DCHECK(sinks_to_add_.empty());
@@ -425,10 +425,10 @@ SbAudioSink TvosAudioSinkType::Create(
     return kSbAudioSinkInvalid;
   }
   {
-    ScopedLock lock(audio_thread_mutex_);
+    std::lock_guard lock(audio_thread_mutex_);
     sinks_to_add_.push_back(audio_sink.get());
-    audio_thread_condition_.Signal();
   }
+  audio_thread_condition_.notify_one();
   return audio_sink.release();
 }
 
@@ -437,11 +437,14 @@ void TvosAudioSinkType::Destroy(SbAudioSink audio_sink) {
     SB_LOG(WARNING) << "audio_sink is invalid.";
     return;
   }
-  ScopedLock lock(audio_thread_mutex_);
-  sinks_to_destroy_.push_back(static_cast<TvosAudioSink*>(audio_sink));
-  audio_thread_condition_.Signal();
-  while (!sinks_to_destroy_.empty()) {
-    destroy_condition_.Wait();
+  {
+    std::lock_guard lock(audio_thread_mutex_);
+    sinks_to_destroy_.push_back(static_cast<TvosAudioSink*>(audio_sink));
+  }
+  audio_thread_condition_.notify_one();
+  {
+    std::unique_lock lock(audio_thread_mutex_);
+    destroy_condition_.wait(lock, [&] { return sinks_to_destroy_.empty(); });
   }
   delete audio_sink;
 }
@@ -464,15 +467,18 @@ void* TvosAudioSinkType::ThreadEntryPoint(void* context) {
 void TvosAudioSinkType::AudioThreadFunc() {
   std::list<TvosAudioSink*> running_sinks;
   int64_t polling_interval = kDefaultAudioThreadWaitIntervalUsec;
+  const auto predicate = [&]() {
+    return !(!destroying_ && sinks_to_add_.empty() &&
+             sinks_to_destroy_.empty());
+  };
   for (;;) {
     {
-      ScopedLock lock(audio_thread_mutex_);
-      if (!destroying_ && sinks_to_add_.empty() && sinks_to_destroy_.empty()) {
-        if (running_sinks.empty()) {
-          audio_thread_condition_.Wait();
-        } else {
-          audio_thread_condition_.WaitTimed(polling_interval);
-        }
+      std::unique_lock lock(audio_thread_mutex_);
+      if (running_sinks.empty()) {
+        audio_thread_condition_.wait(lock, predicate);
+      } else {
+        audio_thread_condition_.wait_for(
+            lock, std::chrono::microseconds(polling_interval), predicate);
       }
       // Do add sinks
       for (TvosAudioSink* sink : sinks_to_add_) {
@@ -489,7 +495,7 @@ void TvosAudioSinkType::AudioThreadFunc() {
           }
         }
         sinks_to_destroy_.clear();
-        destroy_condition_.Broadcast();
+        destroy_condition_.notify_all();
       }
       if (destroying_) {
         break;
