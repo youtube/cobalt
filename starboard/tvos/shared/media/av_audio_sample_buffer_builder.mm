@@ -28,8 +28,6 @@ namespace {
 
 constexpr AudioFormatID kAudioFormatMPEG4QAAC =
     'qaac';  // 0x71, 0x61, 0x61, 0x63
-constexpr AudioFormatID kAudioFormatMPEG4QAAC_HE =
-    'qach';  // 0x71, 0x61, 0x63, 0x68
 
 constexpr int kAacFramesPerPacket = 1024;
 constexpr int kADTSHeaderSize = 7;

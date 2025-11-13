@@ -34,9 +34,9 @@ bool HasRemoteAudioOutput() {
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
-  const int kMaxAudioConfigurations = 32;
+  constexpr size_t kMaxAudioConfigurations = 32;
   SbMediaAudioConfiguration configuration;
-  int index = 0;
+  size_t index = 0;
   while (index < kMaxAudioConfigurations &&
          PlaybackCapabilities::GetAudioConfiguration(index, &configuration)) {
     switch (configuration.connector) {

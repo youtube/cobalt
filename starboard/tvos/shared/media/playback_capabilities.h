@@ -33,7 +33,7 @@ class PlaybackCapabilities {
   // Returns true if the device is Apple TV 4K.
   static bool IsAppleTV4K();
   // Return audio output configuration.
-  static bool GetAudioConfiguration(int index,
+  static bool GetAudioConfiguration(size_t index,
                                     SbMediaAudioConfiguration* configuration);
   // Force to reload audio configurations.
   static void ReloadAudioConfigurations();
