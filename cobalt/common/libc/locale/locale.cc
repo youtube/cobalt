@@ -18,11 +18,65 @@
 #include <limits.h>
 #include <locale.h>
 #include <string.h>
+// #include <stdlib.h>
 
 #include <cstddef>
+#include <string>
+#include <vector>
+
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
 
 namespace {
-thread_local locale_t g_current_locale = reinterpret_cast<locale_t>(0);
+constexpr int MAX_LC_ID = 32;
+struct PrivateLocale {
+  std::string categories[MAX_LC_ID];
+  PrivateLocale() {
+    categories[LC_CTYPE] = "C";
+    categories[LC_NUMERIC] = "C";
+    categories[LC_TIME] = "C";
+    categories[LC_COLLATE] = "C";
+    categories[LC_MONETARY] = "C";
+    categories[LC_ALL] = "C";
+
+// POSIX / GNU Extensions (Guarded)
+#ifdef LC_MESSAGES
+    categories[LC_MESSAGES] = "C";
+#endif
+
+#ifdef LC_PAPER
+    categories[LC_PAPER] = "C";
+#endif
+
+#ifdef LC_NAME
+    categories[LC_NAME] = "C";
+#endif
+
+#ifdef LC_ADDRESS
+    categories[LC_ADDRESS] = "C";
+#endif
+
+#ifdef LC_TELEPHONE
+    categories[LC_TELEPHONE] = "C";
+#endif
+
+#ifdef LC_MEASUREMENT
+    categories[LC_MEASUREMENT] = "C";
+#endif
+
+#ifdef LC_IDENTIFICATION
+    categories[LC_IDENTIFICATION] = "C";
+#endif
+  }
+};
+
+PrivateLocale g_current_locale;
+
+// TODO: This shouldn't be initialized until uselocale is called. Maybe set to
+// LC_GLOBAL???
+// thread_local locale_t g_current_locale = reinterpret_cast<locale_t>(0);
+
+// thread_local PrivateLocale* g_current_thread_locale = &g_current_locale;
 
 // The default locale is the C locale.
 const lconv* GetCLocaleConv() {
@@ -61,20 +115,182 @@ const lconv* GetCLocale() {
   return &c_locale;
 }
 
+bool is_valid_category(int category) {
+  switch (category) {
+    case LC_ALL:
+    case LC_COLLATE:
+    case LC_CTYPE:
+    case LC_MONETARY:
+    case LC_NUMERIC:
+    case LC_TIME:
+// Include POSIX/GNU extensions if they are defined on your system
+#ifdef LC_MESSAGES
+    case LC_MESSAGES:
+#endif
+#ifdef LC_PAPER
+    case LC_PAPER:
+#endif
+#ifdef LC_NAME
+    case LC_NAME:
+#endif
+#ifdef LC_ADDRESS
+    case LC_ADDRESS:
+#endif
+#ifdef LC_TELEPHONE
+    case LC_TELEPHONE:
+#endif
+#ifdef LC_MEASUREMENT
+    case LC_MEASUREMENT:
+#endif
+#ifdef LC_IDENTIFICATION
+    case LC_IDENTIFICATION:
+#endif
+      return true;
+    default:
+      return false;
+  }
+}
+
+std::string getCanonicalLocale(const char* inputLocale) {
+  // 1. Create a Locale object to canonicalize the input string.
+  icu::Locale locale_to_check(inputLocale);
+  const char* canonical_name = locale_to_check.getName();
+
+  // Handle malformed input that results in an empty canonical name.
+  if (strcmp(canonical_name, "") == 0 && strcmp(inputLocale, "") != 0) {
+    return "";
+  }
+
+  // 2. Get the list of all available locales from ICU.
+  int32_t count = 0;
+  const icu::Locale* available_locales =
+      icu::Locale::getAvailableLocales(count);
+
+  if (available_locales == nullptr) {
+    return "";
+  }
+
+  // 3. Find a match for our canonical name in the official list.
+  for (int32_t i = 0; i < count; ++i) {
+    if (strcmp(canonical_name, available_locales[i].getName()) == 0) {
+      // Match found. Return the pointer to the official, canonical string.
+      return available_locales[i].getName();
+    }
+  }
+
+  // 4. No match was found.
+  return "";
+}
+
+std::string getCanonicalCodeset(const char* encodingName) {
+  UErrorCode status = U_ZERO_ERROR;
+  UConverter* conv = ucnv_open(encodingName, &status);
+
+  if (U_FAILURE(status)) {
+    return "";
+  }
+
+  const char* canonicalName = ucnv_getName(conv, &status);
+
+  if (U_FAILURE(status)) {
+    ucnv_close(conv);
+    return "";
+  }
+
+  std::string result(canonicalName);
+
+  ucnv_close(conv);
+
+  return result;
+}
+
 }  // namespace
 
 // The POSIX setlocale is not hermetic, so we must provide our own
 // implementation.
+
+// Check if locale is set, if not, set it
+// check if the given locale is legal, if it is, set it
+//
 char* setlocale(int category, const char* locale) {
+  if (!is_valid_category(category)) {
+    return nullptr;
+  }
+
   if (locale == nullptr) {
+    return const_cast<char*>(g_current_locale.categories[category].c_str());
+  }
+
+  // TODO: Change this.
+  if (strcmp(locale, "") == 0) {
     return const_cast<char*>("C");
   }
-  if (strcmp(locale, "C") == 0 || strcmp(locale, "") == 0) {
-    return const_cast<char*>("C");
+
+  std::string canonical_locale;
+
+  if (strcmp(locale, "C") == 0 || strcmp(locale, "POSIX") == 0) {
+    canonical_locale = locale;
   }
-  return nullptr;
+
+  else {
+    // with special locales out of the way, we now need to ensure that the given
+    // locale is valid and that its string is normalized.
+    std::string newLocale(locale);
+
+    std::string language, codeset;
+
+    size_t separatorPosition = newLocale.find(".");
+
+    if (separatorPosition != std::string::npos) {
+      language = newLocale.substr(0, separatorPosition);
+      codeset = newLocale.substr(separatorPosition + 1);
+    } else {
+      language = newLocale;
+    }
+
+    std::string canonical_language = getCanonicalLocale(language.c_str());
+    std::string canonical_codeset = getCanonicalCodeset(codeset.c_str());
+
+    if ((separatorPosition != std::string::npos)) {
+      if (canonical_language == "" || canonical_codeset == "") {
+        return nullptr;
+      }
+      canonical_locale = canonical_language + "." + canonical_codeset;
+    } else {
+      if (canonical_language == "") {
+        return nullptr;
+      }
+      canonical_locale = canonical_language;
+    }
+  }
+  //   // if not empty string, we:
+  //   // 1. check if string is validd
+  //   // 2. If cat is LC_ALL, set all categories to this string value, return
+  //   // 3. set category to string
+  //   // 4. if LC_ALL is set and the new locale for the category isn't set, we
+  //   set LC_ALL to empty string, return
+
+  //   //TODO: check that the given locale is supported
+
+  if (category == LC_ALL) {
+    for (int i = 0; i < MAX_LC_ID; ++i) {
+      g_current_locale.categories[i] = canonical_locale;
+    }
+    return const_cast<char*>(g_current_locale.categories[category].c_str());
+  }
+
+  g_current_locale.categories[category] = canonical_locale;
+
+  if (strcmp(g_current_locale.categories[category].c_str(),
+             g_current_locale.categories[LC_ALL].c_str()) != 0) {
+    g_current_locale.categories[LC_ALL] = "";
+  }
+
+  return const_cast<char*>("Test string");
 }
 
+// TODO: Make sure that locale_t does NOT point to an lconv. Point to new
+// structure in point
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
   if (locale == nullptr ||
       (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
@@ -93,17 +309,18 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
 
 locale_t uselocale(locale_t newloc) {
   // TODO: b/403007005 Fill in this stub.
-  return nullptr;
+  return reinterpret_cast<locale_t>(&g_current_locale);
+  // return reinterpret_cast<locale_t>(g_current_thread_locale);
 }
 
 void freelocale(locale_t loc) {
-  if (loc) {
-    delete reinterpret_cast<lconv*>(loc);
-  }
+  // if (loc) {
+  //   delete reinterpret_cast<lconv*>(loc);
+  // }
 }
 
 struct lconv* localeconv(void) {
-  return reinterpret_cast<lconv*>(g_current_locale);
+  return const_cast<struct lconv*>(GetCLocaleConv());
 }
 
 locale_t duplocale(locale_t loc) {
@@ -246,5 +463,5 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 }
 
 char* nl_langinfo(nl_item item) {
-  return nl_langinfo_l(item, g_current_locale);
+  return nl_langinfo_l(item, reinterpret_cast<locale_t>(&g_current_locale));
 }
