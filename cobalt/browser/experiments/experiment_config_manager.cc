@@ -166,7 +166,7 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetString(
       kSafeConfigActiveConfigData,
       experiment_config_->GetString(kExperimentConfigActiveConfigData));
-  experiment_config->SetString(
+  experiment_config_->SetString(
       kSafeConfigMinVersion,
       experiment_config_->GetString(kExperimentConfigMinVersion));
   experiment_config_->CommitPendingWrite();
