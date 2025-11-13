@@ -176,7 +176,9 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kSafeConfigFeatures);
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
   registry->RegisterTimePref(variations::prefs::kVariationsLastFetchTime,
-                             base::Time(), PrefRegistry::LOSSY_PREF);
+                             base::Time());
+  registry->RegisterTimePref(variations::prefs::kVariationsSafeSeedFetchTime,
+                             base::Time());
 }
 
 }  // namespace cobalt

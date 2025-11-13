@@ -154,6 +154,9 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetString(
       kSafeConfigActiveConfigData,
       experiment_config_->GetString(kExperimentConfigActiveConfigData));
+  experiment_config_->SetTime(
+      variations::prefs::kVariationsSafeSeedFetchTime,
+      experiment_config_->GetTime(kVariationsLastFetchTime));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }
