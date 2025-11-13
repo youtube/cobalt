@@ -15,6 +15,8 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 
 #include <iostream>
+#include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -103,7 +105,7 @@ enum class LoggingDest {
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
+    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;  // NOLINT
 #endif
 
 void InitLogging(const base::CommandLine& command_line) {
