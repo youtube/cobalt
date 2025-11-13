@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/pthread/thread_create_priority.h"
-
 #include <pthread.h>
 #include <sched.h>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
+#include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace pthread {
+namespace {
+
 bool PthreadToSbThreadPriority(int priority,
                                int min_priority,
                                int max_priority,
@@ -61,9 +60,11 @@ bool PthreadToSbThreadPriority(int priority,
   return false;
 }
 
-void ThreadSetPriority(SbThreadPriority priority) {
+}  // namespace
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
   if (!kSbHasThreadPrioritySupport) {
-    return;
+    return false;
   }
 
   float relative_priority = 0.5f;
@@ -109,14 +110,7 @@ void ThreadSetPriority(SbThreadPriority priority) {
   param.sched_priority = static_cast<int>(
       min_priority + relative_priority * (max_priority - min_priority));
   SB_CHECK(pthread_setschedparam(pthread_self(), policy, &param) == 0);
-}
 
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
-
-bool SbThreadSetPriority(SbThreadPriority priority) {
-  ::starboard::shared::pthread::ThreadSetPriority(priority);
   return true;
 }
 
@@ -129,6 +123,6 @@ bool SbThreadGetPriority(SbThreadPriority* priority) {
   int min_priority = sched_get_priority_min(policy);
   int max_priority = sched_get_priority_max(policy);
 
-  return ::starboard::shared::pthread::PthreadToSbThreadPriority(
-      param.sched_priority, min_priority, max_priority, priority);
+  return PthreadToSbThreadPriority(param.sched_priority, min_priority,
+                                   max_priority, priority);
 }
