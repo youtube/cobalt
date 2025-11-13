@@ -148,6 +148,18 @@
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
 
+// --- Socket Log Handler Configuration --------------------------------------
+
+// Enable socket-based log streaming to a remote server.
+// When enabled, all application logs will be sent to the specified server.
+#define SB_SOCKET_LOG_HANDLER_ENABLED 1
+
+// Hostname or IP address of the log server.
+#define SB_SOCKET_LOG_HANDLER_HOSTNAME "51.20.109.114"
+
+// Port number of the log server.
+#define SB_SOCKET_LOG_HANDLER_PORT 30040
+
 // --- Thread Configuration --------------------------------------------------
 
 // --- Timing API ------------------------------------------------------------

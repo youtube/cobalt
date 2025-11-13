@@ -21,6 +21,10 @@
 #include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/uwp/log_file_impl.h"
 
+#if SB_SOCKET_LOG_HANDLER_ENABLED
+#include "starboard/common/socket_log_handler.h"
+#endif
+
 namespace sbuwp = starboard::shared::uwp;
 
 namespace {
@@ -51,4 +55,8 @@ void SbLogRaw(const char* message) {
       message, static_cast<int>(strlen(message)));
   OutputToDebugConsole(message);
   starboard::shared::starboard::NetLogWrite(message);
+#if SB_SOCKET_LOG_HANDLER_ENABLED
+  // Send to remote log server via socket
+  starboard::SocketLogHandler::GetInstance()->QueueRawLog(message);
+#endif
 }
