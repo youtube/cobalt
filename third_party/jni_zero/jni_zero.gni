@@ -51,13 +51,15 @@ _cronet_renaming_extra_args = [
   "org.jni_zero",
 ]
 
-_cobalt_renaming_extra_args = [
-  "--package-prefix",
-  "cobalt",
+if (is_cobalt && is_cobalt_on_google3) {
+  _cobalt_renaming_extra_args = [
+    "--package-prefix",
+    "cobalt",
 
-  "--package-prefix-filter",
-  "org.chromium",
-]
+    "--package-prefix-filter",
+    "org.chromium",
+  ]
+}
 
 _jni_zero_dir = "//third_party/jni_zero"
 
@@ -280,7 +282,7 @@ template("generate_jni_registration") {
       args += _cronet_renaming_extra_args
     }
 
-    if (defined(is_cobalt_on_google3) && is_cobalt_on_google3) {
+    if (is_cobalt && is_cobalt_on_google3) {
       args += _cobalt_renaming_extra_args
     }
   }
@@ -400,7 +402,7 @@ template("generate_jni_impl") {
           args += _cronet_renaming_extra_args
         }
 
-        if (defined(is_cobalt_on_google3) && is_cobalt_on_google3) {
+        if (is_cobalt && is_cobalt_on_google3) {
           args += _cobalt_renaming_extra_args
         }
       } else {
