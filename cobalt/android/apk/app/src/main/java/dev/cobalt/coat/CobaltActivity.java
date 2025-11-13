@@ -24,8 +24,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -53,6 +51,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -65,9 +67,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -103,8 +105,8 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
   private PlatformError mPlatformError;
-  private Handler timeoutHandler;
-  private Runnable timeoutRunnable;
+  private ScheduledExecutorService networkCheckExecutor;
+  private Future<?> networkCheckFuture;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -331,7 +333,8 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    timeoutHandler = new Handler(Looper.getMainLooper());
+    // Use a pool of 2 threads. 1 for the network task, 1 for the watchdog.
+    networkCheckExecutor = Executors.newScheduledThreadPool(2);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -454,8 +457,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (timeoutRunnable != null) {
-      timeoutHandler.removeCallbacks(timeoutRunnable);
+    if (networkCheckExecutor != null) {
+      networkCheckExecutor.shutdownNow();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -643,43 +646,32 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  // Try to generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
+  // Try to generate_204 with a timeout of 10 seconds to check for connectivity and raise a network
   // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
-    // Keep a separate timeout for edge cases in case a DNS error occurs
-    if (timeoutRunnable != null) {
-      timeoutHandler.removeCallbacks(timeoutRunnable);
+    // If a previous check is still running, cancel it to prevent dangling threads.
+    if (networkCheckFuture != null && !networkCheckFuture.isDone()) {
+      networkCheckFuture.cancel(true);
     }
-    timeoutRunnable =
-      () -> {
-        Log.w(TAG, "Active Network check timed out after 10 seconds.");
-        if (mPlatformError == null || !mPlatformError.isShowing()) {
-          mPlatformError =
-              new PlatformError(
-                  getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-          mPlatformError.raise();
-        }
-        mShouldReloadOnResume = true;
-        timeoutRunnable = null;
-      };
-    timeoutHandler.postDelayed(timeoutRunnable, NETWORK_CHECK_TIMEOUT_MS);
 
-    new Thread(
+    // Keep a separate timeout for edge cases such as a DNS resolution hang
+    Runnable networkCheckTask =
       () -> {
         HttpURLConnection urlConnection = null;
         try {
+          // Check if the thread has been interrupted before starting.
+          if (Thread.currentThread().isInterrupted()) {
+            return;
+          }
+
           URL url = new URL("https://www.google.com/generate_204");
           urlConnection = (HttpURLConnection) url.openConnection();
           urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
           urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
           urlConnection.connect();
+
           if (urlConnection.getResponseCode() != 204) {
             throw new IOException("Bad response code: " + urlConnection.getResponseCode());
-          }
-
-          if (timeoutRunnable != null) {
-            timeoutHandler.removeCallbacks(timeoutRunnable);
-            timeoutRunnable = null;
           }
 
           Log.i(TAG, "Active Network check successful." + mPlatformError);
@@ -698,12 +690,13 @@ public abstract class CobaltActivity extends Activity {
                 mShouldReloadOnResume = false;
               });
           }
-        } catch (IOException e) {
-          if (timeoutRunnable != null) {
-            timeoutHandler.removeCallbacks(timeoutRunnable);
-            timeoutRunnable = null;
+        } catch (Exception e) {
+          if (Thread.currentThread().isInterrupted()) {
+            Log.w(TAG, "Active Network check was cancelled by timeout.");
+          } else {
+            Log.w(TAG, "Active Network check failed: " + e.getClass().getSimpleName());
           }
-          Log.w(TAG, "Active Network check failed with IOException: "+ e.getClass().getName(), e);
+
           runOnUiThread(
             () -> {
               if (mPlatformError == null || !mPlatformError.isShowing()) {
@@ -719,8 +712,18 @@ public abstract class CobaltActivity extends Activity {
             urlConnection.disconnect();
           }
         }
-      })
-    .start();
+      };
+
+    // Submit the task and get its Future
+    networkCheckFuture = networkCheckExecutor.submit(networkCheckTask);
+
+    // Schedule the cancellation task. It will run after the timeout and interrupt the network thread.
+    networkCheckExecutor.schedule(
+      () -> {
+        if (!networkCheckFuture.isDone()) {
+          networkCheckFuture.cancel(true);
+        }
+      }, NETWORK_CHECK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
   }
 
   public long getAppStartTimestamp() {
