@@ -29,12 +29,12 @@ std::atomic_int32_t s_idle_timer_lock_count{0};
 }  // namespace
 
 void ApplicationDarwin::Initialize() {
-  SbAudioSinkPrivate::Initialize();
+  SbAudioSinkImpl::Initialize();
   PlaybackCapabilities::InitializeInBackground();
 }
 
 void ApplicationDarwin::Teardown() {
-  SbAudioSinkPrivate::TearDown();
+  SbAudioSinkImpl::TearDown();
 }
 
 // static

@@ -516,7 +516,7 @@ SbAudioSinkPrivate::Type* tvos_audio_sink_type_;
 namespace starboard {
 
 // static
-void SbAudioSinkPrivate::PlatformInitialize() {
+void SbAudioSinkImpl::PlatformInitialize() {
   SB_DCHECK(!tvos_audio_sink_type_);
   tvos_audio_sink_type_ = new TvosAudioSinkType;
   SetPrimaryType(tvos_audio_sink_type_);
@@ -524,7 +524,7 @@ void SbAudioSinkPrivate::PlatformInitialize() {
 }
 
 // static
-void SbAudioSinkPrivate::PlatformTearDown() {
+void SbAudioSinkImpl::PlatformTearDown() {
   SB_DCHECK(tvos_audio_sink_type_ == GetPrimaryType());
   SetPrimaryType(nullptr);
   delete tvos_audio_sink_type_;
