@@ -18,8 +18,6 @@
 #include "starboard/media.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class PlaybackCapabilities {
  public:
@@ -39,8 +37,6 @@ class PlaybackCapabilities {
   static void ReloadAudioConfigurations();
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_PLAYBACK_CAPABILITIES_H_

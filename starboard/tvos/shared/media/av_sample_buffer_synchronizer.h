@@ -23,11 +23,8 @@
 #include "starboard/tvos/shared/media/av_sample_buffer_video_renderer.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class AVSBSynchronizer : public starboard::player::filter::MediaTimeProvider,
-                         private starboard::player::JobQueue::JobOwner {
+class AVSBSynchronizer : public MediaTimeProvider, private JobQueue::JobOwner {
  public:
   AVSBSynchronizer();
   ~AVSBSynchronizer() override;
@@ -69,8 +66,6 @@ class AVSBSynchronizer : public starboard::player::filter::MediaTimeProvider,
   bool is_idle_timer_disabled_ = false;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AV_SAMPLE_BUFFER_SYNCHRONIZER_H_

@@ -17,15 +17,6 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
-namespace {
-
-using starboard::media::AvcParameterSets;
-using starboard::media::ConvertAnnexBToAvcc;
-using starboard::media::VideoConfig;
-
-}  // namespace
 
 AvcAVVideoSampleBufferBuilder::~AvcAVVideoSampleBufferBuilder() {
   Reset();
@@ -132,7 +123,7 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
 }
 
 bool AvcAVVideoSampleBufferBuilder::RefreshAVCFormatDescription(
-    const starboard::media::AvcParameterSets& parameter_sets) {
+    const AvcParameterSets& parameter_sets) {
   SB_DCHECK(parameter_sets.format() == AvcParameterSets::kAnnexB);
 
   if (format_description_) {
@@ -157,6 +148,4 @@ bool AvcAVVideoSampleBufferBuilder::RefreshAVCFormatDescription(
   return true;
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

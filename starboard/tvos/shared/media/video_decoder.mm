@@ -27,15 +27,8 @@
 #include "starboard/tvos/shared/starboard_application.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
-
-using starboard::decode_target::DecodeTargetContextRunner;
-using starboard::media::AvcParameterSets;
-using starboard::media::ConvertAnnexBToAvcc;
-using starboard::media::VideoConfig;
 
 const size_t kDecodeTargetReleaseQueueDepth = 1;
 
@@ -54,7 +47,7 @@ void OnUIApplicationWillResignActive(CFNotificationCenterRef center,
   s_application_inactive_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-class VideoFrameImpl : public shared::starboard::player::filter::VideoFrame {
+class VideoFrameImpl : public VideoFrame {
  public:
   VideoFrameImpl(int64_t presentation_time,
                  const std::function<void()>& destroy_frame_cb)
@@ -246,7 +239,7 @@ void TvosVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(input_buffers[0]);
 
   if (!job_thread_) {
-    job_thread_.reset(new starboard::player::JobThread("video_decoder"));
+    job_thread_.reset(new JobThread("video_decoder"));
   }
   const auto& input_buffer = input_buffers[0];
   job_thread_->job_queue()->Schedule(std::bind(
@@ -544,6 +537,4 @@ void TvosVideoDecoder::ReportGeneralError(const char* message) {
   error_cb_(kSbPlayerErrorDecode, ss.str());
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

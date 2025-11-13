@@ -28,8 +28,6 @@
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
 
@@ -267,6 +265,4 @@ void PlaybackCapabilities::ReloadAudioConfigurations() {
   return GetInstance()->ReloadAudioConfigurations();
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

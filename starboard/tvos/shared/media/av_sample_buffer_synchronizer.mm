@@ -17,8 +17,6 @@
 #include "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 AVSBSynchronizer::AVSBSynchronizer() {
   @autoreleasepool {
@@ -218,6 +216,4 @@ void AVSBSynchronizer::UpdateIdleTimer() {
   }
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

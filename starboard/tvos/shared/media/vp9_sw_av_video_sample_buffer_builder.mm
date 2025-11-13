@@ -20,8 +20,6 @@
 #include "starboard/tvos/shared/media/vp9_av_sample_buffer_helper.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
 
@@ -1081,6 +1079,4 @@ Vp9SwAVVideoSampleBufferBuilder::VpxImageWrapper::~VpxImageWrapper() {
   decoder_release_hw_image(vpx_image_.fb_priv);
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

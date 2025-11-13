@@ -26,21 +26,21 @@
 #import "starboard/tvos/shared/vpx_media/video_decoder.h"  // nogncheck
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
-using ::starboard::shared::starboard::media::MimeType;
+namespace starboard::shared::starboard::media {
 
-bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                             const MimeType* mime_type,
-                             int profile,
-                             int level,
-                             int bit_depth,
-                             SbMediaPrimaryId primary_id,
-                             SbMediaTransferId transfer_id,
-                             SbMediaMatrixId matrix_id,
-                             int frame_width,
-                             int frame_height,
-                             int64_t bitrate,
-                             int fps,
-                             bool decode_to_texture_required) {
+bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                           const MimeType* mime_type,
+                           int profile,
+                           int level,
+                           int bit_depth,
+                           SbMediaPrimaryId primary_id,
+                           SbMediaTransferId transfer_id,
+                           SbMediaMatrixId matrix_id,
+                           int frame_width,
+                           int frame_height,
+                           int64_t bitrate,
+                           int fps,
+                           bool decode_to_texture_required) {
   bool experimental_allowed = false;
 
   if (mime_type) {
@@ -62,9 +62,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
 
   @autoreleasepool {
-    using starboard::shared::starboard::media::IsSDRVideo;
-    using starboard::shared::uikit::PlaybackCapabilities;
-
     if (bitrate > kSbMediaMaxVideoBitrateInBitsPerSecond) {
       return false;
     }
@@ -138,3 +135,5 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
   return false;
 }
+
+}  // namespace starboard::shared::starboard::media

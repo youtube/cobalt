@@ -25,8 +25,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class ApplicationDarwin : public shared::starboard::QueueApplication {
  public:
@@ -86,8 +84,6 @@ inline void ApplicationDarwin::InjectEvent<char>(SbEventType type, char* data) {
       new Event{type, data, &ApplicationDarwin::DeleteArrayDestructor<char>});
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_

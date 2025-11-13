@@ -18,13 +18,9 @@
 #include "starboard/extension/media_session.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 const void* GetMediaSessionApi();
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_UIKIT_MEDIA_SESSION_CLIENT_H_

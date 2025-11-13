@@ -21,8 +21,6 @@
 static NSString* kAVSBARStatusKeyPath = @"status";
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 const int64_t kCheckPlaybackStatusIntervalUsec = 20000;  // 20ms
@@ -148,7 +146,7 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
   const auto& input_buffer = input_buffers[0];
   SB_DCHECK(CanAcceptMoreData());
 
-  if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
+  if (IsAudioSampleInfoSubstantiallyDifferent(
           audio_stream_info_, input_buffer->audio_stream_info())) {
     audio_stream_info_ = input_buffer->audio_stream_info();
     sample_buffer_builder_.reset(AVAudioSampleBufferBuilder::CreateBuilder(
@@ -392,6 +390,4 @@ void AVSBAudioRenderer::OnStatusChanged(NSString* key_path) {
   }
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

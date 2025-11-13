@@ -31,11 +31,7 @@
 #include "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
-
-using starboard::media::GetBytesPerSample;
 
 const int64_t kDefaultAudioThreadWaitIntervalUsec = 60000;  // 60ms
 const int64_t kPrerollAudioThreadWaitIntervalUsec = 5000;   // 5ms
@@ -511,18 +507,18 @@ void TvosAudioSinkType::AudioThreadFunc() {
 }
 
 }  // namespace
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 namespace {
 SbAudioSinkPrivate::Type* tvos_audio_sink_type_;
 }  // namespace
 
+namespace starboard {
+
 // static
 void SbAudioSinkPrivate::PlatformInitialize() {
   SB_DCHECK(!tvos_audio_sink_type_);
-  tvos_audio_sink_type_ = new starboard::shared::uikit::TvosAudioSinkType;
+  tvos_audio_sink_type_ = new TvosAudioSinkType;
   SetPrimaryType(tvos_audio_sink_type_);
   EnableFallbackToStub();
 }
@@ -534,3 +530,5 @@ void SbAudioSinkPrivate::PlatformTearDown() {
   delete tvos_audio_sink_type_;
   tvos_audio_sink_type_ = nullptr;
 }
+
+}  // namespace starboard

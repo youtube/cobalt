@@ -24,8 +24,6 @@
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 // static
 AVVideoSampleBufferBuilder* AVVideoSampleBufferBuilder::CreateBuilder(
@@ -76,6 +74,4 @@ void AVVideoSampleBufferBuilder::ReportError(const std::string& message) {
   error_cb_(message);
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

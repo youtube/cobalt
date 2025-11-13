@@ -22,8 +22,6 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 std::atomic_int32_t s_idle_timer_lock_count{0};
@@ -59,6 +57,4 @@ void ApplicationDarwin::DecrementIdleTimerLockCount() {
   }
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
