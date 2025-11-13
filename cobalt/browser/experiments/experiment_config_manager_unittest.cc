@@ -409,7 +409,7 @@ TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyOnRegularConfigRollback) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     0);
-  pref_service_->SetString(kExperimentConfigMinVersion, "0.0.0");
+  pref_service_->SetString(kExperimentConfigMinVersion, "99.android.0");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 }
@@ -424,10 +424,10 @@ TEST_F(ExperimentConfigManagerTest,
 }
 
 TEST_F(ExperimentConfigManagerTest,
-       GetExperimentConfigTypeReturnsRegularWhenVersionIsNewer) {
+       GetExperimentConfigTypeReturnsRegularWhenMinVersionIsOlder) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     0);
-  pref_service_->SetString(kExperimentConfigMinVersion, "99.99.99");
+  pref_service_->SetString(kExperimentConfigMinVersion, "0.lts.0");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kRegularConfig);
 }
@@ -436,7 +436,7 @@ TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyOnSafeConfigRollback) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     kCrashStreakSafeConfigThreshold);
-  pref_service_->SetString(kSafeConfigMinVersion, "0.0.0");
+  pref_service_->SetString(kSafeConfigMinVersion, "99.lts.0");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 }
@@ -451,10 +451,28 @@ TEST_F(ExperimentConfigManagerTest,
 }
 
 TEST_F(ExperimentConfigManagerTest,
-       GetExperimentConfigTypeReturnsSafeWhenVersionIsNewer) {
+       GetExperimentConfigTypeReturnsSafeWhenVersionIsOlder) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     kCrashStreakSafeConfigThreshold);
-  pref_service_->SetString(kSafeConfigMinVersion, "99.99.99");
+  pref_service_->SetString(kSafeConfigMinVersion, "0.lts.0");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsRegularWhenMinVersionIsEmpty) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  pref_service_->SetString(kExperimentConfigMinVersion, "");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsSafeWhenMinVersionIsEmpty) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    kCrashStreakSafeConfigThreshold);
+  pref_service_->SetString(kSafeConfigMinVersion, "");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
 }

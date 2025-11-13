@@ -134,7 +134,10 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
           ? experiment_config_->GetString(kSafeConfigMinVersion)
           : experiment_config_->GetString(kExperimentConfigMinVersion);
 
-  if (recorded_cobalt_version < COBALT_VERSION) {
+  // Min version prefs are added later than other prefs, so it might be missing
+  // for some users.
+  if (!recorded_cobalt_version.empty() &&
+      recorded_cobalt_version > COBALT_VERSION) {
     return ExperimentConfigType::kEmptyConfig;
   }
 
