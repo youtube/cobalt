@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 #define MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 
+#include <atomic>
 #include <optional>
 #include <string>
 #include <utility>
@@ -182,7 +183,10 @@ class SbPlayerBridge {
   // automatically once SbPlayerBridge is destroyed.
   class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
    public:
-    explicit CallbackHelper(SbPlayerBridge* player_bridge);
+    explicit CallbackHelper(
+        SbPlayerBridge* player_bridge,
+        const scoped_refptr<base::SequencedTaskRunner>& task_runner);
+    ~CallbackHelper();
 
     void ClearDecoderBufferCache();
 
@@ -196,12 +200,14 @@ class SbPlayerBridge {
     void OnPlayerError(void* player,
                        SbPlayerError error,
                        const std::string& message);
-    void OnDeallocateSample(const void* sample_buffer);
+    void OnDeallocateSample(void* player, const void* sample_buffer);
 
     void ResetPlayer();
+    bool TryToSetPlayerCreationErrorMessage(const std::string& message);
 
-   private:
     SbPlayerBridge* player_bridge_;
+    const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+    std::atomic<bool> valid_{true};
   };
 
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
@@ -257,7 +263,7 @@ class SbPlayerBridge {
   void OnPlayerError(SbPlayer player,
                      SbPlayerError error,
                      const std::string& message);
-  void OnDeallocateSample(const void* sample_buffer);
+  void OnDeallocateSample(SbPlayer player, const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,

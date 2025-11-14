@@ -90,8 +90,16 @@ void SetDiscardPadding(
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 
-SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
-    : player_bridge_(player_bridge) {}
+SbPlayerBridge::CallbackHelper::CallbackHelper(
+    SbPlayerBridge* player_bridge,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner)
+    : player_bridge_(player_bridge), task_runner_(task_runner) {
+  LOG(INFO) << "CallbackHelper constructed.";
+}
+
+SbPlayerBridge::CallbackHelper::~CallbackHelper() {
+  LOG(INFO) << "CallbackHelper destroyed.";
+}
 
 void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
   if (!player_bridge_) {
@@ -106,10 +114,15 @@ void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
                                                      SbMediaType type,
                                                      SbPlayerDecoderState state,
                                                      int ticket) {
+  LOG(INFO) << "CallbackHelper::OnDecoderStatus: Task running.";
   if (!player_bridge_) {
+    LOG(INFO) << "CallbackHelper::OnDecoderStatus: player_bridge_ is null, "
+                 "returning.";
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "CallbackHelper::OnDecoderStatus: player_bridge_ is valid, "
+               "proceeding.";
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
                                   ticket);
@@ -118,10 +131,15 @@ void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
 void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
                                                     SbPlayerState state,
                                                     int ticket) {
+  LOG(INFO) << "CallbackHelper::OnPlayerStatus: Task running.";
   if (!player_bridge_) {
+    LOG(INFO)
+        << "CallbackHelper::OnPlayerStatus: player_bridge_ is null, returning.";
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO)
+      << "CallbackHelper::OnPlayerStatus: player_bridge_ is valid, proceeding.";
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
 }
@@ -129,31 +147,57 @@ void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
 void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
                                                    SbPlayerError error,
                                                    const std::string& message) {
+  LOG(INFO) << "CallbackHelper::OnPlayerError: Task running.";
   if (!player_bridge_) {
+    LOG(INFO)
+        << "CallbackHelper::OnPlayerError: player_bridge_ is null, returning.";
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO)
+      << "CallbackHelper::OnPlayerError: player_bridge_ is valid, proceeding.";
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
 }
 
 void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
+    void* player,
     const void* sample_buffer) {
+  LOG(INFO) << "CallbackHelper::OnDeallocateSample: Task running.";
   if (!player_bridge_) {
+    LOG(INFO) << "CallbackHelper::OnDeallocateSample: player_bridge_ is null, "
+                 "returning.";
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "CallbackHelper::OnDeallocateSample: player_bridge_ is valid, "
+               "proceeding.";
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  player_bridge_->OnDeallocateSample(sample_buffer);
+  player_bridge_->OnDeallocateSample(static_cast<SbPlayer>(player),
+                                     sample_buffer);
 }
 
 void SbPlayerBridge::CallbackHelper::ResetPlayer() {
+  valid_ = false;
   if (!player_bridge_) {
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_ = nullptr;
+}
+
+bool SbPlayerBridge::CallbackHelper::TryToSetPlayerCreationErrorMessage(
+    const std::string& message) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (player_bridge_->is_creating_player_) {
+    player_bridge_->player_creation_error_message_ = message;
+    return true;
+  }
+  LOG(INFO) << "TryToSetPlayerCreationErrorMessage() "
+               "is called when |is_creating_player_| "
+               "is false. Error message is ignored.";
+  return false;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -228,7 +272,7 @@ SbPlayerBridge::SbPlayerBridge(
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
-      callback_helper_(new CallbackHelper(this)),
+      callback_helper_(new CallbackHelper(this, task_runner)),
       window_(window),
       drm_system_(drm_system),
       host_(host),
@@ -289,6 +333,7 @@ SbPlayerBridge::SbPlayerBridge(
 SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
+  LOG(INFO) << "SbPlayerBridge destroying. Releasing CallbackHelper ref.";
   callback_helper_->ResetPlayer();
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -708,7 +753,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   player_ = sbplayer_interface_->CreateUrlPlayer(
       url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
-      &SbPlayerBridge::PlayerErrorCB, this);
+      &SbPlayerBridge::PlayerErrorCB, callback_helper_.get());
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   DCHECK(SbPlayerIsValid(player_));
 
@@ -791,7 +836,7 @@ void SbPlayerBridge::CreatePlayer() {
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::PlayerErrorCB, this,
+      &SbPlayerBridge::PlayerErrorCB, callback_helper_.get(),
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       get_decode_target_graphics_context_provider_func_.Run());
 #else   // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -1174,11 +1219,16 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
   host_->OnPlayerError(error, message);
 }
 
-void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
+void SbPlayerBridge::OnDeallocateSample(SbPlayer player,
+                                        const void* sample_buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (player_ != player) {
+    return;
+  }
 
   DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
   DCHECK(iter != decoding_buffers_.end());
@@ -1220,13 +1270,21 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  LOG(INFO) << "DecoderStatusCB: Static callback entered. Context: " << context;
+  scoped_refptr<CallbackHelper> helper = static_cast<CallbackHelper*>(context);
+  if (!helper->valid_) {
+    LOG(INFO) << "DecoderStatusCB: Static callback entered but helper is "
+                 "invalid; returning early.";
+    return;
+  }
+  LOG(INFO) << "DecoderStatusCB: Acquired scoped_refptr. Posting task.";
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
-                     helper->callback_helper_,
+      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus, helper,
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      type, state, ticket));
+  LOG(INFO)
+      << "DecoderStatusCB: Static callback exiting. Releasing scoped_refptr.";
 }
 
 // static
@@ -1234,13 +1292,21 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     void* context,
                                     SbPlayerState state,
                                     int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  LOG(INFO) << "PlayerStatusCB: Static callback entered. Context: " << context;
+  scoped_refptr<CallbackHelper> helper = static_cast<CallbackHelper*>(context);
+  if (!helper->valid_) {
+    LOG(INFO) << "PlayerStatusCB: Static callback entered but helper is "
+                 "invalid; returning early.";
+    return;
+  }
+  LOG(INFO) << "PlayerStatusCB: Acquired scoped_refptr. Posting task.";
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                     helper->callback_helper_,
+      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus, helper,
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      state, ticket));
+  LOG(INFO)
+      << "PlayerStatusCB: Static callback exiting. Releasing scoped_refptr.";
 }
 
 // static
@@ -1248,31 +1314,55 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
                                    void* context,
                                    SbPlayerError error,
                                    const char* message) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  scoped_refptr<CallbackHelper> helper = static_cast<CallbackHelper*>(context);
   if (player == kSbPlayerInvalid) {
+    // This is a special case where the error callback is called during player
+    // creation. The player_bridge_ might not be fully initialized, but the
+    // callback_helper is valid. We don't need to post a task here as this
+    // happens on the same thread.
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
     if (helper->TryToSetPlayerCreationErrorMessage(message)) {
       return;
     }
   }
+  if (!helper->valid_) {
+    LOG(INFO) << "PlayerErrorCB: Static callback entered but helper is "
+                 "invalid; returning early.";
+    return;
+  }
+  LOG(INFO) << "PlayerErrorCB: Static callback entered. Context: " << context;
+  LOG(INFO) << "PlayerErrorCB: Acquired scoped_refptr. Posting task.";
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
-                     helper->callback_helper_,
+      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError, helper,
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      error, message ? std::string(message) : ""));
+  LOG(INFO)
+      << "PlayerErrorCB: Static callback exiting. Releasing scoped_refptr.";
 }
 
 // static
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  LOG(INFO) << "DeallocateSampleCB: Static callback entered. Context: "
+            << context;
+  scoped_refptr<CallbackHelper> helper = static_cast<CallbackHelper*>(context);
+  if (!helper->valid_) {
+    LOG(INFO) << "DeallocateSampleCB: Static callback entered but helper is "
+                 "invalid; returning early.";
+    return;
+  }
+  LOG(INFO) << "DeallocateSampleCB: Acquired scoped_refptr. Posting task.";
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+                     helper,
+                     base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
+                     sample_buffer));
+  LOG(INFO) << "DeallocateSampleCB: Static callback exiting. Releasing "
+               "scoped_refptr.";
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
