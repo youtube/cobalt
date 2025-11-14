@@ -185,6 +185,13 @@ class MEDIA_EXPORT SourceBufferStream {
     memory_limit_overridden_ = true;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void set_memory_limit_clamp(size_t memory_limit_clamp) {
+    memory_limit_clamp_ = memory_limit_clamp;
+    memory_limit_ = std::min(memory_limit_, memory_limit_clamp);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // A helper function for detecting video/audio config change, so that we
   // can "peek" the next buffer instead of dequeuing it directly from the source
   // stream buffer queue.
@@ -503,10 +510,19 @@ class MEDIA_EXPORT SourceBufferStream {
   // constructor.
   size_t memory_limit_;
 
+<<<<<<< HEAD
   // Set to true in |set_memory_limit()| to signal that the |memory_limit_| has
   // been overridden, and |memory_limit_| shouldn't be updated again in
   // |UpdateAudioConfig()| or |UpdateVideoConfig()|.
   bool memory_limit_overridden_ = false;
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // The hard limit of possible data in bytes the stream will keep in memory.
+  // This value is only used if the switch |kMSEVideoBufferSizeLimitClampMb| is 
+  // used. If this switch is not enabled, this value is not used.
+  size_t memory_limit_clamp_ = std::numeric_limits<size_t>::max();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 493ac6b35e (media: Expose decoder video budget clamp to h5vcc (#7964))
 
   // Indicates that a kConfigChanged status has been reported by GetNextBuffer()
   // and GetCurrentXXXDecoderConfig() must be called to update the current
