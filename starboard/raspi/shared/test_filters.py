@@ -41,11 +41,6 @@ _FILTERED_TESTS = {
         # Enable once verified on the platform.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
 
-        # TODO: b/327686141 - Passes locally but fails on github
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
-
         # TODO: POSIX nplb test failures tracked by b/348648386.
         'PosixFileGetPathInfoTest.WorksOnARegularFile',
         'PosixSocketBindTest.SunnyDayAnyAddr',

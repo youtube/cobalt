@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
+
 #include <stdlib.h>
 #include <string.h>
 
