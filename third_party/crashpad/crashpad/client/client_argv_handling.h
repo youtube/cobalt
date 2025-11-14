@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "build/build_config.h"
 
 namespace crashpad {
 
@@ -37,6 +38,19 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments = {});
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+//! \brief An override that includes an arg for |ca_certificates_path|.
+std::vector<std::string> BuildHandlerArgvStrings(
+    const base::FilePath& handler,
+    const base::FilePath& database,
+    const base::FilePath& metrics_dir,
+    const std::string& url,
+    const base::FilePath& ca_certificates_path,
+    const std::map<std::string, std::string>& annotations,
+    const std::vector<std::string>& arguments,
+    const std::vector<base::FilePath>& attachments = {});
+#endif
 
 //! \brief Flattens a string vector into a const char* vector suitable for use
 //!     in an exec() call.
