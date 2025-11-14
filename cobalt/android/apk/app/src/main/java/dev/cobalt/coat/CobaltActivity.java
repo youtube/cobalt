@@ -286,7 +286,7 @@ public abstract class CobaltActivity extends Activity {
                   public void run() {
                     synchronized(lock) {
                       if (isMainFrameLoaded == false) {
-                        Log.i(TAG, "NativeSplash:switch to main shell after timeout " + mSplashTimeoutMs + "ms");
+                        Log.i(TAG, "NativeSplash: switch to main shell after timeout " + mSplashTimeoutMs + "ms");
                         isMainFrameLoaded = true;
                         mShellManager.showAppShell();
                       }
