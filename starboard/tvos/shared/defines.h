@@ -17,16 +17,6 @@
 
 #import <Foundation/Foundation.h>
 
-#define SBD_UNAVAILABLE_INITIALIZER_IMPL                          \
-  {                                                               \
-    NSException* exception =                                      \
-        [NSException exceptionWithName:NSGenericException         \
-                                reason:@"Unavailable Initializer" \
-                              userInfo:nil];                      \
-    [exception raise];                                            \
-    return nil;                                                   \
-  }
-
 /**
  *  @brief Helper function to ensure a block is run on the host application's UI
  *      thread. Blocks the current thread until @c block has completed.
