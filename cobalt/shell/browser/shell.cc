@@ -142,6 +142,9 @@ void Shell::FinishShellInitialization(Shell* shell) {
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive()) {
     GetPlatform()->MainFrameCreated(shell);
   }
+
+// TODO(b/460219182): Remove this once the updater works on RDK.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #if BUILDFLAG(USE_EVERGREEN)
   // Create the updater module
   auto* storage_partition =
@@ -153,6 +156,7 @@ void Shell::FinishShellInitialization(Shell* shell) {
         cobalt::updater::kDefaultUpdateCheckDelay));
   }
 #endif
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
