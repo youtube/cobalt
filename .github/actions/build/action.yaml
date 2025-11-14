@@ -40,7 +40,7 @@ runs:
           cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
-        # TODO(b/382508397): Always copy test_targets.json for devel builds.
+        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
         if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
@@ -54,6 +54,8 @@ runs:
           cd src
 
           if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
+            echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
+            echo "test_targets_count=0" >> $GITHUB_OUTPUT
             exit 0
           fi
 

@@ -2,7 +2,7 @@ name: Test Artifact Upload
 description: Uploads test archives for on-device and on-host tests.
 inputs:
   upload_e2e_test_artifacts:
-    description: "Indicates if on-host test artifacts should be uploaded."
+    description: "Indicates if E2E test artifacts should be uploaded."
     required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
