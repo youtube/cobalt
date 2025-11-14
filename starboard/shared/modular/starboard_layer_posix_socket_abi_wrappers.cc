@@ -239,17 +239,20 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
       }
       if (ai_copy.ai_addr->sa_data != nullptr) {
         if (ai_copy.ai_family == AF_INET) {
-           const struct sockaddr_in *ipv4 = reinterpret_cast<const struct sockaddr_in*>(ai_copy.ai_addr);
-           struct sockaddr_in *musl_ipv4 = reinterpret_cast<struct sockaddr_in*>(musl_ai->ai_addr);
-           memcpy(musl_ipv4, ipv4, sizeof(struct sockaddr_in));
+          const struct sockaddr_in* ipv4 =
+              reinterpret_cast<const struct sockaddr_in*>(ai_copy.ai_addr);
+          struct sockaddr_in* musl_ipv4 =
+              reinterpret_cast<struct sockaddr_in*>(musl_ai->ai_addr);
+          memcpy(musl_ipv4, ipv4, sizeof(struct sockaddr_in));
         } else if (ai_copy.ai_family == AF_INET6) {
-           const struct sockaddr_in6 *ipv6 = reinterpret_cast<const struct sockaddr_in6*>(ai_copy.ai_addr);
-           struct sockaddr_in6 *musl_ipv6 = reinterpret_cast<struct sockaddr_in6*>(musl_ai->ai_addr);
-           memcpy(musl_ipv6, ipv6, sizeof(struct sockaddr_in6));
-        }
-	else {
-           memcpy(musl_ai->ai_addr->sa_data, ai_copy.ai_addr->sa_data,
-               sizeof(ai_copy.ai_addr->sa_data));
+          const struct sockaddr_in6* ipv6 =
+              reinterpret_cast<const struct sockaddr_in6*>(ai_copy.ai_addr);
+          struct sockaddr_in6* musl_ipv6 =
+              reinterpret_cast<struct sockaddr_in6*>(musl_ai->ai_addr);
+          memcpy(musl_ipv6, ipv6, sizeof(struct sockaddr_in6));
+        } else {
+          memcpy(musl_ai->ai_addr->sa_data, ai_copy.ai_addr->sa_data,
+                 sizeof(ai_copy.ai_addr->sa_data));
         }
       }
       if (ai_copy.ai_canonname) {
