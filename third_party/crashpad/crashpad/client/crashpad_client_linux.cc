@@ -822,11 +822,23 @@ bool CrashpadClient::StartHandlerAtCrash(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if BUILDFLAG(IS_STARBOARD)
+    const base::FilePath& ca_certificates_path,
+#endif
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments) {
   std::vector<std::string> argv = BuildHandlerArgvStrings(
-      handler, database, metrics_dir, url, annotations, arguments, attachments);
+      handler,
+      database,
+      metrics_dir,
+      url,
+#if BUILDFLAG(IS_STARBOARD)
+      ca_certificates_path,
+#endif
+      annotations,
+      arguments,
+      attachments);
 
   auto signal_handler = LaunchAtCrashHandler::Get();
   return signal_handler->Initialize(&argv, nullptr, &unhandled_signals_);

@@ -48,6 +48,10 @@
 #include "util/ios/scoped_background_task.h"
 #endif  // BUILDFLAG(IS_IOS)
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#include "base/files/file_path.h"
+#endif
+
 namespace crashpad {
 
 namespace {
@@ -89,11 +93,17 @@ class ScopedFunctionInvoker final {
 CrashReportUploadThread::CrashReportUploadThread(
     CrashReportDatabase* database,
     const std::string& url,
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+    const base::FilePath& ca_certificates_path,
+#endif
     const Options& options,
     ProcessPendingReportsObservationCallback callback)
     : options_(options),
       callback_(callback),
       url_(url),
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+      ca_certificates_path_(ca_certificates_path),
+#endif
       // When watching for pending reports, check every 15 minutes, even in the
       // absence of a signal from the handler thread. This allows for failed
       // uploads to be retried periodically, and for pending reports written by
@@ -364,6 +374,10 @@ CrashReportUploadThread::UploadResult CrashReportUploadThread::UploadReport(
     }
   }
   http_transport->SetURL(url);
+
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+  http_transport->SetRootCACertificatesDirectoryPath(ca_certificates_path_);
+#endif
 
   if (!http_transport->ExecuteSynchronously(response_body)) {
     return UploadResult::kRetry;
