@@ -19,11 +19,7 @@
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
-#if SB_API_VERSION >= 15
 void SbPlayerSeek(SbPlayer player, int64_t seek_to_timestamp, int ticket) {
-#else   // SB_API_VERSION >= 15
-void SbPlayerSeek2(SbPlayer player, int64_t seek_to_timestamp, int ticket) {
-#endif  // SB_API_VERSION >= 15
   if (!player) {
     return;
   }
