@@ -8,22 +8,15 @@ runs:
   using: "composite"
   steps:
       - name: Get depot tools
-        run: |
-          if [ -d "/runner-cache/depot_tools" ]; then
-            echo "depot_tools directory found. Resetting repository..."
-            git -C /runner-cache/depot_tools reset --hard origin/main
-          else
-            echo "depot_tools directory not found. Cloning repository..."
-            git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
-          fi
+        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
         shell: bash
       - name: Bootstrap bundled python3
         run: |
           # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-          source /runner-cache/depot_tools/bootstrap_python3 && bootstrap_python3
+          source depot_tools/bootstrap_python3 && bootstrap_python3
         shell: bash
       - name: Add depot tools to PATH
-        run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
+        run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
         run: cd cobalt && gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
