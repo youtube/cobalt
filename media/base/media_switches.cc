@@ -190,6 +190,13 @@ const char kForceVideoOverlays[] = "force-video-overlays";
 const char kMSEAudioBufferSizeLimitMb[] = "mse-audio-buffer-size-limit-mb";
 const char kMSEVideoBufferSizeLimitMb[] = "mse-video-buffer-size-limit-mb";
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Allows explicitly specifiying MSE video buffer size maximum as megabytes.
+// Any video buffer size greater than this value will be clamped down to the
+// associated switch value.
+const char kMSEVideoBufferSizeLimitClampMb[] = "mse-video-buffer-size-limit-clamp-mb";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // Specifies the path to the Clear Key CDM for testing, which is necessary to
 // support External Clear Key key system when library CDM is enabled. Note that
 // External Clear Key key system support is also controlled by feature
