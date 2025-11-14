@@ -74,4 +74,9 @@ void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
       web_contents());
 }
 
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+}
+
 }  // namespace cobalt
