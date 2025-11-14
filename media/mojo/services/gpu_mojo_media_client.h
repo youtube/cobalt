@@ -146,6 +146,7 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -162,6 +163,7 @@ struct StarboardRendererTraits {
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      std::map<std::string, H5vccSettingValue> h5vcc_settings,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>

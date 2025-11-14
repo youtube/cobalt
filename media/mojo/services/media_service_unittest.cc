@@ -144,7 +144,8 @@ class MediaServiceTest : public testing::Test {
   StarboardRendererConfig config(base::UnguessableToken::Create(),
                                  base::Microseconds(0),
                                  base::Microseconds(0),
-                                 "width=1920; height=1080; framerate=15;");
+                                 "width=1920; height=1080; framerate=15;",
+                                 /*h5vcc_settings=*/{});
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
       config, renderer_.BindNewPipeAndPassReceiver(),

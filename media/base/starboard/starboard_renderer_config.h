@@ -30,10 +30,12 @@ using H5vccSettingValue = std::variant<std::string, int64_t>;
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
   StarboardRendererConfig();
-  StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,
-                          base::TimeDelta audio_write_duration_local,
-                          base::TimeDelta audio_write_duration_remote,
-                          const std::string& max_video_capabilities);
+  StarboardRendererConfig(
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      const std::map<std::string, H5vccSettingValue>& h5vcc_settings);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -41,6 +43,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
 };
 
 }  // namespace media
