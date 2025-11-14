@@ -34,7 +34,7 @@ interface H5vccSystem {
   GetTrackingAuthorizationStatus() => (string tracking_authorization_status);
   [Sync]
   GetTrackingAuthorizationStatusSync() => (string tracking_authorization_status);
-  RequestTrackingAuthorization() => ();
+  RequestTrackingAuthorization() => (bool is_tracking_authorization_supported);
 
   // Returns the platform-specific user on exit strategy.
   [Sync]
