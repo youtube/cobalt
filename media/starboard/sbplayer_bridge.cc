@@ -90,14 +90,19 @@ void SetDiscardPadding(
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 
-SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
-    : player_bridge_(player_bridge) {}
+SbPlayerBridge::CallbackHelper::CallbackHelper(
+    SbPlayerBridge* player_bridge,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner)
+    : player_bridge_(player_bridge), task_runner_(task_runner) {}
 
 void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
+  if (!valid_) {
+    return;
+  }
   if (!player_bridge_) {
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->ClearDecoderBufferCache();
 }
@@ -109,7 +114,7 @@ void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
   if (!player_bridge_) {
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
                                   ticket);
@@ -121,7 +126,7 @@ void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
   if (!player_bridge_) {
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
 }
@@ -132,7 +137,7 @@ void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
   if (!player_bridge_) {
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
 }
@@ -142,18 +147,25 @@ void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
   if (!player_bridge_) {
     return;
   }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnDeallocateSample(sample_buffer);
 }
 
-void SbPlayerBridge::CallbackHelper::ResetPlayer() {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
+void SbPlayerBridge::CallbackHelper::Invalidate() {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  valid_ = false;
   player_bridge_ = nullptr;
+}
+
+bool SbPlayerBridge::CallbackHelper::TryToSetPlayerCreationErrorMessage(
+    const std::string& message) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (player_bridge_ && player_bridge_->is_creating_player_) {
+    player_bridge_->player_creation_error_message_ = message;
+    return true;
+  }
+  return false;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -228,7 +240,7 @@ SbPlayerBridge::SbPlayerBridge(
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
-      callback_helper_(new CallbackHelper(this)),
+      callback_helper_(new CallbackHelper(this, task_runner)),
       window_(window),
       drm_system_(drm_system),
       host_(host),
@@ -289,7 +301,7 @@ SbPlayerBridge::SbPlayerBridge(
 SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  callback_helper_->ResetPlayer();
+  callback_helper_->Invalidate();
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -305,6 +317,10 @@ SbPlayerBridge::~SbPlayerBridge() {
 #if COBALT_MEDIA_ENABLE_CVAL
     cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+  }
+
+  if (player_created_) {
+    callback_helper_->Release();
   }
 }
 
@@ -708,8 +724,12 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   player_ = sbplayer_interface_->CreateUrlPlayer(
       url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
-      &SbPlayerBridge::PlayerErrorCB, this);
+      &SbPlayerBridge::PlayerErrorCB, callback_helper_.get());
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
+  if (SbPlayerIsValid(player_)) {
+    callback_helper_->AddRef();
+    player_created_ = true;
+  }
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -791,7 +811,7 @@ void SbPlayerBridge::CreatePlayer() {
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::PlayerErrorCB, this,
+      &SbPlayerBridge::PlayerErrorCB, callback_helper_.get(),
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       get_decode_target_graphics_context_provider_func_.Run());
 #else   // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -800,6 +820,11 @@ void SbPlayerBridge::CreatePlayer() {
 #if COBALT_MEDIA_ENABLE_CVAL
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+
+  if (SbPlayerIsValid(player_)) {
+    callback_helper_->AddRef();
+    player_created_ = true;
+  }
 
   is_creating_player_ = false;
 
@@ -1201,30 +1226,22 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
-bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
-    const std::string& message) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (is_creating_player_) {
-    player_creation_error_message_ = message;
-    return true;
-  }
-  LOG(INFO) << "TryToSetPlayerCreationErrorMessage() "
-               "is called when |is_creating_player_| "
-               "is false. Error message is ignored.";
-  return false;
-}
-
 // static
 void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      void* context,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  CallbackHelper* helper_raw = static_cast<CallbackHelper*>(context);
+  helper_raw->AddRef();
+  scoped_refptr<CallbackHelper> helper = base::WrapRefCounted(helper_raw);
+  if (!helper->valid_) {
+    return;
+  }
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
-                     helper->callback_helper_,
+                     std::move(helper),
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      type, state, ticket));
 }
@@ -1234,11 +1251,16 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     void* context,
                                     SbPlayerState state,
                                     int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  CallbackHelper* helper_raw = static_cast<CallbackHelper*>(context);
+  helper_raw->AddRef();
+  scoped_refptr<CallbackHelper> helper = base::WrapRefCounted(helper_raw);
+  if (!helper->valid_) {
+    return;
+  }
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                     helper->callback_helper_,
+                     std::move(helper),
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      state, ticket));
 }
@@ -1248,7 +1270,12 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
                                    void* context,
                                    SbPlayerError error,
                                    const char* message) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  CallbackHelper* helper_raw = static_cast<CallbackHelper*>(context);
+  helper_raw->AddRef();
+  scoped_refptr<CallbackHelper> helper = base::WrapRefCounted(helper_raw);
+  if (!helper->valid_) {
+    return;
+  }
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
@@ -1259,7 +1286,7 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
-                     helper->callback_helper_,
+                     std::move(helper),
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      error, message ? std::string(message) : ""));
 }
@@ -1268,11 +1295,17 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  CallbackHelper* helper_raw = static_cast<CallbackHelper*>(context);
+  helper_raw->AddRef();
+  scoped_refptr<CallbackHelper> helper = base::WrapRefCounted(helper_raw);
+
+  if (!helper->valid_) {
+    return;
+  }
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+                     std::move(helper), sample_buffer));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

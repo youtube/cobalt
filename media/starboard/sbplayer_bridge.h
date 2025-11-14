@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 #define MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 
+#include <atomic>
 #include <optional>
 #include <string>
 #include <utility>
@@ -181,8 +182,12 @@ class SbPlayerBridge {
   // This class ensures that the callbacks posted to |task_runner_| are ignored
   // automatically once SbPlayerBridge is destroyed.
   class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
+    friend class SbPlayerBridge;
+
    public:
-    explicit CallbackHelper(SbPlayerBridge* player_bridge);
+    explicit CallbackHelper(
+        SbPlayerBridge* player_bridge,
+        const scoped_refptr<base::SequencedTaskRunner>& task_runner);
 
     void ClearDecoderBufferCache();
 
@@ -198,10 +203,13 @@ class SbPlayerBridge {
                        const std::string& message);
     void OnDeallocateSample(const void* sample_buffer);
 
-    void ResetPlayer();
+    void Invalidate();
+    bool TryToSetPlayerCreationErrorMessage(const std::string& message);
 
    private:
     SbPlayerBridge* player_bridge_;
+    const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+    std::atomic<bool> valid_{true};
   };
 
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
@@ -354,6 +362,7 @@ class SbPlayerBridge {
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
+  bool player_created_ = false;
   std::string player_creation_error_message_;
 
   // Variables related to tracking player startup latencies.
