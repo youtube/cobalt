@@ -101,29 +101,22 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
 // Append the h5vcc setting to the corresponding media switch, if such mapping
 // exists. H5vcc settings are either pass their value to a media switch for code
 // in /media to use, or are given to Starboard Renderer for direct usage.
-bool AppendSettingToSwitch(
-    const std::string& setting_name,
-    const cobalt::mojom::SettingValuePtr& setting_value) {
+bool AppendSettingToSwitch(const std::string& setting_name,
+                           const media::H5vccSettingValue& setting_value) {
   auto it = kH5vccSettingToSwitchMap.find(setting_name);
   if (it == kH5vccSettingToSwitchMap.end()) {
     return false;
   }
   std::string switch_name = it->second;
   std::string setting_str;
-  switch (setting_value->which()) {
-    case cobalt::mojom::SettingValue::Tag::kStringValue: {
-      setting_str = setting_value->get_string_value();
-      break;
-    }
-    case cobalt::mojom::SettingValue::Tag::kIntValue: {
-      setting_str = base::NumberToString(setting_value->get_int_value());
-      break;
-    }
-    default: {
-      LOG(WARNING) << "Attempted to apply switch " << switch_name
-                   << " but the setting value was not an integer or string.";
-      return false;
-    }
+  if (auto* val = std::get_if<std::string>(&setting_value)) {
+    setting_str = *val;
+  } else if (auto* val = std::get_if<int64_t>(&setting_value)) {
+    setting_str = base::NumberToString(*val);
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer or string.";
+    return false;
   }
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
                                                             setting_str);
@@ -167,6 +160,10 @@ void ProcessH5vccSettings(
     use_allocator = false;
   }
   media::DecoderBuffer::UseAllocator(use_allocator);
+
+  for (const auto& [setting_name, setting_value] : settings) {
+    AppendSettingToSwitch(setting_name, setting_value);
+  }
 }
 
 }  // namespace
