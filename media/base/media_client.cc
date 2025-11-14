@@ -6,8 +6,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/decoder_buffer.h"
-#include "media/starboard/decoder_buffer_allocator.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif
 
 namespace media {
 
@@ -21,32 +20,50 @@ MediaClient* GetMediaClient() {
   return g_media_client;
 }
 
-MediaClient::MediaClient() = default;
+MediaClient::MediaClient() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+#endif
+}
 
 MediaClient::~MediaClient() = default;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 uint64_t MediaClient::GetMediaSourceMaximumMemoryCapacity() {
-  auto* allocator = static_cast<DecoderBufferAllocator*>(
-      DecoderBuffer::Allocator::GetInstance());
-  return allocator ? allocator->GetMaximumMemoryCapacity() : 0;
+  if (g_media_client) {
+    return g_media_client->GetMaximumMemoryCapacity();
+  }
+  return 0;
 }
 
 // static
 uint64_t MediaClient::GetMediaSourceCurrentMemoryCapacity() {
-  auto* allocator = static_cast<DecoderBufferAllocator*>(
-      DecoderBuffer::Allocator::GetInstance());
-  return allocator ? allocator->GetCurrentMemoryCapacity() : 0;
+  if (g_media_client) {
+    return g_media_client->GetCurrentMemoryCapacity();
+  }
+  return 0;
 }
 
 // static
 uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
-  auto* allocator = static_cast<DecoderBufferAllocator*>(
-      DecoderBuffer::Allocator::GetInstance());
-  return allocator ? allocator->GetAllocatedMemory() : 0;
+  if (g_media_client) {
+    return g_media_client->GetAllocatedMemory();
+  }
+  return 0;
 }
 
+uint64_t MediaClient::GetMaximumMemoryCapacity() const {
+  return decoder_buffer_allocator_.GetMaximumMemoryCapacity();
+}
+
+uint64_t MediaClient::GetCurrentMemoryCapacity() const {
+  return decoder_buffer_allocator_.GetCurrentMemoryCapacity();
+}
+
+uint64_t MediaClient::GetAllocatedMemory() const {
+  return decoder_buffer_allocator_.GetAllocatedMemory();
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

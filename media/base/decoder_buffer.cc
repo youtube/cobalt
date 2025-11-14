@@ -17,17 +17,18 @@ DecoderBuffer::Allocator* s_allocator = nullptr;
 }  // namespace
 
 // static
-DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-  return s_allocator;
-}
-
-// static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   // One of them has to be nullptr, i.e. either setting a valid allocator, or
   // resetting an existing allocator.  Setting an allocator while another
   // allocator is in place will fail.
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
+}
+
+// static
+void DecoderBuffer::UseAllocator(bool enabled) {
+  CHECK(s_allocator);
+  s_allocator->SetEnabled(enabled);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
