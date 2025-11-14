@@ -86,6 +86,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   if (!success) {
     GTEST_SKIP() << "This environment does not appear to assign an address of "
                     "this socket type.";
+    return;
   }
   EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, &netmask));
@@ -132,6 +133,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   if (!success) {
     GTEST_SKIP() << "This environment does not appear to assign an address of "
                     "this socket type.";
+    return;
   }
 
   EXPECT_EQ(GetAddressType(), source.type);
@@ -174,6 +176,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   if (!success) {
     GTEST_SKIP() << "This environment does not appear to assign an address of "
                     "this socket type.";
+    return;
   }
   EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, &netmask));

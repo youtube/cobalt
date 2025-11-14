@@ -26,6 +26,36 @@
 namespace starboard {
 namespace nplb {
 namespace {
+// IPv4 Address 8.8.8.8
+const in_addr_t kExpectedIpv4Addr1 =
+    htonl((8 << 24) | (8 << 16) | (8 << 8) | 8);
+// IPv4 Address 8.8.4.4
+const in_addr_t kExpectedIpv4Addr2 =
+    htonl((8 << 24) | (8 << 16) | (4 << 8) | 4);
+// IPv6 Address 2001:4860:4860::8888
+const unsigned char kExpectedIpv6Addr1[16] = {
+    0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x88};
+// IPv6 Address 2001:4860:4860::8844
+const unsigned char kExpectedIpv6Addr2[16] = {
+    0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x44};
+
+void VerifyGoogleDnsAddress(const struct addrinfo* entry) {
+  ASSERT_NE(nullptr, entry);
+  if (entry->ai_family == AF_INET) {
+    struct sockaddr_in* address =
+        reinterpret_cast<struct sockaddr_in*>(entry->ai_addr);
+    EXPECT_THAT(address->sin_addr.s_addr,
+                testing::AnyOf(kExpectedIpv4Addr1, kExpectedIpv4Addr2));
+  } else if (entry->ai_family == AF_INET6) {
+    struct sockaddr_in6* address =
+        reinterpret_cast<struct sockaddr_in6*>(entry->ai_addr);
+    EXPECT_THAT(address->sin6_addr.s6_addr,
+                testing::AnyOf(testing::ElementsAreArray(kExpectedIpv6Addr1),
+                               testing::ElementsAreArray(kExpectedIpv6Addr2)));
+  } else {
+    FAIL() << "Expected only IPv4 or IPv6 addresses";
+  }
+}
 
 class PosixSocketResolveTest
     : public ::testing::TestWithParam<std::tuple<int, std::pair<int, int>>> {
@@ -68,33 +98,11 @@ TEST_P(PosixSocketResolveTest, SunnyDayHints) {
   for (const struct addrinfo* entry = ai; entry != nullptr;
        entry = entry->ai_next) {
     EXPECT_NE(nullptr, entry->ai_addr);
+    VerifyGoogleDnsAddress(entry);
     if (entry->ai_family == AF_INET) {
       ++address_count_ipv4;
-      struct sockaddr_in* address =
-          reinterpret_cast<struct sockaddr_in*>(entry->ai_addr);
-      // IPv4 Address 8.8.8.8
-      in_addr_t expected_addr1 = htonl((8 << 24) | (8 << 16) | (8 << 8) | 8);
-      // IPv4 Address 8.8.4.4
-      in_addr_t expected_addr2 = htonl((8 << 24) | (8 << 16) | (4 << 8) | 4);
-      EXPECT_THAT(address->sin_addr.s_addr,
-                  testing::AnyOf(expected_addr1, expected_addr2));
     } else if (entry->ai_family == AF_INET6) {
       ++address_count_ipv6;
-      struct sockaddr_in6* address =
-          reinterpret_cast<struct sockaddr_in6*>(entry->ai_addr);
-      // IPv6 Address 2001:4860:4860::8888
-      const unsigned char kExpectedAddress1[16] = {
-          0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0,    0,
-          0,    0,    0,    0,    0,    0,    0x88, 0x88};
-      // IPv6 Address 2001:4860:4860::8844
-      const unsigned char kExpectedAddress2[16] = {
-          0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0,    0,
-          0,    0,    0,    0,    0,    0,    0x88, 0x44};
-      EXPECT_THAT(address->sin6_addr.s6_addr,
-                  testing::AnyOf(testing::ElementsAreArray(kExpectedAddress1),
-                                 testing::ElementsAreArray(kExpectedAddress2)));
-    } else {
-      EXPECT_TRUE(false) << "Expected only IPv4 or IPv6 addresses";
     }
   }
   // IPv4 addresses are either filtered, or at least two are returned.
@@ -158,32 +166,7 @@ TEST_P(PosixSocketResolveTest, SunnyDayFiltered) {
     if (GetProtocol() != 0) {
       EXPECT_EQ(entry->ai_protocol, GetProtocol());
     }
-    if (entry->ai_family == AF_INET) {
-      struct sockaddr_in* address =
-          reinterpret_cast<struct sockaddr_in*>(entry->ai_addr);
-      // IPv4 Address 8.8.8.8
-      in_addr_t expected_addr1 = htonl((8 << 24) | (8 << 16) | (8 << 8) | 8);
-      // IPv4 Address 8.8.4.4
-      in_addr_t expected_addr2 = htonl((8 << 24) | (8 << 16) | (4 << 8) | 4);
-      EXPECT_THAT(address->sin_addr.s_addr,
-                  testing::AnyOf(expected_addr1, expected_addr2));
-    } else if (entry->ai_family == AF_INET6) {
-      struct sockaddr_in6* address =
-          reinterpret_cast<struct sockaddr_in6*>(entry->ai_addr);
-      // IPv6 Address 2001:4860:4860::8888
-      const unsigned char kExpectedAddress1[16] = {
-          0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0,    0,
-          0,    0,    0,    0,    0,    0,    0x88, 0x88};
-      // IPv6 Address 2001:4860:4860::8844
-      const unsigned char kExpectedAddress2[16] = {
-          0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0,    0,
-          0,    0,    0,    0,    0,    0,    0x88, 0x44};
-      EXPECT_THAT(address->sin6_addr.s6_addr,
-                  testing::AnyOf(testing::ElementsAreArray(kExpectedAddress1),
-                                 testing::ElementsAreArray(kExpectedAddress2)));
-    } else {
-      EXPECT_TRUE(false) << "Expected only IPv4 or IPv6 addresses";
-    }
+    VerifyGoogleDnsAddress(entry);
   }
 
   freeaddrinfo(ai);
