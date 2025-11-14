@@ -74,7 +74,6 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
-  const std::map<std::string, H5vccSettingValue> h5vcc_settings_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 
