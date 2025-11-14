@@ -35,8 +35,7 @@ void SbPlayerDestroy(SbPlayer player) {
     } else {
       // Normal player process
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
-      using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
-      VideoDmpWriter::OnPlayerDestroy(player);
+      starboard::VideoDmpWriter::OnPlayerDestroy(player);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
       delete player;

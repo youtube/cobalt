@@ -27,14 +27,9 @@
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class AVVideoSampleBufferBuilder {
  public:
-  typedef starboard::media::VideoStreamInfo VideoStreamInfo;
-  typedef starboard::player::InputBuffer InputBuffer;
-
   class AVSampleBuffer : public RefCountedThreadSafe<AVSampleBuffer> {
    public:
     AVSampleBuffer(CMSampleBufferRef cm_sample_buffer,
@@ -110,8 +105,6 @@ class AVVideoSampleBufferBuilder {
   std::atomic_bool error_occurred_ = {false};
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_

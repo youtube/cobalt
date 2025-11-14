@@ -42,16 +42,7 @@
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
 namespace {
-
-using uikit::AVSBAudioRenderer;
-using uikit::AVSBSynchronizer;
-using uikit::AVSBVideoRenderer;
-using uikit::PlaybackCapabilities;
 
 class SurroundAwarePlayerComponents : public PlayerComponents {
  public:
@@ -178,15 +169,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
+      auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
-        using ::starboard::shared::opus::OpusAudioDecoder;
-
         if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
             audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info.codec == kSbMediaAudioCodecEac3) {
           return std::unique_ptr<AudioDecoder>(
-              new uikit::TvosAudioDecoder(audio_stream_info));
+              new TvosAudioDecoder(audio_stream_info));
         } else if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           return std::unique_ptr<AudioDecoder>(
               new OpusAudioDecoder(audio_stream_info));
@@ -210,7 +199,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       video_decoder->reset();
 
       if (creation_parameters.video_codec() == kSbMediaVideoCodecH264) {
-        video_decoder->reset(new uikit::TvosVideoDecoder(
+        video_decoder->reset(new TvosVideoDecoder(
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider()));
       }
@@ -306,8 +295,4 @@ bool PlayerComponents::Factory::OutputModeSupported(
   return false;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard

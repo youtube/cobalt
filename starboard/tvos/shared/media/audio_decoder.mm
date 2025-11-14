@@ -17,10 +17,6 @@
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
-
-using starboard::media::GetBytesPerSample;
 
 const int kAacFramesPerPacket = 1024;
 const int kAc3InitialFramesPerPacket = 1248;
@@ -160,8 +156,7 @@ void TvosAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-scoped_refptr<TvosAudioDecoder::DecodedAudio> TvosAudioDecoder::Read(
-    int* samples_per_second) {
+scoped_refptr<DecodedAudio> TvosAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -283,6 +278,4 @@ void TvosAudioDecoder::DestroyAudioConverter() {
   audio_converter_ = nullptr;
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

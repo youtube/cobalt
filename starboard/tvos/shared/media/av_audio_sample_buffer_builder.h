@@ -24,14 +24,9 @@
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class AVAudioSampleBufferBuilder {
  public:
-  typedef starboard::media::AudioStreamInfo AudioStreamInfo;
-  typedef starboard::player::InputBuffer InputBuffer;
-
   static AVAudioSampleBufferBuilder* CreateBuilder(
       const AudioStreamInfo& audio_stream_info,
       bool is_encrypted);
@@ -69,8 +64,6 @@ class AVAudioSampleBufferBuilder {
   std::string error_message_;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AV_AUDIO_SAMPLE_BUFFER_BUILDER_H_
