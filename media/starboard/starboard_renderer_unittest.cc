@@ -176,8 +176,7 @@ class StarboardRendererTest : public testing::Test {
           /*overlay_plane_id=*/base::UnguessableToken::Create(),
           /*audio_write_duration_local=*/base::Seconds(1),
           /*audio_write_duration_remote=*/base::Seconds(1),
-          /*max_video_capabilities=*/"",
-          std::map<std::string, H5vccSettingValue>());
+          /*max_video_capabilities=*/"");
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;

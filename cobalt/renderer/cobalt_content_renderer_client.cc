@@ -5,7 +5,6 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
-#include <variant>
 
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
@@ -244,23 +243,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   if (!h5vcc_settings_remote_.is_bound()) {
     content::RenderThread::Get()->BindHostReceiver(
         h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
-  }
-
-  cobalt::mojom::SettingsPtr settings;
-  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
-    for (auto& [key, value] : settings->settings) {
-      if (!AppendSettingToSwitch(key, value)) {
-        if (value->is_string_value()) {
-          renderer_factory_traits->h5vcc_settings.emplace(
-              key, std::move(value->get_string_value()));
-        } else if (value->is_int_value()) {
-          renderer_factory_traits->h5vcc_settings.emplace(
-              key, value->get_int_value());
-        } else {
-          NOTREACHED();
-        }
-      }
-    }
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
