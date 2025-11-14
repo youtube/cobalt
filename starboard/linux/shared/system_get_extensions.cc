@@ -14,12 +14,15 @@
 
 #include "starboard/system.h"
 
+#include "build/build_config.h"
 #include "starboard/common/string.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
 #include "starboard/extension/configuration.h"
+#if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/crash_handler.h"
+#endif
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
@@ -57,9 +60,11 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApiLinux();
   }
+#if BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
+#endif
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
     return starboard::GetMemoryMappedFileApi();
   }
