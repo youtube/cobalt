@@ -14,10 +14,7 @@
 
 #include "media/starboard/starboard_renderer.h"
 
-#include <variant>
-
 #include "base/feature_list.h"
-#include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
@@ -28,13 +25,11 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
-#include "starboard/common/string.h"
 
 namespace media {
 
 namespace {
 
-using ::starboard::FormatWithDigitSeparators;
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
 
@@ -113,68 +108,6 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
-
-void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
-  static base::NoDestructor<std::unique_ptr<DecoderBufferAllocator>>
-      g_external_allocator;
-  DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
-
-  if (use_external_allocator) {
-    if (instance) {
-      auto allocator = static_cast<DecoderBufferAllocator*>(instance);
-      LOG(INFO) << __func__
-                << " > DecoderBufferAllocator is already configured. Keeping "
-                   "current instance. allocated_memory="
-                << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
-                << ", current_memory_capacity="
-                << FormatWithDigitSeparators(
-                       allocator->GetCurrentMemoryCapacity());
-    } else {
-      LOG(INFO) << __func__
-                << " > Switching from default allocator(partition_alloc) to "
-                   "new DecoderBufferAllocator.";
-      *g_external_allocator = std::make_unique<DecoderBufferAllocator>();
-      DecoderBuffer::Allocator::Set(g_external_allocator->get());
-    }
-  } else {
-    if (instance) {
-      auto allocator = static_cast<DecoderBufferAllocator*>(instance);
-      if (allocator->GetAllocatedMemory() != 0) {
-        LOG(WARNING)
-            << __func__
-            << " > Cannot switch to default allocator(partition_alloc), since "
-               "current DecoderBufferAllocator instance holds allocated "
-               "memory: allocated_memory="
-            << FormatWithDigitSeparators(allocator->GetAllocatedMemory())
-            << ", current_memory_capacity="
-            << FormatWithDigitSeparators(allocator->GetCurrentMemoryCapacity());
-      } else {
-        LOG(INFO)
-            << __func__
-            << " > Destroying DecoderBufferAllocator instance. Switching to "
-               "default allocator(partition_alloc) from now on.";
-        DecoderBuffer::Allocator::Set(nullptr);
-        g_external_allocator->reset();
-      }
-    } else {
-      LOG(INFO)
-          << __func__
-          << " > Already using default allocator(partition_alloc). Keeping it.";
-    }
-  }
-}
-
-bool ShouldUseExternalAllocator(
-    const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
-  auto it = h5vcc_settings.find("Media.DisableExternalAllocator");
-  if (it != h5vcc_settings.end()) {
-    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
-      return *value_ptr != 1;
-    }
-  }
-  return true;
-}
-
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -183,8 +116,7 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities,
-    const std::map<std::string, H5vccSettingValue> h5vcc_settings)
+    const std::string& max_video_capabilities)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -197,17 +129,7 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
-  const bool use_external_allocator =
-      ShouldUseExternalAllocator(h5vcc_settings);
-  LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
-            << audio_write_duration_local_
-            << ", audio_write_duration_remote=" << audio_write_duration_remote_
-            << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_)
-            << ", use_external_allocator="
-            << (use_external_allocator ? "true" : "false");
-
-  ConfigureDecoderBufferAllocator(use_external_allocator);
+  LOG(INFO) << "StarboardRenderer constructed.";
 }
 
 StarboardRenderer::~StarboardRenderer() {

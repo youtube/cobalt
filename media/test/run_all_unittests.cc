@@ -43,7 +43,7 @@ void TestSuiteNoAtExit::Initialize() {
   // Run TestSuite::Initialize first so that logging is initialized.
   base::TestSuite::Initialize();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  media::DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+  media::DecoderBuffer::SetAllocator(&decoder_buffer_allocator_);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -60,7 +60,7 @@ void TestSuiteNoAtExit::Initialize() {
 
 void TestSuiteNoAtExit::Shutdown() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  media::DecoderBuffer::Allocator::Set(nullptr);
+  media::DecoderBuffer::SetAllocator(nullptr);
 #endif
 }
 
