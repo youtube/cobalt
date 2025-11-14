@@ -239,8 +239,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return nullptr;
   }
 
-  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
   native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  env->DeleteLocalRef(j_media_codec_bridge);
   return native_media_codec_bridge;
 }
 
@@ -395,8 +395,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return nullptr;
   }
 
-  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
   native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  env->DeleteLocalRef(j_media_codec_bridge);
   return native_media_codec_bridge;
 }
 

@@ -26,6 +26,10 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
 
+#if defined(ANDROID)
+#include "starboard/android/shared/jni_state.h"
+#endif
+
 namespace starboard {
 
 struct Thread::Data {
@@ -83,6 +87,10 @@ void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
   this_ptr->Run();
+  // TODO: b/461085624 - Replace direct-call with platform-specific override.
+#if defined(ANDROID)
+  android::shared::JNIState::GetVM()->DetachCurrentThread();
+#endif
   return NULL;
 }
 
