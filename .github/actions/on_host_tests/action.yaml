@@ -39,6 +39,10 @@ runs:
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
+        # Set shard info for test targets that doesn't use base.
+        export GTEST_TOTAL_SHARDS=${{ matrix.shard }}
+        export GTEST_SHARD_INDEX=${{ inputs.num_gtest_shards }}
+
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
