@@ -29,7 +29,7 @@
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/window_manager.h"
 
-using starboard::shared::uikit::ApplicationDarwin;
+using starboard::ApplicationDarwin;
 
 /**
  *  @brief Debounce constant for updateSearchResultsForSearchController voice

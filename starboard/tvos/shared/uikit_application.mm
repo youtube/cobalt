@@ -32,7 +32,7 @@
 #import "starboard/tvos/shared/window_manager.h"
 #include "starboard/window.h"
 
-using starboard::shared::uikit::ApplicationDarwin;
+using starboard::ApplicationDarwin;
 
 namespace {
 
@@ -95,7 +95,7 @@ void SBProcessAppIntent(const char* query, int isSearch) {
 
 #if SB_API_VERSION >= 15
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
-  starboard::shared::uikit::ApplicationDarwin starboardApplication(callback);
+  ApplicationDarwin starboardApplication(callback);
   dispatch_semaphore_signal(g_applicationSemaphore_);
   return starboardApplication.Run(0, NULL);
 }

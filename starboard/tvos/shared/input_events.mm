@@ -21,7 +21,7 @@
 #include "starboard/tvos/shared/application_darwin.h"
 #import "starboard/tvos/shared/defines.h"
 
-using starboard::shared::uikit::ApplicationDarwin;
+using starboard::ApplicationDarwin;
 
 namespace {
 void DeleteOnScreenKeyboardInputData(void* ptr) {
