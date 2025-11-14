@@ -14,9 +14,8 @@
 
 #include "starboard/crashpad_wrapper/wrapper.h"
 
-#include <sys/stat.h>
-
 #include <string.h>
+#include <sys/stat.h>
 
 #include <map>
 #include <vector>
@@ -210,9 +209,6 @@ void RecordStatus(CrashpadInstallationStatus status) {
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  LOG(WARNING) << "ca_certificates_path is unused:" << ca_certificates_path;
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -261,10 +257,7 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
                                    default_metrics_dir, kUploadUrl,
-// TODO: b/446932156 - pass Cobalt's CA store path to the handler.
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-                                   ca_certificates_path,
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+                                   base::FilePath(ca_certificates_path.c_str()),
                                    default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
