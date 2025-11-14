@@ -290,7 +290,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
     ProcessH5vccSettings(h5vcc_settings);
-    renderer_factory_traits->h5vcc_settings = std::move(h5vcc_settings);
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.

@@ -228,10 +228,11 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DecoderBufferAllocator::SetEnabled(bool enabled) {
-  auto to_string = [](bool value) { return value ? "enabled" : "disabled"; };
+  static const auto to_string = [](bool value) {
+    return value ? "enabled" : "disabled";
+  };
 
   base::AutoLock scoped_lock(mutex_);
-
   if (enabled_ == enabled) {
     return;
   }
