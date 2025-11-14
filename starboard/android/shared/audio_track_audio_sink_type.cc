@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "starboard/android/shared/continuous_audio_track_sink.h"
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
@@ -198,6 +199,7 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();
 
+  JNIState::GetVM()->DetachCurrentThread();
   return NULL;
 }
 
