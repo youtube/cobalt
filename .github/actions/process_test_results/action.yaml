@@ -25,13 +25,16 @@ runs:
         show: "fail, skip"
 
     - name: Populate GitHub Summary
+      if: steps.test_summary.outputs.failed > 0
       run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
     - name: Check Failed Tests
       if: always()
       run: |
-        set -x
+        # Check test status.
+        exit_code=0
+
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullglob to return empty string if the glob matches no files.
         shopt -s globstar nullglob
@@ -39,12 +42,26 @@ runs:
         result_xmls=(${{ inputs.results_glob }})
         if [ ${#result_xmls[@]} -ne ${{ inputs.num_gtest_shards }} ]; then
           echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${{ inputs.num_gtest_shards }}). Did a test shard crash?"
-          exit 1
+          exit_code=1
         fi
+
         if [ ${{ steps.test-summary.outputs.failed }} -gt 0 ]; then
+          # Print failed tests.
+          echo
+          echo " _____ _____ ____ _____   ____ _____   _   _____ _   _  ____  "
+          echo "|_   _| ____/ ___|_   _| / ___|_   _| / \ |_   _| | | |/ ___| "
+          echo "  | | |  _| \___ \ | |   \___ \ | |  / _ \  | | | | | |\___ \ "
+          echo "  | | | |___ ___) || |    ___) || | / ___ \ | | | |_| | ___) |"
+          echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
+          echo
+
+          python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}
+
           echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
-          exit 1
+          exit_code=1
         fi
+
+        exit ${exit_code}
       shell: bash
 
     - name: Get Datadog CLI
@@ -63,7 +80,7 @@ runs:
         chmod +x datadog-ci
       shell: bash
 
-    - name: Upload to Datadog
+    - name: Upload Results to Datadog
       if: always() && steps.download-dd-cli.outcome == 'success'
       continue-on-error: true
       env:
