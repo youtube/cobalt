@@ -23,9 +23,7 @@
 namespace cobalt {
 namespace browser {
 
-CobaltTrustedHeaderClient::CobaltTrustedHeaderClient(
-    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver)
-    : receiver_(this, std::move(receiver)) {}
+CobaltTrustedHeaderClient::CobaltTrustedHeaderClient() = default;
 
 void CobaltTrustedHeaderClient::OnBeforeSendHeaders(
     const ::net::HttpRequestHeaders& headers,
