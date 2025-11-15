@@ -139,9 +139,11 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  if (is_memory_pool_allocated_on_demand_ && strategy_->GetAllocated() == 0) {
+  if ((is_memory_pool_allocated_on_demand_ || !enabled_) &&
+      strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
-              << " bytes of media buffer pool `on demand`.";
+              << " bytes of media buffer pool"
+              << (enabled_ ? " `on demand`." : " since allocator is disabled.");
     // `strategy_->PrintAllocations()` will be called inside the dtor.
     strategy_.reset();
   }

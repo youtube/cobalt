@@ -26,7 +26,7 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
 }
 
 // static
-void DecoderBuffer::UseAllocator(bool enabled) {
+void DecoderBuffer::EnableAllocator(bool enabled) {
   CHECK(s_allocator);
   s_allocator->SetEnabled(enabled);
 }

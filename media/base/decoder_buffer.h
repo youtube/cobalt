@@ -82,7 +82,7 @@ class MEDIA_EXPORT DecoderBuffer
   class Allocator {
    public:
     static void Set(Allocator* allocator);
-    
+
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
     virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
@@ -98,7 +98,7 @@ class MEDIA_EXPORT DecoderBuffer
     ~Allocator() {}
   };
 
-  static void UseAllocator(bool enabled);
+  static void EnableAllocator(bool enabled);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.

@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_renderer.h"
 
 #include "base/feature_list.h"
+#include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
@@ -129,7 +130,11 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
+            << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", max_video_capabilities="
+            << base::GetQuotedJSONString(max_video_capabilities_);
 }
 
 StarboardRenderer::~StarboardRenderer() {
