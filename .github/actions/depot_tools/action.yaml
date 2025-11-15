@@ -27,6 +27,12 @@ runs:
           echo "target_os=['android']" >> .gclient
           gclient validate
         shell: bash
+      - name: Set target OS for Mac
+        if: ${{ contains(matrix.platform, 'mac') }}
+        run: |
+          echo "target_os=['mac']" >> .gclient
+          gclient validate
+        shell: bash
       - name: gclient sync
         if: inputs.run_sync == 'true'
         run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
