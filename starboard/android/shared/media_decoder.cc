@@ -17,9 +17,6 @@
 #include <sched.h>
 #include <unistd.h>
 
-#include <cstdlib>
-#include <cstring>
-
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -241,35 +238,6 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_CHECK(context);
-
-  // TODO: REMOVE ME
-  static bool s_test_done = false;
-  if (!s_test_done) {
-    s_test_done = true;
-    SB_LOG(INFO) << "Starting memory allocation test in DecoderThread...";
-    size_t total_allocated_gb = 0;
-    const size_t kChunkSize = 1024 * 1024 * 1024;  // 1 GB
-    while (true) {
-      void* p = malloc(kChunkSize);
-      if (!p) {
-        SB_LOG(INFO) << "Malloc returned NULL after allocating "
-                     << total_allocated_gb << " GB"
-                     << ", confirming libc malloc is used.";
-        break;
-      }
-      // Write to memory to enforce actual allocation
-      memset(p, 0xCC, kChunkSize);
-      int sum = 0;
-      char* buffer = static_cast<char*>(p);
-      for (int i = 0; i < kChunkSize; i++) {
-        sum += buffer[i];
-      }
-      total_allocated_gb += 1;
-      SB_LOG(INFO) << "Allocated " << total_allocated_gb
-                   << " GB, sum = " << sum;
-    }
-  }
-
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
   if (decoder->media_type_ == kSbMediaTypeAudio) {
