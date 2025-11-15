@@ -172,7 +172,7 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
+      use_external_allocator_(false) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
