@@ -131,6 +131,11 @@ H5vccSystemImpl::H5vccSystemImpl(
 
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // (Kabuki reload): Shuts down all active platform services.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->CloseAllCobaltService(env);
 }
 
 void H5vccSystemImpl::Create(
