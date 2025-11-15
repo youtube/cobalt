@@ -5,6 +5,7 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
@@ -97,12 +98,12 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
 // Append the h5vcc setting to the corresponding media switch, if such mapping
 // exists. H5vcc settings are either pass their value to a media switch for code
 // in /media to use, or are given to Starboard Renderer for direct usage.
-bool AppendSettingToSwitch(
+void AppendSettingToSwitch(
     const std::string& setting_name,
     const cobalt::mojom::SettingValuePtr& setting_value) {
   auto it = kH5vccSettingToSwitchMap.find(setting_name);
   if (it == kH5vccSettingToSwitchMap.end()) {
-    return false;
+    return;
   }
   std::string switch_name = it->second;
   std::string setting_str;
@@ -118,14 +119,13 @@ bool AppendSettingToSwitch(
     default: {
       LOG(WARNING) << "Attempted to apply switch " << switch_name
                    << " but the setting value was not an integer or string.";
-      return false;
+      return;
     }
   }
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
                                                             setting_str);
   LOG(INFO) << "Applied command line switch: " << switch_name << " = "
             << setting_str;
-  return true;
 }
 
 }  // namespace
@@ -243,6 +243,13 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   if (!h5vcc_settings_remote_.is_bound()) {
     content::RenderThread::Get()->BindHostReceiver(
         h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
+
+  cobalt::mojom::SettingsPtr settings;
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+    for (auto& [key, value] : settings->settings) {
+      AppendSettingToSwitch(key, value);
+    }
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
