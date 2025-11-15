@@ -12,8 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
+
+#include <cstdint>
 #include <netdb.h>
+
+#if !defined(_WIN32)
 #include <netinet/in.h>
+#endif
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -24,9 +34,23 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace starboard {
+
 namespace nplb {
+
 namespace {
+
+
+
+#if defined(_WIN32)
+
+typedef uint32_t in_addr_t;
+
+#endif
+
+
+
 // IPv4 Address 8.8.8.8
+
 const in_addr_t kExpectedIpv4Addr1 =
     htonl((8 << 24) | (8 << 16) | (8 << 8) | 8);
 // IPv4 Address 8.8.4.4

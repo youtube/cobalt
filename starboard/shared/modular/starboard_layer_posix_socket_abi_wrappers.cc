@@ -238,7 +238,7 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
         return -1;
       }
       musl_ai->ai_addrlen =
-          std::min(ai_copy.ai_addrlen,
+          std::min(static_cast<uint32_t>(ai_copy.ai_addrlen),
                    static_cast<uint32_t>(sizeof(struct musl_sockaddr)));
       musl_ai->ai_addr = (struct musl_sockaddr*)calloc(1, musl_ai->ai_addrlen);
       memcpy(musl_ai->ai_addr, ai_copy.ai_addr, musl_ai->ai_addrlen);
