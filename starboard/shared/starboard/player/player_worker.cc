@@ -56,7 +56,7 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 class PlayerWorker::WorkerThread : public Thread {
  public:
   WorkerThread(PlayerWorker* worker,
-               int stack_size,
+               int64_t stack_size,
                std::mutex* mutex,
                std::condition_variable* cv)
       : Thread("player_worker", stack_size),

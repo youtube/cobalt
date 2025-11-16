@@ -85,11 +85,9 @@ class MediaCodecDecoder::DecoderThread : public Thread {
       : Thread(GetDecoderName(decoder->media_type_)), decoder_(decoder) {}
 
   void Run() override {
-    if (decoder_->media_type_ == kSbMediaTypeAudio) {
-      SbThreadSetPriority(kSbThreadPriorityNormal);
-    } else {
-      SbThreadSetPriority(kSbThreadPriorityHigh);
-    }
+    SbThreadSetPriority(decoder_->media_type_ == kSbMediaTypeAudio
+                            ? kSbThreadPriorityNormal
+                            : kSbThreadPriorityHigh);
     decoder_->DecoderThreadFunc();
   }
 
