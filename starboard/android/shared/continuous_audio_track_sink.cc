@@ -50,7 +50,7 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
 class ContinuousAudioTrackSink::AudioOutThread : public Thread {
  public:
   explicit AudioOutThread(ContinuousAudioTrackSink* sink)
-      : Thread("audio_track_out"), sink_(sink) {}
+      : Thread("audio_cont_trck"), sink_(sink) {}
 
   void Run() override {
     SbThreadSetPriority(kSbThreadPriorityRealTime);
