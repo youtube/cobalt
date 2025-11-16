@@ -18,6 +18,7 @@
 
 #include <pthread.h>
 #include <unistd.h>
+
 #include <atomic>
 #include <optional>
 
@@ -33,11 +34,18 @@ struct Thread::Data {
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
+  std::optional<int> stack_size_;
 };
 
 Thread::Thread(const std::string& name) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
+}
+
+Thread::Thread(const std::string& name, int stack_size) {
+  d_.reset(new Thread::Data);
+  d_->name_ = name;
+  d_->stack_size_ = stack_size;
 }
 
 Thread::~Thread() {
@@ -48,8 +56,16 @@ void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  if (d_->stack_size_) {
+    SB_CHECK_GT(d_->stack_size_.value(), 0);
+    pthread_attr_setstacksize(&attributes, d_->stack_size_.value());
+  }
+
   const int result =
-      pthread_create(&d_->thread_, nullptr, ThreadEntryPoint, this);
+      pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
+  pthread_attr_destroy(&attributes);
   SB_CHECK_EQ(result, 0);
 }
 

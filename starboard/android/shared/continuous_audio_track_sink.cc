@@ -15,6 +15,7 @@
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 
 #include <unistd.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -45,6 +46,20 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
 }  // namespace
+
+class ContinuousAudioTrackSink::AudioOutThread : public Thread {
+ public:
+  explicit AudioOutThread(ContinuousAudioTrackSink* sink)
+      : Thread("audio_track_out"), sink_(sink) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityRealTime);
+    sink_->AudioThreadFunc();
+  }
+
+ private:
+  ContinuousAudioTrackSink* sink_;
+};
 
 ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     Type* type,
@@ -95,18 +110,15 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     return;
   }
 
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  audio_out_thread_ = thread;
+  audio_out_thread_ = std::make_unique<AudioOutThread>(this);
+  audio_out_thread_->Start();
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
+    audio_out_thread_->Join();
   }
 }
 
@@ -119,19 +131,6 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
   }
   std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
-}
-
-// static
-void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "continous_audio_track_sink");
-  SB_DCHECK(context);
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  ContinuousAudioTrackSink* sink =
-      reinterpret_cast<ContinuousAudioTrackSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
 }
 
 // TODO: Break down the function into manageable pieces.

@@ -14,7 +14,6 @@
 
 #include "starboard/shared/starboard/player/player_worker.h"
 
-#include <pthread.h>
 #include <string.h>
 
 #include <condition_variable>
@@ -26,6 +25,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
+#include "starboard/common/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -51,15 +51,34 @@ const int64_t kWritePendingSampleDelayUsec = 8'000;  // 8ms
 
 DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
-struct ThreadParam {
-  explicit ThreadParam(PlayerWorker* player_worker)
-      : player_worker(player_worker) {}
-  std::mutex mutex;
-  std::condition_variable condition_variable;
-  PlayerWorker* player_worker;
-};
-
 }  // namespace
+
+class PlayerWorker::WorkerThread : public Thread {
+ public:
+  WorkerThread(PlayerWorker* worker,
+               int stack_size,
+               std::mutex* mutex,
+               std::condition_variable* cv)
+      : Thread("player_worker", stack_size),
+        worker_(worker),
+        mutex_(mutex),
+        cv_(cv) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityNormal);
+    {
+      std::lock_guard lock(*mutex_);
+      worker_->job_queue_ = std::make_unique<JobQueue>();
+    }
+    cv_->notify_one();
+    worker_->RunLoop();
+  }
+
+ private:
+  PlayerWorker* worker_;
+  std::mutex* mutex_;
+  std::condition_variable* cv_;
+};
 
 PlayerWorker* PlayerWorker::CreateInstance(
     SbMediaAudioCodec audio_codec,
@@ -88,8 +107,8 @@ PlayerWorker::~PlayerWorker() {
 
   if (thread_) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
-    SB_CHECK_EQ(pthread_join(*thread_, nullptr), 0);
-    thread_ = std::nullopt;
+    thread_->Join();
+    thread_.reset();
 
     // Now the whole pipeline has been torn down and no callback will be called.
     // The caller can ensure that upon the return of SbPlayerDestroy() all side
@@ -122,25 +141,14 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
   ON_INSTANCE_CREATED(PlayerWorker);
 
-  ThreadParam thread_param(this);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  thread_ = std::make_unique<WorkerThread>(this, kPlayerStackSize, &mutex,
+                                           &condition_variable);
+  thread_->Start();
 
-  pthread_attr_t attributes;
-  pthread_attr_init(&attributes);
-  pthread_attr_setstacksize(&attributes, kPlayerStackSize);
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, &attributes, &PlayerWorker::ThreadEntryPoint, &thread_param);
-  pthread_attr_destroy(&attributes);
-
-  if (result != 0) {
-    SB_LOG(ERROR) << "Failed to create thread in PlayerWorker constructor: "
-                  << strerror(result);
-    return;
-  }
-  thread_ = thread;
-  std::unique_lock lock(thread_param.mutex);
-  thread_param.condition_variable.wait(
-      lock, [this] { return job_queue_ != nullptr; });
+  std::unique_lock lock(mutex);
+  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
   SB_DCHECK(job_queue_);
 }
 
@@ -168,51 +176,24 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      Result<void> result,
-                                     const std::string& error_message) {
-  SB_DCHECK(!result);
-  std::string complete_error_message = error_message;
-  if (!result.error().empty()) {
-    complete_error_message += " Error: " + result.error();
-  }
-
-  SB_LOG(WARNING) << "Encountered player error " << error
-                  << " with message: " << complete_error_message;
-  // Only report the first error.
+                                     const std::string& message) {
   if (error_occurred_.exchange(true)) {
     return;
   }
-  if (!player_error_func_) {
-    return;
+  if (player_error_func_) {
+    std::string error_message;
+    if (!result.has_value()) {
+      error_message =
+          FormatString("%s (%s)", message.c_str(), result.error().c_str());
+    } else {
+      error_message = message;
+    }
+    player_error_func_(player_, context_, error, error_message.c_str());
   }
-  player_error_func_(player_, context_, error, complete_error_message.c_str());
-}
-
-// static
-void* PlayerWorker::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("player_worker");
-#else
-  pthread_setname_np(pthread_self(), "player_worker");
-#endif
-  SbThreadSetPriority(kSbThreadPriorityHigh);
-  ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param);
-  PlayerWorker* player_worker = param->player_worker;
-  {
-    std::lock_guard lock(param->mutex);
-    player_worker->job_queue_ = std::make_unique<JobQueue>();
-  }
-  param->condition_variable.notify_one();
-  player_worker->RunLoop();
-  return NULL;
 }
 
 void PlayerWorker::RunLoop() {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
-
-  DoInit();
   job_queue_->RunUntilStopped();
-  job_queue_.reset();
 }
 
 void PlayerWorker::DoInit() {

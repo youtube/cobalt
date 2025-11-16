@@ -79,6 +79,24 @@ std::string to_string(const T& v) {
 
 }  // namespace
 
+class MediaCodecDecoder::DecoderThread : public Thread {
+ public:
+  explicit DecoderThread(MediaCodecDecoder* decoder)
+      : Thread(GetDecoderName(decoder->media_type_)), decoder_(decoder) {}
+
+  void Run() override {
+    if (decoder_->media_type_ == kSbMediaTypeAudio) {
+      SbThreadSetPriority(kSbThreadPriorityNormal);
+    } else {
+      SbThreadSetPriority(kSbThreadPriorityHigh);
+    }
+    decoder_->DecoderThreadFunc();
+  }
+
+ private:
+  MediaCodecDecoder* decoder_;
+};
+
 MediaCodecDecoder::MediaCodecDecoder(Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system)
@@ -199,11 +217,8 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    pthread_t thread;
-    const int result = pthread_create(
-        &thread, nullptr, &MediaCodecDecoder::DecoderThreadEntryPoint, this);
-    SB_CHECK_EQ(result, 0);
-    decoder_thread_ = thread;
+    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_->Start();
   }
 
   std::lock_guard lock(mutex_);
@@ -233,21 +248,6 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
-}
-
-// static
-void* MediaCodecDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_CHECK(context);
-  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
-  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
-  if (decoder->media_type_ == kSbMediaTypeAudio) {
-    SbThreadSetPriority(kSbThreadPriorityNormal);
-  } else {
-    SbThreadSetPriority(kSbThreadPriorityHigh);
-  }
-
-  decoder->DecoderThreadFunc();
-  return NULL;
 }
 
 void MediaCodecDecoder::DecoderThreadFunc() {
@@ -403,8 +403,8 @@ void MediaCodecDecoder::TerminateDecoderThread() {
   }
 
   if (decoder_thread_) {
-    SB_CHECK_EQ(pthread_join(*decoder_thread_, nullptr), 0);
-    decoder_thread_ = std::nullopt;
+    decoder_thread_->Join();
+    decoder_thread_.reset();
   }
 }
 
