@@ -34,15 +34,16 @@ struct Thread::Data {
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
-  std::optional<int> stack_size_;
+  std::optional<int64_t> stack_size_;
 };
 
-Thread::Thread(const std::string& name) {
-  d_.reset(new Thread::Data);
-  d_->name_ = name;
-}
+Thread::Thread(const std::string& name)
+    : Thread(name, /*stack_size*/ std::nullopt) {}
 
-Thread::Thread(const std::string& name, int stack_size) {
+Thread::Thread(const std::string& name, int64_t stack_size)
+    : Thread(name, std::make_optional(stack_size)) {}
+
+Thread::Thread(const std::string& name, std::optional<int64_t> stack_size) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
   d_->stack_size_ = stack_size;

@@ -65,7 +65,7 @@ class PlayerWorker::WorkerThread : public Thread {
         cv_(cv) {}
 
   void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityNormal);
+    SbThreadSetPriority(kSbThreadPriorityHigh);
     {
       std::lock_guard lock(*mutex_);
       worker_->job_queue_ = std::make_unique<JobQueue>();
@@ -176,24 +176,31 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      Result<void> result,
-                                     const std::string& message) {
+                                     const std::string& error_message) {
+  SB_DCHECK(!result);
+  std::string complete_error_message = error_message;
+  if (!result.error().empty()) {
+    complete_error_message += " Error: " + result.error();
+  }
+
+  SB_LOG(WARNING) << "Encountered player error " << error
+                  << " with message: " << complete_error_message;
+  // Only report the first error.
   if (error_occurred_.exchange(true)) {
     return;
   }
-  if (player_error_func_) {
-    std::string error_message;
-    if (!result.has_value()) {
-      error_message =
-          FormatString("%s (%s)", message.c_str(), result.error().c_str());
-    } else {
-      error_message = message;
-    }
-    player_error_func_(player_, context_, error, error_message.c_str());
+  if (!player_error_func_) {
+    return;
   }
+  player_error_func_(player_, context_, error, complete_error_message.c_str());
 }
 
 void PlayerWorker::RunLoop() {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  DoInit();
   job_queue_->RunUntilStopped();
+  job_queue_.reset();
 }
 
 void PlayerWorker::DoInit() {

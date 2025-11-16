@@ -34,14 +34,14 @@ class Semaphore;
 class Thread {
  public:
   explicit Thread(const std::string& name);
-  Thread(const std::string& name, int stack_size);
+  Thread(const std::string& name, int64_t stack_size);
   template <size_t N>
   explicit Thread(char const (&name)[N]) : Thread(std::string(name)) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");
   }
   template <size_t N>
-  Thread(char const (&name)[N], int stack_size)
+  Thread(char const (&name)[N], int64_t stack_size)
       : Thread(std::string(name), stack_size) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");
@@ -67,6 +67,8 @@ class Thread {
   static void* ThreadEntryPoint(void* context);
   static void Sleep(int64_t microseconds);
   static void SleepMilliseconds(int value);
+
+  Thread(const std::string& name, std::optional<int64_t> stack_size);
 
   // Waits at most |timeout| microseconds for Join() to be called. If
   // Join() was called then return |true|, else |false|.
