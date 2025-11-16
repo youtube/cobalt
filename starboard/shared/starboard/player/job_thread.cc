@@ -29,7 +29,7 @@ class JobThread::WorkerThread : public Thread {
  public:
   WorkerThread(JobThread* job_thread,
                const char* thread_name,
-               int stack_size,
+               int64_t stack_size,
                SbThreadPriority priority,
                std::mutex* mutex,
                std::condition_variable* cv)
