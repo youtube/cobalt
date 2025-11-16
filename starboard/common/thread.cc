@@ -25,8 +25,11 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread_platform.h"
 
 namespace starboard {
+
+void TerminateOnThread();
 
 struct Thread::Data {
   std::string name_;
@@ -102,6 +105,8 @@ void* Thread::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
 #endif
   this_ptr->Run();
+
+  TerminateOnThread();
   return NULL;
 }
 
