@@ -37,16 +37,12 @@ struct Thread::Data {
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
-  std::optional<int64_t> stack_size_;
+  int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name)
-    : Thread(name, /*stack_size*/ std::nullopt) {}
+Thread::Thread(const std::string& name) : Thread(name, /*stack_size=*/0) {}
 
-Thread::Thread(const std::string& name, int64_t stack_size)
-    : Thread(name, std::make_optional(stack_size)) {}
-
-Thread::Thread(const std::string& name, std::optional<int64_t> stack_size) {
+Thread::Thread(const std::string& name, int64_t stack_size) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
   d_->stack_size_ = stack_size;
@@ -62,9 +58,8 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
-  if (d_->stack_size_) {
-    SB_CHECK_GT(d_->stack_size_.value(), 0);
-    pthread_attr_setstacksize(&attributes, d_->stack_size_.value());
+  if (d_->stack_size_ > 0) {
+    pthread_attr_setstacksize(&attributes, d_->stack_size_);
   }
 
   const int result =

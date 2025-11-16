@@ -68,8 +68,6 @@ class Thread {
   static void Sleep(int64_t microseconds);
   static void SleepMilliseconds(int value);
 
-  Thread(const std::string& name, std::optional<int64_t> stack_size);
-
   // Waits at most |timeout| microseconds for Join() to be called. If
   // Join() was called then return |true|, else |false|.
   bool WaitForJoin(int64_t timeout);
