@@ -75,7 +75,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
-  private static final int NETWORK_CHECK_TIMEOUT_MS = 10000;
+  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000;
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -646,8 +646,10 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  // Try to generate_204 with a timeout of 10 seconds to check for connectivity and raise a network
-  // error dialog on an unsuccessful network check
+  // Try to generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
+  // error dialog on an unsuccessful network check. This functions runs 2 threads: one for the
+  // generate_204 check and one for a separate Future timeout check in the case that a connection
+  // can't be established ie. a DNS resolution hang.
   protected void activeNetworkCheck() {
     // If a previous check is still running, cancel it to prevent dangling threads.
     if (networkCheckFuture != null && !networkCheckFuture.isDone()) {
@@ -657,23 +659,25 @@ public abstract class CobaltActivity extends Activity {
     // Keep a separate timeout for edge cases such as a DNS resolution hang
     Runnable networkCheckTask =
       () -> {
-        HttpURLConnection urlConnection = null;
         try {
           // Check if the thread has been interrupted before starting.
           if (Thread.currentThread().isInterrupted()) {
             return;
           }
 
-          URL url = new URL("https://www.google.com/generate_204");
-          urlConnection = (HttpURLConnection) url.openConnection();
-          urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
-          urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
-          urlConnection.connect();
-
-          if (urlConnection.getResponseCode() != 204) {
-            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+          boolean probeURL = performSingleProbe("https://www.google.com/generate_204");
+          // Fallback URL
+          if (!probeURL) {
+            Log.w(TAG, "Primary connectivity check failed, trying fallback.");
+            probeURL = performSingleProbe("http://connectivitycheck.gstatic.com/generate_204");
           }
 
+          if (!probeURL) {
+            // Throw an exception to trigger the error dialog logic
+            throw new IOException("Both primary and fallback connectivity checks failed.");
+          }
+
+          // If we reach here, the check was successful.
           Log.i(TAG, "Active Network check successful." + mPlatformError);
           if (mPlatformError != null) {
             mPlatformError.setResponse(PlatformError.POSITIVE);
@@ -694,7 +698,7 @@ public abstract class CobaltActivity extends Activity {
           if (Thread.currentThread().isInterrupted()) {
             Log.w(TAG, "Active Network check was cancelled by timeout.");
           } else {
-            Log.w(TAG, "Active Network check failed: " + e.getClass().getSimpleName());
+            Log.w(TAG, "Active Network check failed: " + e.getMessage());
           }
 
           runOnUiThread(
@@ -707,10 +711,6 @@ public abstract class CobaltActivity extends Activity {
               }
             });
           mShouldReloadOnResume = true;
-        } finally {
-          if (urlConnection != null) {
-            urlConnection.disconnect();
-          }
         }
       };
 
@@ -724,6 +724,41 @@ public abstract class CobaltActivity extends Activity {
           networkCheckFuture.cancel(true);
         }
       }, NETWORK_CHECK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+  }
+
+  // Perform a network check on a single URL endpoint
+  private boolean performSingleProbe(String urlString) {
+    HttpURLConnection urlConnection = null;
+    try {
+      if (Thread.currentThread().isInterrupted()) {
+        return false;
+      }
+
+      URL url = new URL(urlString);
+      urlConnection = (HttpURLConnection) url.openConnection();
+      urlConnection.setInstanceFollowRedirects(false);
+      urlConnection.setRequestMethod("GET");
+      urlConnection.setUseCaches(false);
+      urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
+      urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
+
+      urlConnection.connect();
+
+      int responseCode = urlConnection.getResponseCode();
+      if (responseCode == 204) {
+        return true;
+      } else {
+        Log.w(TAG, "Connectivity check to " + urlString + " failed with response code: " + responseCode);
+        return false;
+      }
+    } catch (IOException e) {
+      Log.w(TAG, "Connectivity check to " + urlString + " failed with exception: " + e.getClass().getSimpleName());
+      return false;
+    } finally {
+      if (urlConnection != null) {
+        urlConnection.disconnect();
+      }
+    }
   }
 
   public long getAppStartTimestamp() {
