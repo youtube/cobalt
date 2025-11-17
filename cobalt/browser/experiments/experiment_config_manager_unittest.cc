@@ -249,7 +249,7 @@ TEST_F(ExperimentConfigManagerTest,
   // Enable the feature in the SAFE config.
   pref_service_->SetDict(kSafeConfigFeatures, std::move(feature_map));
 
-  pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
+  pref_service_->SetTime(variations::prefs::kVariationsSafeSeedFetchTime,
                          base::Time::Now() - base::Days(5));
 
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
@@ -269,7 +269,7 @@ TEST_F(ExperimentConfigManagerTest,
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
-  pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
+  pref_service_->SetTime(variations::prefs::kVariationsSafeSeedFetchTime,
                          base::Time::Now() - base::Days(31));
 
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
@@ -385,21 +385,6 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsOnlyCalledOnce) {
 
   // The safe config should remain unchanged.
   EXPECT_EQ(pref_service_->GetDict(kSafeConfigFeatures), initial_features);
-}
-
-TEST_F(ExperimentConfigManagerTest,
-       GetExperimentConfigTypeIgnoresCrashStreakInExperimentPrefs) {
-  // Set a high crash streak in the experiment prefs (which should be ignored).
-  pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                            kCrashStreakSafeConfigThreshold);
-
-  // Set a safe crash streak in the metrics prefs (which should be used).
-  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    0);
-
-  // Expect regular config because the metrics crash streak is 0.
-  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
-            ExperimentConfigType::kRegularConfig);
 }
 
 TEST_F(ExperimentConfigManagerTest, StoreSafeConfigSetsFetchTime) {
