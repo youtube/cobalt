@@ -24,6 +24,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
@@ -63,7 +64,8 @@ class CobaltTrustedHeaderClientTest : public ::testing::Test {
 TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
 
-  CobaltTrustedHeaderClient client(remote.BindNewPipeAndPassReceiver());
+  mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltTrustedHeaderClient>(),
+                              remote.BindNewPipeAndPassReceiver());
 
   net::HttpRequestHeaders initial_headers;
   initial_headers.SetHeader("Existing-Header", "Existing-Value");
@@ -80,6 +82,7 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   ASSERT_TRUE(headers_optional.has_value());
   const auto& modified_headers = headers_optional.value();
 
+<<<<<<< HEAD
   std::string existing_value;
   ASSERT_TRUE(modified_headers.GetHeader("Existing-Header", &existing_value));
   EXPECT_EQ("Existing-Value", existing_value);
@@ -87,6 +90,17 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   std::string value;
   ASSERT_TRUE(modified_headers.GetHeader("Cobalt-Client-Hint-Header", &value));
   EXPECT_EQ("Value", value);
+=======
+  std::optional<std::string> existing_value =
+      modified_headers.GetHeader("Existing-Header");
+  ASSERT_TRUE(existing_value.has_value());
+  EXPECT_EQ("Existing-Value", existing_value.value());
+
+  std::optional<std::string> value =
+      modified_headers.GetHeader("Cobalt-Client-Hint-Header");
+  ASSERT_TRUE(value.has_value());
+  EXPECT_EQ("Value", value.value());
+>>>>>>> 6db85bf3149 (net: Fix memory leak in CobaltTrustedURLLoaderHeaderClient (#8068))
 }
 
 }  // namespace browser
