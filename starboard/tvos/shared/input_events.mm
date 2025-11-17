@@ -33,8 +33,6 @@ void DeleteOnScreenKeyboardInputData(void* ptr) {
 
 @implementation SBDInputEvents
 
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 + (void)onScreenKeyboardTextUpdated:(NSString*)text window:(SbWindow)window {
   NSUInteger stringLength =
       [text lengthOfBytesUsingEncoding:NSUTF8StringEncoding];

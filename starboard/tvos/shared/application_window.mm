@@ -185,11 +185,6 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
   std::unordered_set<NSInteger> _processedKeydownPressTypes;
 }
 
-- (nullable instancetype)initWithCoder:(NSCoder*)aDecoder
-    SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
-- (instancetype)initWithFrame:(CGRect)frame SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 - (instancetype)initWithName:(nullable NSString*)name {
   CGSize size = [UIScreen mainScreen].bounds.size;
   self = [super initWithFrame:CGRectMake(0, 0, size.width, size.height)];
