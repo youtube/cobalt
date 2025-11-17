@@ -171,7 +171,7 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
 #elif BUILDFLAG(IS_IOS_TVOS)
   // TODO(b/447135715): Determine appropriate user exit strategy for tvOS.
   NOTIMPLEMENTED();
-  std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kNoExit);
+  std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
 #else
 #error "Unsupported platform."
 #endif
