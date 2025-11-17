@@ -18,19 +18,10 @@
 
 #include "build/build_config.h"
 #include "starboard/common/string.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/elf_loader/evergreen_config.h"
-#endif
 #include "starboard/extension/configuration.h"
-#if BUILDFLAG(USE_EVERGREEN)
-#include "starboard/extension/crash_handler.h"
-#endif
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/extension/loader_app_metrics.h"
-#endif
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/configuration.h"
@@ -39,9 +30,16 @@
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
-#include "starboard/shared/starboard/crash_handler.h"
+
 #if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_config.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
+#endif
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/shared/starboard/crash_handler.h"
 #endif
 
 const void* SbSystemGetExtension(const char* name) {
