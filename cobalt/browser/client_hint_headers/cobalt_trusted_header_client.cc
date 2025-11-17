@@ -39,14 +39,8 @@ void CobaltTrustedHeaderClient::OnHeadersReceived(
     const std::string& headers,
     const net::IPEndPoint& remote_endpoint,
     OnHeadersReceivedCallback callback) {
-<<<<<<< HEAD
-  // Do nothing for response header
-  std::move(callback).Run(net::OK, absl::nullopt, absl::nullopt);
-=======
   // Cobalt does not currently need to act on response headers, so this is a
   // no-op.
-  std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
->>>>>>> 6db85bf3149 (net: Fix memory leak in CobaltTrustedURLLoaderHeaderClient (#8068))
 }
 
 }  // namespace browser
