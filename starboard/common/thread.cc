@@ -26,6 +26,10 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
 
+#if defined(ANDROID)
+#include "starboard/android/shared/jni_state.h"
+#endif
+
 namespace starboard {
 
 struct Thread::Data {
@@ -83,6 +87,11 @@ void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
   this_ptr->Run();
+  // This is just for testing.
+  // TODO: revert this change once test is done.
+#if defined(ANDROID)
+  android::shared::JNIState::GetVM()->DetachCurrentThread();
+#endif
   return NULL;
 }
 

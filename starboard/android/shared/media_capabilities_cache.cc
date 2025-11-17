@@ -488,11 +488,11 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
     JniEnvExt* env = JniEnvExt::Get();
     ScopedLocalJavaRef<jstring> j_mime(
         env->NewStringStandardUTFOrAbort(mime_type.c_str()));
-    jobject j_decoder_name = env->CallStaticObjectMethodOrAbort(
-        "dev/cobalt/media/MediaCodecUtil", "findAudioDecoder",
-        "(Ljava/lang/String;I)Ljava/lang/String;", j_mime.Get(), bitrate);
-    return env->GetStringStandardUTFOrAbort(
-        static_cast<jstring>(j_decoder_name));
+    ScopedLocalJavaRef<jstring> j_decoder_name(
+        static_cast<jstring>(env->CallStaticObjectMethodOrAbort(
+            "dev/cobalt/media/MediaCodecUtil", "findAudioDecoder",
+            "(Ljava/lang/String;I)Ljava/lang/String;", j_mime.Get(), bitrate)));
+    return env->GetStringStandardUTFOrAbort(j_decoder_name.Get());
   }
 
   std::lock_guard scoped_lock(mutex_);
@@ -523,15 +523,15 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     JniEnvExt* env = JniEnvExt::Get();
     ScopedLocalJavaRef<jstring> j_mime(
         env->NewStringStandardUTFOrAbort(mime_type.c_str()));
-    jobject j_decoder_name = env->CallStaticObjectMethodOrAbort(
-        "dev/cobalt/media/MediaCodecUtil", "findVideoDecoder",
-        "(Ljava/lang/String;ZZZZIIIII)Ljava/lang/String;", j_mime.Get(),
-        must_support_secure, must_support_hdr,
-        false,                        /* mustSupportSoftwareCodec */
-        must_support_tunnel_mode, -1, /* decoderCacheTtlMs */
-        frame_width, frame_height, bitrate, fps);
-    return env->GetStringStandardUTFOrAbort(
-        static_cast<jstring>(j_decoder_name));
+    ScopedLocalJavaRef<jstring> j_decoder_name(
+        static_cast<jstring>(env->CallStaticObjectMethodOrAbort(
+            "dev/cobalt/media/MediaCodecUtil", "findVideoDecoder",
+            "(Ljava/lang/String;ZZZZIIIII)Ljava/lang/String;", j_mime.Get(),
+            must_support_secure, must_support_hdr,
+            false,                        /* mustSupportSoftwareCodec */
+            must_support_tunnel_mode, -1, /* decoderCacheTtlMs */
+            frame_width, frame_height, bitrate, fps)));
+    return env->GetStringStandardUTFOrAbort(j_decoder_name.Get());
   }
 
   std::lock_guard scoped_lock(mutex_);

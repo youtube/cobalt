@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -128,6 +129,7 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
       reinterpret_cast<ContinuousAudioTrackSink*>(context);
   sink->AudioThreadFunc();
 
+  JNIState::GetVM()->DetachCurrentThread();
   return NULL;
 }
 

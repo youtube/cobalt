@@ -20,6 +20,10 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
+#if defined(ANDROID)
+#include "starboard/android/shared/jni_state.h"
+#endif
+
 namespace starboard::shared::starboard::player {
 
 namespace {
@@ -89,6 +93,10 @@ void* JobThread::ThreadEntryPoint(void* context) {
     param->condition_variable.Signal();
   }
   job_thread->RunLoop();
+
+#if defined(ANDROID)
+  android::shared::JNIState::GetVM()->DetachCurrentThread();
+#endif
   return nullptr;
 }
 

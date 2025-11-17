@@ -101,7 +101,9 @@ public class ArtworkLoader {
       int height = bitmap.getWidth() * 9 / 16;
       if (bitmap.getHeight() > height) {
         int top = (bitmap.getHeight() - height) / 2;
-        return Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
+        Bitmap cropped = Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
+        bitmap.recycle();
+        return cropped;
       }
     }
     return bitmap;
@@ -113,6 +115,9 @@ public class ArtworkLoader {
     if (url.equals(mRequestedArtworkUrl)) {
       mRequestedArtworkUrl = "";
       if (bitmap != null) {
+        if (mCurrentArtwork != null) {
+          mCurrentArtwork.recycle();
+        }
         mCurrentArtworkUrl = url;
         mCurrentArtwork = bitmap;
 
@@ -124,6 +129,8 @@ public class ArtworkLoader {
               }
             });
       }
+    } else if (bitmap != null) {
+      bitmap.recycle();
     }
   }
 
