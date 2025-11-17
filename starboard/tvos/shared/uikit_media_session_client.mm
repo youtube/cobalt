@@ -281,8 +281,6 @@ NS_ASSUME_NONNULL_END
 @end
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 void OnMediaSessionStateChanged(CobaltExtensionMediaSessionState sessionState) {
@@ -327,6 +325,4 @@ const void* GetMediaSessionApi() {
   return &kMediaSessionApi;
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

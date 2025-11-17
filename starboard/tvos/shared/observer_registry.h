@@ -18,8 +18,6 @@
 #include <atomic>
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 // This module helps ensure thread safety of notification observers which may
 // be destroyed from a different thread than which the observer callback is
@@ -95,8 +93,6 @@ class ObserverRegistry {
   static void UnlockObserver(int32_t lock_slot);
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_OBSERVER_REGISTRY_H_

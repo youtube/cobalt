@@ -119,8 +119,6 @@
   SBDApplicationViewInterfaceFocus* _interfaceFocus;
 }
 
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {

@@ -14,20 +14,27 @@
 
 #import <Foundation/Foundation.h>
 
-#import <limits>
+#include <cstdint>
+#include <limits>
 
-#include "starboard/common/time.h"
+#include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
-#if SB_API_VERSION >= 15
+namespace {
+
+// Converts a POSIX microseconds timestamp to a Windows microseconds timestamp.
+SB_C_FORCE_INLINE int64_t PosixTimeToWindowsTime(int64_t posix_time) {
+  // Add number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC).
+  return posix_time + 11644473600000000ULL;
+}
+
+}  // namespace
+
 void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
-#else   // SB_API_VERSION >= 15
-void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
-#endif  // SB_API_VERSION >= 15
   if (!player) {
     return;
   }
@@ -64,7 +71,7 @@ void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
       NSTimeInterval currentDate = applicationPlayer.currentDate;
       if (currentDate > 0) {
         int64_t posixTime = currentDate * 1000000;
-        int64_t startDate = starboard::PosixTimeToWindowsTime(posixTime);
+        int64_t startDate = PosixTimeToWindowsTime(posixTime);
         int64_t currentMediaTime = out_player_info->current_media_timestamp;
         if (currentMediaTime > 0) {
           startDate -= currentMediaTime;

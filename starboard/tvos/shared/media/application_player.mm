@@ -211,8 +211,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   bool _insufficientExternalProtection;
 }
 
-@synthesize duration = _duration;
-@synthesize playbackRate = _playbackRate;
 @synthesize totalDroppedFrames = _totalDroppedFrames;
 @synthesize totalFrames = _totalFrames;
 @synthesize frameWidth = _frameWidth;
@@ -522,11 +520,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 }
 
 - (void)setPlaybackRate:(double)playbackRate {
-  if (_playbackRate == playbackRate) {
+  if (_player.rate == playbackRate) {
     return;
   }
   _player.rate = playbackRate;
-  _playbackRate = playbackRate;
 }
 
 - (NSInteger)totalDroppedFrames {
@@ -799,7 +796,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   float frameRate = 0;
   NSArray<AVAssetTrack*>* videoTracks =
       [_player.currentItem.asset tracksWithMediaType:AVMediaTypeVideo];
-  AVAssetTrack* activeTrack;
   for (AVAssetTrack* track in videoTracks) {
     if (track.nominalFrameRate > 0) {
       frameRate = track.nominalFrameRate;
@@ -821,8 +817,8 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   for (NSUInteger i = _currentAccessLogIndex; i < events.count; i++) {
     AVPlayerItemAccessLogEvent* event = events[i];
 
-    NSInteger durationWatched = MAX(event.durationWatched, 0);
-    NSInteger droppedFrames = MAX(event.numberOfDroppedVideoFrames, 0);
+    NSUInteger durationWatched = MAX(event.durationWatched, 0);
+    NSUInteger droppedFrames = MAX(event.numberOfDroppedVideoFrames, 0);
 
     if (i == _currentAccessLogIndex) {
       // We must account for stats accumulated on the previous observation.

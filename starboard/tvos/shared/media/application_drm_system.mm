@@ -33,8 +33,6 @@
 @synthesize initializationData = _initializationData;
 @synthesize ticket = _ticket;
 
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 - (instancetype)initWithCertificationData:(NSData*)certificationData
                         contentIdentifier:(NSData*)contentIdentifier
                                  initData:(NSData*)initData
@@ -86,8 +84,6 @@
    */
   NSMutableDictionary<NSData*, AVContentKeyRequest*>* _keyRequestsPendingKey;
 }
-
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
 
 - (instancetype)initWithSessionContext:(void*)context
               sessionUpdateRequestFunc:

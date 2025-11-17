@@ -21,8 +21,6 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class DrmSystemPlatform : public SbDrmSystemPrivate {
  public:
@@ -72,8 +70,6 @@ class DrmSystemPlatform : public SbDrmSystemPrivate {
       SbDrmSessionClosedFunc session_closed_callback);
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_DRM_SYSTEM_PLATFORM_H_
