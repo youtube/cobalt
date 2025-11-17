@@ -34,11 +34,7 @@ SB_C_FORCE_INLINE int64_t PosixTimeToWindowsTime(int64_t posix_time) {
 
 }  // namespace
 
-#if SB_API_VERSION >= 15
 void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
-#else   // SB_API_VERSION >= 15
-void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
-#endif  // SB_API_VERSION >= 15
   if (!player) {
     return;
   }

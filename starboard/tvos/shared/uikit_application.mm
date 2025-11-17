@@ -93,13 +93,11 @@ void SBProcessAppIntent(const char* query, int isSearch) {
   ApplicationDarwin::InjectEvent(kSbEventTypeLink, deeplink);
 }
 
-#if SB_API_VERSION >= 15
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   ApplicationDarwin starboardApplication(callback);
   dispatch_semaphore_signal(g_applicationSemaphore_);
   return starboardApplication.Run(0, NULL);
 }
-#endif  // SB_API_VERSION >= 15
 
 /**
  *  @brief The main entry point for the host application.
@@ -207,13 +205,7 @@ id<SBDStarboardApplication> SBDGetApplication() {
       @autoreleasepool {
         [NSThread currentThread].name = @"Starboard";
         int unused_value = 0;
-#if SB_API_VERSION >= 15
         SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
-#else
-      starboard::shared::uikit::ApplicationDarwin starboardApplication;
-      dispatch_semaphore_signal(g_applicationSemaphore_ );
-      starboardApplication.Run(0, NULL);
-#endif  // SB_API_VERSION >= 15
       }
     });
 

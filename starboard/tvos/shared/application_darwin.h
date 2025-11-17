@@ -28,10 +28,8 @@ namespace starboard {
 
 class ApplicationDarwin : public shared::starboard::QueueApplication {
  public:
-#if SB_API_VERSION >= 15
   explicit ApplicationDarwin(SbEventHandleCallback sb_event_handle_callback)
       : QueueApplication(sb_event_handle_callback) {}
-#endif  //  SB_API_VERSION >= 15
   static ApplicationDarwin* Get() {
     shared::starboard::Application* application =
         shared::starboard::Application::Get();
