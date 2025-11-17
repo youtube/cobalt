@@ -281,7 +281,6 @@ ResourcePool::InUsePoolResource ResourcePool::AcquireResource(
 
   if (!resource)
     resource = CreateResource(size, format, color_space);
-
 #if BUILDFLAG(IS_COBALT)
   if (avoid_cc_reuse_resource) {
     resource->mark_avoid_reuse();
