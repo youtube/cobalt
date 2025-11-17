@@ -22,6 +22,9 @@
 namespace cobalt {
 namespace browser {
 
+// Responsible for handling trusted headers for individual network requests.
+// This class is used to add Cobalt-specific client hint headers before a
+// request is sent.
 class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
  public:
   CobaltTrustedHeaderClient();

@@ -41,7 +41,8 @@ void CobaltTrustedHeaderClient::OnHeadersReceived(
     const std::string& headers,
     const net::IPEndPoint& remote_endpoint,
     OnHeadersReceivedCallback callback) {
-  // Do nothing for response header
+  // Cobalt does not currently need to act on response headers, so this is a
+  // no-op.
   std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
 }
 
