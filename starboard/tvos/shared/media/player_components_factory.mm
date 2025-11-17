@@ -138,15 +138,19 @@ class AVSampleBufferPlayerComponentsImpl : public PlayerComponents {
 };
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
-  std::unique_ptr<PlayerComponents> CreateComponents(
-      const CreationParameters& creation_parameters,
-      std::string* error_message) override {
+  NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
+      const CreationParameters& creation_parameters) override {
     std::unique_ptr<PlayerComponents> components;
     if (creation_parameters.output_mode() == kSbPlayerOutputModePunchOut) {
-      components = CreatePunchoutComponents(creation_parameters, error_message);
+      components = CreatePunchoutComponents(creation_parameters);
     } else {
-      components = PlayerComponents::Factory::CreateComponents(
-          creation_parameters, error_message);
+      auto result =
+          PlayerComponents::Factory::CreateComponents(creation_parameters);
+      if (result) {
+        components = std::move(result.value());
+      } else {
+        return Failure(result.error());
+      }
     }
     bool is_5_1_playback =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
@@ -205,7 +209,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
 #if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
       else if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
-        video_decoder->reset(new uikit::VpxVideoDecoder(
+        video_decoder->reset(new VpxVideoDecoder(
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider()));
       }
@@ -231,8 +235,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 
   std::unique_ptr<PlayerComponents> CreatePunchoutComponents(
-      const CreationParameters& creation_parameters,
-      std::string* error_message) {
+      const CreationParameters& creation_parameters) {
     SB_DCHECK(creation_parameters.output_mode() == kSbPlayerOutputModePunchOut);
 
     std::unique_ptr<AVSBSynchronizer> synchronizer(new AVSBSynchronizer());
