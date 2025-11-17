@@ -13092,7 +13092,14 @@ TEST_P(LayerTreeHostImplTest, ExternalTransformSetNeedsRedraw) {
   EXPECT_FALSE(last_on_draw_frame_->has_no_damage);
 }
 
+<<<<<<< HEAD
 TEST_P(LayerTreeHostImplTest, OnMemoryPressure) {
+=======
+TEST_P(ScrollUnifiedLayerTreeHostImplTest, OnMemoryPressure) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
+>>>>>>> 8ec6d83466 (Reland "feat(cc): Disable resource pool reuse to reduce memory #7853" (#8050))
   gfx::Size size(200, 200);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
@@ -13119,6 +13126,7 @@ TEST_P(LayerTreeHostImplTest, OnMemoryPressure) {
 
   // Memory usage after the memory pressure should be less than previous one.
   EXPECT_LT(memory_usage_after_memory_pressure, current_memory_usage);
+#endif
 }
 
 TEST_P(LayerTreeHostImplTest, OnDrawConstraintSetNeedsRedraw) {
