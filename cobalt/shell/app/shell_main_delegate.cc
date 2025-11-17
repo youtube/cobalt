@@ -340,6 +340,7 @@ void ShellMainDelegate::InitializeResourceBundle() {
   } else {
     pak_fd =
         base::android::OpenApkAsset("assets/cobalt_shell.pak", &pak_region);
+    LOG(ERROR) << "ColinL: OpenApkAsset cobalt_shell.pak return " << pak_fd;
     // Loaded from disk for browsertests.
     if (pak_fd < 0) {
       base::FilePath pak_file;

@@ -56,11 +56,11 @@ void LogMessage(LogLev level,
     log_msg = &large_buf[0];
   }
 
-  LogMessageCallback cb = g_log_callback.load(std::memory_order_relaxed);
-  if (cb) {
-    cb({level, line, fname, log_msg});
-    return;
-  }
+  // LogMessageCallback cb = g_log_callback.load(std::memory_order_relaxed);
+  // if (cb) {
+  //   cb({level, line, fname, log_msg});
+  //   return;
+  // }
 
 #ifdef JNI_ZERO_IS_ROBOLECTRIC
   fprintf(stderr, "%s:%d %s\n", fname, line, log_msg);

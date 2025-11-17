@@ -37,6 +37,7 @@ public class ApkAssets {
     @CalledByNative
     public static long[] open(
             @JniType("std::string") String apkSubpath, @JniType("std::string") String splitName) {
+        android.util.Log.e("ColinL", "ApkAssets.open -> apkSubpath: " + apkSubpath + " splitName: " + splitName);
         apkSubpath = maybeAddSuffix(apkSubpath);
         sLastError = null;
         AssetFileDescriptor afd = null;
@@ -51,6 +52,7 @@ public class ApkAssets {
                 afd.getParcelFileDescriptor().detachFd(), afd.getStartOffset(), afd.getLength()
             };
         } catch (IOException e) {
+            android.util.Log.e("ColinL", "e: " + e);
             sLastError =
                     "Error while loading asset " + apkSubpath + " from " + splitName + ": " + e;
             // As a general rule there's no point logging here because the caller should handle
