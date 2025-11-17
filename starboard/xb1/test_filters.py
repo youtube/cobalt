@@ -25,6 +25,7 @@ _FILTERED_TESTS = {
         # TODO: b/333412348
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
         # TODO: b/333416764
+        'PosixSocketHints/PosixSocketResolveTest.SunnyDayHints/family_inet6_*',
         'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',

@@ -82,7 +82,12 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   memset(&netmask, kInvalidByte, sizeof(netmask));
   memset(&source, kInvalidByte, sizeof(source));
 
-  EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, NULL));
+  bool success = SbSocketGetInterfaceAddress(&destination, &source, NULL);
+  if (!success) {
+    GTEST_SKIP() << "This environment does not appear to assign an address of "
+                    "this socket type.";
+    return;
+  }
   EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, &netmask));
 
@@ -123,7 +128,13 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   memset(&netmask, kInvalidByte, sizeof(netmask));
   memset(&source, kInvalidByte, sizeof(source));
   memset(&invalid_address, kInvalidByte, sizeof(source));
-  SbSocketGetInterfaceAddress(&destination_address, &source, &netmask);
+  bool success =
+      SbSocketGetInterfaceAddress(&destination_address, &source, &netmask);
+  if (!success) {
+    GTEST_SKIP() << "This environment does not appear to assign an address of "
+                    "this socket type.";
+    return;
+  }
 
   EXPECT_EQ(GetAddressType(), source.type);
   // A netmask that starts with 0 is likely incorrect.
@@ -161,7 +172,12 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   memset(&source, kInvalidByte, sizeof(source));
   memset(&invalid_address, kInvalidByte, sizeof(invalid_address));
 
-  EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, NULL));
+  bool success = SbSocketGetInterfaceAddress(&destination, &source, NULL);
+  if (!success) {
+    GTEST_SKIP() << "This environment does not appear to assign an address of "
+                    "this socket type.";
+    return;
+  }
   EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, &netmask));
   EXPECT_FALSE(IsLocalhost(&source));

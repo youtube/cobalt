@@ -32,9 +32,6 @@ _FILTERED_TESTS = {
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_381_ac3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_329_ec3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_381_ac3_dmp_*',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
     ],
 }
 # pylint: enable=line-too-long
