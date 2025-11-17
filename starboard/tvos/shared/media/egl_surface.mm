@@ -24,8 +24,6 @@
 @synthesize type = _type;
 @synthesize view = _view;
 
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 - (instancetype)initType:(SBDEAGLSurfaceType)type
                    width:(NSInteger)width
                   height:(NSInteger)height {

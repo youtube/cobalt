@@ -18,8 +18,6 @@
 
 @implementation SBDAudioQueueBuffer
 
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 - (instancetype)initWithAudioQueue:(AudioQueueRef)audioQueue
                               size:(uint32_t)size {
   self = [super init];
