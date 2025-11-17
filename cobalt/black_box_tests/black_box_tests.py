@@ -67,7 +67,8 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
     'cpu_usage_tracker_test',
-    'default_site_can_load',
+    # Turned off because the server refuses to load.
+    #'default_site_can_load',
     'disable_eval_with_csp',
     'h5vcc_settings_test',
     'h5vcc_storage_write_verify_test',
