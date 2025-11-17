@@ -41,44 +41,6 @@ enum class VariationsConfigState {
   kMaxValue = kMissingTimestamp,
 };
 
-// Checks if the experiment config has expired by reading the last fetch time.
-bool HasConfigExpired(PrefService* experiment_prefs) {
-  // If the pref is missing, we cannot determine its age. For backward
-  // compatibility and safety on first run, we treat it as valid
-  if (!experiment_prefs->HasPrefPath(
-          variations::prefs::kVariationsLastFetchTime)) {
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                              VariationsConfigState::kMissingTimestamp);
-    return false;
-  }
-
-  base::Time fetch_time =
-      experiment_prefs->GetTime(variations::prefs::kVariationsLastFetchTime);
-  base::TimeDelta config_age = base::Time::Now() - fetch_time;
-
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.ConfigAgeInDays",
-                              config_age.InDays(), 1, 90, 50);
-
-  // Get the expiration threshold from the server config.
-  const int expiration_threshold_in_days =
-      experiment_prefs->GetDict(kFinchParameters)
-          .FindInt("experiment_expiration_threshold_days")
-          .value_or(kDefaultExpirationThresholdInDays);
-
-  if (expiration_threshold_in_days >= 0 &&
-      config_age.InDays() > expiration_threshold_in_days) {
-    LOG(WARNING) << "Variations config from " << fetch_time
-                 << " has expired. Ignoring.";
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                              VariationsConfigState::kExpired);
-    return true;
-  }
-
-  UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                            VariationsConfigState::kValid);
-  return false;
-}
-
 }  // namespace
 
 ExperimentConfigManager::ExperimentConfigManager(
@@ -124,7 +86,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
 
   // If the feature is enabled and the config is expired, override the result to
   // treat it as an empty config.
-  if (HasConfigExpired(experiment_config_) && expiration_enabled) {
+  if (HasConfigExpired(use_safe_config) && expiration_enabled) {
     return ExperimentConfigType::kEmptyConfig;
   }
 
@@ -142,6 +104,50 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   }
 
   return config_type;
+}
+
+bool ExperimentConfigManager::HasConfigExpired(bool use_safe_config) {
+  // If the pref is missing, we cannot determine its age. For backward
+  // compatibility and safety on first run, we treat it as valid
+  if ((!experiment_config_->HasPrefPath(
+           variations::prefs::kVariationsSafeSeedFetchTime) &&
+       use_safe_config) ||
+      (!experiment_config_->HasPrefPath(
+           variations::prefs::kVariationsLastFetchTime) &&
+       !use_safe_config)) {
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
+                              VariationsConfigState::kMissingTimestamp);
+    return false;
+  }
+
+  base::Time fetch_time =
+      use_safe_config ? experiment_config_->GetTime(
+                            variations::prefs::kVariationsSafeSeedFetchTime)
+                      : experiment_config_->GetTime(
+                            variations::prefs::kVariationsLastFetchTime);
+  base::TimeDelta config_age = base::Time::Now() - fetch_time;
+
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.ConfigAgeInDays",
+                              config_age.InDays(), 1, 90, 50);
+
+  // Get the expiration threshold from the server config.
+  const int expiration_threshold_in_days =
+      experiment_config_->GetDict(kFinchParameters)
+          .FindInt("experiment_expiration_threshold_days")
+          .value_or(kDefaultExpirationThresholdInDays);
+
+  if (expiration_threshold_in_days >= 0 &&
+      config_age.InDays() > expiration_threshold_in_days) {
+    LOG(WARNING) << "Variations config from " << fetch_time
+                 << " has expired. Ignoring.";
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
+                              VariationsConfigState::kExpired);
+    return true;
+  }
+
+  UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
+                            VariationsConfigState::kValid);
+  return false;
 }
 
 void ExperimentConfigManager::StoreSafeConfig() {

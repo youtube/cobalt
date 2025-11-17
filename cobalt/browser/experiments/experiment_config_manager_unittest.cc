@@ -254,7 +254,7 @@ TEST_F(ExperimentConfigManagerTest,
   // Enable the feature in the SAFE config.
   pref_service_->SetDict(kSafeConfigFeatures, std::move(feature_map));
 
-  pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
+  pref_service_->SetTime(variations::prefs::kVariationsSafeSeedFetchTime,
                          base::Time::Now() - base::Days(5));
 
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
@@ -274,7 +274,7 @@ TEST_F(ExperimentConfigManagerTest,
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
-  pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
+  pref_service_->SetTime(variations::prefs::kVariationsSafeSeedFetchTime,
                          base::Time::Now() - base::Days(31));
 
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
