@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(_WIN32)
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
-
 #include <cstdint>
 #include <netdb.h>
 
 #if !defined(_WIN32)
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #endif
 #include <sys/socket.h>
@@ -39,15 +34,9 @@ namespace nplb {
 
 namespace {
 
-
-
 #if defined(_WIN32)
-
 typedef uint32_t in_addr_t;
-
 #endif
-
-
 
 // IPv4 Address 8.8.8.8
 
@@ -113,6 +102,12 @@ TEST_P(PosixSocketResolveTest, SunnyDayHints) {
   struct addrinfo* ai = nullptr;
 
   int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+  // When requesting a specific address familiy, some platforms will return
+  // an error if the device does not have an interface for the given address
+  // family.
+  if (result != 0 && hints.ai_family != AF_UNSPEC) {
+    GTEST_SKIP() << "Skipping test for unsupported address family";
+  }
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
