@@ -65,7 +65,7 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   NOTIMPLEMENTED();
   int64_t startup_duration = 0;
 #elif BUILDFLAG(IS_IOS_TVOS)
-  // TODO: Implement app startup time measurement for tvOS.
+  // TODO(b/447135715): Implement app startup time measurement for tvOS.
   NOTIMPLEMENTED();
   int64_t startup_duration = 0;
 #else
