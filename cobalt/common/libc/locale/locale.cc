@@ -18,6 +18,8 @@
 #include <limits.h>
 #include <locale.h>
 #include <string.h>
+
+#include <iostream>
 // #include <stdlib.h>
 
 #include <cstddef>
@@ -153,33 +155,51 @@ bool is_valid_category(int category) {
 
 std::string getCanonicalLocale(const char* inputLocale) {
   // 1. Create a Locale object to canonicalize the input string.
-  icu::Locale locale_to_check(inputLocale);
-  const char* canonical_name = locale_to_check.getName();
+  icu::Locale loc = icu::Locale::createCanonical(inputLocale);
 
-  // Handle malformed input that results in an empty canonical name.
-  if (strcmp(canonical_name, "") == 0 && strcmp(inputLocale, "") != 0) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::string translated_name = loc.getName();
+  loc.addLikelySubtags(status);
+  if (U_FAILURE(status)) {
+    // Handle error, or just return original if it fails
     return "";
   }
 
-  // 2. Get the list of all available locales from ICU.
-  int32_t count = 0;
-  const icu::Locale* available_locales =
-      icu::Locale::getAvailableLocales(count);
+  return translated_name;
+  // const char* canonical_name = locale_to_check.getName();
 
-  if (available_locales == nullptr) {
-    return "";
-  }
+  // // Handle malformed input that results in an empty canonical name.
+  // if (strcmp(canonical_name, "") == 0 && strcmp(inputLocale, "") != 0) {
+  //   return "";
+  // }
 
-  // 3. Find a match for our canonical name in the official list.
-  for (int32_t i = 0; i < count; ++i) {
-    if (strcmp(canonical_name, available_locales[i].getName()) == 0) {
-      // Match found. Return the pointer to the official, canonical string.
-      return available_locales[i].getName();
-    }
-  }
+  // // 2. Get the list of all available locales from ICU.
+  // int32_t count = 0;
+  // const icu::Locale* available_locales =
+  //     icu::Locale::getAvailableLocales(count);
 
-  // 4. No match was found.
-  return "";
+  // if (available_locales == nullptr) {
+  //   return "";
+  // }
+
+  // // 3. Find a match for our canonical name in the official list.
+  // for (int32_t i = 0; i < count; ++i) {
+  //     const char* name = available_locales[i].getName();
+
+  //       // 4. Check if the string is not empty and starts with 'a'
+  //       if (name != nullptr && name[0] == 'p') {
+  //           // 5. Print to log (Replace std::cout with your specific logging
+  //           macro, e.g., LOG(INFO)) std::cout << name << std::endl;
+  //       }
+  //   if (strcmp(canonical_name, available_locales[i].getName()) == 0) {
+  //     // Match found. Return the pointer to the official, canonical string.
+  //     return available_locales[i].getName();
+  //   }
+  // }
+
+  // // 4. No match was found.
+  // std::cout << "This canonical name failed: " << canonical_name << std::endl;
+  // return "";
 }
 
 std::string getCanonicalCodeset(const char* encodingName) {
@@ -248,19 +268,23 @@ char* setlocale(int category, const char* locale) {
       language = newLocale;
     }
 
-    std::string canonical_language = getCanonicalLocale(language.c_str());
+    std::string icu_canonical_language = getCanonicalLocale(language.c_str());
     std::string canonical_codeset = getCanonicalCodeset(codeset.c_str());
 
+    // if ICU_CANONICAL_LANGUAGE is legit, we then have to convert the normal
+    // locale (language) to POSIX standard formatting (_ instead of - or other
+    // things.)
+
     if ((separatorPosition != std::string::npos)) {
-      if (canonical_language == "" || canonical_codeset == "") {
+      if (icu_canonical_language == "" || canonical_codeset == "") {
         return nullptr;
       }
-      canonical_locale = canonical_language + "." + canonical_codeset;
+      canonical_locale = language + "." + canonical_codeset;
     } else {
-      if (canonical_language == "") {
+      if (icu_canonical_language == "") {
         return nullptr;
       }
-      canonical_locale = canonical_language;
+      canonical_locale = icu_canonical_language;
     }
   }
   //   // if not empty string, we:
