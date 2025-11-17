@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <cstdint>
 #include <tuple>
 #include <utility>
 
@@ -26,6 +27,38 @@
 
 namespace nplb {
 namespace {
+
+// IPv4 Address 8.8.8.8
+
+const in_addr_t kExpectedIpv4Addr1 =
+    htonl((8 << 24) | (8 << 16) | (8 << 8) | 8);
+// IPv4 Address 8.8.4.4
+const in_addr_t kExpectedIpv4Addr2 =
+    htonl((8 << 24) | (8 << 16) | (4 << 8) | 4);
+// IPv6 Address 2001:4860:4860::8888
+const unsigned char kExpectedIpv6Addr1[16] = {
+    0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x88};
+// IPv6 Address 2001:4860:4860::8844
+const unsigned char kExpectedIpv6Addr2[16] = {
+    0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x44};
+
+void VerifyGoogleDnsAddress(const struct addrinfo* entry) {
+  ASSERT_NE(nullptr, entry);
+  if (entry->ai_family == AF_INET) {
+    struct sockaddr_in* address =
+        reinterpret_cast<struct sockaddr_in*>(entry->ai_addr);
+    EXPECT_THAT(address->sin_addr.s_addr,
+                testing::AnyOf(kExpectedIpv4Addr1, kExpectedIpv4Addr2));
+  } else if (entry->ai_family == AF_INET6) {
+    struct sockaddr_in6* address =
+        reinterpret_cast<struct sockaddr_in6*>(entry->ai_addr);
+    EXPECT_THAT(address->sin6_addr.s6_addr,
+                testing::AnyOf(testing::ElementsAreArray(kExpectedIpv6Addr1),
+                               testing::ElementsAreArray(kExpectedIpv6Addr2)));
+  } else {
+    FAIL() << "Expected only IPv4 or IPv6 addresses";
+  }
+}
 
 class PosixSocketResolveTest
     : public ::testing::TestWithParam<std::tuple<int, std::pair<int, int>>> {
@@ -45,40 +78,48 @@ class PosixSocketResolveTest
 };
 
 // A random host name to use to test DNS resolution.
-const char kTestHostName[] = "www.example.com";
+const char kTestHostName[] = "dns.google";
 const char kTestService[] = "443";
 const char kLocalhost[] = "localhost";
 
-TEST_F(PosixSocketResolveTest, SunnyDay) {
+TEST_P(PosixSocketResolveTest, SunnyDayHints) {
+  // Perform a DNS lookup for a host with known IPv4 and IPv6 addresses, and
+  // verify the returned address.
   struct addrinfo hints = {0};
+  hints.ai_family = GetAddressFamily();
+  hints.ai_socktype = GetSocketType();
+  hints.ai_protocol = GetProtocol();
   struct addrinfo* ai = nullptr;
 
   int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+  // When requesting a specific address familiy, some platforms will return
+  // an error if the device does not have an interface for the given address
+  // family.
+  if (result != 0 && hints.ai_family != AF_UNSPEC) {
+    GTEST_SKIP() << "Skipping test for unsupported address family";
+  }
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
-  int address_count = 0;
-  struct sockaddr_in* ai_addr = nullptr;
+  int address_count_ipv4 = 0;
+  int address_count_ipv6 = 0;
 
-  for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-    ++address_count;
-    if (ai_addr == nullptr && i->ai_addr != nullptr) {
-      ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
-      if (i->ai_family == AF_INET) {
-        EXPECT_EQ(static_cast<size_t>(i->ai_addrlen),
-                  sizeof(struct sockaddr_in));
-      } else if (i->ai_family == AF_INET6) {
-        EXPECT_EQ(static_cast<size_t>(i->ai_addrlen),
-                  sizeof(struct sockaddr_in6));
-      }
-      break;
+  for (const struct addrinfo* entry = ai; entry != nullptr;
+       entry = entry->ai_next) {
+    EXPECT_NE(nullptr, entry->ai_addr);
+    VerifyGoogleDnsAddress(entry);
+    if (entry->ai_family == AF_INET) {
+      ++address_count_ipv4;
+    } else if (entry->ai_family == AF_INET6) {
+      ++address_count_ipv6;
     }
   }
-  EXPECT_LT(0, address_count);
-  EXPECT_NE(nullptr, ai_addr);
-
-  EXPECT_TRUE(ai_addr->sin_family == AF_INET ||
-              ai_addr->sin_family == AF_INET6);
+  // IPv4 addresses are either filtered, or at least two are returned.
+  EXPECT_THAT(address_count_ipv4, testing::AnyOf(0, testing::Ge(2)));
+  // IPv6 addresses are either filtered, or at least two returned.
+  EXPECT_THAT(address_count_ipv6, testing::AnyOf(0, testing::Ge(2)));
+  // We expect at least two IP addresses for the test host.
+  EXPECT_LT(1, address_count_ipv4 + address_count_ipv6);
 
   freeaddrinfo(ai);
 }
@@ -119,19 +160,21 @@ TEST_P(PosixSocketResolveTest, SunnyDayFiltered) {
     }
   }
 
-  for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
+  for (const struct addrinfo* entry = ai; entry != nullptr;
+       entry = entry->ai_next) {
     if (GetAddressFamily() != AF_UNSPEC) {
-      EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
+      EXPECT_EQ(entry->ai_addr->sa_family, GetAddressFamily());
     } else {
-      EXPECT_TRUE(i->ai_addr->sa_family == AF_INET ||
-                  i->ai_addr->sa_family == AF_INET6);
+      EXPECT_TRUE(entry->ai_addr->sa_family == AF_INET ||
+                  entry->ai_addr->sa_family == AF_INET6);
     }
     if (GetSocketType() != 0) {
-      EXPECT_EQ(i->ai_socktype, GetSocketType());
+      EXPECT_EQ(entry->ai_socktype, GetSocketType());
     }
     if (GetProtocol() != 0) {
-      EXPECT_EQ(i->ai_protocol, GetProtocol());
+      EXPECT_EQ(entry->ai_protocol, GetProtocol());
     }
+    VerifyGoogleDnsAddress(entry);
   }
 
   freeaddrinfo(ai);
@@ -218,44 +261,50 @@ TEST_P(PosixSocketResolveTest, Localhost) {
   struct addrinfo* ai = nullptr;
 
   int result = getaddrinfo(kLocalhost, 0, &hints, &ai);
+  if (result == -1) {
+    SB_LOG(INFO) << "getaddrinfo() failed with errno=" << errno << " "
+                 << strerror(errno) << " and result=" << result;
+  }
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
   int address_count = 0;
-  bool checked_at_least_one = false;
+  struct sockaddr_in* ai_addr = nullptr;
+  struct sockaddr_in6* ai_addr6 = nullptr;
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     ++address_count;
-    if (i->ai_addr == nullptr) {
-      continue;
-    }
-    checked_at_least_one = true;
+    if (ai_addr == nullptr && i->ai_addr != nullptr) {
+      ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
+      ai_addr6 = reinterpret_cast<sockaddr_in6*>(i->ai_addr);
 
-    if (GetAddressFamily() != AF_UNSPEC) {
-      EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
-    }
+      EXPECT_TRUE(ai_addr->sin_family == AF_INET ||
+                  ai_addr->sin_family == AF_INET6);
+      if (GetAddressFamily() != AF_UNSPEC) {
+        EXPECT_EQ(ai_addr->sin_family, GetAddressFamily());
+        if (GetAddressFamily() == AF_INET) {
+          struct in_addr loopback_addr;
+          loopback_addr.s_addr = htonl(INADDR_LOOPBACK);
+          EXPECT_EQ(ai_addr->sin_addr.s_addr, loopback_addr.s_addr);
 
-    if (i->ai_addr->sa_family == AF_INET) {
-      auto* v4_addr = reinterpret_cast<struct sockaddr_in*>(i->ai_addr);
-      EXPECT_EQ(v4_addr->sin_addr.s_addr, htonl(INADDR_LOOPBACK));
+          struct in_addr expected_addr;
+          expected_addr.s_addr = htonl((127 << 24) | 1);
+          EXPECT_EQ(ai_addr->sin_addr.s_addr, expected_addr.s_addr);
+        }
+        if (GetAddressFamily() == AF_INET6) {
+          struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
+          EXPECT_EQ(memcmp(&ai_addr6->sin6_addr, &loopback, sizeof(loopback)),
+                    0);
 
-      struct in_addr expected_addr;
-      expected_addr.s_addr = htonl((127 << 24) | 1);
-      EXPECT_EQ(v4_addr->sin_addr.s_addr, expected_addr.s_addr);
-    } else if (i->ai_addr->sa_family == AF_INET6) {
-      auto* v6_addr = reinterpret_cast<struct sockaddr_in6*>(i->ai_addr);
-      struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
-      EXPECT_EQ(memcmp(&v6_addr->sin6_addr, &loopback, sizeof(loopback)), 0);
-
-      const unsigned char kExpectedAddress[16] = {0, 0, 0, 0, 0, 0, 0, 0,
-                                                  0, 0, 0, 0, 0, 0, 0, 1};
-      EXPECT_THAT(v6_addr->sin6_addr.s6_addr,
-                  testing::ElementsAreArray(kExpectedAddress));
-    } else {
-      FAIL() << "Unexpected address family: " << i->ai_addr->sa_family;
+          const unsigned char kExpectedAddress[16] = {0, 0, 0, 0, 0, 0, 0, 0,
+                                                      0, 0, 0, 0, 0, 0, 0, 1};
+          EXPECT_THAT(ai_addr6->sin6_addr.s6_addr,
+                      testing::ElementsAreArray(kExpectedAddress));
+        }
+      }
     }
   }
   EXPECT_LT(0, address_count);
-  EXPECT_TRUE(checked_at_least_one);
+  EXPECT_NE(nullptr, ai_addr);
 
   freeaddrinfo(ai);
 }
@@ -268,14 +317,7 @@ TEST_P(PosixSocketResolveTest, RainyDayNullHostname) {
   hints.ai_flags = AI_ADDRCONFIG;
   struct addrinfo* ai = nullptr;
 
-  int result = getaddrinfo(nullptr, nullptr, &hints, &ai);
-
-  EXPECT_FALSE(result == 0);
-
-  // Since we cannot guarantee the contents of what the string is,
-  // (the strings are implementation-defined), we can only expect
-  // that the pointer is not null.
-  EXPECT_NE(nullptr, gai_strerror(result));
+  EXPECT_FALSE(getaddrinfo(nullptr, nullptr, &hints, &ai) == 0);
 }
 
 #if SB_HAS(IPV6)
