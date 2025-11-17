@@ -24,8 +24,16 @@
 #include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #include <sys/prctl.h>
+
+// From third_party/musl/include/sys/prctl.h
+#ifndef PR_SET_VMA
+#define PR_SET_VMA 0x53564d41
+#endif
+#ifndef PR_SET_VMA_ANON_NAME
+#define PR_SET_VMA_ANON_NAME 0
+#endif
 #endif
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
@@ -47,7 +55,7 @@ void* AllocatePages(size_t size_in_pages) {
                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   PCHECK(data != MAP_FAILED);
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
   prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, data, length,
         "madv-free-discardable");
 #endif

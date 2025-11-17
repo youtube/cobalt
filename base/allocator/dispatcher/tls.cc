@@ -1,4 +1,4 @@
-﻿// Copyright 2022 The Chromium Authors
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 
 #include <sys/mman.h>
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD))
 #include <sys/prctl.h>
 #endif
 
@@ -22,7 +22,7 @@ namespace base::allocator::dispatcher::internal {
 void* MMapAllocator::AllocateMemory(size_t size_in_bytes) {
   void* const mmap_res = mmap(nullptr, size_in_bytes, PROT_READ | PROT_WRITE,
                               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD)
 #if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
   if (mmap_res != MAP_FAILED) {
     // Allow the anonymous memory region allocated by mmap(MAP_ANONYMOUS) to
