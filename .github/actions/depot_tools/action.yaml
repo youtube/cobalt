@@ -26,7 +26,7 @@ runs:
         run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
-        run: cd cobalt && gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
+        run: cd cobalt && gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }} --cache-dir=/runner-cache/gclient-cache
         shell: bash
       - name: Set target OS for Android
         if: ${{ contains(matrix.platform, 'android') }}
