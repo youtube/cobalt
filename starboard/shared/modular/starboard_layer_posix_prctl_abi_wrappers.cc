@@ -61,6 +61,8 @@ int musl_op_to_platform_op(int musl_op) {
       return PR_TASK_PERF_EVENTS_ENABLE;
     case MUSL_PR_SET_PTRACER:
       return PR_SET_PTRACER;
+    case MUSL_PR_SET_VMA:
+      return PR_SET_VMA;
     default:
       SB_LOG(WARNING) << "Unknown musl prctl operation: " << musl_op;
       errno = EINVAL;
@@ -125,6 +127,16 @@ int platform_tsc_to_musl_tsc(int platform_tsc) {
       errno = EINVAL;
       return -1;
   }
+}
+
+long platform_vma_attr_to_musl_vma_attr(long platform_vma_attr) {
+  if (platform_vma_attr == PR_SET_VMA_ANON_NAME) {
+    return MUSL_PR_SET_VMA_ANON_NAME;
+  }
+
+  SB_LOG(WARNING) << "Unknown platform vma addr: " << platform_vma_attr;
+  errno = EINVAL;
+  return -1;
 }
 
 int __abi_wrap_prctl(int op, ...) {
@@ -277,6 +289,14 @@ int __abi_wrap_prctl(int op, ...) {
       pid = (pid == MUSL_PR_SET_PTRACER_ANY) ? PR_SET_PTRACER_ANY : pid;
       ret = prctl(platform_op, pid);
       break;
+    }
+    case PR_SET_VMA: {
+      long attr = va_arg(args, long);
+      unsigned long addr = va_arg(args, unsigned long);
+      unsigned long size = va_arg(args, unsigned long);
+      const char* _Nullable val = va_arg(args, const char* _Nullable);
+      int ret = prctl(platform_op, attr, addr, size, val);
+      // apply additional logic here
     }
     // This default case shouldn't be reachable; if we weren't able to convert
     // the musl_op to a platform_op, this function would have returned with -1
