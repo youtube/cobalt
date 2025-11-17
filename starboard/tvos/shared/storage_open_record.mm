@@ -15,11 +15,7 @@
 #include "starboard/common/storage.h"
 #import "starboard/tvos/shared/storage_internal.h"
 
-#if SB_API_VERSION < 16
-SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
-#else
 SbStorageRecord SbStorageOpenRecord(const char* name) {
-#endif
   @autoreleasepool {
     NSString* recordName = kSBDStorageRecordDefaultName;
     if (name) {
