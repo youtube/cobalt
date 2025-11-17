@@ -421,7 +421,7 @@ int NumberOfRendererRasterThreads() {
 
   int num_raster_threads = num_processors / 2;
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROID)
   // Limit the number of raster threads to 1 on Android.
   // TODO(reveman): Remove this when we have a better mechanims to prevent
   // pre-paint raster work from slowing down non-raster work. crbug.com/504515
