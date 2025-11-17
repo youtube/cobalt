@@ -38,9 +38,8 @@ void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
 
 void CobaltTrustedURLLoaderHeaderClient::CreateAndBindCobaltTrustedHeaderClient(
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<browser::CobaltTrustedHeaderClient>(),
-      std::move(receiver));
+  mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltTrustedHeaderClient>(),
+                              std::move(receiver));
 }
 
 }  // namespace browser
