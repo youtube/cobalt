@@ -187,6 +187,9 @@ MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDuratio
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltReportBufferingStateDuringFlush);
+#if BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);
