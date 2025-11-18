@@ -7,7 +7,7 @@ code_review:
   disable: false
   comment_severity_threshold: MEDIUM # Default medium severity
   pull_request_opened:
-    include_drafts: false # Enables agent functionality on draft pull requests.
+    include_drafts: false # Disables agent functionality on draft pull requests.
     code_review: true # Post a code review when PR opened
     summary: false # Summarize the change when PR opened 
     help: false # Post a help text
