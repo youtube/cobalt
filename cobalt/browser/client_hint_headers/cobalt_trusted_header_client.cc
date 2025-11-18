@@ -41,7 +41,7 @@ void CobaltTrustedHeaderClient::OnHeadersReceived(
     OnHeadersReceivedCallback callback) {
   // Cobalt does not currently need to act on response headers, so this is a
   // no-op.
-  std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
+  std::move(callback).Run(net::OK, absl::nullopt, absl::nullopt);
 }
 
 }  // namespace browser

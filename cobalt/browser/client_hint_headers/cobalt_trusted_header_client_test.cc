@@ -82,15 +82,13 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   ASSERT_TRUE(headers_optional.has_value());
   const auto& modified_headers = headers_optional.value();
 
-  std::optional<std::string> existing_value =
-      modified_headers.GetHeader("Existing-Header");
-  ASSERT_TRUE(existing_value.has_value());
-  EXPECT_EQ("Existing-Value", existing_value.value());
+  std::string existing_value;
+  ASSERT_TRUE(modified_headers.GetHeader("Existing-Header", &existing_value));
+  EXPECT_EQ("Existing-Value", existing_value);
 
-  std::optional<std::string> value =
-      modified_headers.GetHeader("Cobalt-Client-Hint-Header");
-  ASSERT_TRUE(value.has_value());
-  EXPECT_EQ("Value", value.value());
+  std::string value;
+  ASSERT_TRUE(modified_headers.GetHeader("Cobalt-Client-Hint-Header", &value));
+  EXPECT_EQ("Value", value);
 }
 
 }  // namespace browser
