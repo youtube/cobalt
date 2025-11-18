@@ -62,6 +62,9 @@ std::string GetAdvertisingIdShared() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   advertising_id = starboard_bridge->GetAdvertisingId(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement advertising ID retrieval for tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif
@@ -82,6 +85,9 @@ bool GetLimitAdTrackingShared() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   limit_ad_tracking = starboard_bridge->GetLimitAdTracking(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement ad tracking limit status for tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif
@@ -89,7 +95,7 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  // TODO - b/395650827: Connect to Starboard extension.
+  // TODO: b/395650827 - Connect to Starboard extension.
   NOTIMPLEMENTED();
   return "NOT_SUPPORTED";
 }
@@ -151,7 +157,7 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO - b/395650827: Connect to Starboard extension.
+  // TODO: b/395650827 - Connect to Starboard extension.
   NOTIMPLEMENTED();
   std::move(callback).Run();
 }
@@ -161,6 +167,10 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
 #if BUILDFLAG(IS_STARBOARD)
   std::move(callback).Run(GetUserOnExitStrategyInternal());
 #elif BUILDFLAG(IS_ANDROIDTV)
+  std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Determine appropriate user exit strategy for tvOS.
+  NOTIMPLEMENTED();
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
 #else
 #error "Unsupported platform."
@@ -184,6 +194,10 @@ void H5vccSystemImpl::Exit() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->RequestSuspend(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement application exit/suspend functionality for
+  // tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif
