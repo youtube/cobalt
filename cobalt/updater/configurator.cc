@@ -121,12 +121,14 @@ base::TimeDelta Configurator::UpdateDelay() const {
 }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   base::AutoLock auto_lock(const_cast<base::Lock&>(update_server_url_lock_));
   if (allow_self_signed_packages_ && !update_server_url_.empty()) {
     return std::vector<GURL>{GURL(update_server_url_)};
   }
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(kUseQAUpdateServer)) {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
   } else {
