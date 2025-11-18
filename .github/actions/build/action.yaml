@@ -10,18 +10,6 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
-  upload_on_host_test_artifacts:
-    description: "Indicates if on-host test artifacts should be uploaded."
-    required: true
-  upload_on_device_test_artifacts:
-    description: "Indicates if on-device test artifacts should be uploaded."
-    required: true
-  upload_web_test_artifacts:
-    description: "Indicates if web test artifacts should be uploaded."
-    required: true
-  test_artifacts_key:
-    description: "Artifact key used to store on-host test artifacts."
-    required: true
 runs:
   using: "composite"
   steps:
@@ -52,18 +40,24 @@ runs:
           cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
-        if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
+        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
+        if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
-          IS_WEB_TESTS: ${{ inputs.upload_web_test_artifacts }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
           cd src
+
+          if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
+            echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
+            echo "test_targets_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           # TODO: b/382508397 - Currently, override with static test targets
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
@@ -133,6 +127,7 @@ runs:
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
+<<<<<<< HEAD
       - name: Run Package Script Test
         if: ${{ (matrix.config == 'qa' || matrix.config == 'gold') && !contains(matrix.platform, 'chromium') && !contains(matrix.platform, 'evergreen') && !contains(matrix.platform, 'modular') }}
         run: |
@@ -156,3 +151,5 @@ runs:
             --out_dir=src/out/${{ matrix.platform }}_${{ matrix.config }} \
             --package_dir=src/out/test-package
         shell: bash
+=======
+>>>>>>> 9842e28648 (ci: Refactor packaging and upload artifacts for all platforms (#7858))
