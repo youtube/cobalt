@@ -156,13 +156,11 @@ const T* GetSettingValue(
 
 void ProcessH5vccSettings(
     const std::map<std::string, media::H5vccSettingValue>& settings) {
-  bool enable_allocator = true;
   if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaDisableAllocator);
-      val && *val == 1) {
-    enable_allocator = false;
+          settings, kH5vccSettingsKeyMediaDisableAllocator)) {
+    bool disable_allocator = *val != 0;
+    media::DecoderBuffer::EnableAllocator(!disable_allocator);
   }
-  media::DecoderBuffer::EnableAllocator(enable_allocator);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
