@@ -21,10 +21,11 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "cobalt/android/jni_headers/ExoPlayerCodecUtil_jni.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+
+#include "cobalt/android/jni_headers/ExoPlayerCodecUtil_jni.h"
 
 namespace starboard {
 namespace {
