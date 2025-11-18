@@ -147,7 +147,8 @@ class MediaCodecBridge {
     virtual void OnMediaCodecOutputFormatChanged() = 0;
     // This is called when tunnel mode is enabled or on Android 14 and newer
     // devices.
-    virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
+    virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                           int64_t frame_rendered_us) = 0;
     // This is only called on Android 12 and newer devices for tunnel mode.
     virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
 
@@ -227,7 +228,8 @@ class MediaCodecBridge {
                                          int64_t presentation_time_us,
                                          int size);
   void OnMediaCodecOutputFormatChanged();
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp);
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                 int64_t frame_rendered_us);
   void OnMediaCodecFirstTunnelFrameReady();
 
   static jboolean IsFrameRenderedCallbackEnabled();

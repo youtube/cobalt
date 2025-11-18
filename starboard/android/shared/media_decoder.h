@@ -19,11 +19,15 @@
 
 #include <atomic>
 #include <deque>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <queue>
 #include <string>
 #include <vector>
 
+#include "base/threading/thread.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/common/condition_variable.h"
@@ -31,6 +35,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/decoder_state_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -50,8 +55,8 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t)> FrameRenderedCB;
-  typedef std::function<void(void)> FirstTunnelFrameReadyCB;
+  using FrameRenderedCB = std::function<void(int64_t, int64_t)>;
+  using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -109,6 +114,7 @@ class MediaDecoder final
   void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);
   void WriteEndOfStream();
+  void SetRenderScheduledTime(int64_t pts_us, int64_t scheduled_us);
 
   void SetPlaybackRate(double playback_rate);
 
@@ -119,6 +125,18 @@ class MediaDecoder final
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   bool Flush();
+
+  DecoderStateTracker* decoder_state_tracker() {
+    return decoder_state_tracker_.get();
+  }
+
+  struct Timestamp {
+    int64_t decoded_us = 0;
+    int64_t render_scheduled_us = 0;
+  };
+  const std::map<int64_t, Timestamp>& frame_timestamps() const {
+    return frame_timestamps_;
+  }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -167,6 +185,7 @@ class MediaDecoder final
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
+  void LogPendingFrameCountAndReschedule();
 
   // MediaCodecBridge::Handler methods
   // Note that these methods are called from the default looper and is not on
@@ -181,7 +200,8 @@ class MediaDecoder final
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                 int64_t frame_rendered_us) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
@@ -214,12 +234,28 @@ class MediaDecoder final
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
+  std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
+
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
+
+  // Map of presentation timestamp to the monotonic time (in us) when the frame
+  // finished decoding.
+  std::map<int64_t, Timestamp> frame_timestamps_;
+  // The monotonic time (in us) when the last frame was rendered.
+  std::optional<int64_t> last_frame_rendered_us_;
+
+  std::mutex frame_timestamps_mutex_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+
+  int64_t last_decoded_us_ = 0;
+
+  std::unique_ptr<base::Thread> frame_tracker_logging_thread_;
+  std::atomic<int> pending_encoded_frames_{0};
+  std::atomic<int64_t> pending_encoded_frames_size_{0};
 };
 
 }  // namespace starboard::android::shared
