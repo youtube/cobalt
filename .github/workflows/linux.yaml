@@ -20,13 +20,14 @@ on:
         type: boolean
         default: false
 
+permissions:
+  packages: write
+  pull-requests: write
+
 jobs:
   # This is default Chromium build config
   chromium_linux-x64:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: chromium_linux
       nightly: ${{ github.event.inputs.nightly }}
@@ -35,9 +36,6 @@ jobs:
   # This is default Cobalt build config
   linux:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
@@ -46,9 +44,6 @@ jobs:
   # This is cobalt on linux using modular build config
   linux-modular:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
@@ -57,9 +52,6 @@ jobs:
   # This is content_shell without starboard
   linux-web-tests:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: linux-web-tests
       nightly: ${{ github.event.inputs.nightly }}

@@ -5,16 +5,19 @@ on:
     types:
       - completed
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   rerun-failing-jobs:
     runs-on: ubuntu-latest
     if: contains(['failure', 'cancelled'], github.event.workflow_run.conclusion)
-    env:
-      MAX_RETRIES: 2
     permissions:
       actions: write
       checks: read
       pull-requests: read # Read-only access to get PR/commit info
+    env:
+      MAX_RETRIES: 2
     steps:
       - name: Get PR Number and Commit SHA
         id: event_details

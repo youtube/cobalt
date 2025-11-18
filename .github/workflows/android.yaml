@@ -20,12 +20,13 @@ on:
         type: boolean
         default: false
 
+permissions:
+  packages: write
+  pull-requests: write
+
 jobs:
   chromium_android-arm64:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: chromium_android-arm64
       nightly: ${{ github.event.inputs.nightly }}
@@ -33,9 +34,6 @@ jobs:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-arm:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: chromium_android-arm
       nightly: ${{ github.event.inputs.nightly }}
@@ -43,9 +41,6 @@ jobs:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-x86:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: chromium_android-x86
       nightly: ${{ github.event.inputs.nightly }}
@@ -54,9 +49,6 @@ jobs:
   # Cobalt specific build configs
   android-arm64:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: android-arm64
       nightly: ${{ github.event.inputs.nightly }}
@@ -64,9 +56,6 @@ jobs:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   android-arm:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: android-arm
       nightly: ${{ github.event.inputs.nightly }}
@@ -74,9 +63,6 @@ jobs:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   android-x86:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: android-x86
       nightly: ${{ github.event.inputs.nightly }}

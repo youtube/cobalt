@@ -1,5 +1,7 @@
 name: raspi-2-modular
-permissions: read-all
+permissions:
+  packages: write
+  pull-requests: write
 
 on:
   pull_request:
@@ -25,9 +27,6 @@ jobs:
   # This is the raspi build config
   raspi-2-modular:
     uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
     with:
       platform: raspi-2-modular
       nightly: ${{ github.event.inputs.nightly }}
