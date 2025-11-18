@@ -23,8 +23,6 @@
 
 namespace starboard {
 
-namespace {}  // namespace
-
 class JobThread::WorkerThread : public Thread {
  public:
   WorkerThread(JobThread* job_thread,

@@ -40,8 +40,6 @@ struct Thread::Data {
   int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name) : Thread(name, /*stack_size=*/0) {}
-
 Thread::Thread(const std::string& name, int64_t stack_size) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
