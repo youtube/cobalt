@@ -132,6 +132,7 @@ H5vccSystemImpl::H5vccSystemImpl(
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  // TODO(b/461884140)
   // (Kabuki reload): This destructor is used as the primary signal to close
   // all active h5vcc platform services when the generic H5vcc C++
   // object is destroyed during a normal JavaScript page unload/reload.

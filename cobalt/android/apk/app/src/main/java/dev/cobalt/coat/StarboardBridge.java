@@ -40,6 +40,7 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
@@ -658,7 +659,7 @@ public class StarboardBridge {
 
   @CalledByNative
   public void closeAllCobaltService() {
-    for (String serviceName : cobaltServices.keySet()) {
+    for (String serviceName : new ArrayList<>(cobaltServices.keySet())) {
       closeCobaltService(serviceName);
     }
   }
