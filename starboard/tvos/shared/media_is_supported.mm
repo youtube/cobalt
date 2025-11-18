@@ -16,7 +16,6 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
-#include "starboard/string.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 
 const char kWidevineL3SystemName[] = "com.youtube.widevine.l3";

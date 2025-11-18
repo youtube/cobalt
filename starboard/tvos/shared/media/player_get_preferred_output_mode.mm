@@ -18,7 +18,6 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/string.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(

@@ -17,7 +17,6 @@
 #import <Foundation/Foundation.h>
 
 #include "starboard/common/log.h"
-#include "starboard/string.h"
 #import "starboard/tvos/shared/application_window.h"
 #include "starboard/tvos/shared/on_screen_keyboard.h"
 #import "starboard/tvos/shared/starboard_application.h"

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #import <Foundation/Foundation.h>
+#include <stdlib.h>
 
-#include "starboard/memory.h"
 #include "starboard/system.h"
 
 /**

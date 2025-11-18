@@ -16,7 +16,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/string.h"
 #include "starboard/tvos/shared/media/vp9_av_sample_buffer_helper.h"
 
 namespace starboard {
