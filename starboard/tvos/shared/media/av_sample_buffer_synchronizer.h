@@ -17,17 +17,16 @@
 
 #import <AVFoundation/AVFoundation.h>
 
+#include <mutex>
+
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/tvos/shared/media/av_sample_buffer_audio_renderer.h"
 #include "starboard/tvos/shared/media/av_sample_buffer_video_renderer.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class AVSBSynchronizer : public starboard::player::filter::MediaTimeProvider,
-                         private starboard::player::JobQueue::JobOwner {
+class AVSBSynchronizer : public MediaTimeProvider, private JobQueue::JobOwner {
  public:
   AVSBSynchronizer();
   ~AVSBSynchronizer() override;
@@ -59,7 +58,7 @@ class AVSBSynchronizer : public starboard::player::filter::MediaTimeProvider,
   AVSBAudioRenderer* audio_renderer_ = nullptr;
   AVSBVideoRenderer* video_renderer_ = nullptr;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   int64_t seek_to_time_ = 0;
   int64_t media_time_offset_ = 10 * 1000000;  // 10s
   double playback_rate_ = 1.0;
@@ -69,8 +68,6 @@ class AVSBSynchronizer : public starboard::player::filter::MediaTimeProvider,
   bool is_idle_timer_disabled_ = false;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AV_SAMPLE_BUFFER_SYNCHRONIZER_H_

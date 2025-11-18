@@ -297,7 +297,6 @@ EGLBoolean eglQuerySurface(EGLDisplay display,
       default:
         eglAdapter.threadLocalError = EGL_BAD_ATTRIBUTE;
         return EGL_FALSE;
-        break;
     }
 
     eglAdapter.threadLocalError = EGL_SUCCESS;

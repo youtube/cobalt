@@ -17,13 +17,14 @@
 
 #import <VideoToolbox/VideoToolbox.h>
 
+#include <atomic>
 #include <limits>
 #include <list>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <vector>
 
-#include "starboard/common/atomic.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/media/avc_util.h"
 #include "starboard/shared/starboard/media/codec_util.h"
@@ -33,12 +34,8 @@
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class TvosVideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class TvosVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   TvosVideoDecoder(SbPlayerOutputMode output_mode,
                    SbDecodeTargetGraphicsContextProvider*
@@ -83,8 +80,7 @@ class TvosVideoDecoder
   void WriteInputBufferInternal(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStreamInternal();
 
-  OSStatus RefreshFormatAndSession(
-      const starboard::media::AvcParameterSets& parameter_sets);
+  OSStatus RefreshFormatAndSession(const AvcParameterSets& parameter_sets);
   void DestroyFormatAndSession();
   void OnCompletion(int64_t presentation_time, CVImageBufferRef image_buffer);
   void DestroyFrame(DecodedImage* decoded_image);
@@ -101,7 +97,7 @@ class TvosVideoDecoder
   DecoderStatusCB decoder_status_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
 
-  starboard::player::ScopedJobThreadPtr job_thread_;
+  std::unique_ptr<JobThread> job_thread_;
 
   CVOpenGLESTextureCacheRef texture_cache_ = nullptr;
   CMFormatDescriptionRef format_description_ = nullptr;
@@ -109,15 +105,16 @@ class TvosVideoDecoder
 
   bool stream_ended_ = false;
   bool error_occurred_ = false;
-  atomic_int32_t decoding_frames_;
-  optional<starboard::media::VideoConfig> video_config_;
+  std::atomic_int32_t decoding_frames_{0};
+  std::optional<VideoConfig> video_config_;
   uint64_t frame_counter_ = 0;
   scoped_refptr<VideoFrame> last_frame_;
   scoped_refptr<DecodedImage> last_decoded_image_;
 
-  Mutex decoded_images_mutex_;
+  std::mutex decoded_images_mutex_;
   SbDecodeTarget current_decode_target_ = kSbDecodeTargetInvalid;
-  std::list<scoped_refptr<DecodedImage>> decoded_images_;
+  std::list<scoped_refptr<DecodedImage>>
+      decoded_images_;  // Guarded by |decoded_images_mutex_|.
   // Holding onto |kDecodeTargetReleaseQueueDepth| of decode targets before
   // release them just in case they are still being processed by the graphics
   // runtime.  Note that every decode target at 1080p holds ~3MB of memory,
@@ -125,8 +122,6 @@ class TvosVideoDecoder
   std::vector<SbDecodeTarget> decode_targets_to_release_;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_VIDEO_DECODER_H_

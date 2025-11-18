@@ -14,9 +14,9 @@
 
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
@@ -34,10 +34,9 @@ void SbPlayerDestroy(SbPlayer player) {
       [playerManager destroyUrlPlayer:applicationPlayer];
     } else {
       // Normal player process
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
-      using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
-      VideoDmpWriter::OnPlayerDestroy(player);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+      starboard::VideoDmpWriter::OnPlayerDestroy(player);
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
       delete player;
     }

@@ -15,8 +15,6 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 // static
 DrmSystemPlatform* DrmSystemPlatform::Create(
@@ -101,6 +99,4 @@ DrmSystemPlatform::DrmSystemPlatform(
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {}
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

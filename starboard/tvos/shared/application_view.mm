@@ -119,8 +119,6 @@
   SBDApplicationViewInterfaceFocus* _interfaceFocus;
 }
 
-- (instancetype)init SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
@@ -288,43 +286,42 @@
     // Only handle Siri remotes here.
     return;
   }
-  static CGPoint _lastSiriRemoteGamepadLocation;
-  static BOOL _isBeingTouched;
+  static CGPoint lastSiriRemoteGamepadLocation;
+  static BOOL isBeingTouched;
   __weak GCMicroGamepad* siriRemoteGamepad = controller.microGamepad;
   if (!siriRemoteGamepad) {
     return;
   }
-  siriRemoteGamepad = siriRemoteGamepad;
   siriRemoteGamepad.reportsAbsoluteDpadValues = YES;
-  siriRemoteGamepad.valueChangedHandler = ^(GCMicroGamepad* gamepad,
-                                            GCControllerElement* element) {
-    if (element != gamepad.dpad) {
-      return;
-    }
-    if (self->_searchFocused) {
-      return;
-    }
-    GCControllerDirectionPad* dpad = gamepad.dpad;
-    CGPoint newLocation = CGPointMake(dpad.xAxis.value, -dpad.yAxis.value);
-    BOOL isBeingTouched = dpad.up.pressed || dpad.down.pressed ||
-                          dpad.left.pressed || dpad.right.pressed;
-    if (!_isBeingTouched && isBeingTouched) {
-      // If the dpad has gone from not being touched, to being touched,
-      // report a touch down.
-      [self->_trackpad
-          touchDownAtPosition:SBDVectorMake(newLocation.x, newLocation.y)];
-    } else if (isBeingTouched) {
-      [self->_trackpad
-          moveToPosition:SBDVectorMake(newLocation.x, newLocation.y)];
-    } else {
-      // No longer being touched, report a touch up.
-      [self->_trackpad
-          touchUpAtPosition:SBDVectorMake(_lastSiriRemoteGamepadLocation.x,
-                                          _lastSiriRemoteGamepadLocation.y)];
-    }
-    _lastSiriRemoteGamepadLocation = newLocation;
-    _isBeingTouched = isBeingTouched;
-  };
+  siriRemoteGamepad.valueChangedHandler =
+      ^(GCMicroGamepad* gamepad, GCControllerElement* element) {
+        if (element != gamepad.dpad) {
+          return;
+        }
+        if (self->_searchFocused) {
+          return;
+        }
+        GCControllerDirectionPad* dpad = gamepad.dpad;
+        CGPoint newLocation = CGPointMake(dpad.xAxis.value, -dpad.yAxis.value);
+        BOOL dpadIsBeingTouched = dpad.up.pressed || dpad.down.pressed ||
+                                  dpad.left.pressed || dpad.right.pressed;
+        if (!isBeingTouched && dpadIsBeingTouched) {
+          // If the dpad has gone from not being touched, to being touched,
+          // report a touch down.
+          [self->_trackpad
+              touchDownAtPosition:SBDVectorMake(newLocation.x, newLocation.y)];
+        } else if (dpadIsBeingTouched) {
+          [self->_trackpad
+              moveToPosition:SBDVectorMake(newLocation.x, newLocation.y)];
+        } else {
+          // No longer being touched, report a touch up.
+          [self->_trackpad
+              touchUpAtPosition:SBDVectorMake(lastSiriRemoteGamepadLocation.x,
+                                              lastSiriRemoteGamepadLocation.y)];
+        }
+        lastSiriRemoteGamepadLocation = newLocation;
+        isBeingTouched = dpadIsBeingTouched;
+      };
 }
 
 /**
@@ -343,60 +340,6 @@
     [_gameControllers removeObject:gameController];
     [gameController disconnect];
   }
-}
-
-#pragma mark - SBDSearchControllerFocusDelegate
-
-- (void)searchShouldFocus {
-  if (_searchFocused) {
-    return;
-  }
-  _searchFocused = YES;
-  // Since the _interfaceContainer can be in the _searchContainer's hierarchy,
-  // disable interactions with it to avoid accidentally focusing it.
-  BOOL wasEnabled = _interfaceContainer.userInteractionEnabled;
-  _interfaceContainer.userInteractionEnabled = NO;
-  SBDWindowManager* windowManager = SBDGetApplication().windowManager;
-  [windowManager.currentApplicationWindow setFocus:_searchContainer];
-  _interfaceContainer.userInteractionEnabled = wasEnabled;
-}
-
-- (void)searchDidFocus {
-  _searchFocused = YES;
-}
-
-- (void)searchShouldBlur {
-  if (!_searchFocused) {
-    return;
-  }
-  _searchFocused = NO;
-  SBDWindowManager* windowManager = SBDGetApplication().windowManager;
-  [windowManager.currentApplicationWindow setFocus:_interfaceContainer];
-}
-
-- (void)searchDidBlur {
-  _searchFocused = NO;
-}
-
-- (void)searchDidShow {
-  _playerContainer.backgroundColor = [UIColor clearColor];
-  // The @c _searchContainer must be the front-most view or UIKit will prevent
-  // the focus to move between the keyboard and the search results.
-  [self bringSubviewToFront:_searchContainer];
-
-  // Start with the search controls focused.
-  SBDWindowManager* windowManager = SBDGetApplication().windowManager;
-  [windowManager.currentApplicationWindow setFocus:_searchContainer];
-}
-
-- (void)searchDidHide {
-  _playerContainer.backgroundColor = [UIColor blackColor];
-  // The @c _searchContainer is sent to the back because the keyboard is still
-  // briefly shown on screen, even after receiving that the viewDidDisappear.
-  // Sending the view to the back prevents the keyboard from being briefly shown
-  // over the top of the GLKView.
-  [self sendSubviewToBack:_searchContainer];
-  [self searchShouldBlur];
 }
 
 @end

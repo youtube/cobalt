@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/utility/shell_content_utility_client.h"
+#include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
 
 #include <algorithm>
 #include <memory>
@@ -102,7 +102,7 @@ class TestUtilityServiceImpl : public mojom::TestService {
         base::ReadOnlySharedMemoryRegion::Create(message.size());
     CHECK(map_and_region.IsValid());
     std::ranges::copy(message,
-                       map_and_region.mapping.GetMemoryAsSpan<char>().begin());
+                      map_and_region.mapping.GetMemoryAsSpan<char>().begin());
     std::move(callback).Run(std::move(map_and_region.region));
   }
 
@@ -180,9 +180,8 @@ auto RunEchoService(mojo::PendingReceiver<echo::mojom::EchoService> receiver) {
 
 }  // namespace
 
-ShellContentUtilityClient::ShellContentUtilityClient(bool is_browsertest) {
-  if (is_browsertest &&
-      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+ShellContentUtilityClient::ShellContentUtilityClient() {
+  if (base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType) == switches::kUtilityProcess) {
     network_service_test_helper_ = NetworkServiceTestHelper::Create();
     audio_service_test_helper_ = std::make_unique<AudioServiceTestHelper>();

@@ -408,17 +408,23 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
+    "app/shell_main_test_delegate.cc",
+    "app/shell_main_test_delegate.h",
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
     "browser/test_shell.cc",
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
   ]
 
-  public_deps = [
+  deps = [
     "//cc/base",
     "//cobalt/shell:browsertests_mojom",
+    "//cobalt/shell:browsertests_sources",
+    "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:shell_controller_mojom",
     "//cobalt/shell:shell_test_switches_lib",
@@ -428,6 +434,7 @@ static_library("cobalt_shell_test_lib") {
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//content/public/utility",
     "//content/test:test_support",
     "//services/network/public/cpp",
   ]
@@ -439,7 +446,7 @@ static_library("cobalt_shell_test_lib") {
         "browser/shell_test_platform_delegate.h",
       ]
 
-      public_deps += [ "//ui/views:test_support" ]
+      deps += [ "//ui/views:test_support" ]
     }
   }
 }

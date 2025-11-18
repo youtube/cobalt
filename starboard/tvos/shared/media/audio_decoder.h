@@ -25,15 +25,9 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class TvosAudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+class TvosAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  typedef starboard::media::AudioStreamInfo AudioStreamInfo;
-
   explicit TvosAudioDecoder(const AudioStreamInfo& audio_stream_info);
   ~TvosAudioDecoder() override;
 
@@ -45,8 +39,6 @@ class TvosAudioDecoder
   void Reset() override;
 
  private:
-  typedef starboard::player::filter::AudioFrameDiscarder AudioFrameDiscarder;
-
   struct AudioInputDataBlock {
     void* data;
     UInt32 length;
@@ -85,8 +77,6 @@ class TvosAudioDecoder
   bool stream_ended_ = false;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AUDIO_DECODER_H_

@@ -20,6 +20,11 @@ declare_args() {
 declare_args() {
   # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
   use_custom_libc = false
+
+  # TODO: b/460538637 - Deprecate this variable
+  # Whether this is an Evergreen compatible platform. A compatible platform
+  # can run the elf_loader and launch the Evergreen build.
+  sb_is_evergreen_compatible = is_starboard
 }
 
 # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
