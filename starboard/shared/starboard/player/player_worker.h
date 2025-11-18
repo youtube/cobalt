@@ -101,6 +101,8 @@ class PlayerWorker {
 
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
+    virtual void SetVideoSurfaceView(void* surface_view) = 0;
+
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;
