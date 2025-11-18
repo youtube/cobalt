@@ -48,7 +48,7 @@ public class ExoPlayerBridge {
     private final long mNativeExoPlayerBridge;
     private Handler exoplayerHandler;
     private long lastPlaybackPosUsec = 0;
-    private float playbackRate = 0.0f;
+    private volatile float playbackRate = 0.0f;
     private final ExoPlayerListener playerListener;
     private final DroppedFramesListener droppedFramesListener;
 
@@ -182,25 +182,23 @@ public class ExoPlayerBridge {
         exoplayerHandler.postDelayed(this::updatePlaybackPos, 150);
     }
 
-    public void destroy() throws InterruptedException {
+    public void destroy() {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Unable to destroy player with NULL ExoPlayer.");
             return;
         }
 
         exoplayerHandler.post(() -> {
-            Log.i(TAG, "Releasing ExoPlayer.");
             player.stop();
             player.removeListener(playerListener);
             player.removeAnalyticsListener(droppedFramesListener);
             player.release();
             player = null;
+            exoplayerHandler = null;
+            audioMediaSource = null;
         });
 
         exoplayerHandler.removeCallbacks(this::updatePlaybackPos);
-
-        exoplayerHandler = null;
-        audioMediaSource = null;
         videoMediaSource = null;
     }
 

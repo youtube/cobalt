@@ -14,6 +14,8 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
@@ -32,6 +34,7 @@ import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
+import dev.cobalt.util.Log;
 import java.io.IOException;
 
 /** Writes encoded media from the native app to the SampleStream */
@@ -76,6 +79,9 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
     @Override
     public void releasePeriod(MediaPeriod mediaPeriod) {
+        if (mediaPeriod != this.mediaPeriod) {
+            Log.e(TAG, "Called MediaSource.releasePeriod on an unknown MediaPeriod.");
+        }
         // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As there's
         // only a single MediaPeriod, this will match the passed MediaPeriod.
         this.mediaPeriod.destroySampleStream();

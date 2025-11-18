@@ -95,7 +95,7 @@ public class ExoPlayerCodecUtil {
         @Override
         public List<MediaCodecInfo> getDecoderInfos(
             String mimeType, boolean requiresSecureDecoder, boolean requiresTunnelingDecoder) {
-            List<MediaCodecInfo> defaultDecoderInfos = null;
+            List<MediaCodecInfo> defaultDecoderInfos = new ArrayList<>();
             try {
                 defaultDecoderInfos =
                     androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(mimeType,
