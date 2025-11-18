@@ -32,6 +32,10 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android_overlay_mojo_factory.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace base {
 class TimeDelta;
 }  // namespace base
