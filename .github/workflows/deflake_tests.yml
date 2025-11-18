@@ -1,0 +1,45 @@
+name: Deflake Tests
+description: Re-triggers test jobs if they failed.
+on:
+  workflow_run:
+    workflows: [android, raspi-2-modular, evergreen, linux]
+    types:
+      - completed
+permissions: {}
+
+jobs:
+  rerun-failing-jobs:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      actions: write
+      checks: read
+    steps:
+      - name: Rerun Failing Tests
+        env:
+          MAX_ATTEMPTS: 3
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set +x
+          if gh run view ${WORKFLOW} --attempt ${MAX_ATTEMPTS}; then
+            # The last attemp was successfully loaded. Our work is done.
+            exit 0
+          fi
+
+          echo "Fetching failed '_tests' jobs for workflow run ${WORKFLOW}"
+
+          # Fetch failed jobs ending with _tests
+          failed_job_ids=$(gh run view "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | endswith("_tests")) | .databaseId')
+
+          if [ -z "$failed_job_ids" ]; then
+            echo "No failing '_tests' jobs found to rerun."
+            exit 0
+          fi
+
+          for job_id in $failed_job_ids; do
+            echo "Rerunning job https://github.com/${REPO}/actions/runs/${WORKFLOW}/jobs/${job_id}"
+            gh run rerun "${WORKFLOW}" --job "${job_id}" --repo "${REPO}"
+          done
