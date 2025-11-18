@@ -32,7 +32,6 @@
 
 #include <interfaces/json/JsonData_HDRProperties.h>
 #include <interfaces/json/JsonData_PlayerProperties.h>
-#include <interfaces/json/JsonData_DeviceInfo.h>
 
 #ifdef HAS_SECURITY_AGENT
 #include <securityagent/securityagent.h>
@@ -1259,6 +1258,17 @@ private:
     }
   };
 
+  struct SupportedaudioportsData : public Core::JSON::Container {
+    SupportedaudioportsData()
+      : Core::JSON::Container() {
+      Add(_T("supportedAudioPorts"), &SupportedAudioPorts);
+    }
+    SupportedaudioportsData(const SupportedaudioportsData&) = delete;
+    SupportedaudioportsData& operator=(const SupportedaudioportsData&) = delete;
+
+    Core::JSON::ArrayType<Core::JSON::String> SupportedAudioPorts;
+  };
+
   void OnBluetoothStatusChanged(const StatusChangedData&);
   void Refresh();
   void ForceNeedsRefresh() {  needs_refresh_.store(true); }
@@ -1369,7 +1379,6 @@ void DeviceInfoImpl::Refresh() {
     }
   }
 
-  using namespace WPEFramework::JsonData::DeviceInfo;
   SupportedaudioportsData audio_ports;
   rc = device_info_.Get(timeout.value(), "supportedaudioports", audio_ports);
   if (Core::ERROR_NONE != rc) {
