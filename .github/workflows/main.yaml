@@ -362,12 +362,12 @@ jobs:
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true')
-        uses: ./src/.github/actions/package
+        uses: ./cobalt/src/.github/actions/package
         with:
           package_dir: out/test-package
 
       - name: Upload Test Artifacts
-        uses: ./src/.github/actions/upload_test_artifacts
+        uses: ./cobalt/src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
