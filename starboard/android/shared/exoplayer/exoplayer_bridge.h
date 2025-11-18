@@ -45,7 +45,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   struct MediaInfo {
     int64_t media_time_usec;
     int dropped_frames;
-    bool underflow;
+    bool is_playing;
   };
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
@@ -70,17 +70,19 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   // Native callbacks.
   void OnInitialized(JNIEnv*);
-  void OnBuffering(JNIEnv*);
   void OnReady(JNIEnv*);
   void OnError(JNIEnv* env, jstring msg);
   void OnEnded(JNIEnv*) const;
   void OnDroppedVideoFrames(JNIEnv* env, jint count);
+  void OnIsPlayingChanged(JNIEnv*, jboolean is_playing);
 
   bool is_valid() const { return j_exoplayer_manager_ && j_exoplayer_bridge_; }
 
  private:
   bool ShouldAbortOperation() const;
-  void ReportError(JNIEnv* env, SbPlayerError error, std::string& msg) const;
+  void ReportError(JNIEnv* env,
+                   SbPlayerError error,
+                   const std::string& msg) const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
@@ -88,9 +90,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   std::atomic_bool player_is_destroying_;
   std::atomic_bool playback_error_occurred_;
-  std::atomic_bool underflow_;
   std::atomic_bool initialized_;
   std::atomic_bool seeking_;
+  std::atomic_bool is_playing_;
   std::atomic_int32_t dropped_frames_;
 
   ErrorCB error_cb_;

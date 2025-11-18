@@ -186,7 +186,7 @@ void ExoPlayerWorkerHandler::Update() {
     ExoPlayerBridge::MediaInfo info = bridge_->GetMediaInfo();
     SB_DCHECK(update_media_info_cb_);
     update_media_info_cb_(info.media_time_usec, info.dropped_frames,
-                          !info.underflow);
+                          info.is_playing);
   }
 
   RemoveJobByToken(update_job_token_);
@@ -195,49 +195,47 @@ void ExoPlayerWorkerHandler::Update() {
 
 void ExoPlayerWorkerHandler::OnError(SbPlayerError error,
                                      const std::string& error_message) {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&ExoPlayerWorkerHandler::OnError, this, error,
-                       error_message));
-    return;
-  }
-
-  if (update_player_error_cb_) {
-    update_player_error_cb_(error, error_message.empty()
-                                       ? "ExoPlayerWorkerHandler error"
-                                       : error_message);
-  }
+  ScheduleOnWorker([this, error, error_message]() {
+    if (update_player_error_cb_) {
+      update_player_error_cb_(error, error_message.empty()
+                                         ? "ExoPlayerWorkerHandler error"
+                                         : error_message);
+    }
+  });
 }
 
 void ExoPlayerWorkerHandler::OnPrerolled() {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&ExoPlayerWorkerHandler::OnPrerolled, this));
-    return;
-  }
+  ScheduleOnWorker([this]() {
+    if (get_player_state_cb_) {
+      SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
+          << "Invalid player state "
+          << GetPlayerStateName(get_player_state_cb_());
+    }
 
-  if (get_player_state_cb_) {
-    SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
-        << "Invalid player state "
-        << GetPlayerStateName(get_player_state_cb_());
-  }
-
-  if (update_player_state_cb_) {
-    update_player_state_cb_(kSbPlayerStatePresenting);
-  }
+    if (update_player_state_cb_) {
+      update_player_state_cb_(kSbPlayerStatePresenting);
+    }
+  });
 }
 
 void ExoPlayerWorkerHandler::OnEnded() {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&ExoPlayerWorkerHandler::OnEnded, this));
-    return;
-  }
-
-  if (update_player_state_cb_) {
-    update_player_state_cb_(kSbPlayerStateEndOfStream);
-  }
+  ScheduleOnWorker([this]() {
+    if (update_player_state_cb_) {
+      update_player_state_cb_(kSbPlayerStateEndOfStream);
+    }
+  });
 }
 
 bool ExoPlayerWorkerHandler::IsEOSWritten(SbMediaType type) const {
   return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
+}
+
+void ExoPlayerWorkerHandler::ScheduleOnWorker(std::function<void()> task) {
+  if (!BelongsToCurrentThread()) {
+    Schedule(task);
+    return;
+  }
+  task();
 }
 
 }  // namespace starboard
