@@ -15,8 +15,10 @@
 #ifndef COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_
 #define COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_
 
+#include "cobalt/browser/performance/public/mojom/rendering.mojom.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "starboard/extension/graphics.h"
 
 namespace cobalt {
@@ -46,6 +48,8 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver {
   // when it's sent.
   void DidClearWindowObject() override;
 #endif  // defined(RUN_BROWSER_TESTS)
+
+  mojo::Remote<performance::mojom::CobaltRendering> cobalt_renderer_host_;
 };
 
 }  // namespace cobalt

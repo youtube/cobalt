@@ -1287,7 +1287,6 @@ struct FirstVisuallyNonEmptyPaintObserver : public WebContentsObserver {
 #endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                        MAYBE_FirstVisuallyNonEmptyPaint) {
-  ASSERT_TRUE(embedded_test_server()->Start());
   std::unique_ptr<FirstVisuallyNonEmptyPaintObserver> observer(
       new FirstVisuallyNonEmptyPaintObserver(shell()));
 
