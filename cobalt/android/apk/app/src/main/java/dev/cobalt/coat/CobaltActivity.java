@@ -58,6 +58,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
@@ -71,12 +73,6 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-<<<<<<< HEAD
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.net.NetworkChangeNotifier;
-=======
->>>>>>> cacd413b3ac (android: refactor activeNetworkCheck() to use ScheduledThreadPool (#8023))
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 @JNINamespace("cobalt")
@@ -179,7 +175,10 @@ public abstract class CobaltActivity extends Activity {
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
 
-    if (mStartupUrl == null || mStartupUrl.isEmpty() || mSplashUrl == null || mSplashUrl.isEmpty()) {
+    if (mStartupUrl == null
+        || mStartupUrl.isEmpty()
+        || mSplashUrl == null
+        || mSplashUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
       mStartupUrl = parseArg(args, URL_ARG);
       mSplashUrl = parseArg(args, SPLASH_URL_ARG);
@@ -226,23 +225,24 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
-    // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
-    // that the webContents are correctly created and not null.
+    // Load an empty page to let shell create WebContents. Override Shell.java's
+    // onWebContentsReady() to only continue with initializeJavaBridge() and setting the
+    // webContents once it's confirmed that the webContents are correctly created and not null.
     // Two shells workflow:
     //   - App shell: Created by launchShell(), loads an empty URL (" ") initially. This shell is
     //     intended to load the main application URL in the background.
-    //   - Splash shell: Created by default. If native splash is disabled, it does nothing. Otherwise,
-    //     it loads the native splash screen URL.
+    //   - Splash shell: Created by default. If native splash is disabled, it does nothing.
+    //     Otherwise, it loads the native splash screen URL.
     //   - mShellManager.showAppShell() switches the visible shell from
     //     the active shell to the App shell.
     if (mShellManager.getSplashShell() == null) {
-      // If splash shell is not created by default, create one. This also allows to show splash screen
-      // after swtiching ATV accounts.
+      // If splash shell is not created by default, create one. This also allows to show splash
+      // screen after swtiching ATV accounts.
       Log.i(TAG, "NativeSplash: create splash shell");
       mShellManager.launchShell("");
     }
-    mShellManager.launchShell("",
+    mShellManager.launchShell(
+        "",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -257,19 +257,22 @@ public abstract class CobaltActivity extends Activity {
 
           @Override
           public void onWebContentsLoaded() {
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-                  @Override
-                  public void run() {
-                    synchronized(lock) {
-                      if (isMainFrameLoaded == false) {
-                        // Main app loaded in App shell, switch to it.
-                        Log.i(TAG, "NativeSplash: main shell is loaded");
-                        isMainFrameLoaded = true;
-                        mShellManager.showAppShell();
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        synchronized (lock) {
+                          if (isMainFrameLoaded == false) {
+                            // Main app loaded in App shell, switch to it.
+                            Log.i(TAG, "NativeSplash: main shell is loaded");
+                            isMainFrameLoaded = true;
+                            mShellManager.showAppShell();
+                          }
+                        }
                       }
-                    }
-                  }
-                }, mSplashTimeoutMs);
+                    },
+                    mSplashTimeoutMs);
           }
         });
     if (mDisableNativeSplash) {
@@ -277,30 +280,43 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Show main app without splash screen.");
       mShellManager.showAppShell();
     } else {
-      // Native splash enabled: Load splash in active shell and set a timeout to switch to App shell.
-      mShellManager.getSplashShell().setWebContentsReadyListener(
-        new Shell.OnWebContentsReadyListener() {
-          @Override
-              public void onWebContentsReady() {}
+      // Native splash enabled: Load splash in active shell and set a timeout to switch to App
+      // shell.
+      mShellManager
+          .getSplashShell()
+          .setWebContentsReadyListener(
+              new Shell.OnWebContentsReadyListener() {
+                @Override
+                public void onWebContentsReady() {}
 
-          @Override
-          public void onWebContentsLoaded() {
-            // Switch to pending shell after a timeout, or when the main app finishes loading, whichever comes first.
-            Log.i(TAG, "NativeSplash: shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-                  @Override
-                  public void run() {
-                    synchronized(lock) {
-                      if (isMainFrameLoaded == false) {
-                        Log.i(TAG, "NativeSplash: switch to main shell after timeout " + mSplashTimeoutMs + "ms");
-                        isMainFrameLoaded = true;
-                        mShellManager.showAppShell();
-                      }
-                    }
-                  }
-                }, mSplashTimeoutMs);
-          }
-      });
+                @Override
+                public void onWebContentsLoaded() {
+                  // Switch to pending shell after a timeout, or when the main app finishes loading,
+                  // whichever comes first.
+                  Log.i(
+                      TAG,
+                      "NativeSplash: shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
+                  new android.os.Handler(android.os.Looper.getMainLooper())
+                      .postDelayed(
+                          new Runnable() {
+                            @Override
+                            public void run() {
+                              synchronized (lock) {
+                                if (isMainFrameLoaded == false) {
+                                  Log.i(
+                                      TAG,
+                                      "NativeSplash: switch to main shell after timeout "
+                                          + mSplashTimeoutMs
+                                          + "ms");
+                                  isMainFrameLoaded = true;
+                                  mShellManager.showAppShell();
+                                }
+                              }
+                            }
+                          },
+                          mSplashTimeoutMs);
+                }
+              });
       Log.i(TAG, "shellManager load splash url:" + mSplashUrl);
       mShellManager.getSplashShell().loadUrl(mSplashUrl);
     }
@@ -332,7 +348,7 @@ public abstract class CobaltActivity extends Activity {
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyDown(keyCode, event);
+      return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
@@ -340,7 +356,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyUp(keyCode, event);
+      return super.onKeyUp(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -803,72 +819,77 @@ public abstract class CobaltActivity extends Activity {
 
     // Keep a separate timeout for edge cases such as a DNS resolution hang
     Runnable networkCheckTask =
-      () -> {
-        try {
-          // Check if the thread has been interrupted before starting.
-          if (Thread.currentThread().isInterrupted()) {
-            return;
-          }
+        () -> {
+          try {
+            // Check if the thread has been interrupted before starting.
+            if (Thread.currentThread().isInterrupted()) {
+              return;
+            }
 
-          boolean probeURL = performSingleProbe("https://www.google.com/generate_204");
-          // Fallback URL
-          if (!probeURL) {
-            Log.w(TAG, "Primary connectivity check failed, trying fallback.");
-            probeURL = performSingleProbe("http://connectivitycheck.gstatic.com/generate_204");
-          }
+            boolean probeURL = performSingleProbe("https://www.google.com/generate_204");
+            // Fallback URL
+            if (!probeURL) {
+              Log.w(TAG, "Primary connectivity check failed, trying fallback.");
+              probeURL = performSingleProbe("http://connectivitycheck.gstatic.com/generate_204");
+            }
 
-          if (!probeURL) {
-            // Throw an exception to trigger the error dialog logic
-            throw new IOException("Both primary and fallback connectivity checks failed.");
-          }
+            if (!probeURL) {
+              // Throw an exception to trigger the error dialog logic
+              throw new IOException("Both primary and fallback connectivity checks failed.");
+            }
 
-          // If we reach here, the check was successful.
-          Log.i(TAG, "Active Network check successful." + mPlatformError);
-          if (mPlatformError != null) {
-            mPlatformError.setResponse(PlatformError.POSITIVE);
-            mPlatformError.dismiss();
-            mPlatformError = null;
-          }
-          if (mShouldReloadOnResume) {
+            // If we reach here, the check was successful.
+            Log.i(TAG, "Active Network check successful." + mPlatformError);
+            if (mPlatformError != null) {
+              mPlatformError.setResponse(PlatformError.POSITIVE);
+              mPlatformError.dismiss();
+              mPlatformError = null;
+            }
+            if (mShouldReloadOnResume) {
+              runOnUiThread(
+                  () -> {
+                    WebContents webContents = getActiveWebContents();
+                    if (webContents != null) {
+                      webContents.getNavigationController().reload(true);
+                    }
+                    mShouldReloadOnResume = false;
+                  });
+            }
+          } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted()) {
+              Log.w(TAG, "Active Network check was cancelled by timeout.");
+            } else {
+              Log.w(TAG, "Active Network check failed: " + e.getMessage());
+            }
+
             runOnUiThread(
-              () -> {
-                WebContents webContents = getActiveWebContents();
-                if (webContents != null) {
-                  webContents.getNavigationController().reload(true);
-                }
-                mShouldReloadOnResume = false;
-              });
+                () -> {
+                  if (mPlatformError == null || !mPlatformError.isShowing()) {
+                    mPlatformError =
+                        new PlatformError(
+                            getStarboardBridge().getActivityHolder(),
+                            PlatformError.CONNECTION_ERROR,
+                            0);
+                    mPlatformError.raise();
+                  }
+                });
+            mShouldReloadOnResume = true;
           }
-        } catch (Exception e) {
-          if (Thread.currentThread().isInterrupted()) {
-            Log.w(TAG, "Active Network check was cancelled by timeout.");
-          } else {
-            Log.w(TAG, "Active Network check failed: " + e.getMessage());
-          }
-
-          runOnUiThread(
-            () -> {
-              if (mPlatformError == null || !mPlatformError.isShowing()) {
-                mPlatformError =
-                  new PlatformError(
-                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-                mPlatformError.raise();
-              }
-            });
-          mShouldReloadOnResume = true;
-        }
-      };
+        };
 
     // Submit the task and get its Future
     networkCheckFuture = networkCheckExecutor.submit(networkCheckTask);
 
-    // Schedule the cancellation task. It will run after the timeout and interrupt the network thread.
+    // Schedule the cancellation task. It will run after the timeout and interrupt the network
+    // thread.
     networkCheckExecutor.schedule(
-      () -> {
-        if (!networkCheckFuture.isDone()) {
-          networkCheckFuture.cancel(true);
-        }
-      }, NETWORK_CHECK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        () -> {
+          if (!networkCheckFuture.isDone()) {
+            networkCheckFuture.cancel(true);
+          }
+        },
+        NETWORK_CHECK_TIMEOUT_MS,
+        TimeUnit.MILLISECONDS);
   }
 
   // Perform a network check on a single URL endpoint
@@ -893,11 +914,18 @@ public abstract class CobaltActivity extends Activity {
       if (responseCode == 204) {
         return true;
       } else {
-        Log.w(TAG, "Connectivity check to " + urlString + " failed with response code: " + responseCode);
+        Log.w(
+            TAG,
+            "Connectivity check to " + urlString + " failed with response code: " + responseCode);
         return false;
       }
     } catch (IOException e) {
-      Log.w(TAG, "Connectivity check to " + urlString + " failed with exception: " + e.getClass().getSimpleName());
+      Log.w(
+          TAG,
+          "Connectivity check to "
+              + urlString
+              + " failed with exception: "
+              + e.getClass().getSimpleName());
       return false;
     } finally {
       if (urlConnection != null) {
