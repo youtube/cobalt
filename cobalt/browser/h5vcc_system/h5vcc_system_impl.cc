@@ -132,14 +132,9 @@ H5vccSystemImpl::H5vccSystemImpl(
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  // TODO(b/461884140)
   // (Kabuki reload): This destructor is used as the primary signal to close
   // all active h5vcc platform services when the generic H5vcc C++
   // object is destroyed during a normal JavaScript page unload/reload.
-  // NOTE ON RISK: If a Kabuki reload occurs before any h5vcc API is invoked,
-  // the H5vcc C++ object is never instantiated. In that specific case, this
-  // destructor will not run.
-  // See more context on b/454969656#comment22
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->CloseAllCobaltService(env);
