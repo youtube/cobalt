@@ -172,6 +172,8 @@ public abstract class CobaltActivity extends Activity {
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
+    a11yHelper = new CobaltA11yHelper(this,
+        mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty() || mSplashUrl == null || mSplashUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -431,7 +433,6 @@ public abstract class CobaltActivity extends Activity {
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     videoSurfaceView = new VideoSurfaceView(this);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
@@ -773,7 +774,6 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "removed videoSurfaceView at index:" + index);
 
       videoSurfaceView = new VideoSurfaceView(this);
-      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,
