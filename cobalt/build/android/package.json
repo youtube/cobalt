@@ -11,7 +11,8 @@
                 "libchrobalt.so",
                 "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
-                "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
+                "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar",
+                "lib.java/third_party/android_deps/utils/java.jar"
             ],
             "rename_files": [
                 {
