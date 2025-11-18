@@ -16,6 +16,7 @@
 #define STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 
 #include <GLES2/gl2.h>
+
 #include <cstdint>
 
 #include "starboard/configuration.h"
