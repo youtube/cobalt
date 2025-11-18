@@ -284,9 +284,7 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
 #ifdef UNSAFE_BUFFERS_BUILD
 #pragma allow_unsafe_buffers
 #endif
-#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
-#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
