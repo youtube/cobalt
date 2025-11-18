@@ -602,13 +602,13 @@ int UDPSocketPosix::SetRecvTos() {
 }
 
 void UDPSocketPosix::SetMsgConfirm(bool confirm) {
-#if (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if !BUILDFLAG(IS_APPLE)
   if (confirm) {
     sendto_flags_ |= MSG_CONFIRM;
   } else {
     sendto_flags_ &= ~MSG_CONFIRM;
   }
-#endif  // (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#endif  // !BUILDFLAG(IS_APPLE)
 }
 
 int UDPSocketPosix::AllowAddressReuse() {
