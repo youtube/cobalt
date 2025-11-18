@@ -51,8 +51,6 @@ class CobaltTrustedURLLoaderHeaderClient
       mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
 
   mojo::Receiver<network::mojom::TrustedURLLoaderHeaderClient> receiver_;
-  std::vector<std::unique_ptr<CobaltTrustedHeaderClient>>
-      cobalt_header_clients_;
 };
 
 }  // namespace browser

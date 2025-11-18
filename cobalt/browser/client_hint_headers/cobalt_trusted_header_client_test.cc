@@ -24,6 +24,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
@@ -63,7 +64,8 @@ class CobaltTrustedHeaderClientTest : public ::testing::Test {
 TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
 
-  CobaltTrustedHeaderClient client(remote.BindNewPipeAndPassReceiver());
+  mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltTrustedHeaderClient>(),
+                              remote.BindNewPipeAndPassReceiver());
 
   net::HttpRequestHeaders initial_headers;
   initial_headers.SetHeader("Existing-Header", "Existing-Value");
