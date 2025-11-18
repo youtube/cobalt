@@ -59,7 +59,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   bool Seek(int64_t timestamp);
   bool WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
-  bool WriteEOS(SbMediaType type);
+  bool WriteEOS(SbMediaType type) const;
   bool SetPause(bool pause) const;
   bool SetPlaybackRate(const double playback_rate) const;
   void SetVolume(const double volume) const;
