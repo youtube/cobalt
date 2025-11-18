@@ -17,38 +17,38 @@ package dev.cobalt.media;
 import static dev.cobalt.util.Log.TAG;
 
 import android.content.Context;
+import android.view.Surface;
 import dev.cobalt.util.Log;
-import java.util.ArrayList;
-import java.util.List;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /** Creates and destroys ExoPlayer instances */
 @JNINamespace("starboard")
 public class ExoPlayerManager {
+    private Context context;
 
-  private List<ExoPlayerBridge> exoPlayerBridgeList;
-  private Context context;
-
-  public ExoPlayerManager(Context context) {
-    this.context = context;
-    exoPlayerBridgeList = new ArrayList<ExoPlayerBridge>();
-  }
-
-  @CalledByNative
-  ExoPlayerBridge createExoPlayerBridge(long nativeExoPlayerBridge, boolean preferTunnelMode) {
-    ExoPlayerBridge exoPlayerBridge = new ExoPlayerBridge(nativeExoPlayerBridge, context, preferTunnelMode);
-    exoPlayerBridgeList.add(exoPlayerBridge);
-    return exoPlayerBridge;
-  }
-
-  @CalledByNative
-  void destroyExoPlayerBridge(ExoPlayerBridge exoPlayerBridge) {
-    try {
-    exoPlayerBridge.destroy();
-    } catch (InterruptedException e) {
-      Log.e(TAG, String.format("Could not destroy ExoPlayerBridge, error: %s", e.toString()));
+    public ExoPlayerManager(Context context) {
+        this.context = context;
     }
-    exoPlayerBridgeList.remove(exoPlayerBridge);
-  }
+
+    @CalledByNative
+    public synchronized ExoPlayerBridge createExoPlayerBridge(long nativeExoPlayerBridge,
+            ExoPlayerMediaSource audioSource, ExoPlayerMediaSource videoSource, Surface surface,
+            boolean enableTunnelMode) {
+        return ExoPlayerBridge.createExoPlayerBridge(nativeExoPlayerBridge, context, audioSource, videoSource,
+                surface, enableTunnelMode);
+    }
+
+    @CalledByNative
+    public synchronized void destroyExoPlayerBridge(ExoPlayerBridge exoPlayerBridge) {
+        try {
+            if (exoPlayerBridge == null) {
+                Log.e(TAG, "ExoPlayerManager cannot destroy NULL ExoPlayerBridge.");
+                return;
+            }
+            exoPlayerBridge.destroy();
+        } catch (InterruptedException e) {
+            Log.e(TAG, String.format("Could not destroy ExoPlayerBridge, error: %s", e.toString()));
+        }
+    }
 }

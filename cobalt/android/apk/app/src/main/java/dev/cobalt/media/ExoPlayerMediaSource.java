@@ -33,24 +33,17 @@ import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import org.chromium.base.annotations.CalledByNative;
 
 /** Writes encoded media from the native app to the SampleStream */
 @UnstableApi
 public final class ExoPlayerMediaSource extends BaseMediaSource {
     private final Format format;
     private ExoPlayerMediaPeriod mediaPeriod;
-    // Reference to the host ExoPlayerBridge
-    private final ExoPlayerBridge playerBridge;
+
     private final MediaItem mediaItem;
-    private final int rendererType;
 
-    ExoPlayerMediaSource(ExoPlayerBridge playerBridge, Format format, int rendererType) {
-        this.playerBridge = playerBridge;
+    ExoPlayerMediaSource(Format format) {
         this.format = format;
-        this.rendererType = rendererType;
-
         this.mediaItem = new MediaItem.Builder().setMediaMetadata(MediaMetadata.EMPTY).build();
     }
 
@@ -77,7 +70,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
     @Override
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
-        mediaPeriod = new ExoPlayerMediaPeriod(format, allocator, playerBridge, this, rendererType);
+        mediaPeriod = new ExoPlayerMediaPeriod(format, allocator);
         return mediaPeriod;
     }
 
@@ -88,64 +81,27 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
         this.mediaPeriod.destroySampleStream();
     }
 
-    @CalledByNative
-    public void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] isKeyFrame, int sampleCount) {
-        mediaPeriod.writeSamples(samples, sizes, timestamps, isKeyFrame, sampleCount);
+    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+        mediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);
     }
 
-    @CalledByNative
     public void writeEndOfStream() {
         mediaPeriod.writeEndOfStream();
     }
 
-    @CalledByNative
-    public ByteBuffer getSampleBuffer(int size) {
-        return ByteBuffer.allocateDirect(size);
-    }
-
-    public boolean isInitialized() {
-        return mediaPeriod.initialized;
-    }
-
-    public void onMediaPeriodSeek(long positionUs) {
-        refreshSourceInfo(new SinglePeriodTimeline(
-            C.TIME_UNSET,
-            C.TIME_UNSET,
-            0L,
-            positionUs,
-            /* isSeekable= */ true,
-            /* isDynamic= */ false,
-            /* useLiveConfiguration= */ false,
-            /* manifest= */ null, getMediaItem())
-        );
+    public boolean canAcceptMoreData() {
+        return mediaPeriod.canAcceptMoreData();
     }
 
     private static final class ExoPlayerMediaPeriod implements MediaPeriod {
         private final Format format;
         private final Allocator allocator;
         private ExoPlayerSampleStream stream;
-        // Notify the player when initialized to avoid writing samples before the stream exists.
-        public boolean initialized = false;
-        private final ExoPlayerBridge playerBridge;
-        private final ExoPlayerMediaSource host;
+        private long seekTimeUs = C.TIME_UNSET;
 
-        private boolean reachedEos = false;
-
-        private boolean pendingDiscontinuity = false;
-        private long discontinuityPositionUs;
-        private final int rendererType;
-
-        private boolean timelineFinalized = false;
-
-        private final Object lock = new Object();
-
-        ExoPlayerMediaPeriod(Format format, Allocator allocator, ExoPlayerBridge playerBridge, ExoPlayerMediaSource host,
-                int rendererType) {
+        ExoPlayerMediaPeriod(Format format, Allocator allocator) {
             this.format = format;
             this.allocator = allocator;
-            this.playerBridge = playerBridge;
-            this.rendererType = rendererType;
-            this.host = host;
         }
 
         @Override
@@ -166,13 +122,12 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
                 SampleStream[] streams, boolean[] streamResetFlags, long positionUs) {
             for (int i = 0; i < selections.length; ++i) {
                 if (selections[i] != null) {
-                    stream = new ExoPlayerSampleStream(allocator, selections[i].getSelectedFormat(), lock);
+                    stream =
+                            new ExoPlayerSampleStream(allocator, selections[i].getSelectedFormat());
                     streams[i] = stream;
                     streamResetFlags[i] = true;
                 }
             }
-            initialized = true;
-            playerBridge.onStreamCreated();
             return positionUs;
         }
 
@@ -183,27 +138,18 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
         @Override
         public long readDiscontinuity() {
-            if (pendingDiscontinuity) {
-                long positionToReport = discontinuityPositionUs;
-                pendingDiscontinuity = false;
-                discontinuityPositionUs = C.TIME_UNSET;
+            if (seekTimeUs != C.TIME_UNSET) {
+                long positionToReport = seekTimeUs;
+                seekTimeUs = C.TIME_UNSET;
                 return positionToReport;
             }
-            return C.TIME_UNSET;
+            return seekTimeUs;
         }
 
         @Override
         public long seekToUs(long positionUs) {
-            boolean seekToKeyFrame = rendererType == ExoPlayerRendererType.VIDEO;
-            stream.seek(positionUs, seekToKeyFrame);
-            // If the playback begins in the middle of the stream, update the timeline.
-            if (positionUs != 0L && !timelineFinalized) {
-                host.onMediaPeriodSeek(positionUs);
-                timelineFinalized = true;
-            }
-            reachedEos = false;
-            pendingDiscontinuity = true;
-            discontinuityPositionUs = positionUs;
+            stream.seek(positionUs, format);
+            seekTimeUs = positionUs;
             return positionUs;
         }
 
@@ -214,33 +160,22 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
         @Override
         public long getBufferedPositionUs() {
-            if (reachedEos) {
-                return C.TIME_END_OF_SOURCE;
-            }
-
-            long pos = C.TIME_UNSET;
-            if (stream != null) {
-                pos = stream.getBufferedPositionUs();
-            }
-
-            pos = pos == C.TIME_UNSET ? 0 : pos;
-            return pos;
+            return stream != null ? stream.getBufferedPositionUs() : 0l;
         }
 
         @Override
         public long getNextLoadPositionUs() {
-            long pos = getBufferedPositionUs();
-            return pos;
+            return getBufferedPositionUs();
         }
 
         @Override
         public boolean continueLoading(@NonNull LoadingInfo loadingInfo) {
-            return !reachedEos;
+            return stream == null || !stream.endOfStreamWritten();
         }
 
         @Override
         public boolean isLoading() {
-            return !reachedEos;
+            return stream == null || !stream.endOfStreamWritten();
         }
 
         @Override
@@ -250,13 +185,16 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
             stream.destroy();
         }
 
-        public void writeSamples(ByteBuffer samples, int[] sizes, long[] timestamps, boolean[] isKeyFrame, int sampleCount) {
-            stream.writeSamples(samples, sizes, timestamps, isKeyFrame, sampleCount);
+        public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+            stream.writeSample(samples, size, timestamp, isKeyFrame);
         }
 
         public void writeEndOfStream() {
-            reachedEos = true;
             stream.writeEndOfStream();
+        }
+
+        public boolean canAcceptMoreData() {
+            return stream.canAcceptMoreData();
         }
     }
 }
