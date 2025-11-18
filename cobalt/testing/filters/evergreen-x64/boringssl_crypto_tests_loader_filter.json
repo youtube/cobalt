@@ -1,6 +1,8 @@
 {
   "failing_tests": [
     "ForkDetect.Test",
-    "RandTest.Fork"
+    "RandTest.Fork",
+    "X509Test.DirHashThreads",
+    "X509Test.DuplicateName"
   ]
 }

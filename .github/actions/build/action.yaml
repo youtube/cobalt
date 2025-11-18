@@ -13,14 +13,18 @@ inputs:
 runs:
   using: "composite"
   steps:
+      - name: Clean out dir from previous runner
+        run: |
+          rm -rf cobalt/src/out
+        shell: bash
       - name: GN gen
         run: |
-          cd src
+          cd cobalt/src
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
       - name: List GN args
         run: |
-          cd src
+          cd cobalt/src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
       - name: Get list of changed files
@@ -30,7 +34,7 @@ runs:
           CHANGED_FILES_LIST: changed_files.txt
         run: |
           set -x
-          cd src
+          cd cobalt/src
           # GitHub's actions/checkout action, by default, checks out the merge commit when
           # a pull request event triggers a workflow. This merge commit represents the state
           # of the code as if the pull request had been merged into the base branch.
@@ -51,7 +55,7 @@ runs:
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
-          cd src
+          cd cobalt/src
 
           if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
             echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
@@ -91,13 +95,13 @@ runs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}_test_targets_json
-          path: src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
         if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
         run: |
           set -ex
-          cd src
+          cd cobalt/src
           test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
@@ -106,7 +110,7 @@ runs:
           TARGETS_JSON: ${{ inputs.targets }}
         run: |
           set -ex
-          cd src
+          cd cobalt/src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
@@ -116,6 +120,37 @@ runs:
         with:
           name: ${{ matrix.platform }} APKs
           path: |
-            src/out/${{ matrix.platform }}_qa/apks/*.apk
-            src/out/${{ matrix.platform }}_qa/*_apk/*.apk
-            src/out/${{ matrix.platform }}_qa/gen/build_info.json
+            cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
+            cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
+            cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json
+      - name: Upload Test Artifacts
+        if: steps.build-test-targets.outcome == 'success'
+        uses: ./cobalt/src/.github/actions/upload_test_artifacts
+        with:
+          test_artifacts_key: ${{ inputs.test_artifacts_key }}
+          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
+          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
+          test_targets_json_file: ${{ inputs.test_targets_json_file }}
+      - name: Run Package Script Test
+        if: ${{ (matrix.config == 'qa' || matrix.config == 'gold') && !contains(matrix.platform, 'chromium') && !contains(matrix.platform, 'evergreen') && !contains(matrix.platform, 'modular') }}
+        run: |
+          # Use the real variable from your environment
+          MATRIX_PLATFORM="${{ matrix.platform }}"
+          MATRIX_CONFIG="${{ matrix.config }}"
+          # Determine the correct build platform directory name
+          if [[ "$MATRIX_PLATFORM" == *"android"* ]]; then
+            BUILD_PLATFORM="android"
+          else
+            BUILD_PLATFORM="linux"
+            cd cobalt/src/
+            cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
+            autoninja -C out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
+            cp out/linux-x64x11-no-starboard_$MATRIX_CONFIG/chromedriver out/${{ matrix.platform }}_${{ matrix.config }}
+            cd ../..
+          fi
+          cobalt/src/cobalt/build/packager.py \
+            --name=${{ matrix.platform }}_${{ matrix.config }} \
+            --json_path=cobalt/src/cobalt/build/$BUILD_PLATFORM/package.json \
+            --out_dir=cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }} \
+            --package_dir=cobalt/src/out/test-package
+        shell: bash
