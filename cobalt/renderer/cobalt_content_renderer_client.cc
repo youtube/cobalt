@@ -98,12 +98,12 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
 // Append the h5vcc setting to the corresponding media switch, if such mapping
 // exists. H5vcc settings are either pass their value to a media switch for code
 // in /media to use, or are given to Starboard Renderer for direct usage.
-void AppendSettingToSwitch(
+bool AppendSettingToSwitch(
     const std::string& setting_name,
     const cobalt::mojom::SettingValuePtr& setting_value) {
   auto it = kH5vccSettingToSwitchMap.find(setting_name);
   if (it == kH5vccSettingToSwitchMap.end()) {
-    return;
+    return false;
   }
   std::string switch_name = it->second;
   std::string setting_str;
@@ -119,13 +119,14 @@ void AppendSettingToSwitch(
     default: {
       LOG(WARNING) << "Attempted to apply switch " << switch_name
                    << " but the setting value was not an integer or string.";
-      return;
+      return false;
     }
   }
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
                                                             setting_str);
   LOG(INFO) << "Applied command line switch: " << switch_name << " = "
             << setting_str;
+  return true;
 }
 
 }  // namespace
@@ -248,7 +249,17 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   cobalt::mojom::SettingsPtr settings;
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     for (auto& [key, value] : settings->settings) {
-      AppendSettingToSwitch(key, value);
+      if (!AppendSettingToSwitch(key, value)) {
+        if (value->is_string_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, std::move(value->get_string_value()));
+        } else if (value->is_int_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, value->get_int_value());
+        } else {
+          NOTREACHED();
+        }
+      }
     }
   }
 
