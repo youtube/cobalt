@@ -48,7 +48,9 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       settings_(MakeGarbageCollected<H5vccSettings>(window)),
       storage_(MakeGarbageCollected<H5vccStorage>(window)),
       system_(MakeGarbageCollected<H5vccSystem>(window)),
-      runtime_(MakeGarbageCollected<H5vccRuntime>(window)) {}
+      runtime_(MakeGarbageCollected<H5vccRuntime>(window)) {
+  LOG(ERROR) << "ColinL: H5vcc::h5vcc(), create sub objects";
+}
 
 void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(crash_log_);

@@ -74,6 +74,31 @@ void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
       web_contents());
 }
 
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  LOG(ERROR) << "ColinL: Navigation for URL: " << navigation_handle->GetURL();
+
+  // 1. Always check if the navigation was successful.
+  if (!navigation_handle->HasCommitted()) {
+    // Navigation failed (e.g., DNS error, connection reset).
+    LOG(ERROR) << "Navigation failed for URL: " << navigation_handle->GetURL();
+    return;
+  }
+
+  // 2. Filter for specific conditions (e.g., only the main frame).
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    // Ignore navigations in iframes or other sub-frames.
+    return;
+  }
+
+  // 3. Check for successful main frame navigation.
+  if (navigation_handle->IsErrorPage()) {
+    LOG(WARNING) << "Navigated to an error page for: "
+                 << navigation_handle->GetURL();
+    return;
+  }
+}
+
 namespace {
 enum {
   // This must be kept in sync with Java dev.cobalt.PlatformError.ErrorType

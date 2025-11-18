@@ -638,6 +638,7 @@ public class StarboardBridge {
     if (service != null) {
       service.receiveStarboardBridge(this);
       cobaltServices.put(serviceName, service);
+      Log.i(TAG, String.format("Opened platform service %s.", serviceName));
 
       if (activity instanceof CobaltActivity) {
         service.setCobaltActivity((CobaltActivity) activity);
@@ -652,6 +653,14 @@ public class StarboardBridge {
 
   public void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
+    Log.i(TAG, String.format("Closed platform service %s.", serviceName));
+  }
+
+  @CalledByNative
+  public void closeAllCobaltService() {
+    for (String serviceName : cobaltServices.keySet()) {
+      closeCobaltService(serviceName);
+    }
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {
