@@ -34,7 +34,9 @@ _BUILD_TYPES = {
     },
     'qa': {
         'symbol_level': 1,
-        'is_official_build': 'true'
+        'is_official_build': 'true',
+        # Enable stack traces, disabled by is_official_build
+        'exclude_unwind_tables': 'false'
     },
     'gold': {
         'symbol_level': 1,
