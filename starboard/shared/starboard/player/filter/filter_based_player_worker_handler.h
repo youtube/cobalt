@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -74,6 +75,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   UpdatePlayerErrorCB update_player_error_cb_;
 
   SbDrmSystem drm_system_;
+  const std::optional<int> max_frames_in_decoder_;
 
   const media::AudioStreamInfo audio_stream_info_;
 

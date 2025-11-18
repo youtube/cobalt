@@ -46,6 +46,8 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
+constexpr int kDefaultMaxFramesInDecoder = 100;
+
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -153,6 +155,19 @@ bool ShouldUseExternalAllocator(
   return true;
 }
 
+std::optional<int> MaxFramesInDecoder(
+    const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
+  auto it = h5vcc_settings.find("Media.MaxFramesInDecoder");
+  if (it != h5vcc_settings.end()) {
+    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
+      if (*value_ptr >= 0) {
+        return static_cast<int>(*value_ptr);
+      }
+      // Negative value is invalid, fall back to the default value.
+    }
+  }
+  return kDefaultMaxFramesInDecoder;
+}
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -172,7 +187,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
+      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)),
+      max_frames_in_decoder_(MaxFramesInDecoder(h5vcc_settings)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -182,7 +198,8 @@ StarboardRenderer::StarboardRenderer(
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", use_external_allocator="
-            << (use_external_allocator_ ? "true" : "false");
+            << (use_external_allocator_ ? "true" : "false")
+            << ", max_frames_in_decoder=" << max_frames_in_decoder_.value_or(0);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -564,6 +581,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,
+        max_frames_in_decoder_,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),

@@ -67,6 +67,7 @@ class PlayerComponents {
                          int max_video_input_size,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
+                         std::optional<int> max_frames_in_decoder,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const media::AudioStreamInfo& audio_stream_info,
                          const media::VideoStreamInfo& video_stream_info,
@@ -75,6 +76,7 @@ class PlayerComponents {
                          int max_video_input_size,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
+                         std::optional<int> max_frames_in_decoder,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that);
       void operator=(const CreationParameters& that) = delete;
@@ -126,6 +128,10 @@ class PlayerComponents {
 
       SbDrmSystem drm_system() const { return drm_system_; }
 
+      std::optional<int> max_frames_in_decoder() const {
+        return max_frames_in_decoder_;
+      }
+
      private:
       // |audio_stream_info_.codec| can be set to kSbMediaAudioCodecNone for
       // audioless video.
@@ -145,6 +151,8 @@ class PlayerComponents {
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
       SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
+
+      std::optional<int> max_frames_in_decoder_;
     };
 
     virtual ~Factory() {}

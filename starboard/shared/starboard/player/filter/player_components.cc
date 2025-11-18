@@ -94,6 +94,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
+    std::optional<int> max_frames_in_decoder,
     SbDrmSystem drm_system)
     : video_stream_info_(video_stream_info),
       player_(player),
@@ -101,7 +102,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
-      drm_system_(drm_system) {
+      drm_system_(drm_system),
+      max_frames_in_decoder_(max_frames_in_decoder) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK_NE(output_mode_, kSbPlayerOutputModeInvalid);
@@ -115,6 +117,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
+    std::optional<int> max_frames_in_decoder,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info),
       video_stream_info_(video_stream_info),
@@ -123,7 +126,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
-      drm_system_(drm_system) {
+      drm_system_(drm_system),
+      max_frames_in_decoder_(max_frames_in_decoder) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
 }
@@ -138,6 +142,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->decode_target_graphics_context_provider_ =
       that.decode_target_graphics_context_provider_;
   this->drm_system_ = that.drm_system_;
+  this->max_frames_in_decoder_ = that.max_frames_in_decoder_;
 }
 
 std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
