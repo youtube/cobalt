@@ -8,7 +8,7 @@ on:
 jobs:
   rerun-failing-jobs:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'failure'
+    if: ${{ contains(['failure', 'cancelled'], github.event.workflow_run.conclusion) }}
     env:
       MAX_RETRIES: 2
     permissions:
@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           echo "Fetching failing checks for PR #${PR_NUMBER}"
-          failing_runs=$(gh pr checks "${PR_NUMBER}" --repo "${REPO}" | grep 'fail')
+          failing_runs=$(gh pr checks "${PR_NUMBER}" --repo "${REPO}" | grep -E 'fail|cancel')
 
           if [ -z "${failing_runs}" ]; then
             echo "No failing checks found to rerun."
