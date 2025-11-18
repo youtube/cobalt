@@ -61,6 +61,8 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
 
   bool IsEOSWritten(SbMediaType type) const;
 
+  void ScheduleOnWorker(std::function<void()> task);
+
   UpdateMediaInfoCB update_media_info_cb_;
   GetPlayerStateCB get_player_state_cb_;
   UpdatePlayerStateCB update_player_state_cb_;

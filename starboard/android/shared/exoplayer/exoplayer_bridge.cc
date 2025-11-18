@@ -50,6 +50,15 @@ DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 constexpr int kWaitForInitializedTimeoutUsec = 250'000;  // 250 ms.
 constexpr int kMaxSampleBufferSize = 6 * 1024 * 1024;    // 6 MB.
 constexpr int kADTSHeaderSize = 7;
+constexpr bool kForceTunneledPlayback = false;
+
+int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
+  if (type == kSbMediaTypeAudio &&
+      input_buffer->audio_stream_info().codec == kSbMediaAudioCodecAac) {
+    return kADTSHeaderSize;
+  }
+  return 0;
+}
 
 }  // namespace
 
@@ -58,11 +67,13 @@ ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaVideoStreamInfo& video_stream_info)
     : player_is_destroying_(false),
       playback_error_occurred_(false),
-      underflow_(false),
       initialized_(false),
       seeking_(false),
+      is_playing_(false),
       dropped_frames_(0),
       owns_surface_(false) {
+  ON_INSTANCE_CREATED(ExoPlayerBridge);
+
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jobject> j_audio_media_source;
@@ -108,7 +119,8 @@ ExoPlayerBridge::ExoPlayerBridge(
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
           j_audio_media_source, j_video_media_source, j_output_surface,
-          false /* prefer_tunnel_mode */);
+          ShouldEnableTunneledPlayback(video_stream_info) ||
+              kForceTunneledPlayback);
   if (!j_exoplayer_bridge) {
     init_error_msg_ = "Could not create Java ExoPlayerBridge";
     SB_LOG(ERROR) << init_error_msg_;
@@ -185,10 +197,9 @@ bool ExoPlayerBridge::Seek(int64_t timestamp) {
     return false;
   }
 
+  seeking_.store(true);
   Java_ExoPlayerBridge_seek(AttachCurrentThread(), j_exoplayer_bridge_,
                             timestamp);
-  underflow_.store(false);
-  seeking_.store(true);
   return true;
 }
 
@@ -202,19 +213,13 @@ bool ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
 
   JNIEnv* env = AttachCurrentThread();
 
-  bool is_key_frame = true;
-  int offset = 0;
   auto input_buffer = input_buffers.front();
-
-  if (type == kSbMediaTypeAudio) {
-    offset = input_buffer->audio_stream_info().codec == kSbMediaAudioCodecAac
-                 ? kADTSHeaderSize
-                 : 0;
-  } else {
-    is_key_frame = input_buffer->video_sample_info().is_key_frame;
-  }
-
+  bool is_key_frame = type == kSbMediaTypeAudio
+                          ? true
+                          : input_buffer->video_sample_info().is_key_frame;
+  int offset = GetSampleOffset(type, input_buffer);
   int size = input_buffer->size() - offset;
+
   env->SetByteArrayRegion(
       static_cast<jbyteArray>(j_sample_data_.obj()), 0, size,
       reinterpret_cast<const jbyte*>(input_buffer->data() + offset));
@@ -287,10 +292,10 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
     return MediaInfo();
   }
 
-  int64_t media_time_usec = Java_ExoPlayerBridge_getCurrentPositionUs(
+  int64_t media_time_usec = Java_ExoPlayerBridge_getCurrentPositionUsec(
       AttachCurrentThread(), j_exoplayer_bridge_);
 
-  return MediaInfo{media_time_usec, dropped_frames_.load(), underflow_.load()};
+  return MediaInfo{media_time_usec, dropped_frames_.load(), is_playing_.load()};
 }
 
 bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) const {
@@ -310,17 +315,11 @@ void ExoPlayerBridge::OnInitialized(JNIEnv*) {
   initialized_cv_.notify_one();
 }
 
-void ExoPlayerBridge::OnBuffering(JNIEnv*) {
-  if (!seeking_.load()) {
-    underflow_.store(true);
-  }
-}
-
 void ExoPlayerBridge::OnReady(JNIEnv*) {
-  SB_CHECK(prerolled_cb_);
-  underflow_.store(false);
-  seeking_.store(false);
-  prerolled_cb_();
+  if (seeking_.exchange(false)) {
+    SB_CHECK(prerolled_cb_);
+    prerolled_cb_();
+  }
 }
 
 void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
@@ -339,6 +338,10 @@ void ExoPlayerBridge::OnDroppedVideoFrames(JNIEnv* env, jint count) {
   dropped_frames_.fetch_add(count);
 }
 
+void ExoPlayerBridge::OnIsPlayingChanged(JNIEnv*, jboolean is_playing) {
+  is_playing_.store(is_playing);
+}
+
 bool ExoPlayerBridge::ShouldAbortOperation() const {
   if (playback_error_occurred_.load()) {
     SB_LOG(ERROR)
@@ -350,7 +353,7 @@ bool ExoPlayerBridge::ShouldAbortOperation() const {
 
 void ExoPlayerBridge::ReportError(JNIEnv* env,
                                   SbPlayerError error,
-                                  std::string& msg) const {
+                                  const std::string& msg) const {
   SB_CHECK(error_cb_);
   error_cb_(kSbPlayerErrorDecode, msg);
 }
