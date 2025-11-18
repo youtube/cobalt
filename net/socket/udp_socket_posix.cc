@@ -76,10 +76,10 @@ constexpr int kBindRetries = 10;
 constexpr int kPortStart = 1024;
 constexpr int kPortEnd = 65535;
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 // Read in larger batches to minimize recvmmsg overhead.
 inline constexpr int kNumPacketsPerReadMmsgCall = 64;
-#endif
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 int GetSocketFDHash(int fd) {
   return fd ^ 1595649551;
@@ -280,13 +280,13 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
   return OK;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 #ifdef UNSAFE_BUFFERS_BUILD
 #pragma allow_unsafe_buffers
 #endif
-#endif
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
@@ -345,7 +345,7 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
   read_callback_ = std::move(callback);
   return ERR_IO_PENDING;
 }
-#endif
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 int UDPSocketPosix::Read(IOBuffer* buf,
                          int buf_len,
@@ -667,7 +667,7 @@ void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
   TRACE_EVENT(NetTracingCategory(),
               "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
   if (!socket_->read_callback_.is_null()) {
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
     if(socket_->results_) {
       socket_->DidCompleteMultiplePacketRead();
       return;
@@ -713,7 +713,7 @@ void UDPSocketPosix::DidCompleteRead() {
   }
 }
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 void UDPSocketPosix::DidCompleteMultiplePacketRead() {
   int result = InternalReadMultiplePackets(results_);
   if (result != ERR_IO_PENDING) {
@@ -723,7 +723,7 @@ void UDPSocketPosix::DidCompleteMultiplePacketRead() {
     DoReadCallback(result);
   }
 }
-#endif
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 void UDPSocketPosix::LogRead(int result,
                              const char* bytes,
@@ -891,7 +891,7 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
   return result;
 }
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 int UDPSocketPosix::InternalReadMultiplePackets(
     Socket::ReadPacketResults* results) {
   if (!socket_) {
@@ -962,7 +962,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
   results->result = MapSystemError(recvmmsg_errno);
   return results->result;
 }
-#endif
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 int UDPSocketPosix::InternalSendTo(IOBuffer* buf,
                                    int buf_len,

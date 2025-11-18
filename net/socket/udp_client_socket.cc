@@ -184,7 +184,7 @@ void UDPClientSocket::ApplySocketTag(const SocketTag& tag) {
   socket_.ApplySocketTag(tag);
 }
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 int UDPClientSocket::ReadMultiplePackets(ReadPacketResults* results,
                                          int read_buffer_size,
                                          CompletionOnceCallback callback) {
