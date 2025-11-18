@@ -40,7 +40,12 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
           traits.enable_flush_during_seek,
-          traits.enable_reset_audio_decoder) {
+          traits.enable_reset_audio_decoder
+#if BUILDFLAG(IS_ANDROID)
+          ,
+          std::move(traits.android_overlay_factory_cb)
+#endif  // BUILDFLAG(IS_ANDROID)
+      ) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,

@@ -37,6 +37,10 @@
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android_overlay_mojo_factory.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
 using base::Time;
 using base::TimeDelta;
@@ -55,7 +59,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
                     bool enable_flush_during_seek,
-                    bool enable_reset_audio_decoder);
+                    bool enable_reset_audio_decoder
+#if BUILDFLAG(IS_ANDROID)
+                    ,
+                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -183,6 +192,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
   const bool notify_memory_pressure_before_playback_;
+#if BUILDFLAG(IS_ANDROID)
+  const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
