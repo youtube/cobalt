@@ -1020,7 +1020,6 @@ class MediaCodecBridge {
     }
   }
 
-  @CalledByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
       mMediaCodec.get().configure(format, null, crypto, flags);

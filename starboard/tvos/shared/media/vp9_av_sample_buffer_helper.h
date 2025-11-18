@@ -20,8 +20,6 @@
 #import "starboard/media.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 const float kGammaLevel22 = 2.2f;
 const float kGammaLevel24 = 2.4f;
@@ -76,8 +74,6 @@ struct MasteringDisplayColorVolumeSEI {
 static_assert(sizeof(MasteringDisplayColorVolumeSEI) == 24,
               "Mastering meta data must be 24 bytes");
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_VP9_AV_SAMPLE_BUFFER_HELPER_H_

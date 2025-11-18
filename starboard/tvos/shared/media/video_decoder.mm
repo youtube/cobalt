@@ -20,7 +20,6 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/tvos/shared/media/decode_target_internal.h"
@@ -28,15 +27,8 @@
 #include "starboard/tvos/shared/starboard_application.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
-
-using starboard::decode_target::DecodeTargetContextRunner;
-using starboard::media::AvcParameterSets;
-using starboard::media::ConvertAnnexBToAvcc;
-using starboard::media::VideoConfig;
 
 const size_t kDecodeTargetReleaseQueueDepth = 1;
 
@@ -55,7 +47,7 @@ void OnUIApplicationWillResignActive(CFNotificationCenterRef center,
   s_application_inactive_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-class VideoFrameImpl : public shared::starboard::player::filter::VideoFrame {
+class VideoFrameImpl : public VideoFrame {
  public:
   VideoFrameImpl(int64_t presentation_time,
                  const std::function<void()>& destroy_frame_cb)
@@ -247,7 +239,7 @@ void TvosVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(input_buffers[0]);
 
   if (!job_thread_) {
-    job_thread_.reset(new starboard::player::JobThread("video_decoder"));
+    job_thread_.reset(new JobThread("video_decoder"));
   }
   const auto& input_buffer = input_buffers[0];
   job_thread_->job_queue()->Schedule(std::bind(
@@ -282,14 +274,14 @@ void TvosVideoDecoder::Reset() {
   stream_ended_ = false;
   error_occurred_ = false;
   decoding_frames_.store(0);
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   frame_counter_ = 0;
   last_frame_ = nullptr;
   last_decoded_image_ = nullptr;
 }
 
 SbDecodeTarget TvosVideoDecoder::GetCurrentDecodeTarget() {
-  ScopedLock lock(decoded_images_mutex_);
+  std::lock_guard lock(decoded_images_mutex_);
   if (decoded_images_.empty()) {
     if (SbDecodeTargetIsValid(current_decode_target_)) {
       return new SbDecodeTargetPrivate(*current_decode_target_);
@@ -419,7 +411,7 @@ void TvosVideoDecoder::WriteEndOfStreamInternal() {
   if (last_frame_) {
     SB_DCHECK(last_decoded_image_);
     {
-      ScopedLock lock(decoded_images_mutex_);
+      std::lock_guard lock(decoded_images_mutex_);
       decoded_images_.push_back(last_decoded_image_);
     }
     decoder_status_cb_(kBufferFull, last_frame_);
@@ -473,7 +465,6 @@ void TvosVideoDecoder::DestroyFormatAndSession() {
 
 void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
                                     CVImageBufferRef image_buffer) {
-  const GLenum formats[] = {GL_LUMINANCE, GL_LUMINANCE_ALPHA};
   SB_DCHECK(CFGetTypeID(image_buffer) == CVPixelBufferGetTypeID());
   SB_DCHECK(texture_cache_);
 
@@ -497,7 +488,7 @@ void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
     std::swap(last_decoded_image_, current_decoded_image);
   }
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     decoded_images_.push_back(current_decoded_image);
   }
   decoder_status_cb_(kNeedMoreInput, current_frame);
@@ -505,7 +496,7 @@ void TvosVideoDecoder::OnCompletion(int64_t presentation_time,
 
 void TvosVideoDecoder::DestroyFrame(DecodedImage* decoded_image) {
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     // The list is usually small, so a linear search is ok.
     for (auto iter = decoded_images_.begin(); iter != decoded_images_.end();
          ++iter) {
@@ -546,6 +537,4 @@ void TvosVideoDecoder::ReportGeneralError(const char* message) {
   error_cb_(kSbPlayerErrorDecode, ss.str());
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

@@ -25,15 +25,11 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class ApplicationDarwin : public shared::starboard::QueueApplication {
  public:
-#if SB_API_VERSION >= 15
   explicit ApplicationDarwin(SbEventHandleCallback sb_event_handle_callback)
       : QueueApplication(sb_event_handle_callback) {}
-#endif  //  SB_API_VERSION >= 15
   static ApplicationDarwin* Get() {
     shared::starboard::Application* application =
         shared::starboard::Application::Get();
@@ -86,8 +82,6 @@ inline void ApplicationDarwin::InjectEvent<char>(SbEventType type, char* data) {
       new Event{type, data, &ApplicationDarwin::DeleteArrayDestructor<char>});
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
