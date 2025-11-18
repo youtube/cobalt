@@ -32,9 +32,9 @@ import java.io.IOException;
 /** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
 public class ExoPlayerSampleStream implements SampleStream {
-    private SampleQueue sampleQueue;
+    private final SampleQueue sampleQueue;
     private boolean endOfStream = false;
-
+    private final ParsableByteArray sampleData = new ParsableByteArray();
     private static final long MAX_BUFFER_DURATION_US = 30 * 1000 * 1000; // 30 seconds.
     private static final long MEMORY_PRESSURE_THRESHOLD_US = 3 * 1000 * 1000; // 3 seconds.
 
@@ -48,13 +48,13 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        ParsableByteArray arr = new ParsableByteArray(samples);
+        sampleData.reset(samples, size);
         int flags = 0;
         if (isKeyFrame) {
             flags |= C.BUFFER_FLAG_KEY_FRAME;
         }
 
-        sampleQueue.sampleData(arr, size);
+        sampleQueue.sampleData(sampleData, size);
         sampleQueue.sampleMetadata(timestamp, flags, size, 0, null);
     }
 

@@ -41,14 +41,10 @@ public class ExoPlayerManager {
 
     @CalledByNative
     public synchronized void destroyExoPlayerBridge(ExoPlayerBridge exoPlayerBridge) {
-        try {
-            if (exoPlayerBridge == null) {
-                Log.e(TAG, "ExoPlayerManager cannot destroy NULL ExoPlayerBridge.");
-                return;
-            }
-            exoPlayerBridge.destroy();
-        } catch (InterruptedException e) {
-            Log.e(TAG, String.format("Could not destroy ExoPlayerBridge, error: %s", e.toString()));
+        if (exoPlayerBridge == null) {
+            Log.e(TAG, "ExoPlayerManager cannot destroy NULL ExoPlayerBridge.");
+            return;
         }
+        exoPlayerBridge.destroy();
     }
 }
