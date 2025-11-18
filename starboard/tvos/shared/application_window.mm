@@ -29,7 +29,7 @@
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/window_manager.h"
 
-using starboard::shared::uikit::ApplicationDarwin;
+using starboard::ApplicationDarwin;
 
 /**
  *  @brief Debounce constant for updateSearchResultsForSearchController voice
@@ -184,11 +184,6 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
    */
   std::unordered_set<NSInteger> _processedKeydownPressTypes;
 }
-
-- (nullable instancetype)initWithCoder:(NSCoder*)aDecoder
-    SBD_UNAVAILABLE_INITIALIZER_IMPL;
-
-- (instancetype)initWithFrame:(CGRect)frame SBD_UNAVAILABLE_INITIALIZER_IMPL;
 
 - (instancetype)initWithName:(nullable NSString*)name {
   CGSize size = [UIScreen mainScreen].bounds.size;
@@ -790,10 +785,10 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
   // Convert from points to pixels.
   CGFloat scale = UIScreen.mainScreen.scale;
-  return {static_cast<int>(keyboardFrame.origin.x * scale),
-          static_cast<int>(keyboardFrame.origin.y * scale),
-          static_cast<int>(keyboardFrame.size.width * scale),
-          static_cast<int>(keyboardFrame.size.height * scale)};
+  return {static_cast<float>(keyboardFrame.origin.x * scale),
+          static_cast<float>(keyboardFrame.origin.y * scale),
+          static_cast<float>(keyboardFrame.size.width * scale),
+          static_cast<float>(keyboardFrame.size.height * scale)};
 }
 
 - (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket {

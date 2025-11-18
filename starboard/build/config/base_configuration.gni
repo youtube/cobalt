@@ -42,10 +42,6 @@ declare_args() {
   # Directory path to static contents' data.
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"
 
-  # Whether this is an Evergreen compatible platform. A compatible platform
-  # can run the elf_loader and launch the Evergreen build.
-  sb_is_evergreen_compatible = false
-
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false
 

@@ -18,8 +18,6 @@
 #include "starboard/common/spin_lock.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
 struct ObserverEntry {
@@ -106,6 +104,4 @@ void ObserverRegistry::UnlockObserver(int32_t lock_slot) {
   SpinLockRelease(&g_observers[lock_slot].lock);
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

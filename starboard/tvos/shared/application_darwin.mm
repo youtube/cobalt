@@ -22,8 +22,6 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 std::atomic_int32_t s_idle_timer_lock_count{0};
@@ -31,12 +29,12 @@ std::atomic_int32_t s_idle_timer_lock_count{0};
 }  // namespace
 
 void ApplicationDarwin::Initialize() {
-  SbAudioSinkPrivate::Initialize();
+  SbAudioSinkImpl::Initialize();
   PlaybackCapabilities::InitializeInBackground();
 }
 
 void ApplicationDarwin::Teardown() {
-  SbAudioSinkPrivate::TearDown();
+  SbAudioSinkImpl::TearDown();
 }
 
 // static
@@ -59,6 +57,4 @@ void ApplicationDarwin::DecrementIdleTimerLockCount() {
   }
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

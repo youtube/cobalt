@@ -68,8 +68,7 @@ static NSString* kDummyMasterPlaylistFormatString =
     @"cobalt://dummy_video.m3u8r";
 
 - (instancetype)initWithTransferId:(SbMediaTransferId)transfer_id
-                         frameRate:(int)frame_rate;
-{
+                         frameRate:(int)frame_rate {
   self = [super init];
   switch (transfer_id) {
     case kSbMediaTransferIdBt709:
@@ -121,8 +120,6 @@ static NSString* kDummyMasterPlaylistFormatString =
 @end
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 using std::placeholders::_1;
@@ -741,6 +738,4 @@ void AVSBVideoRenderer::OnStatusChanged(NSString* key_path) {
   ObserverRegistry::UnlockObserver(lock_slot);
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
