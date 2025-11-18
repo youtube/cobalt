@@ -162,6 +162,12 @@ std::string CobaltContentBrowserClient::GetApplicationLocale() {
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if !defined(OFFICIAL_BUILD)
+  const auto custom_ua = embedder_support::GetUserAgentFromCommandLine();
+  if (custom_ua.has_value()) {
+    return custom_ua.value();
+  }
+#endif  // !defined(OFFICIAL_BUILD)
   return GetCobaltUserAgent();
 }
 
