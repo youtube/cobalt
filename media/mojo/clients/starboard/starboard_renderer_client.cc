@@ -26,6 +26,10 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/task/bind_post_task.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
 
 StarboardRendererClient::StarboardRendererClient(
@@ -37,17 +41,27 @@ StarboardRendererClient::StarboardRendererClient(
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
     BindHostReceiverCallback bind_host_receiver_callback,
-    GpuVideoAcceleratorFactories* gpu_factories)
-    : media_task_runner_(media_task_runner),
+    GpuVideoAcceleratorFactories* gpu_factories
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    RequestOverlayInfoCB request_overlay_info_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+    )
+    : MojoRendererWrapper(std::move(mojo_renderer)),
+      media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
-      MojoRendererWrapper(std::move(mojo_renderer)),
       video_overlay_factory_(std::move(video_overlay_factory)),
       video_renderer_sink_(video_renderer_sink),
       pending_renderer_extension_(std::move(pending_renderer_extension)),
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
       bind_host_receiver_callback_(bind_host_receiver_callback),
-      gpu_factories_(gpu_factories) {
+      gpu_factories_(gpu_factories)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      request_overlay_info_cb_(std::move(request_overlay_info_cb))
+#endif  // BUILDFLAG(IS_ANDROID)
+{
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -58,6 +72,13 @@ StarboardRendererClient::StarboardRendererClient(
 StarboardRendererClient::~StarboardRendererClient() {
   SetPlayingState(false);
   DCHECK(!video_renderer_sink_started_);
+
+#if BUILDFLAG(IS_ANDROID)
+  if (request_overlay_info_cb_ && overlay_info_requested_) {
+    request_overlay_info_cb_.Run(false, base::NullCallback());
+    overlay_info_requested_ = false;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void StarboardRendererClient::Initialize(MediaResource* media_resource,
@@ -249,6 +270,20 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
   }
 }
 
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(request_overlay_info_cb_);
+
+  overlay_info_requested_ = true;
+  request_overlay_info_cb_.Run(
+      restart_for_transitions,
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&StarboardRendererClient::OnOverlayInfoChanged,
+                              weak_factory_.GetWeakPtr())));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 void StarboardRendererClient::OnVideoGeometryChange(
     const gfx::RectF& rect_f,
     gfx::OverlayTransform /* transform */) {
@@ -400,6 +435,14 @@ void StarboardRendererClient::OnGetCurrentVideoFrameDone(
     next_video_frame_ = std::move(frame);
   }
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRendererClient::OnOverlayInfoChanged(
+    const OverlayInfo& overlay_info) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_extension_->OnOverlayInfoChanged(overlay_info);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 void StarboardRendererClient::StartVideoRendererSink() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
