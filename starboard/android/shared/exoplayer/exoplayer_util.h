@@ -22,6 +22,8 @@
 
 namespace starboard {
 
+bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info);
+
 base::android::ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     const SbMediaAudioStreamInfo& stream_info);
 
