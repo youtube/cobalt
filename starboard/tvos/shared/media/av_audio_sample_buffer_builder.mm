@@ -21,8 +21,6 @@
 #include "third_party/opus/src/include/opus_multistream.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
 
@@ -120,9 +118,6 @@ static const VorbisLayout vorbis_mappings[8] = {
     {4, 3, {0, 4, 1, 2, 3, 5, 6}},    /* 7: 6.1 surround */
     {5, 3, {0, 6, 1, 2, 3, 4, 5, 7}}, /* 8: 7.1 surround */
 };
-
-using starboard::media::GetBytesPerSample;
-using starboard::player::DecodedAudio;
 
 class OpusAVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
  public:
@@ -430,6 +425,4 @@ void AVAudioSampleBufferBuilder::RecordError(const std::string& message) {
   error_occurred_ = true;
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

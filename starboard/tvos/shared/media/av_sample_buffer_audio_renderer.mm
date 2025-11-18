@@ -21,8 +21,6 @@
 static NSString* kAVSBARStatusKeyPath = @"status";
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 const int64_t kCheckPlaybackStatusIntervalUsec = 20000;  // 20ms
@@ -30,7 +28,6 @@ const int kPrerollFrameCount = 1024 * 8;
 const int64_t kMinBufferedAudioBeforeEOSUsec = 10 * 1000000;  // 10s
 
 bool HasRemoteAudioOutput() {
-#if SB_API_VERSION >= 15
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
@@ -55,8 +52,6 @@ bool HasRemoteAudioOutput() {
     }
     index++;
   }
-  return false;
-#endif  // SB_API_VERSION >= 15
   return false;
 }
 
@@ -148,7 +143,7 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
   const auto& input_buffer = input_buffers[0];
   SB_DCHECK(CanAcceptMoreData());
 
-  if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
+  if (IsAudioSampleInfoSubstantiallyDifferent(
           audio_stream_info_, input_buffer->audio_stream_info())) {
     audio_stream_info_ = input_buffer->audio_stream_info();
     sample_buffer_builder_.reset(AVAudioSampleBufferBuilder::CreateBuilder(
@@ -392,6 +387,4 @@ void AVSBAudioRenderer::OnStatusChanged(NSString* key_path) {
   }
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

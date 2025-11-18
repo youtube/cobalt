@@ -18,18 +18,16 @@
 #import <UIKit/UIKit.h>
 #import <VideoToolbox/VideoToolbox.h>
 
+#include <mutex>
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/observer_registry.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
 
@@ -144,7 +142,7 @@ class PlaybackCapabilitiesImpl {
 
   bool GetAudioConfiguration(size_t index,
                              SbMediaAudioConfiguration* configuration) {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     if (is_audio_configurations_dirty_) {
       LoadAudioConfigurations_Locked();
     }
@@ -163,8 +161,6 @@ class PlaybackCapabilitiesImpl {
   PlaybackCapabilitiesImpl& operator=(const PlaybackCapabilitiesImpl&) = delete;
 
   void LoadAudioConfigurations_Locked() {
-    mutex_.DCheckAcquired();
-
     audio_configurations_.clear();
     @autoreleasepool {
       NSArray<AVAudioSessionPortDescription*>* audio_outputs =
@@ -220,7 +216,7 @@ class PlaybackCapabilitiesImpl {
   const bool is_apple_tv_hd_;
   const bool is_apple_tv_4k_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::atomic_bool is_audio_configurations_dirty_ = {true};
   ObserverRegistry::Observer observer_;
   NSObject* route_change_observer_ = nullptr;
@@ -267,6 +263,4 @@ void PlaybackCapabilities::ReloadAudioConfigurations() {
   return GetInstance()->ReloadAudioConfigurations();
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

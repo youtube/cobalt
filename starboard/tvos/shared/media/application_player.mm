@@ -211,7 +211,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   bool _insufficientExternalProtection;
 }
 
-@synthesize playbackRate = _playbackRate;
 @synthesize totalDroppedFrames = _totalDroppedFrames;
 @synthesize totalFrames = _totalFrames;
 @synthesize frameWidth = _frameWidth;
@@ -521,11 +520,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 }
 
 - (void)setPlaybackRate:(double)playbackRate {
-  if (_playbackRate == playbackRate) {
+  if (_player.rate == playbackRate) {
     return;
   }
   _player.rate = playbackRate;
-  _playbackRate = playbackRate;
 }
 
 - (NSInteger)totalDroppedFrames {

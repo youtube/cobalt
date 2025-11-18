@@ -22,7 +22,7 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -eux
-        cd src/
+        cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
@@ -34,7 +34,7 @@ runs:
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        cd src/
+        cd cobalt/src/
 
         # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
         FLAGS=""
@@ -47,7 +47,7 @@ runs:
         fi
 
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/src \
+          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
@@ -73,7 +73,7 @@ runs:
 
         # Upload cobalt.apk for smoke tests.
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
+          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 

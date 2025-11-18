@@ -298,7 +298,10 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: ${{ fromJson(needs.initialize.outputs.build_configs) }}
-    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    container:
+      image: ${{ needs.docker-build-image.outputs.docker_tag }}
+      volumes:
+        - /runner-cache:/runner-cache
     env:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       DEPOT_TOOLS_UPDATE: 0
@@ -311,21 +314,38 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
+      - name: Prepare gclient cache directory
+        run: |
+          mkdir -p /runner-cache/cobalt/src
+          ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
+      - name: Prepare Workspace for Checkout
+        run: |
+          CHECKOUT_PATH="${GITHUB_WORKSPACE}/cobalt/src"
+          # Check src already exists by earlier runners:
+          if [ -d "${CHECKOUT_PATH}/.git" ]; then
+            cd "${CHECKOUT_PATH}"
+            git reset --hard
+            # Remove unmerged/conflict markers if any merge was aborted
+            git merge --abort || true
+          fi
+      - name: Add safe directory for git
+        run: git config --global --add safe.directory /runner-cache/cobalt/src
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
-          path: src
+          path: cobalt/src
           # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
           # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
           # to properly calculate build id.
           fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          clean: false
       - name: Set Up Depot Tools
-        uses: ./src/.github/actions/depot_tools
+        uses: ./cobalt/src/.github/actions/depot_tools
       - name: Build Cobalt
         id: build
-        uses: ./src/.github/actions/build
+        uses: ./cobalt/src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
@@ -337,7 +357,7 @@ jobs:
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && ( needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_e2e == 'true' ) }}
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
       - name: Run API Leak Detector
-        uses: ./src/.github/actions/api_leak_detector
+        uses: ./cobalt/src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
 
   on-device-test:
@@ -459,21 +479,39 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-    container: ${{ needs.docker-webtest-image.outputs.docker_tag }}
+    container:
+      image: ${{ needs.docker-webtest-image.outputs.docker_tag }}
+      volumes:
+        - /runner-cache:/runner-cache
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
+      - name: Prepare gclient cache directory
+        run: |
+          mkdir -p /runner-cache/cobalt/src
+          ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
+      - name: Prepare Workspace for Checkout
+        run: |
+          CHECKOUT_PATH="${GITHUB_WORKSPACE}/cobalt/src"
+          # Check src already exists by earlier runners:
+          if [ -d "${CHECKOUT_PATH}/.git" ]; then
+            cd "${CHECKOUT_PATH}"
+            git reset --hard
+            # Remove unmerged/conflict markers if any merge was aborted
+            git merge --abort || true
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: src
+          path: cobalt/src
+          clean: false
       - name: Set Up Depot Tools
-        uses: ./src/.github/actions/depot_tools
+        uses: ./cobalt/src/.github/actions/depot_tools
         with:
           run_sync: false
       - name: Run Web Tests
-        uses: ./src/.github/actions/web_tests
+        uses: ./cobalt/src/.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}

@@ -21,8 +21,6 @@
 #import "starboard/tvos/shared/media/av_video_sample_buffer_builder.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class AvcAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
  public:
@@ -38,16 +36,13 @@ class AvcAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
   size_t GetMaxNumberOfCachedFrames() const override { return 128; }
 
  private:
-  bool RefreshAVCFormatDescription(
-      const starboard::media::AvcParameterSets& parameter_sets);
+  bool RefreshAVCFormatDescription(const AvcParameterSets& parameter_sets);
 
   std::optional<VideoConfig> video_config_;
   uint64_t frame_counter_ = 0;
   CMFormatDescriptionRef format_description_ = nullptr;
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AVC_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
