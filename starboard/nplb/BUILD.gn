@@ -365,7 +365,6 @@ test("nplb") {
   if (sb_is_evergreen_compatible) {
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
-      "nplb_evergreen_compat_tests/crashpad_config_test.cc",
       "nplb_evergreen_compat_tests/executable_memory_test.cc",
       "nplb_evergreen_compat_tests/fonts_test.cc",
       "nplb_evergreen_compat_tests/loader_app_metrics_test.cc",
@@ -373,6 +372,11 @@ test("nplb") {
       "nplb_evergreen_compat_tests/sabi_test.cc",
       "nplb_evergreen_compat_tests/storage_test.cc",
     ]
+
+    if (use_evergreen) {
+      sources += [ "nplb_evergreen_compat_tests/crashpad_config_test.cc" ]
+    }
+
     data_deps += [
       "//starboard/content/fonts:copy_font_data",
       "//starboard/content/ssl:copy_ssl_certificates_evergreen",

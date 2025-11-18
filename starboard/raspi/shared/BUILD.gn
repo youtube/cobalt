@@ -144,8 +144,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
-    "//starboard/shared/starboard/crash_handler.cc",
-    "//starboard/shared/starboard/crash_handler.h",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
@@ -215,6 +213,13 @@ static_library("starboard_platform_sources") {
   ]
 
   sources += common_player_sources
+
+  if (use_evergreen) {
+    sources += [
+      "//starboard/shared/starboard/crash_handler.cc",
+      "//starboard/shared/starboard/crash_handler.h",
+    ]
+  }
 
   configs += [
     "//starboard/build/config:starboard_implementation",
