@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_TVOS_STARBOARD_TEST_ENVIRONMENT_H_
-#define STARBOARD_TVOS_SHARED_TVOS_STARBOARD_TEST_ENVIRONMENT_H_
+#ifndef STARBOARD_TVOS_SHARED_STARBOARD_TEST_ENVIRONMENT_H_
+#define STARBOARD_TVOS_SHARED_STARBOARD_TEST_ENVIRONMENT_H_
 
 #include <memory>
 
@@ -39,4 +39,4 @@ class StarboardTestEnvironment final : public ::testing::Environment {
 
 }  // namespace starboard
 
-#endif  // STARBOARD_TVOS_SHARED_TVOS_STARBOARD_TEST_ENVIRONMENT_H_
+#endif  // STARBOARD_TVOS_SHARED_STARBOARD_TEST_ENVIRONMENT_H_
