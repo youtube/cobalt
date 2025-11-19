@@ -67,6 +67,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
+  void SetEnabled(bool enabled) override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
@@ -86,6 +87,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
+  bool enabled_ GUARDED_BY(mutex_) = true;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation

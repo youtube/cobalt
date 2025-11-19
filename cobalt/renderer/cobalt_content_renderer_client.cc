@@ -17,6 +17,7 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
@@ -30,11 +31,16 @@ namespace cobalt {
 
 namespace {
 
+const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
+
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
 // corresponding value.
 const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
-    {"Media.VideoBufferSizeClampMb", switches::kMSEVideoBufferSizeLimitClampMb},
+    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
+     switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
@@ -98,35 +104,67 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
 // Append the h5vcc setting to the corresponding media switch, if such mapping
 // exists. H5vcc settings are either pass their value to a media switch for code
 // in /media to use, or are given to Starboard Renderer for direct usage.
-bool AppendSettingToSwitch(
-    const std::string& setting_name,
-    const cobalt::mojom::SettingValuePtr& setting_value) {
+bool AppendSettingToSwitch(const std::string& setting_name,
+                           const media::H5vccSettingValue& setting_value) {
   auto it = kH5vccSettingToSwitchMap.find(setting_name);
   if (it == kH5vccSettingToSwitchMap.end()) {
     return false;
   }
   std::string switch_name = it->second;
   std::string setting_str;
-  switch (setting_value->which()) {
-    case cobalt::mojom::SettingValue::Tag::kStringValue: {
-      setting_str = setting_value->get_string_value();
-      break;
-    }
-    case cobalt::mojom::SettingValue::Tag::kIntValue: {
-      setting_str = base::NumberToString(setting_value->get_int_value());
-      break;
-    }
-    default: {
-      LOG(WARNING) << "Attempted to apply switch " << switch_name
-                   << " but the setting value was not an integer or string.";
-      return false;
-    }
+  if (auto* val = std::get_if<std::string>(&setting_value)) {
+    setting_str = *val;
+  } else if (auto* val = std::get_if<int64_t>(&setting_value)) {
+    setting_str = base::NumberToString(*val);
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer or string.";
+    return false;
   }
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
                                                             setting_str);
   LOG(INFO) << "Applied command line switch: " << switch_name << " = "
             << setting_str;
   return true;
+}
+
+std::map<std::string, media::H5vccSettingValue> ParseH5vccSettings(
+    cobalt::mojom::SettingsPtr settings) {
+  std::map<std::string, media::H5vccSettingValue> h5vcc_settings;
+  for (auto& [key, value] : settings->settings) {
+    if (value->is_string_value()) {
+      h5vcc_settings.emplace(key, std::move(value->get_string_value()));
+    } else if (value->is_int_value()) {
+      h5vcc_settings.emplace(key, value->get_int_value());
+    } else {
+      NOTREACHED();
+    }
+  }
+  return h5vcc_settings;
+}
+
+template <typename T>
+const T* GetSettingValue(
+    const std::map<std::string, media::H5vccSettingValue>& settings,
+    const std::string& key) {
+  auto it = settings.find(key);
+  if (it == settings.end()) {
+    return nullptr;
+  }
+  return std::get_if<T>(&it->second);
+}
+
+void ProcessH5vccSettings(
+    const std::map<std::string, media::H5vccSettingValue>& settings) {
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaDisableAllocator)) {
+    bool disable_allocator = *val != 0;
+    media::DecoderBuffer::EnableAllocator(!disable_allocator);
+  }
+
+  for (const auto& [setting_name, setting_value] : settings) {
+    AppendSettingToSwitch(setting_name, setting_value);
+  }
 }
 
 }  // namespace
@@ -248,19 +286,8 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 
   cobalt::mojom::SettingsPtr settings;
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
-    for (auto& [key, value] : settings->settings) {
-      if (!AppendSettingToSwitch(key, value)) {
-        if (value->is_string_value()) {
-          renderer_factory_traits->h5vcc_settings.emplace(
-              key, std::move(value->get_string_value()));
-        } else if (value->is_int_value()) {
-          renderer_factory_traits->h5vcc_settings.emplace(
-              key, value->get_int_value());
-        } else {
-          NOTREACHED();
-        }
-      }
-    }
+    auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
+    ProcessH5vccSettings(h5vcc_settings);
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
