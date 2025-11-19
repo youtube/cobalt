@@ -15,8 +15,9 @@
 #ifndef STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_
 #define STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_
 
-#include <optional>
+#include <memory>
 
+#include "starboard/common/thread.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/system.h"
 
@@ -24,13 +25,13 @@ class NetworkNotifier : public starboard::Singleton<NetworkNotifier> {
  public:
   bool Initialize();
 
-  static void* NotifierThreadEntry(void* context);
-
   bool is_online() const;
   void set_online(bool is_online);
 
  private:
-  std::optional<pthread_t> notifier_thread_;
+  class NotifierThread;
+
+  std::unique_ptr<starboard::Thread> notifier_thread_;
   bool is_online_ = true;
 };
 

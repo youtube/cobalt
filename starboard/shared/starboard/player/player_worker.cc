@@ -58,7 +58,7 @@ class PlayerWorker::WorkerThread : public Thread {
                int64_t stack_size,
                std::mutex* mutex,
                std::condition_variable* cv)
-      : Thread("player_worker", stack_size),
+      : Thread("player_worker", Thread::Options().WithStackSize(stack_size)),
         worker_(worker),
         mutex_(mutex),
         cv_(cv) {}
