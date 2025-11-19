@@ -266,6 +266,7 @@ test("nplb") {
       "posix_compliance/posix_unistd_fchown_test.cc",
       "posix_compliance/posix_unistd_gethostname_test.cc",
       "posix_compliance/posix_unistd_sysconf_test.cc",
+      "posix_compliance/posix_unlink_test.cc",
       "posix_compliance/posix_usleep_test.cc",
       "posix_compliance/posix_utimensat_test.cc",
       "posix_compliance/scoped_tz_environment.h",
