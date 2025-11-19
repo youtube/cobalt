@@ -66,7 +66,7 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (disabled_) {
     return;
   }
-  if (frames_in_flight_.size() >= kMaxInFlightFrames) {
+  if (frames_in_flight_.size() > std::max(kMaxInFlightFrames, max_frames_)) {
     EngageKillSwitch_Locked("Too many frames in flight: size=" +
                                 std::to_string(frames_in_flight_.size()),
                             presentation_time_us);
@@ -187,8 +187,8 @@ bool DecoderStateTracker::IsFull_Locked() const {
   // We accept more frames if no decoded frames have been generated yet.
   // Some devices need a large number of frames when generating the 1st
   // decoded frame. See b/405467220#comment36 for details.
-  if (state.decoded_frames == 0 && state.total_frames() < kMaxInFlightFrames) {
-    return false;
+  if (state.decoded_frames == 0) {
+    return state.total_frames() >= kMaxInFlightFrames;
   }
   return state.total_frames() >= max_frames_;
 }

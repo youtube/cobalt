@@ -25,6 +25,14 @@
 
 namespace starboard {
 
+// Tracks the number of frames currently inside the decoder (input queue) and
+// the output queue to enable flow control.
+//
+// By limiting the number of frames in flight, we can prevent the decoder from
+// buffering an excessive amount of data, which reduces system memory usage.
+//
+// This class is thread-safe and can be used from multiple threads or
+// SequencedTaskRunners.
 class DecoderStateTracker
     : private shared::starboard::player::JobQueue::JobOwner {
  public:
@@ -64,10 +72,10 @@ class DecoderStateTracker
   const StateChangedCB state_changed_cb_;
 
   mutable std::mutex mutex_;
-  std::map<int64_t, FrameStatus> frames_in_flight_;  // GUARDED_BY(mutex_)
-  bool disabled_ = false;                            // GUARDED_BY(mutex_)
-  int max_frames_;                                   // GUARDED_BY(mutex_)
-  bool reached_max_ = false;                         // GUARDED_BY(mutex_)
+  std::map<int64_t, FrameStatus> frames_in_flight_;  // Guarded by |mutex_|.
+  bool disabled_ = false;                            // Guarded by |mutex_|.
+  int max_frames_;                                   // Guarded by |mutex_|.
+  bool reached_max_ = false;                         // Guarded by |mutex_|.
 };
 
 std::ostream& operator<<(std::ostream& os,
