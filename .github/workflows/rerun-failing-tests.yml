@@ -11,7 +11,7 @@ permissions: read-all
 jobs:
   rerun-failing-jobs:
     runs-on: ubuntu-latest
-    if: contains(github.event.workflow_run.conclusion, ['failure', 'cancelled'])
+    if: contains(fromJSON('["failure", "cancelled"]'), github.event.workflow_run.conclusion)
     permissions:
       actions: write
       checks: read
@@ -23,7 +23,7 @@ jobs:
         id: event_details
         shell: bash
         run: |
-          echo "pr_number=$(jq --raw-output '.pull_requests[0].number' ${{ github.event.workflow_run.event_path }})" >> ${GITHUB_OUTPUT}
+          echo "pr_number=$(jq --raw-output '.workflow_run.pull_requests[0].number' ${GITHUB_EVENT_PATH})" >> ${GITHUB_OUTPUT}
           echo "commit_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
       - name: Check Retry Count
         id: retry_check
