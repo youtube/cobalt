@@ -38,6 +38,10 @@ namespace {
 // be different.
 const size_t kSmallAllocationThreshold = 512;
 
+const char* GetEnabledString(bool value) {
+  return value ? "enabled" : "disabled";
+}
+
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
@@ -229,17 +233,14 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DecoderBufferAllocator::SetEnabled(bool enabled) {
-  static const auto to_string = [](bool value) {
-    return value ? "enabled" : "disabled";
-  };
-
   base::AutoLock scoped_lock(mutex_);
   if (enabled_ == enabled) {
     return;
   }
 
-  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: " << to_string(enabled_)
-            << " -> " << to_string(enabled);
+  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: "
+            << GetEnabledString(enabled_) << " -> "
+            << GetEnabledString(enabled);
   enabled_ = enabled;
   if (!enabled_ && strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -254,19 +255,19 @@ void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
     return;
   }
 
+  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
+            << GetEnabledString(is_memory_pool_allocated_on_demand_) << " -> "
+            << GetEnabledString(enabled);
+
   is_memory_pool_allocated_on_demand_ = enabled;
 
   if (is_memory_pool_allocated_on_demand_) {
     // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
     // reset the the strategy.
-    LOG(INFO) << "Enabling is_memory_pool_allocated_on_demand_ for "
-                 "DecoderBufferAllocator";
     if (strategy_ && strategy_->GetAllocated() == 0) {
       strategy_.reset();
     }
   } else {
-    LOG(INFO) << "Disabling is_memory_pool_allocated_on_demand_ for "
-                 "DecoderBufferAllocator";
     EnsureStrategyIsCreated();
   }
 }
