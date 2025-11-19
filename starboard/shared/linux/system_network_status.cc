@@ -100,12 +100,12 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 
 }  // namespace
 
-class NetworkNotifier::NotifierThread : public starboard::Thread {
+class NotifierThread : public starboard::Thread {
  public:
   explicit NotifierThread(NetworkNotifier* notifier)
       : starboard::Thread("NetworkNotifier"), notifier_(notifier) {}
 
-  void Run() override { NotifierThreadEntry(notifier_); }
+  void Run() override { NetworkNotifier::NotifierThreadEntry(notifier_); }
 
  private:
   NetworkNotifier* notifier_;
