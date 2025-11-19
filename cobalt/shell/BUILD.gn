@@ -237,8 +237,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
-    "browser/shell_platform_data_aura.cc",
-    "browser/shell_platform_data_aura.h",
     "browser/shell_platform_delegate.cc",
     "browser/shell_platform_delegate.h",
     "browser/shell_speech_recognition_manager_delegate.cc",
@@ -308,6 +306,11 @@ static_library("cobalt_shell_lib") {
   }
 
   if (use_aura) {
+    sources += [
+      "browser/shell_platform_data_aura.cc",
+      "browser/shell_platform_data_aura.h",
+    ]
+
     if (shell_use_toolkit_views) {
       sources += [
         "browser/cobalt_views_delegate.cc",
@@ -321,11 +324,6 @@ static_library("cobalt_shell_lib") {
         "browser/shell_web_contents_view_delegate_aura.cc",
       ]
     }
-  } else {
-    sources -= [
-      "browser/shell_platform_data_aura.cc",
-      "browser/shell_platform_data_aura.h",
-    ]
   }
 
   if (is_starboard) {
