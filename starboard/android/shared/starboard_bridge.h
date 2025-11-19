@@ -66,6 +66,8 @@ class StarboardBridge {
 
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
+  void CloseAllCobaltService(JNIEnv* env) const;
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;

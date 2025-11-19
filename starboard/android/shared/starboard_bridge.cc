@@ -266,4 +266,9 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
+void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
+  SB_DCHECK(env);
+  Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
+}
+
 }  // namespace starboard::android::shared
