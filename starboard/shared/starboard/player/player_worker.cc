@@ -25,7 +25,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
-#include "starboard/common/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {
