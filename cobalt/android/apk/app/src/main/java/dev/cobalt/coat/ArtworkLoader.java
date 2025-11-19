@@ -20,6 +20,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
+import androidx.annotation.CheckResult;
 import androidx.annotation.NonNull;
 import dev.cobalt.util.DisplayUtil;
 import java.util.List;
@@ -95,18 +96,21 @@ public class ArtworkLoader {
     return bestImage;
   }
 
-  public Bitmap cropTo16x9(Bitmap bitmap) {
+  @CheckResult
+  public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
     // Crop to 16:9 as needed
-    if (bitmap != null) {
-      int height = bitmap.getWidth() * 9 / 16;
-      if (bitmap.getHeight() > height) {
-        int top = (bitmap.getHeight() - height) / 2;
-        Bitmap cropped = Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
-        bitmap.recycle();
-        return cropped;
-      }
+    if (bitmap == null) {
+      return null;
     }
-    return bitmap;
+    int height = bitmap.getWidth() * 9 / 16;
+    if (bitmap.getHeight() <= height) {
+      return bitmap;
+    }
+
+    int top = (bitmap.getHeight() - height) / 2;
+    Bitmap cropped = Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
+    bitmap.recycle();
+    return cropped;
   }
 
   public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {

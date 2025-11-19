@@ -58,7 +58,7 @@ public class ArtworkDownloaderDefault implements ArtworkDownloader {
       }
     }
 
-    bitmap = artworkLoader.cropTo16x9(bitmap);
+    bitmap = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
     Log.i(TAG, "Artwork downloaded %s.", url);
     artworkLoader.onDownloadFinished(Pair.create(url, bitmap));
   }
