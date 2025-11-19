@@ -21,8 +21,7 @@
   "includes": [
     {
       "name": "x64",
-      "platform": "evergreen-x64",
-      "sb_api_version": 17
+      "platform": "evergreen-x64"
     }
   ]
 }
