@@ -295,32 +295,54 @@ public abstract class CobaltActivity extends Activity {
                 public void onWebContentsLoaded() {
                   // Switch to pending shell after a timeout, or when the main app finishes loading,
                   // whichever comes first.
-                  Log.i(
-                      TAG,
-                      "NativeSplash: shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
-                  new android.os.Handler(android.os.Looper.getMainLooper())
-                      .postDelayed(
-                          new Runnable() {
-                            @Override
-                            public void run() {
-                              synchronized (lock) {
-                                if (isMainFrameLoaded == false) {
-                                  Log.i(
-                                      TAG,
-                                      "NativeSplash: switch to main shell after timeout "
-                                          + mSplashTimeoutMs
-                                          + "ms");
-                                  isMainFrameLoaded = true;
-                                  mShellManager.showAppShell();
-                                }
-                              }
-                            }
-                          },
-                          mSplashTimeoutMs);
+                  Log.i(TAG, String.format("NativeSplash: shellManager load splash timeout %dms",
+                                    mSplashTimeoutMs));
+                  final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+                  handler.postDelayed(new SwitchRunnable(CobaltActivity.this, handler), mSplashTimeoutMs);
                 }
               });
       Log.i(TAG, "shellManager load splash url:" + mSplashUrl);
       mShellManager.getSplashShell().loadUrl(mSplashUrl);
+    }
+  }
+
+  private static class SwitchRunnable implements Runnable {
+    private final java.lang.ref.WeakReference<CobaltActivity> activityReference;
+    private final android.os.Handler handler;
+    private int retries = 0;
+    private static final int MAX_RETRIES = 50; // max timeout is 5s
+    private static final int RETRY_DELAY_MS = 100;
+
+    SwitchRunnable(CobaltActivity activity, android.os.Handler handler) {
+      this.activityReference = new java.lang.ref.WeakReference<>(activity);
+      this.handler = handler;
+    }
+
+    @Override
+    public void run() {
+      CobaltActivity activity = activityReference.get();
+      if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+        Log.w(TAG, "Activity is no longer valid, cancelling SwitchRunnable.");
+        return;
+      }
+
+      synchronized (activity.lock) {
+        if (activity.isMainFrameLoaded) {
+          return;
+        }
+        if (activity.mShellManager.getAppShell() != null && (activity.mShellManager.getSplashShell() == null || activity.mShellManager.getSplashShell().isDestroyed())) {
+          Log.i(TAG, String.format(
+                          "NativeSplash: switch to main shell after timeout %dms",
+                          activity.mSplashTimeoutMs));
+          activity.isMainFrameLoaded = true;
+          activity.mShellManager.showAppShell();
+        } else if (retries < MAX_RETRIES) {
+          retries++;
+          handler.postDelayed(this, RETRY_DELAY_MS);
+        } else {
+            Log.w(TAG, "Timed out waiting for AppShell. Deferring to onWebContentsLoaded() on AppShell.");
+        }
+      }
     }
   }
 
