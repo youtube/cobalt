@@ -108,6 +108,16 @@ H5vccSystemImpl::H5vccSystemImpl(
     : content::DocumentService<mojom::H5vccSystem>(render_frame_host,
                                                    std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  // (Kabuki reload): This destructor is used as the primary signal to
+  // closeExpand commentComment on line R136ResolvedCode has comments. Press
+  // enter to view. all active h5vcc platform services when the generic H5vcc
+  // C++ object is destroyed during a normal JavaScript page unload/reload.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->CloseAllCobaltService(env);
+#endif
 }
 
 H5vccSystemImpl::~H5vccSystemImpl() {
