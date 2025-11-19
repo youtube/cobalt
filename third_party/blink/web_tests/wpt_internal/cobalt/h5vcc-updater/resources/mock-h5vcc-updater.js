@@ -14,7 +14,7 @@ class MockH5vccUpdater {
     this.stub_result_ = new Map();
   }
 
-  STUB_KEY_UPDATER_CHANNEL = 'updaterChannel';
+  STUB_KEY_UPDATE_SERVER_URL = 'testUpdateServerUrl';
 
   start() {
     this.interceptor_.start();
@@ -36,8 +36,8 @@ class MockH5vccUpdater {
     this.stub_result_.set(key, value);
   }
 
-  stubGetUpdaterChannel(updaterChannel) {
-    this.stubResult(this.STUB_KEY_UPDATER_CHANNEL, updaterChannel);
+  stubGetUpdateServerUrl(updateServerUrl) {
+    this.stubResult(this.STUB_KEY_UPDATE_SERVER_URL, updateServerUrl);
   }
 
   exit() {

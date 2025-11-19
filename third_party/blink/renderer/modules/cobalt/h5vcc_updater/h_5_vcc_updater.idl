@@ -17,7 +17,7 @@
 interface H5vccUpdater {
 
   [CallWith=ScriptState, RaisesException]
-  Promise<DOMString> getUpdaterChannel();
-  readonly attribute DOMString? updaterChannel;
+  Promise<DOMString> getUpdateServerUrl();
+
 
 };

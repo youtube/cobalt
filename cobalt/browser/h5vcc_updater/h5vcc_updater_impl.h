@@ -41,8 +41,7 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   H5vccUpdaterImpl(const H5vccUpdaterImpl&) = delete;
   H5vccUpdaterImpl& operator=(const H5vccUpdaterImpl&) = delete;
 
-  void GetUpdaterChannel(GetUpdaterChannelCallback) override;
-  void GetUpdaterChannelSync(GetUpdaterChannelSyncCallback) override;
+  void GetUpdateServerUrl(GetUpdateServerUrlCallback) override;
 
  private:
   H5vccUpdaterImpl(content::RenderFrameHost& render_frame_host,

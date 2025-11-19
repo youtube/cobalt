@@ -46,18 +46,15 @@ class MODULES_EXPORT H5vccUpdater final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise getUpdaterChannel(ScriptState*, ExceptionState&);
-  const String& updaterChannel();
+  ScriptPromise getUpdateServerUrl(ScriptState*, ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
-  void OnGetUpdaterChannel(ScriptPromiseResolver*, const String&);
+  void OnGetUpdateServerUrl(ScriptPromiseResolver*, const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
-
-  String updater_channel_;
 };
 
 }  // namespace blink

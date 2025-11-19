@@ -25,16 +25,6 @@
 
 namespace h5vcc_updater {
 
-namespace {
-
-std::string GetUpdaterChannelShared() {
-  // TODO: Implement actual logic to get updater channel
-  NOTIMPLEMENTED();
-  return "1";
-}
-
-}  // namespace
-
 H5vccUpdaterImpl::H5vccUpdaterImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccUpdater> receiver)
@@ -53,15 +43,9 @@ void H5vccUpdaterImpl::Create(
   new H5vccUpdaterImpl(*render_frame_host, std::move(receiver));
 }
 
-void H5vccUpdaterImpl::GetUpdaterChannel(GetUpdaterChannelCallback callback) {
+void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run(GetUpdaterChannelShared());
-}
-
-void H5vccUpdaterImpl::GetUpdaterChannelSync(
-    GetUpdaterChannelSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run(GetUpdaterChannelShared());
+  std::move(callback).Run();
 }
 
 }  // namespace h5vcc_updater

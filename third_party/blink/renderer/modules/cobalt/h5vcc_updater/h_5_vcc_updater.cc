@@ -26,29 +26,24 @@ H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
 
 void H5vccUpdater::ContextDestroyed() {}
 
-ScriptPromise H5vccUpdater::getUpdaterChannel(ScriptState* script_state,
-                                              ExceptionState& exception_state) {
+ScriptPromise H5vccUpdater::getUpdateServerUrl(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_updater_->GetUpdaterChannel(
-      WTF::BindOnce(&H5vccUpdater::OnGetUpdaterChannel, WrapPersistent(this),
+  remote_h5vcc_updater_->GetUpdateServerUrl(
+      WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
 
-void H5vccUpdater::OnGetUpdaterChannel(ScriptPromiseResolver* resolver,
-                                       const String& result) {
+void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
+                                        const String& result) {
   resolver->Resolve(result);
-}
-
-const String& H5vccUpdater::updaterChannel() {
-  EnsureReceiverIsBound();
-  remote_h5vcc_updater_->GetUpdaterChannelSync(&updater_channel_);
-  return updater_channel_;
 }
 
 void H5vccUpdater::EnsureReceiverIsBound() {
