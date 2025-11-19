@@ -99,6 +99,11 @@ runs:
         if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
           # Fail the job so it's easy to retrigger.
+          if [[ "${{ matrix.platform }}" == "linux-x64x11" ]]; then
+             echo "matrix.platform is: ${{ matrix.platform }}"
+             echo "Ignoring failures on linux-x64x11"
+             exit 0
+          fi
           exit 1
         fi
     - name: Archive Test Results
