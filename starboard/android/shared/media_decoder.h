@@ -27,6 +27,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -147,7 +148,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     PendingInput pending_input;
   };
 
-  static void* DecoderThreadEntryPoint(void* context);
+  class DecoderThread;
+
   void DecoderThreadFunc();
 
   void TerminateDecoderThread();
@@ -211,7 +213,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::optional<pthread_t> decoder_thread_;
+  std::unique_ptr<Thread> decoder_thread_;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

@@ -101,16 +101,10 @@ struct StarboardRendererTraits {
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote,
       GetStarboardCommandBufferStubCB
-          get_starboard_command_buffer_stub_cb,
-      AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
+          get_starboard_command_buffer_stub_cb);
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };
-
-// Creates a platform-specific media::StarboardRenderer.
-// This is used on Cobalt (android/linux).
-std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
-    StarboardRendererTraits traits);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
@@ -239,6 +233,13 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
   // anything here.
   virtual std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
       scoped_refptr<base::SequencedTaskRunner> task_runner);
+  
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Creates a platform-specific media::StarboardRenderer.
+  // This is used on Cobalt (android/linux).
+  virtual std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
+        StarboardRendererTraits traits);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Creates a CDM factory, right now only used on android and chromeos.
   virtual std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
@@ -259,10 +260,6 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
   // Note this should not be passed outside of this class since it must be
   // carefully used only on the GPU thread and not the media service thread.
   const base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager_;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
-#endif
 
   // Cross-platform cache supported config cache.
   std::optional<SupportedVideoDecoderConfigs> supported_config_cache_;
