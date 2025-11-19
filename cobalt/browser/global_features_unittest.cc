@@ -140,4 +140,9 @@ TEST_F(GlobalFeaturesTest,
   EXPECT_TRUE(active_config_data.empty());
 }
 
+TEST_F(GlobalFeaturesTest, CrashingTest) {
+  int* p = nullptr;
+  *p = 0;
+}
+
 }  // namespace cobalt
