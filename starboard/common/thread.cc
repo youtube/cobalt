@@ -29,8 +29,6 @@
 
 namespace starboard {
 
-void TerminateOnThread();
-
 struct Thread::Data {
   std::string name_;
   pthread_t thread_ = 0;
