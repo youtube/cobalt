@@ -48,7 +48,7 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 class MinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(MinRequiredFramesTester* tester)
-      : Thread("audio_tester"), tester_(tester) {}
+      : Thread("min_frames_test"), tester_(tester) {}
 
   void Run() override {
     SbThreadSetPriority(kSbThreadPriorityLowest);
