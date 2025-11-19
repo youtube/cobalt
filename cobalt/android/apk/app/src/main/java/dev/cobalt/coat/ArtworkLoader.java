@@ -95,7 +95,7 @@ public class ArtworkLoader {
     return bestImage;
   }
 
-  public Bitmap cropTo16x9(Bitmap bitmap) {
+  private Bitmap cropTo16x9(Bitmap bitmap) {
     // Crop to 16:9 as needed
     if (bitmap != null) {
       int height = bitmap.getWidth() * 9 / 16;
