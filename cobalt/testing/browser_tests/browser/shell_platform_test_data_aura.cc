@@ -26,7 +26,7 @@ namespace content {
 
 ShellPlatformTestDataAura::ShellPlatformTestDataAura(
     const gfx::Size& initial_size)
-    : ShellPlatformDataAura(initial_size) {
+    : ShellPlatformDataAura(initial_size, false) {
   focus_client_ =
       std::make_unique<aura::test::TestFocusClient>(host()->window());
   aura::client::SetFocusClient(host()->window(), focus_client_.get());
@@ -44,6 +44,7 @@ ShellPlatformTestDataAura::ShellPlatformTestDataAura(
 
 ShellPlatformTestDataAura::~ShellPlatformTestDataAura() {
   aura::client::SetCursorShapeClient(nullptr);
+  aura::client::SetWindowParentingClient(host()->window(), nullptr);
 }
 
 }  // namespace content

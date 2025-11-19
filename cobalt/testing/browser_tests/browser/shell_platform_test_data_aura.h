@@ -31,7 +31,10 @@ namespace content {
 class ShellPlatformTestDataAura : public ShellPlatformDataAura {
  public:
   explicit ShellPlatformTestDataAura(const gfx::Size& initial_size);
-  ~ShellPlatformTestDataAura();
+  ShellPlatformTestDataAura(const ShellPlatformTestDataAura&) = delete;
+  ShellPlatformTestDataAura& operator=(const ShellPlatformTestDataAura&) =
+      delete;
+  ~ShellPlatformTestDataAura() override;
 
  private:
   std::unique_ptr<aura::client::WindowParentingClient> window_parenting_client_;

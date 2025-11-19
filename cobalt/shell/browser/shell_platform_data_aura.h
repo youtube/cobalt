@@ -41,12 +41,13 @@ namespace content {
 
 class ShellPlatformDataAura {
  public:
-  explicit ShellPlatformDataAura(const gfx::Size& initial_size);
+  explicit ShellPlatformDataAura(const gfx::Size& initial_size,
+                                 bool create_focus_client = true);
 
   ShellPlatformDataAura(const ShellPlatformDataAura&) = delete;
   ShellPlatformDataAura& operator=(const ShellPlatformDataAura&) = delete;
 
-  ~ShellPlatformDataAura();
+  virtual ~ShellPlatformDataAura();
 
   void ShowWindow();
   void ResizeWindow(const gfx::Size& size);

@@ -98,42 +98,37 @@ class FocusRules : public wm::BaseFocusRules {
 
 }  // namespace
 
-ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size) {
-  CHECK(aura::Env::GetInstance());
-
+ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size,
+                                             bool create_focus_client) {
 #if BUILDFLAG(IS_OZONE)
-  // Setup global display::Screen singleton.
   screen_ = std::make_unique<aura::ScreenOzone>();
-#endif  // BUILDFLAG(IS_OZONE)
+#endif
 
-  ui::PlatformWindowInitProperties properties;
-  properties.bounds = gfx::Rect(initial_size);
-
-  host_ = aura::WindowTreeHost::Create(std::move(properties));
+  host_ = aura::WindowTreeHost::Create(ui::PlatformWindowInitProperties{
+      gfx::Rect(gfx::Point(), initial_size), "Cobalt"});
   host_->InitHost();
-  host_->window()->Show();
-  host_->window()->SetLayoutManager(
-      std::make_unique<FillLayout>(host_->window()));
 
-  // Reference void AuraContext::InitializeWindowTreeHost(aura::WindowTreeHost*
-  // host) from ui/webui/examples/browser/ui/aura/aura_context.cc
-  focus_client_ = std::make_unique<wm::FocusController>(new FocusRules());
-  aura::client::SetFocusClient(host_->window(), focus_client_.get());
-
+  // TODO(https://crbug.com/1336055): this is needed for
+  // mouse_cursor_overlay_controller_browsertest.cc on cast_shell_linux as
+  // currently, when is_castos = true, the views toolkit isn't used.
   capture_client_ =
       std::make_unique<aura::client::DefaultCaptureClient>(host_->window());
-}
 
-ShellPlatformDataAura::~ShellPlatformDataAura() {
-  aura::client::SetCursorShapeClient(nullptr);
-}
+  if (create_focus_client) {
+    focus_client_ = std::make_unique<wm::FocusController>(nullptr);
+    aura::client::SetFocusClient(host_->window(), focus_client_.get());
+  }
 
-void ShellPlatformDataAura::ShowWindow() {
-  host_->Show();
-}
+  ShellPlatformDataAura::~ShellPlatformDataAura() {
+    aura::client::SetFocusClient(nullptr);
+  }
 
-void ShellPlatformDataAura::ResizeWindow(const gfx::Size& size) {
-  host_->SetBoundsInPixels(gfx::Rect(size));
-}
+  void ShellPlatformDataAura::ShowWindow() {
+    host_->Show();
+  }
+
+  void ShellPlatformDataAura::ResizeWindow(const gfx::Size& size) {
+    host_->SetBoundsInPixels(gfx::Rect(size));
+  }
 
 }  // namespace content
