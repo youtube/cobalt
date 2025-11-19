@@ -41,6 +41,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
+<<<<<<< HEAD
           traits.max_video_capabilities,
           traits.viewport_size,
           traits.h5vcc_settings
@@ -49,6 +50,9 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
       ) {
+=======
+          traits.max_video_capabilities) {
+>>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,

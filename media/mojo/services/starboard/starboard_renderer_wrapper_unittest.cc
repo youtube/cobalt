@@ -52,6 +52,7 @@ class MockStarboardRenderer : public StarboardRenderer {
       const base::UnguessableToken& overlay_plane_id,
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
+<<<<<<< HEAD
       const std::string& max_video_capabilities,
       const gfx::Size& viewport_size,
       const std::map<std::string, H5vccSettingValue> h5vcc_settings
@@ -60,11 +61,15 @@ class MockStarboardRenderer : public StarboardRenderer {
       const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
       )
+=======
+      const std::string& max_video_capabilities)
+>>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
       : StarboardRenderer(task_runner,
                           std::move(media_log),
                           overlay_plane_id,
                           audio_write_duration_local,
                           audio_write_duration_remote,
+<<<<<<< HEAD
                           max_video_capabilities,
                           viewport_size,
                           h5vcc_settings
@@ -74,6 +79,9 @@ class MockStarboardRenderer : public StarboardRenderer {
 #endif  // BUILDFLAG(IS_ANDROID)
         ) {
   }
+=======
+                          max_video_capabilities) {}
+>>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -151,6 +159,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::UnguessableToken::Create(),
             base::Seconds(1),
             base::Seconds(1),
+<<<<<<< HEAD
             std::string(),
             gfx::Size(),
             std::map<std::string, H5vccSettingValue>()
@@ -159,6 +168,9 @@ class StarboardRendererWrapperTest : public testing::Test {
             AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
                 )),
+=======
+            std::string())),
+>>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
         mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
