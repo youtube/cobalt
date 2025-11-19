@@ -529,11 +529,6 @@ base::FilePath ShellContentBrowserClient::GetFirstPartySetsDirectory() {
 }
 
 std::string ShellContentBrowserClient::GetUserAgent() {
-  const auto custom_ua = embedder_support::GetUserAgentFromCommandLine();
-  if (custom_ua.has_value()) {
-    return custom_ua.value();
-  }
-
   std::string product =
       base::StringPrintf("Chrome/%s.0.0.0", CONTENT_SHELL_MAJOR_VERSION);
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
