@@ -34,11 +34,6 @@ Thread::Options& Thread::Options::WithStackSize(int64_t size) {
   return *this;
 }
 
-Thread::Options& Thread::Options::WithDetached(bool is_detached) {
-  detached = is_detached;
-  return *this;
-}
-
 struct Thread::Data {
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
@@ -47,14 +42,10 @@ struct Thread::Data {
 };
 
 Thread::Thread(const std::string& name, const Options& options)
-    : name_(name), options_(options) {
-  d_.reset(new Thread::Data);
-}
+    : name_(name), options_(options), d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
-  if (!options_.detached) {
-    SB_CHECK(d_->join_called_.load()) << "Join not called on thread.";
-  }
+  SB_DCHECK(d_->join_called_.load()) << "Join not called on thread.";
 }
 
 void Thread::Start() {
@@ -65,9 +56,6 @@ void Thread::Start() {
   pthread_attr_init(&attributes);
   if (options_.stack_size > 0) {
     pthread_attr_setstacksize(&attributes, options_.stack_size);
-  }
-  if (options_.detached) {
-    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
   }
 
   const int result =
@@ -114,8 +102,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 }
 
 void Thread::Join() {
-  SB_CHECK(!options_.detached);
-  SB_CHECK_EQ(d_->join_called_.load(), false);
+  SB_DCHECK_EQ(d_->join_called_.load(), false);
 
   d_->join_called_.store(true);
   d_->join_sema_.Put();

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_
 #define STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_
 
+#include <atomic>
 #include <memory>
 
 #include "starboard/common/thread.h"
@@ -23,16 +24,20 @@
 
 class NetworkNotifier : public starboard::Singleton<NetworkNotifier> {
  public:
+  ~NetworkNotifier();
+
   bool Initialize();
 
   bool is_online() const;
   void set_online(bool is_online);
+  bool stop_requested() const { return stop_requested_.load(); }
 
  private:
   class NotifierThread;
 
   std::unique_ptr<starboard::Thread> notifier_thread_;
   bool is_online_ = true;
+  std::atomic_bool stop_requested_{false};
 };
 
 #endif  // STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_

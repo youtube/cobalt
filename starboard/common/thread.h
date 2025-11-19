@@ -34,12 +34,10 @@ class Semaphore;
 class Thread {
  public:
   struct Options {
-    Options() : stack_size(0), detached(false) {}
+    Options() : stack_size(0) {}
     int64_t stack_size;
-    bool detached;
 
     Options& WithStackSize(int64_t size);
-    Options& WithDetached(bool is_detached);
   };
 
   explicit Thread(const std::string& name, const Options& options = {});
@@ -77,10 +75,10 @@ class Thread {
   Semaphore* join_sema();
   std::atomic_bool* joined_bool();
 
-  struct Data;
-  std::unique_ptr<Data> d_;
   const std::string name_;
   const Options options_;
+  struct Data;
+  std::unique_ptr<Data> d_;
 
   Thread(const Thread&) = delete;
   void operator=(const Thread&) = delete;
