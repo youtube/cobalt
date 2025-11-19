@@ -3466,7 +3466,6 @@ source_set("browser") {
       "//third_party/blink/public/mojom:mojom_platform_blink",
       "//third_party/icu",
       "//third_party/jni_zero",
-      "//third_party/jni_zero:cobalt_for_google3_buildflags",
       "//ui/accessibility:ax_assistant",
       "//ui/accessibility:ax_base_android",
       "//ui/accessibility/mojom",
@@ -3479,6 +3478,11 @@ source_set("browser") {
     ]
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan/init" ]
+    }
+    if (is_cobalt) {
+      deps += [ 
+        "//third_party/jni_zero:cobalt_for_google3_buildflags",
+      ]
     }
     libs += [ "jnigraphics" ]
   } else {

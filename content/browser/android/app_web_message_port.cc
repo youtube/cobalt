@@ -22,7 +22,9 @@
 #include "third_party/blink/public/common/messaging/transferable_message_mojom_traits.h"
 #include "third_party/blink/public/common/messaging/web_message_port.h"
 #include "third_party/blink/public/mojom/messaging/transferable_message.mojom.h"
-#include "third_party/jni_zero/cobalt_for_google3_buildflags.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/jni_zero/cobalt_for_google3_buildflags.h" // nogncheck
+#endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "content/public/android/content_jni_headers/AppWebMessagePort_jni.h"
@@ -41,7 +43,7 @@ base::android::ScopedJavaLocalRef<jobjectArray> CreateJavaMessagePort(
   JNIEnv* env = base::android::AttachCurrentThread();
   return base::android::ToTypedJavaArrayOfObjects(
       env, base::span(j_descriptors),
-#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT_ON_GOOGLE3)
       cobalt_org_chromium_content_browser_AppWebMessagePort_clazz(env));
 #else
       org_chromium_content_browser_AppWebMessagePort_clazz(env));
