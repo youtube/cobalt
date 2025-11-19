@@ -11,7 +11,7 @@ permissions: read-all
 jobs:
   rerun-failing-jobs:
     runs-on: ubuntu-latest
-    if: contains(['failure', 'cancelled'], github.event.workflow_run.conclusion)
+    if: contains(github.event.workflow_run.conclusion, ['failure', 'cancelled'])
     permissions:
       actions: write
       checks: read
