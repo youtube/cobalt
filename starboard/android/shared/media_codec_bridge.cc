@@ -224,14 +224,18 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       env_jni, env_jni->NewStringUTF(decoder_name.c_str()));
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
-  jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
-      "dev/cobalt/media/MediaCodecBridgeBuilder", "createAudioDecoder",
-      "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;"
-      "[B)Ldev/cobalt/media/MediaCodecBridge;",
-      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.obj(),
-      j_decoder_name.obj(), audio_stream_info.samples_per_second,
-      audio_stream_info.number_of_channels, j_media_crypto,
-      configuration_data.obj());
+  ScopedJavaLocalRef<jobject> j_media_codec_bridge(
+      env_jni,
+      static_cast<jobject>(env->CallStaticObjectMethodOrAbort(
+          "dev/cobalt/media/MediaCodecBridgeBuilder", "createAudioDecoder",
+          "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/"
+          "MediaCrypto;"
+          "[B)Ldev/cobalt/media/MediaCodecBridge;",
+          reinterpret_cast<jlong>(native_media_codec_bridge.get()),
+          j_mime.obj(), j_decoder_name.obj(),
+          audio_stream_info.samples_per_second,
+          audio_stream_info.number_of_channels, j_media_crypto,
+          configuration_data.obj())));
 
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
@@ -239,8 +243,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return nullptr;
   }
 
-  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
-  native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
 }
 
@@ -383,9 +386,10 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       j_media_crypto, j_color_info.obj(), tunnel_mode_audio_session_id,
       max_video_input_size, j_create_media_codec_bridge_result.obj());
 
-  jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
-      j_create_media_codec_bridge_result.obj(), "mediaCodecBridge",
-      "()Ldev/cobalt/media/MediaCodecBridge;");
+  ScopedJavaLocalRef<jobject> j_media_codec_bridge(
+      env_jni, static_cast<jobject>(env->CallObjectMethodOrAbort(
+                   j_create_media_codec_bridge_result.obj(), "mediaCodecBridge",
+                   "()Ldev/cobalt/media/MediaCodecBridge;")));
 
   if (!j_media_codec_bridge) {
     ScopedJavaLocalRef<jstring> j_error_message(
@@ -395,8 +399,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return nullptr;
   }
 
-  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
-  native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
 }
 

@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 
+#include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -128,6 +129,7 @@ void* MediaCodecBridgeEradicator::DestroyMediaCodecBridge(void* context) {
     }
   }
 
+  JNIState::GetVM()->DetachCurrentThread();
   return NULL;
 }
 
