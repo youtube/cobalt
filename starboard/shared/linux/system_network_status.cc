@@ -105,34 +105,11 @@ class NetworkNotifier::NotifierThread : public starboard::Thread {
   explicit NotifierThread(NetworkNotifier* notifier)
       : starboard::Thread("NetworkNotifier"), notifier_(notifier) {}
 
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityLow);
-    int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
-    bool is_online;
-    while (!notifier_->stop_requested()) {
-      if (GetOnlineStatus(&is_online, netlink_fd)) {
-        notifier_->set_online(is_online);
-        auto* application = starboard::Application::Get();
-        if (is_online) {
-          application->InjectOsNetworkConnectedEvent();
-        } else {
-          application->InjectOsNetworkDisconnectedEvent();
-        }
-      }
-      usleep(1000);
-    }
-  }
+  void Run() override { NotifierThreadEntry(notifier_); }
 
  private:
   NetworkNotifier* notifier_;
 };
-
-NetworkNotifier::~NetworkNotifier() {
-  if (notifier_thread_) {
-    stop_requested_.store(true);
-    notifier_thread_->Join();
-  }
-}
 
 bool NetworkNotifier::Initialize() {
   SB_CHECK(!notifier_thread_);
@@ -140,6 +117,27 @@ bool NetworkNotifier::Initialize() {
   notifier_thread_ = std::make_unique<NotifierThread>(this);
   notifier_thread_->Start();
   return true;
+}
+
+void* NetworkNotifier::NotifierThreadEntry(void* context) {
+  SbThreadSetPriority(kSbThreadPriorityLow);
+  auto* notifier = static_cast<NetworkNotifier*>(context);
+  int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+  bool is_online;
+  do {
+    if (GetOnlineStatus(&is_online, netlink_fd)) {
+      notifier->set_online(is_online);
+      auto* application = starboard::Application::Get();
+      if (is_online) {
+        application->InjectOsNetworkConnectedEvent();
+      } else {
+        application->InjectOsNetworkDisconnectedEvent();
+      }
+    }
+    usleep(1000);
+  } while (1);
+
+  return nullptr;
 }
 
 bool NetworkNotifier::is_online() const {
