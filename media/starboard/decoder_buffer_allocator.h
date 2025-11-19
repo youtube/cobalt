@@ -68,6 +68,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
   void SetEnabled(bool enabled) override;
+  void SetAllocateOnDemand(bool is_on_demand) override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
@@ -81,7 +82,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  const bool is_memory_pool_allocated_on_demand_;
+  bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 

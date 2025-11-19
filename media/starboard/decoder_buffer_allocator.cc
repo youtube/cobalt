@@ -74,11 +74,10 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
-
-  base::AutoLock scoped_lock(mutex_);
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -88,11 +87,11 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
-  base::AutoLock scoped_lock(mutex_);
   EnsureStrategyIsCreated();
 }
 
@@ -246,6 +245,26 @@ void DecoderBufferAllocator::SetEnabled(bool enabled) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
               << " bytes of media buffer pool since allocator is disabled.";
     strategy_.reset();
+  }
+}
+
+void DecoderBufferAllocator::SetAllocateOnDemand(
+    bool enable_allocate_on_demand) {
+  base::AutoLock scoped_lock(mutex_);
+  if (is_memory_pool_allocated_on_demand_ == enable_allocate_on_demand) {
+    return;
+  }
+
+  is_memory_pool_allocated_on_demand_ = enable_allocate_on_demand;
+
+  if (is_memory_pool_allocated_on_demand_) {
+    // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
+    // reset the the strategy.
+    if (strategy_ && strategy_->GetAllocated() == 0) {
+      strategy_.reset();
+    }
+  } else {
+    EnsureStrategyIsCreated();
   }
 }
 
