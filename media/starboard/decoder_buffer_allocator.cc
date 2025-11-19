@@ -248,22 +248,25 @@ void DecoderBufferAllocator::SetEnabled(bool enabled) {
   }
 }
 
-void DecoderBufferAllocator::SetAllocateOnDemand(
-    bool enable_allocate_on_demand) {
+void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
   base::AutoLock scoped_lock(mutex_);
-  if (is_memory_pool_allocated_on_demand_ == enable_allocate_on_demand) {
+  if (is_memory_pool_allocated_on_demand_ == enabled) {
     return;
   }
 
-  is_memory_pool_allocated_on_demand_ = enable_allocate_on_demand;
+  is_memory_pool_allocated_on_demand_ = enabled;
 
   if (is_memory_pool_allocated_on_demand_) {
     // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
     // reset the the strategy.
+    LOG(INFO) << "Enabling is_memory_pool_allocated_on_demand_ for "
+                 "DecoderBufferAllocator";
     if (strategy_ && strategy_->GetAllocated() == 0) {
       strategy_.reset();
     }
   } else {
+    LOG(INFO) << "Disabling is_memory_pool_allocated_on_demand_ for "
+                 "DecoderBufferAllocator";
     EnsureStrategyIsCreated();
   }
 }

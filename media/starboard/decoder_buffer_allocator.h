@@ -68,7 +68,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
   void SetEnabled(bool enabled) override;
-  void SetAllocateOnDemand(bool is_on_demand) override;
+  void SetAllocateOnDemand(bool enabled) override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
