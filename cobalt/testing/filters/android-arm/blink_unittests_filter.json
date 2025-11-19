@@ -60,6 +60,7 @@
     "WebFrameTest.SiteForCookiesFromChildWithRemoteMainFrame",
     "HTMLSrcsetParserTest.SaveDataEnabledBasic",
     "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
-    "MediaStreamRemoteVideoSourceTest.*"
+    "MediaStreamRemoteVideoSourceTest.*",
+    "AnnotationAgentContainerImplTest.CreateAgentFromSelectionWithPreemptiveGeneration"
   ]
 }
