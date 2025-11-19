@@ -41,6 +41,20 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 }
 }  // namespace
 
+class MinRequiredFramesTester::TesterThread : public Thread {
+ public:
+  explicit TesterThread(MinRequiredFramesTester* tester)
+      : Thread("min_frames_test"), tester_(tester) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityLowest);
+    tester_->TesterThreadFunc();
+  }
+
+ private:
+  MinRequiredFramesTester* tester_;
+};
+
 MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
                                                  int required_frames_increment,
                                                  int min_stable_played_frames)
@@ -53,6 +67,7 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
+<<<<<<< HEAD
   if (tester_thread_ != 0) {
     {
       ScopedLock scoped_lock(mutex_);
@@ -60,6 +75,12 @@ MinRequiredFramesTester::~MinRequiredFramesTester() {
     }
     pthread_join(tester_thread_, NULL);
     tester_thread_ = 0;
+=======
+  if (tester_thread_) {
+    test_complete_cv_.notify_one();
+    tester_thread_->Join();
+    tester_thread_.reset();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 }
 
@@ -82,6 +103,7 @@ void MinRequiredFramesTester::Start() {
   // MinRequiredFramesTester only supports to start once.
   SB_DCHECK_EQ(tester_thread_, 0);
 
+<<<<<<< HEAD
   pthread_create(&tester_thread_, nullptr,
                  &MinRequiredFramesTester::TesterThreadEntryPoint, this);
   SB_DCHECK_NE(tester_thread_, 0);
@@ -99,6 +121,10 @@ void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
   tester->TesterThreadFunc();
   JNIState::GetVM()->DetachCurrentThread();
   return NULL;
+=======
+  tester_thread_ = std::make_unique<TesterThread>(this);
+  tester_thread_->Start();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 void MinRequiredFramesTester::TesterThreadFunc() {

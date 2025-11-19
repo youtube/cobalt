@@ -89,6 +89,10 @@ static_library("common") {
     "time.cc",
     "time.h",
   ]
+
+  if (!is_android) {
+    sources += [ "thread_platform_base.cc" ]
+  }
 }
 
 static_library("file_wrapper") {

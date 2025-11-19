@@ -18,6 +18,7 @@
 
 #include <pthread.h>
 #include <unistd.h>
+
 #include <atomic>
 #include <optional>
 
@@ -25,6 +26,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread_platform.h"
 
 #if defined(ANDROID)
 #include "starboard/android/shared/jni_state.h"
@@ -38,11 +40,13 @@ struct Thread::Data {
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
+  int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name) {
+Thread::Thread(const std::string& name, int64_t stack_size) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
+  d_->stack_size_ = stack_size;
 }
 
 Thread::~Thread() {
@@ -53,10 +57,23 @@ void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
+<<<<<<< HEAD
   pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
 
   // pthread_create() above produced an invalid thread handle.
   SB_DCHECK_NE(d_->thread_, static_cast<pthread_t>(0));
+=======
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  if (d_->stack_size_ > 0) {
+    pthread_attr_setstacksize(&attributes, d_->stack_size_);
+  }
+
+  const int result =
+      pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
+  pthread_attr_destroy(&attributes);
+  SB_CHECK_EQ(result, 0);
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 void Thread::Sleep(int64_t microseconds) {
@@ -87,10 +104,15 @@ void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
   this_ptr->Run();
+<<<<<<< HEAD
   // TODO: b/461085624 - Replace direct-call with platform-specific override.
 #if defined(ANDROID)
   android::shared::JNIState::GetVM()->DetachCurrentThread();
 #endif
+=======
+
+  TerminateOnThread();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   return NULL;
 }
 

@@ -15,10 +15,9 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_
 #define STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -27,6 +26,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -61,7 +61,8 @@ class ContinuousAudioTrackSink
   int GetStartThresholdInFrames();
 
  private:
-  static void* ThreadEntryPoint(void* context);
+  class AudioOutThread;
+
   void AudioThreadFunc();
 
   int WriteData(JniEnvExt* env, const void* buffer, int size);
@@ -85,7 +86,11 @@ class ContinuousAudioTrackSink
   AudioTrackBridge bridge_;
 
   volatile bool quit_ = false;
+<<<<<<< HEAD
   pthread_t audio_out_thread_ = 0;
+=======
+  std::unique_ptr<Thread> audio_out_thread_;
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;

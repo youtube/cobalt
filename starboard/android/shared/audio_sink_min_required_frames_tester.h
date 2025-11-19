@@ -15,15 +15,23 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
+<<<<<<< HEAD
 #include <string>
 #include <vector>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
+=======
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "starboard/common/thread.h"
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -74,7 +82,8 @@ class MinRequiredFramesTester {
     const int default_required_frames;
   };
 
-  static void* TesterThreadEntryPoint(void* context);
+  class TesterThread;
+
   void TesterThreadFunc();
 
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
@@ -113,9 +122,16 @@ class MinRequiredFramesTester {
   int last_underrun_count_;
   int last_total_consumed_frames_;
 
+<<<<<<< HEAD
   Mutex mutex_;
   ConditionVariable condition_variable_;
   pthread_t tester_thread_ = 0;
+=======
+  std::mutex mutex_;
+  std::condition_variable test_complete_cv_;
+  bool is_test_complete_ = false;  // Guarded by |mutex_|.
+  std::unique_ptr<Thread> tester_thread_;
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   std::atomic_bool destroying_;
 };
 

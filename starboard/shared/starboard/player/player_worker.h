@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -25,6 +23,11 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
+<<<<<<< HEAD
+=======
+#include "starboard/common/result.h"
+#include "starboard/common/thread.h"
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -176,6 +179,8 @@ class PlayerWorker {
   }
 
  private:
+  class WorkerThread;
+
   PlayerWorker(SbMediaAudioCodec audio_codec,
                SbMediaVideoCodec video_codec,
                std::unique_ptr<Handler> handler,
@@ -197,7 +202,6 @@ class PlayerWorker {
                          Handler::HandlerResult result,
                          const std::string& message);
 
-  static void* ThreadEntryPoint(void* context);
   void RunLoop();
   void DoInit();
   void DoSeek(int64_t seek_to_time, int ticket);
@@ -212,7 +216,11 @@ class PlayerWorker {
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
+<<<<<<< HEAD
   pthread_t thread_;
+=======
+  std::unique_ptr<Thread> thread_;
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   std::unique_ptr<JobQueue> job_queue_;
 
   SbMediaAudioCodec audio_codec_;

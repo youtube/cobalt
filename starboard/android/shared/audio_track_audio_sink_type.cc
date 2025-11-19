@@ -112,6 +112,20 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
+class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
+ public:
+  explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
+      : Thread("audio_track_out"), sink_(sink) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityRealTime);
+    sink_->AudioThreadFunc();
+  }
+
+ private:
+  AudioTrackAudioSink* sink_;
+};
+
 AudioTrackAudioSink::AudioTrackAudioSink(
     Type* type,
     int channels,
@@ -166,16 +180,26 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
+<<<<<<< HEAD
   pthread_create(&audio_out_thread_, nullptr,
                  &AudioTrackAudioSink::ThreadEntryPoint, this);
   SB_DCHECK_NE(audio_out_thread_, 0);
+=======
+  audio_out_thread_ = std::make_unique<AudioTrackOutThread>(this);
+  audio_out_thread_->Start();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
+<<<<<<< HEAD
   if (audio_out_thread_ != 0) {
     SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
+=======
+  if (audio_out_thread_) {
+    audio_out_thread_->Join();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 }
 
@@ -190,6 +214,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 }
 
+<<<<<<< HEAD
 // static
 void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "audio_track_out");
@@ -203,6 +228,8 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
+=======
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();

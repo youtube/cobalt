@@ -80,9 +80,31 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 }  // namespace
 
+<<<<<<< HEAD
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
+=======
+class MediaCodecDecoder::DecoderThread : public Thread {
+ public:
+  explicit DecoderThread(MediaCodecDecoder* decoder)
+      : Thread(GetDecoderName(decoder->media_type_)), decoder_(decoder) {}
+
+  void Run() override {
+    SbThreadSetPriority(decoder_->media_type_ == kSbMediaTypeAudio
+                            ? kSbThreadPriorityNormal
+                            : kSbThreadPriorityHigh);
+    decoder_->DecoderThreadFunc();
+  }
+
+ private:
+  MediaCodecDecoder* decoder_;
+};
+
+MediaCodecDecoder::MediaCodecDecoder(Host* host,
+                                     const AudioStreamInfo& audio_stream_info,
+                                     SbDrmSystem drm_system)
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -201,10 +223,16 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
+<<<<<<< HEAD
   if (decoder_thread_ == 0) {
     pthread_create(&decoder_thread_, nullptr,
                    &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK_NE(decoder_thread_, 0);
+=======
+  if (!decoder_thread_) {
+    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_->Start();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -236,6 +264,7 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
+<<<<<<< HEAD
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_CHECK(context);
@@ -253,6 +282,9 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
 }
 
 void MediaDecoder::DecoderThreadFunc() {
+=======
+void MediaCodecDecoder::DecoderThreadFunc() {
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   SB_DCHECK(error_cb_);
 
   if (media_type_ == kSbMediaTypeAudio) {
@@ -395,9 +427,15 @@ void MediaDecoder::TerminateDecoderThread() {
     condition_variable_.Signal();
   }
 
+<<<<<<< HEAD
   if (decoder_thread_ != 0) {
     SB_CHECK_EQ(pthread_join(decoder_thread_, nullptr), 0);
     decoder_thread_ = 0;
+=======
+  if (decoder_thread_) {
+    decoder_thread_->Join();
+    decoder_thread_.reset();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 }
 

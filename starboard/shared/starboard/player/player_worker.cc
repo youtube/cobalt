@@ -14,7 +14,11 @@
 
 #include "starboard/shared/starboard/player/player_worker.h"
 
+<<<<<<< HEAD
 #include <pthread.h>
+=======
+#include <string.h>
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 
 #include <memory>
 #include <string>
@@ -58,6 +62,7 @@ const int64_t kWritePendingSampleDelayUsec = 8'000;  // 8ms
 
 DECLARE_INSTANCE_COUNTER(PlayerWorker);
 
+<<<<<<< HEAD
 struct ThreadParam {
   explicit ThreadParam(PlayerWorker* player_worker)
       : condition_variable(mutex), player_worker(player_worker) {}
@@ -66,7 +71,36 @@ struct ThreadParam {
   PlayerWorker* player_worker;
 };
 
+=======
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }  // namespace
+
+class PlayerWorker::WorkerThread : public Thread {
+ public:
+  WorkerThread(PlayerWorker* worker,
+               int64_t stack_size,
+               std::mutex* mutex,
+               std::condition_variable* cv)
+      : Thread("player_worker", stack_size),
+        worker_(worker),
+        mutex_(mutex),
+        cv_(cv) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityHigh);
+    {
+      std::lock_guard lock(*mutex_);
+      worker_->job_queue_ = std::make_unique<JobQueue>();
+    }
+    cv_->notify_one();
+    worker_->RunLoop();
+  }
+
+ private:
+  PlayerWorker* worker_;
+  std::mutex* mutex_;
+  std::condition_variable* cv_;
+};
 
 PlayerWorker* PlayerWorker::CreateInstance(
     SbMediaAudioCodec audio_codec,
@@ -95,8 +129,13 @@ PlayerWorker::~PlayerWorker() {
 
   if (thread_ != 0) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
+<<<<<<< HEAD
     SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
     thread_ = 0;
+=======
+    thread_->Join();
+    thread_.reset();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 
     // Now the whole pipeline has been torn down and no callback will be called.
     // The caller can ensure that upon the return of SbPlayerDestroy() all side
@@ -130,8 +169,13 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
   ON_INSTANCE_CREATED(PlayerWorker);
 
-  ThreadParam thread_param(this);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  thread_ = std::make_unique<WorkerThread>(this, kPlayerStackSize, &mutex,
+                                           &condition_variable);
+  thread_->Start();
 
+<<<<<<< HEAD
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
   pthread_attr_setstacksize(&attributes, kPlayerStackSize);
@@ -147,6 +191,10 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
   }
+=======
+  std::unique_lock lock(mutex);
+  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   SB_DCHECK(job_queue_);
 }
 
@@ -193,6 +241,7 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
   player_error_func_(player_, context_, error, complete_error_message.c_str());
 }
 
+<<<<<<< HEAD
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "player_worker");
@@ -212,6 +261,8 @@ void* PlayerWorker::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
+=======
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 void PlayerWorker::RunLoop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 

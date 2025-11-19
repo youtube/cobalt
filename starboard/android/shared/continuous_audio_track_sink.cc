@@ -15,6 +15,7 @@
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 
 #include <unistd.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -45,6 +46,20 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
 }  // namespace
+
+class ContinuousAudioTrackSink::AudioOutThread : public Thread {
+ public:
+  explicit AudioOutThread(ContinuousAudioTrackSink* sink)
+      : Thread("cont_audio_sink"), sink_(sink) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityRealTime);
+    sink_->AudioThreadFunc();
+  }
+
+ private:
+  ContinuousAudioTrackSink* sink_;
+};
 
 ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     Type* type,
@@ -95,16 +110,26 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     return;
   }
 
+<<<<<<< HEAD
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);
   SB_DCHECK_NE(audio_out_thread_, 0);
+=======
+  audio_out_thread_ = std::make_unique<AudioOutThread>(this);
+  audio_out_thread_->Start();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
+<<<<<<< HEAD
   if (audio_out_thread_ != 0) {
     SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
+=======
+  if (audio_out_thread_) {
+    audio_out_thread_->Join();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 }
 
@@ -119,6 +144,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 }
 
+<<<<<<< HEAD
 // static
 void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "continous_audio_track_sink");
@@ -133,6 +159,8 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
+=======
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();

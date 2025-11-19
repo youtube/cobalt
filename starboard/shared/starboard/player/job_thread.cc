@@ -26,8 +26,21 @@
 
 namespace starboard::shared::starboard::player {
 
-namespace {
+class JobThread::WorkerThread : public Thread {
+ public:
+  WorkerThread(JobThread* job_thread,
+               const char* thread_name,
+               int64_t stack_size,
+               SbThreadPriority priority,
+               std::mutex* mutex,
+               std::condition_variable* cv)
+      : Thread(thread_name, stack_size),
+        job_thread_(job_thread),
+        priority_(priority),
+        mutex_(mutex),
+        cv_(cv) {}
 
+<<<<<<< HEAD
 struct ThreadParam {
   explicit ThreadParam(JobThread* job_thread,
                        const char* name,
@@ -41,21 +54,36 @@ struct ThreadParam {
   JobThread* job_thread;
   std::string thread_name;
   SbThreadPriority thread_priority;
-};
+=======
+  void Run() override {
+    SbThreadSetPriority(priority_);
+    {
+      std::lock_guard lock(*mutex_);
+      job_thread_->job_queue_ = std::make_unique<JobQueue>();
+    }
+    cv_->notify_one();
+    job_thread_->RunLoop();
+  }
 
-}  // namespace
+ private:
+  JobThread* job_thread_;
+  SbThreadPriority priority_;
+  std::mutex* mutex_;
+  std::condition_variable* cv_;
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
+};
 
 JobThread::JobThread(const char* thread_name,
                      int64_t stack_size,
                      SbThreadPriority priority) {
-  ThreadParam thread_param(this, thread_name, priority);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
 
-  pthread_attr_t attributes;
-  pthread_attr_init(&attributes);
-  if (stack_size > 0) {
-    pthread_attr_setstacksize(&attributes, stack_size);
-  }
+  thread_ = std::make_unique<WorkerThread>(
+      this, thread_name, stack_size, priority, &mutex, &condition_variable);
+  thread_->Start();
 
+<<<<<<< HEAD
   pthread_create(&thread_, &attributes, &JobThread::ThreadEntryPoint,
                  &thread_param);
   pthread_attr_destroy(&attributes);
@@ -65,6 +93,10 @@ JobThread::JobThread(const char* thread_name,
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
   }
+=======
+  std::unique_lock lock(mutex);
+  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   SB_DCHECK(job_queue_);
 }
 
@@ -75,6 +107,7 @@ JobThread::~JobThread() {
   if (job_queue_) {
     job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
   }
+<<<<<<< HEAD
   pthread_join(thread_, nullptr);
 }
 
@@ -98,6 +131,9 @@ void* JobThread::ThreadEntryPoint(void* context) {
   android::shared::JNIState::GetVM()->DetachCurrentThread();
 #endif
   return nullptr;
+=======
+  thread_->Join();
+>>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 void JobThread::RunLoop() {
