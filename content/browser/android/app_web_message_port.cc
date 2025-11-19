@@ -43,10 +43,14 @@ base::android::ScopedJavaLocalRef<jobjectArray> CreateJavaMessagePort(
   JNIEnv* env = base::android::AttachCurrentThread();
   return base::android::ToTypedJavaArrayOfObjects(
       env, base::span(j_descriptors),
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+#if BUILDFLAG(IS_COBALT)
+  #if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
       cobalt_org_chromium_content_browser_AppWebMessagePort_clazz(env));
-#else
+  #else
       org_chromium_content_browser_AppWebMessagePort_clazz(env));
+  #endif
+#else
+    org_chromium_content_browser_AppWebMessagePort_clazz(env));
 #endif
 }
 
