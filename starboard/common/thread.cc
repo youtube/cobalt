@@ -29,20 +29,20 @@
 
 namespace starboard {
 
-Thread::Options& Thread::Options::WithStackSize(int64_t size) {
-  stack_size = size;
-  return *this;
-}
-
 struct Thread::Data {
+  std::string name_;
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
+  int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name, const Options& options)
-    : name_(name), options_(options), d_(std::make_unique<Data>()) {}
+Thread::Thread(const std::string& name, int64_t stack_size) {
+  d_.reset(new Thread::Data);
+  d_->name_ = name;
+  d_->stack_size_ = stack_size;
+}
 
 Thread::~Thread() {
   SB_DCHECK(d_->join_called_.load()) << "Join not called on thread.";
@@ -54,8 +54,8 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
-  if (options_.stack_size > 0) {
-    pthread_attr_setstacksize(&attributes, options_.stack_size);
+  if (d_->stack_size_ > 0) {
+    pthread_attr_setstacksize(&attributes, d_->stack_size_);
   }
 
   const int result =
@@ -91,9 +91,9 @@ std::atomic_bool* Thread::joined_bool() {
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
 #if defined(__APPLE__)
-  pthread_setname_np(this_ptr->name_.c_str());
+  pthread_setname_np(this_ptr->d_->name_.c_str());
 #else
-  pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
+  pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
 #endif
   this_ptr->Run();
 

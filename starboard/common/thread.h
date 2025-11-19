@@ -33,17 +33,13 @@ class Semaphore;
 
 class Thread {
  public:
-  struct Options {
-    Options() : stack_size(0) {}
-    int64_t stack_size;
-
-    Options& WithStackSize(int64_t size);
-  };
-
-  explicit Thread(const std::string& name, const Options& options = {});
+  explicit Thread(const std::string& name) : Thread(name, /*stack_size=*/0) {}
+  explicit Thread(const std::string& name, int64_t stack_size);
   template <size_t N>
-  explicit Thread(char const (&name)[N], const Options& options = {})
-      : Thread(std::string(name), options) {
+  explicit Thread(char const (&name)[N]) : Thread(name, /*stack_size=*/0) {}
+  template <size_t N>
+  explicit Thread(char const (&name)[N], int64_t stack_size)
+      : Thread(std::string(name), stack_size) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");
   }
@@ -75,8 +71,6 @@ class Thread {
   Semaphore* join_sema();
   std::atomic_bool* joined_bool();
 
-  const std::string name_;
-  const Options options_;
   struct Data;
   std::unique_ptr<Data> d_;
 

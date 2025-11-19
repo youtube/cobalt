@@ -31,7 +31,7 @@ class JobThread::WorkerThread : public Thread {
                SbThreadPriority priority,
                std::mutex* mutex,
                std::condition_variable* cv)
-      : Thread(thread_name, Thread::Options().WithStackSize(stack_size)),
+      : Thread(thread_name, stack_size),
         job_thread_(job_thread),
         priority_(priority),
         mutex_(mutex),
