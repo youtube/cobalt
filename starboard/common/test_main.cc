@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/configuration.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
