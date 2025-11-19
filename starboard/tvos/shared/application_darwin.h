@@ -18,10 +18,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/queue_application.h"
 
 namespace starboard {
