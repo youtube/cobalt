@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
+#include "starboard/audio_sink.h"
 #include "starboard/common/media.h"
 #include "starboard/configuration.h"
 
@@ -48,6 +49,16 @@ int GetBitsPerPixel(const std::string& mime_type) {
 
   // Assume SDR when there isn't enough information to determine the bit depth.
   return 8;
+}
+
+int GetMaxChannelCount() {
+  int channels = 2;
+  int index = 0;
+  SbMediaAudioConfiguration configuration;
+  while (SbMediaGetAudioConfiguration(index++, &configuration)) {
+    channels = std::max(configuration.number_of_channels, channels);
+  }
+  return std::min(channels, SbAudioSinkGetMaxChannels());
 }
 
 }  // namespace
@@ -118,6 +129,13 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
   audio_stream_info.mime = mime_type;
   audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
+#if ENABLE_IAMF_DECODE
+  if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
+    // IAMF mixes audio signals to the highest available speaker layout.
+    // TODO: Set the number of channels below Starboard.
+    audio_stream_info.number_of_channels = GetMaxChannelCount();
+  }
+#endif  // ENABLE_IAMF_DECODE
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
   audio_stream_info.bits_per_sample =
@@ -337,7 +355,8 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
     sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
 
     if (hdr_metadata->cta_861_3) {
-      sb_media_color_metadata.max_cll = hdr_metadata->cta_861_3->max_content_light_level;
+      sb_media_color_metadata.max_cll =
+          hdr_metadata->cta_861_3->max_content_light_level;
       sb_media_color_metadata.max_fall =
           hdr_metadata->cta_861_3->max_frame_average_light_level;
     }
