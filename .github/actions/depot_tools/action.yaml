@@ -37,7 +37,7 @@ runs:
         shell: bash
       - name: gclient sync
         if: inputs.run_sync == 'true'
-        run: cd cobalt && gclient sync -v --shallow --no-history --nohooks -r ${{ github.sha }}
+        run: cd cobalt && gclient sync -v --shallow --no-history --nohooks --force -r ${{ github.sha }}
         shell: bash
       - name: gclient runhook
         if: inputs.run_sync == 'true'

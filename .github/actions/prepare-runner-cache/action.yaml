@@ -1,0 +1,27 @@
+name: Prepare Runner Cache
+description: Check the runner cache directory for build
+runs:
+  using: "composite"
+  steps:
+    - name: Check Runner Cache Status
+      run: |
+        CHECKOUT_PATH="/runner-cache/cobalt/src"
+        # If .git/index.lock exists, it indicates a previous abnormal exit.
+        # In this case, remove the entire src directory to ensure a clean slate.
+        if [ -f "${CHECKOUT_PATH}/.git/index.lock" ]; then
+          echo "index.lock found, removing ${CHECKOUT_PATH}."
+          rm -rf "${CHECKOUT_PATH}"
+        fi
+        # Check src already exists by earlier runners:
+        if [ -d "${CHECKOUT_PATH}/.git" ]; then
+          cd "${CHECKOUT_PATH}"
+          git reset --hard
+          # Remove unmerged/conflict markers if any merge was aborted
+          git merge --abort || true
+        fi
+    - name: Link runner cache
+      run: |
+        mkdir -p "${CHECKOUT_PATH}"
+        ln -sf /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
+        # Add safe directory for git
+        git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"

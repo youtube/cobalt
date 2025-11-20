@@ -319,26 +319,14 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
+      - name: Checkout prepare-runner-cache
+        uses: actions/checkout@v4
+        with:
+          # Only need the action file, which is now at the root-level .github folder.
+          fetch-depth: 1 
+          sparse-checkout: .github/actions/prepare-runner-cache
       - name: Prepare Workspace for Checkout
-        run: |
-          CHECKOUT_PATH="/runner-cache/cobalt/src"
-          # If .git/index.lock exists, it indicates a previous abnormal exit.
-          # In this case, remove the entire src directory to ensure a clean slate.
-          if [ -f "${CHECKOUT_PATH}/.git/index.lock" ]; then
-            echo "index.lock found, removing ${CHECKOUT_PATH}."
-            rm -rf "${CHECKOUT_PATH}"
-          fi
-          # Check src already exists by earlier runners:
-          if [ -d "${CHECKOUT_PATH}/.git" ]; then
-            cd "${CHECKOUT_PATH}"
-            git reset --hard
-            # Remove unmerged/conflict markers if any merge was aborted
-            git merge --abort || true
-          fi
-          mkdir -p "${CHECKOUT_PATH}"
-          ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
-          # Add safe directory for git
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"
+        uses: ./.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
@@ -510,26 +498,14 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
+      - name: Checkout prepare-runner-cache
+        uses: actions/checkout@v4
+        with:
+          # Only need the action file, which is now at the root-level .github folder.
+          fetch-depth: 1 
+          sparse-checkout: .github/actions/prepare-runner-cache
       - name: Prepare Workspace for Checkout
-        run: |
-          CHECKOUT_PATH="/runner-cache/cobalt/src"
-          # If .git/index.lock exists, it indicates a previous abnormal exit.
-          # In this case, remove the entire src directory to ensure a clean slate.
-          if [ -f "${CHECKOUT_PATH}/.git/index.lock" ]; then
-            echo "index.lock found, removing ${CHECKOUT_PATH}."
-            rm -rf "${CHECKOUT_PATH}"
-          fi
-          # Check src already exists by earlier runners:
-          if [ -d "${CHECKOUT_PATH}/.git" ]; then
-            cd "${CHECKOUT_PATH}"
-            git reset --hard
-            # Remove unmerged/conflict markers if any merge was aborted
-            git merge --abort || true
-          fi
-          mkdir -p "${CHECKOUT_PATH}"
-          ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
-          # Add safe directory for git
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"
+        uses: ./.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4
         with:
