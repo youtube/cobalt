@@ -68,9 +68,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -330,7 +330,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
-    mTimeInNanoseconds = System.nano-time();
+    mTimeInNanoseconds = System.nanoTime();
 
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to
@@ -429,7 +429,7 @@ public abstract class CobaltActivity extends Activity {
   protected void onPause() {
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      CobaltActivityJni.get().flushCookiesAndLocalStorage();
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     }
     super.onPause();
   }
@@ -445,7 +445,6 @@ public abstract class CobaltActivity extends Activity {
       webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
-      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -466,10 +465,6 @@ public abstract class CobaltActivity extends Activity {
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
-    }
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      CobaltContentBrowserClient.dispatchFocus();
     }
   }
 
