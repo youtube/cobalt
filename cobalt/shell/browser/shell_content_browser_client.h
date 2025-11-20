@@ -181,9 +181,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
   std::optional<network::ParsedPermissionsPolicy>
-  GetPermissionsPolicyForIsolatedWebApp(
-      content::WebContents* web_contents,
-      const url::Origin& app_origin) override;
+  GetPermissionsPolicyForIsolatedWebApp(content::WebContents* web_contents,
+                                        const url::Origin& app_origin) override;
 
   virtual void CreateFeatureListAndFieldTrials();
   ShellBrowserContext* browser_context();
