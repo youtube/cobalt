@@ -171,7 +171,6 @@ TEST_F(PosixLocaleThreadTest, DupLocale) {
   uselocale(previous_locale);
 
   freelocale(loc1);
-  freelocale(loc2);
   freelocale(loc3);
 }
 
@@ -218,6 +217,7 @@ TEST_F(PosixLocaleThreadTest, UseLocale) {
   locale_t old_loc = uselocale(loc);
   EXPECT_EQ(LC_GLOBAL_LOCALE, old_loc);
   EXPECT_EQ(loc, uselocale((locale_t)0));
+  uselocale(old_loc);
   freelocale(loc);
 }
 
@@ -235,8 +235,9 @@ TEST_F(PosixLocaleThreadTest, SetLocaleThenUseLocale) {
     GTEST_SKIP() << "The \"" << test_locale
                  << "\" locale is not supported: " << strerror(errno);
   }
-  uselocale(loc);
+  locale_t old_loc = uselocale(loc);
   EXPECT_EQ(loc, uselocale((locale_t)0));
+  uselocale(old_loc);
   freelocale(loc);
 }
 
@@ -255,10 +256,11 @@ TEST_F(PosixLocaleThreadTest, SetLocaleThenUseLocaleThenUseGlobal) {
     GTEST_SKIP() << "The \"" << test_locale
                  << "\" locale is not supported: " << strerror(errno);
   }
-  uselocale(loc);
+  locale_t old_loc = uselocale(loc);
   EXPECT_EQ(loc, uselocale((locale_t)0));
   uselocale(LC_GLOBAL_LOCALE);
   EXPECT_EQ(LC_GLOBAL_LOCALE, uselocale((locale_t)0));
+  uselocale(old_loc);
   freelocale(loc);
 }
 
@@ -275,9 +277,10 @@ TEST_F(PosixLocaleThreadTest, UseLocaleThenSetLocale) {
     GTEST_SKIP() << "The \"" << test_locale
                  << "\" locale is not supported: " << strerror(errno);
   }
-  uselocale(loc);
+  locale_t old_loc = uselocale(loc);
   setlocale(LC_ALL, kDefaultLocale);
   EXPECT_EQ(loc, uselocale((locale_t)0));
+  uselocale(old_loc);
   freelocale(loc);
 }
 

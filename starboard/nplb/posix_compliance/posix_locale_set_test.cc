@@ -212,7 +212,8 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
   }
 
   int category = GetParam().category;
-  const char* category_locale_1 = setlocale(category, NULL);
+  const char* category_locale_1 = strdup(setlocale(category, NULL));
+  SB_LOG(INFO) << "This is category_1 locale: " << category_locale_1;
   ASSERT_NE(nullptr, category_locale_1);
   EXPECT_STREQ(kTestLocale, category_locale_1);
 
@@ -221,7 +222,7 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
   const char* result = setlocale(LC_ALL, kDefaultLocale);
   ASSERT_NE(nullptr, result);
 
-  const char* category_locale_2 = setlocale(category, NULL);
+  const char* category_locale_2 = strdup(setlocale(category, NULL));
   ASSERT_NE(nullptr, category_locale_2);
   EXPECT_STREQ(kDefaultLocale, category_locale_2);
 
