@@ -55,6 +55,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -382,11 +383,9 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
   if (header_client) {
-    auto receiver = header_client->InitWithNewPipeAndPassReceiver();
-    auto cobalt_header_client =
-        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(
-            std::move(receiver));
-    cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+    mojo::MakeSelfOwnedReceiver(
+        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
+        header_client->InitWithNewPipeAndPassReceiver());
   }
 
   return true;
