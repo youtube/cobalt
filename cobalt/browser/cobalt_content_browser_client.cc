@@ -188,8 +188,10 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // Default compiled javascript quota in Cobalt 25.
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
   constexpr size_t size = 3 * 1024 * 1024;
+  base::FilePath cache_path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
-                                             context->GetPath());
+                                             cache_path);
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -250,8 +252,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  base::FilePath base_cache_path = context->GetPath();
-  base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
   network_context_params->accept_language = GetApplicationLocale();
@@ -270,12 +270,16 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
 
+    base::FilePath cache_path;
+    CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
     network_context_params->file_paths->http_cache_directory =
-        base_cache_path.Append(kCacheDirname);
+        cache_path.Append(kCacheDirname);
 
+    base::FilePath user_data_dir =
+        context->GetPath().Append(relative_partition_path);
     network_context_params->file_paths->data_directory =
-        path.Append(kNetworkDataDirname);
-    network_context_params->file_paths->unsandboxed_data_path = path;
+        user_data_dir.Append(kNetworkDataDirname);
+    network_context_params->file_paths->unsandboxed_data_path = user_data_dir;
 
     // Currently this just contains HttpServerProperties, but that will likely
     // change.
