@@ -105,7 +105,7 @@ public class ExoPlayerBridge {
             ExoPlayerMediaSource audioSource, ExoPlayerMediaSource videoSource, Surface surface,
             boolean enableTunnelMode) {
         if (videoSource != null && (surface == null || !surface.isValid())) {
-            Log.e(TAG, "Cannot initialize ExoPlayer with NULL surface.");
+            Log.e(TAG, "Cannot initialize ExoPlayer with invalid surface.");
             return null;
         }
 
@@ -196,20 +196,20 @@ public class ExoPlayerBridge {
             player = null;
             exoplayerHandler = null;
             audioMediaSource = null;
+            videoMediaSource = null;
         });
 
         exoplayerHandler.removeCallbacks(this::updatePlaybackPos);
-        videoMediaSource = null;
     }
 
     @CalledByNative
-    private void seek(long seekToTimeUs) {
+    private void seek(long seekToTimeUsec) {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Cannot set seek with NULL ExoPlayer.");
             return;
         }
         exoplayerHandler.post(() -> {
-            player.seekTo(seekToTimeUs / 1000);
+            player.seekTo(seekToTimeUsec / 1000);
         });
     }
 

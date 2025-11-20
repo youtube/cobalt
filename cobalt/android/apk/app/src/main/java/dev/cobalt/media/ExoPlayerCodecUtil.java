@@ -34,15 +34,13 @@ public class ExoPlayerCodecUtil {
                 return null;
             }
 
-            byte[][] csds = {};
-            csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
+            byte[][] csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
                     sampleRate, audioConfigurationData);
             if (csds == null) {
                 Log.e(TAG, "Error parsing Opus config info");
                 return null;
-            } else {
-                builder.setInitializationData(Arrays.asList(csds));
             }
+            builder.setInitializationData(Arrays.asList(csds));
         }
 
         builder.setSampleMimeType(mime);
