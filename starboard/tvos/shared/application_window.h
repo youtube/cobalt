@@ -17,7 +17,6 @@
 
 #import <UIKit/UIKit.h>
 
-#include "starboard/extension/on_screen_keyboard.h"
 #import "starboard/tvos/shared/keyboard_input_device.h"
 #include "starboard/window.h"
 
@@ -53,81 +52,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) BOOL windowed;
 
 /**
- *  @brief Indicates the on-screen-keyboard is currently showing.
- */
-@property(nonatomic, readonly) BOOL keyboardShowing;
-
-/**
  *  @brief Specify whether UIPress events should generate SbInputEvents.
  */
 @property(nonatomic) BOOL processUIPresses;
-
-/**
- *  @brief Returns the current frame or a zero rect if the on-screen keyboard
- *      isn't showing.
- */
-- (SbWindowRect)getOnScreenKeyboardFrame;
-
-/**
- *  @brief Gives focus to the already-displayed on-screen keyboard.
- *  @param ticket The ticket corresponding to the promise stored by the on
- *      screen keyboard.
- *  @remarks Safe to call even if the on-screen keyboard isn't already shown (in
- *      which case, this method is a no-op).
- */
-- (void)focusOnScreenKeyboardWithTicket:(NSInteger)ticket;
-
-/**
- *  @brief Removes focus from the already-displayed on-screen keyboard.
- *  @param ticket The ticket corresponding to the promise stored by the on
- *      screen keyboard.
- *  @remarks Safe to call even if the on-screen keyboard isn't already shown (in
- *      which case, this method is a no-op).
- */
-- (void)blurOnScreenKeyboardWithTicket:(NSInteger)ticket;
-
-/**
- *  @brief Shows the on-screen keyboard.
- *  @param text The existing text of the text field.
- *  @param ticket The ticket corresponding to the promise stored by the on
- *      screen keyboard.
- *  @remarks Safe to call even if the on-screen keyboard is already shown (in
- *      which case, this method is a no-op).
- */
-- (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket;
-
-/**
- *  @brief Hides any visible on-screen keyboard.
- *  @param ticket The ticket corresponding to the promise stored by the on
- *      screen keyboard.
- *  @remarks Safe to call even if the on-screen keyboard isn't being
- *      shown.
- */
-- (void)hideOnScreenKeyboardWithTicket:(NSInteger)ticket;
-
-/**
- *  @brief When @c keepFocus is @c YES, the on-screen keyboard should not allow
- *      focus to be lost.
- *  @param keepFocus Whether the on-screen keyboard should allow focus to be
- *      lost.
- */
-- (void)onScreenKeyboardKeepFocus:(BOOL)keepFocus;
-
-/**
- *  @brief Set on-screen keyboard's background color in RGB colorspace.
- *  @param red, green, blue, alpha are specified as a value from 0.0 to 1.0.
- */
-- (void)setOnScreenKeyboardBackgroundColorWithRed:(CGFloat)red
-                                            green:(CGFloat)green
-                                             blue:(CGFloat)blue
-                                            alpha:(CGFloat)alpha;
-
-/**
- *  @brief When @c lightTheme is @c YES, the on-screen keyboard should switch to
- *      light theme.
- *  @param lightTheme Whether the on-screen keyboard should  enable light theme.
- */
-- (void)setOnScreenKeyboardLightTheme:(BOOL)lightTheme;
 
 /**
  *  @brief Attach an EGL surface so it is displayed with this window.
