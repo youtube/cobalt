@@ -28,7 +28,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           base_branch=$(gh pr view ${{ github.event.issue.number }} --json baseRefName -q .baseRefName)
-          if [[ "$base_branch" != "main" ]]; then
+          if [[ "${base_branch}" != "main" ]]; then
             echo "PR does not target main branch. Skipping."
             echo "run_workflow=false" >> $GITHUB_OUTPUT
           else
@@ -102,7 +102,7 @@ jobs:
         run: |
           set -eux
           # Use jq to safely construct the JSON payload, reading the prompt from the environment variable.
-          json_payload=$(jq -n --arg prompt "$PROMPT" '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
+          json_payload=$(jq -n --arg prompt "${PROMPT}" '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
 
           # Make the API call to the Gemini model using curl.
           api_response=$(curl -s -X POST \
@@ -113,7 +113,7 @@ jobs:
           # Extract only the text content from the API's JSON response using jq.
           # The 'jq -r' command outputs the raw string without quotes.
           # The fallback message provides clearer error handling if the response is unexpected.
-          gemini_text_response=$(echo "$api_response" | jq -r '.candidates[0].content.parts[0].text // "Error: Could not parse a valid response from the Gemini API. Please check the API response logs in the workflow run."')
+          gemini_text_response=$(echo "${api_response}" | jq -r '.candidates[0].content.parts[0].text // "Error: Could not parse a valid response from the Gemini API. Please check the API response logs in the workflow run."')
 
           # Set the final text as an output variable for the next step to use.
           echo "response<<EOF" >> $GITHUB_OUTPUT
