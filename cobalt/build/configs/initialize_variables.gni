@@ -36,6 +36,12 @@ declare_args() {
 
   # TODO(b/444119857) remove this flag once the Chromium rebase has landed.
   build_with_exoplayer = false
+
+  use_tsan = false
+}
+
+declare_args() {
+  use_asan = !is_official_build && is_linux && !use_tsan
 }
 
 assert(!(is_starboard && is_native_target_build),

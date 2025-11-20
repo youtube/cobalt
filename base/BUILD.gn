@@ -1782,8 +1782,6 @@ component("base") {
       "posix/can_lower_nice_to.cc",
       "posix/can_lower_nice_to.h",
       "profiler/module_cache_posix.cc",
-      "profiler/stack_base_address_posix.cc",
-      "profiler/stack_base_address_posix.h",
       "profiler/stack_copier_signal.cc",
       "profiler/stack_copier_signal.h",
       "profiler/thread_delegate_posix.cc",
@@ -3687,7 +3685,7 @@ test("base_unittests") {
     sources -= [
       "process/memory_unittest.cc",
       "state_transitions_unittest.cc",
-      "tools_sanity_unittest.cc",
+      # "tools_sanity_unittest.cc",
     ]
   }
 
