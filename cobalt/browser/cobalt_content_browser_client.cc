@@ -280,7 +280,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths->trust_token_database_name =
         base::FilePath(kTrustTokenFilename);
 
-    network_context_params->restore_old_session_cookies = false;
+    // Always try to restore old session cookies.
+    network_context_params->restore_old_session_cookies = true;
     network_context_params->persist_session_cookies = true;
 
     network_context_params->file_paths->transport_security_persister_file_name =
