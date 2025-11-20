@@ -32,6 +32,18 @@
 
 @implementation ObjCApplication {
   UIView* __weak _playerContainerView;
+
+  // The last "menu" press began received.
+  UIPress* _lastMenuPress;
+
+  // The last press began event received with `_lastMenuPress`.
+  UIPressesEvent* _lastMenuPressEvent;
+
+  // The last "menu" press ended received.
+  UIPress* _lastMenuPressEnd;
+
+  // The last press ended event received with `_lastMenuPressEnd`.
+  UIPressesEvent* _lastMenuPressEventEnd;
 }
 
 @synthesize drmManager = _drmManager;
@@ -54,6 +66,33 @@
 - (void)attachPlayerView:(UIView*)subView {
   SB_CHECK(_playerContainerView);
   [_playerContainerView addSubview:subView];
+}
+
+- (void)registerMenuPressBegan:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent {
+  _lastMenuPress = press;
+  _lastMenuPressEvent = pressesEvent;
+}
+
+- (void)registerMenuPressEnded:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent {
+  _lastMenuPressEnd = press;
+  _lastMenuPressEventEnd = pressesEvent;
+}
+
+- (void)suspendApplication {
+  if (_lastMenuPress && _lastMenuPressEvent && _lastMenuPressEnd &&
+      _lastMenuPressEventEnd) {
+    UIApplication* app = [UIApplication sharedApplication];
+    NSSet<UIPress*>* menuPress = [NSSet setWithObject:_lastMenuPress];
+    [app pressesBegan:menuPress withEvent:_lastMenuPressEvent];
+    NSSet<UIPress*>* menuPressEnd = [NSSet setWithObject:_lastMenuPressEnd];
+    [app pressesEnded:menuPressEnd withEvent:_lastMenuPressEventEnd];
+  }
+  _lastMenuPress = nil;
+  _lastMenuPressEvent = nil;
+  _lastMenuPressEnd = nil;
+  _lastMenuPressEventEnd = nil;
 }
 
 @end

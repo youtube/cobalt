@@ -22,6 +22,8 @@
 @class SBDDrmManager;
 @class SBDEglAdapter;
 @class SBDPlayerManager;
+@class UIPress;
+@class UIPressesEvent;
 @class UIView;
 @protocol SBDStarboardApplication;
 
@@ -56,9 +58,8 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  */
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
 
-/**
- *  @brief Called when Starboard requests the application to be suspended.
- */
+// Suspends the application by forwarding the press events stored by calls to
+// `registerMenuPressBegan` and `registerMenuPressEnded` to UIKit.
 - (void)suspendApplication;
 
 // Sets the UIView to which player views will be added to.
@@ -68,6 +69,15 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 // contents. Does nothing if setPlayerContainerView() has not been called.
 - (void)attachPlayerView:(UIView*)subView;
 
+// Registers the menu press events got on pressesBegan to use them at the
+// application suspension.
+- (void)registerMenuPressBegan:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent;
+
+// Registers the menu press events got on pressesEnded to use them at the
+// application suspension.
+- (void)registerMenuPressEnded:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent;
 @end
 
 NS_ASSUME_NONNULL_END
