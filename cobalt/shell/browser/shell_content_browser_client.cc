@@ -592,16 +592,6 @@ ShellContentBrowserClient::GetNetworkContextsParentDirectory() {
   return {browser_context()->GetPath()};
 }
 
-#if BUILDFLAG(IS_IOS)
-BluetoothDelegate* ShellContentBrowserClient::GetBluetoothDelegate() {
-  if (!bluetooth_delegate_) {
-    bluetooth_delegate_ = std::make_unique<permissions::BluetoothDelegateImpl>(
-        std::make_unique<ShellBluetoothDelegateImplClient>());
-  }
-  return bluetooth_delegate_.get();
-}
-#endif
-
 void ShellContentBrowserClient::set_browser_main_parts(
     ShellBrowserMainParts* parts) {
   GetSharedState().shell_browser_main_parts = parts;
