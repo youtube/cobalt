@@ -26,6 +26,8 @@
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
+#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 
@@ -70,6 +72,8 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_runtime::H5vccRuntimeImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(
       base::BindRepeating(&performance::PerformanceImpl::Create));
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
+      base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
 }
 
 }  // namespace cobalt

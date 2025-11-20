@@ -1217,6 +1217,7 @@ if (is_cobalt) {
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_updater/h_5_vcc_updater.idl",
             "//third_party/blink/renderer/modules/cobalt/h_5_vcc.idl",
             "//third_party/blink/renderer/modules/cobalt/window_h_5_vcc.idl",
           ],
