@@ -2,7 +2,7 @@ name: Deflake Tests
 description: Re-triggers test jobs if they failed.
 on:
   workflow_run:
-    workflows: ["android", "raspi-2-modular", "evergreen", "linux"]
+    workflows: [android, raspi-2-modular, evergreen, linux]
     types:
       - completed
 
