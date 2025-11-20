@@ -131,7 +131,7 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<int> max_frames_in_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -141,9 +141,9 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       decoder_state_tracker_(
-          max_frames_in_decoder
+          initial_max_frames_in_decoder
               ? std::make_unique<DecoderStateTracker>(
-                    *max_frames_in_decoder,
+                    *initial_max_frames_in_decoder,
                     [this] { condition_variable_.Signal(); },
                     ::starboard::shared::starboard::player::JobQueue::current())
               : nullptr),

@@ -55,7 +55,7 @@ using std::placeholders::_2;
 
 // TODO: b/455938352 - Connect this value to h5vcc settings.
 // By default, we turn off decoder throttling.
-constexpr std::optional<int> kMaxFramesInDecoder = std::nullopt;
+constexpr std::optional<int> kInitialMaxFramesInDecoder = std::nullopt;
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
@@ -68,12 +68,13 @@ inline std::ostream& operator<<(std::ostream& stream,
   return stream;
 }
 
-std::optional<int> GetMaxFramesInDecoder() {
+std::optional<int> GetInitialMaxFramesInDecoder() {
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Do nothing
 #else
   char value[PROP_VALUE_MAX];
-  if (__system_property_get("debug.cobalt.max_frames_in_decoder", value)) {
+  if (__system_property_get("debug.cobalt.initial_max_frames_in_decoder",
+                            value)) {
     int max_frames = atoi(value);
     if (max_frames > 0) {
       SB_LOG(INFO) << "Setting max frames in decoder to " << max_frames
@@ -82,10 +83,11 @@ std::optional<int> GetMaxFramesInDecoder() {
     }
   }
 #endif
-  SB_LOG(INFO) << "System property debug.cobalt.max_frames_in_decoder is not "
-                  "set or invalid. Using default value: "
-               << kMaxFramesInDecoder;
-  return kMaxFramesInDecoder;
+  SB_LOG(INFO)
+      << "System property debug.cobalt.initial_max_frames_in_decoder is not "
+         "set or invalid. Using default value: "
+      << kInitialMaxFramesInDecoder;
+  return kInitialMaxFramesInDecoder;
 }
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
@@ -408,7 +410,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      max_frames_in_decoder_(GetMaxFramesInDecoder()),
+      initial_max_frames_in_decoder_(GetInitialMaxFramesInDecoder()),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -784,7 +786,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, max_frames_in_decoder_,
+      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
       error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {

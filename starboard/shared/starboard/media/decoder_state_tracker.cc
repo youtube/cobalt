@@ -44,11 +44,11 @@ std::string to_ms_string(std::optional<int64_t> us_opt) {
 }  // namespace
 
 DecoderStateTracker::DecoderStateTracker(
-    int max_frames,
+    int initial_max_frames,
     StateChangedCB state_changed_cb,
     shared::starboard::player::JobQueue* job_queue)
     : JobOwner(job_queue),
-      max_frames_(max_frames),
+      max_frames_(initial_max_frames),
       state_changed_cb_(std::move(state_changed_cb)) {
   SB_CHECK(state_changed_cb_);
   if (kFrameTrackerLogIntervalUs) {

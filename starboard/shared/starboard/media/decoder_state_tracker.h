@@ -45,7 +45,7 @@ class DecoderStateTracker
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(int max_frames,
+  DecoderStateTracker(int initial_max_frames,
                       StateChangedCB state_changed_cb,
                       shared::starboard::player::JobQueue* job_queue);
   ~DecoderStateTracker() = default;

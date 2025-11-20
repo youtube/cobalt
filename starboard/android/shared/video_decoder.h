@@ -142,7 +142,7 @@ class VideoDecoder
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
-  const std::optional<int> max_frames_in_decoder_;
+  const std::optional<int> initial_max_frames_in_decoder_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
