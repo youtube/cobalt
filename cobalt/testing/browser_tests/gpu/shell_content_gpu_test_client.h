@@ -21,14 +21,15 @@
 
 namespace content {
 
-class ShellContentGpuClient : public ContentGpuClient {
+class ShellContentGpuTestClient : public ContentGpuClient {
  public:
-  ShellContentGpuClient();
+  ShellContentGpuTestClient();
 
-  ShellContentGpuClient(const ShellContentGpuClient&) = delete;
-  ShellContentGpuClient& operator=(const ShellContentGpuClient&) = delete;
+  ShellContentGpuTestClient(const ShellContentGpuTestClient&) = delete;
+  ShellContentGpuTestClient& operator=(const ShellContentGpuTestClient&) =
+      delete;
 
-  ~ShellContentGpuClient() override;
+  ~ShellContentGpuTestClient() override;
 
   // ContentGpuClient:
   void ExposeInterfacesToBrowser(

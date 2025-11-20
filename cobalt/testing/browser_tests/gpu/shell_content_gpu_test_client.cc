@@ -22,11 +22,11 @@
 
 namespace content {
 
-ShellContentGpuClient::ShellContentGpuClient() = default;
+ShellContentGpuTestClient::ShellContentGpuTestClient() = default;
 
-ShellContentGpuClient::~ShellContentGpuClient() = default;
+ShellContentGpuTestClient::~ShellContentGpuTestClient() = default;
 
-void ShellContentGpuClient::ExposeInterfacesToBrowser(
+void ShellContentGpuTestClient::ExposeInterfacesToBrowser(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     mojo::BinderMap* binders) {
