@@ -73,12 +73,8 @@ struct PrivateLocale {
 };
 
 PrivateLocale g_current_locale;
-
-// TODO: This shouldn't be initialized until uselocale is called. Maybe set to
-// LC_GLOBAL???
-// thread_local locale_t g_current_locale = reinterpret_cast<locale_t>(0);
-
-// thread_local PrivateLocale* g_current_thread_locale = &g_current_locale;
+thread_local PrivateLocale* g_current_thread_locale =
+    (PrivateLocale*)LC_GLOBAL_LOCALE;
 
 // The default locale is the C locale.
 const lconv* GetCLocaleConv() {
@@ -111,11 +107,11 @@ const lconv* GetCLocaleConv() {
   return &c_locale_conv;
 }
 
-// The C locale can be referenced by this statically allocated object.
-const lconv* GetCLocale() {
-  static const lconv c_locale(*GetCLocaleConv());
-  return &c_locale;
-}
+// // The C locale can be referenced by this statically allocated object.
+// const lconv* GetCLocale() {
+//   static const lconv c_locale(*GetCLocaleConv());
+//   return &c_locale;
+// }
 
 bool is_valid_category(int category) {
   switch (category) {
@@ -125,7 +121,6 @@ bool is_valid_category(int category) {
     case LC_MONETARY:
     case LC_NUMERIC:
     case LC_TIME:
-// Include POSIX/GNU extensions if they are defined on your system
 #ifdef LC_MESSAGES
     case LC_MESSAGES:
 #endif
@@ -154,8 +149,13 @@ bool is_valid_category(int category) {
 }
 
 std::string getCanonicalLocale(const char* inputLocale) {
-  // 1. Create a Locale object to canonicalize the input string.
   icu::Locale loc = icu::Locale::createCanonical(inputLocale);
+
+  // special case for C and POSIX:
+
+  if (strcmp(inputLocale, "C") == 0 || strcmp(inputLocale, "POSIX") == 0) {
+    return inputLocale;
+  }
 
   UErrorCode status = U_ZERO_ERROR;
   std::string translated_name = loc.getName();
@@ -222,6 +222,52 @@ std::string getCanonicalCodeset(const char* encodingName) {
   ucnv_close(conv);
 
   return result;
+}
+
+void UpdateLocaleSettings(int mask, const char* locale, PrivateLocale* base) {
+  if (mask & LC_ALL_MASK) {
+    for (int i = 0; i < MAX_LC_ID; ++i) {
+      base->categories[i] = locale;
+    }
+    return;
+  }
+
+  // if (mask & LC_ADDRESS_MASK) {
+  //   base->categories[LC_ADDRESS] = locale;
+  // }
+  if (mask & LC_CTYPE_MASK) {
+    base->categories[LC_CTYPE] = locale;
+  }
+  if (mask & LC_COLLATE_MASK) {
+    base->categories[LC_COLLATE] = locale;
+  }
+  // if (mask & LC_IDENTIFICATION_MASK) {
+  //   base->categories[LC_IDENTIFICATION_MASK] = locale;
+  // }
+  // if (mask & LC_MEASUREMENT_MASK) {
+  //   base->categories[LC_MEASUREMENT] = locale;
+  // }
+  if (mask & LC_MESSAGES_MASK) {
+    base->categories[LC_MESSAGES] = locale;
+  }
+  if (mask & LC_MONETARY_MASK) {
+    base->categories[LC_MONETARY] = locale;
+  }
+  if (mask & LC_NUMERIC_MASK) {
+    base->categories[LC_NUMERIC] = locale;
+  }
+  // if (mask & LC_NAME_MASK) {
+  //   base->categories[LC_NAME] = locale;
+  // }
+  // if (mask & LC_PAPER_MASK) {
+  //   base->categories[LC_PAPER] = locale;
+  // }
+  // if (mask & LC_TELEPHONE_MASK) {
+  //   base->categories[LC_TELEPHONE] = locale;
+  // }
+  if (mask & LC_TIME_MASK) {
+    base->categories[LC_TIME] = locale;
+  }
 }
 
 }  // namespace
@@ -316,31 +362,48 @@ char* setlocale(int category, const char* locale) {
 // TODO: Make sure that locale_t does NOT point to an lconv. Point to new
 // structure in point
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
-  if (locale == nullptr ||
-      (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
-    return (locale_t)0;
+  // if (locale == nullptr ||
+  //     (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
+  //   return (locale_t)0;
+  // }
+
+  // TODO: Verify validity of the locale string
+  PrivateLocale* cur_locale;
+
+  if (base == (locale_t)0) {
+    cur_locale = new PrivateLocale();
+  } else {
+    cur_locale = (PrivateLocale*)base;
   }
 
-  lconv* new_lconv = new lconv;
-  if (base != (locale_t)0) {
-    memcpy(new_lconv, reinterpret_cast<lconv*>(base), sizeof(lconv));
-    freelocale(base);
-  } else {
-    memcpy(new_lconv, GetCLocale(), sizeof(lconv));
-  }
-  return reinterpret_cast<locale_t>(new_lconv);
+  UpdateLocaleSettings(category_mask, locale, cur_locale);
+
+  return (locale_t)cur_locale;
 }
 
 locale_t uselocale(locale_t newloc) {
   // TODO: b/403007005 Fill in this stub.
-  return reinterpret_cast<locale_t>(&g_current_locale);
-  // return reinterpret_cast<locale_t>(g_current_thread_locale);
+
+  if (newloc == (locale_t)0) {
+    return (locale_t)g_current_thread_locale;
+  }
+
+  if (newloc == (locale_t)LC_GLOBAL_LOCALE) {
+    PrivateLocale* return_locale = g_current_thread_locale;
+    g_current_thread_locale = (PrivateLocale*)LC_GLOBAL_LOCALE;
+    return (locale_t)return_locale;
+  }
+
+  // TODO: Address string validity.
+
+  PrivateLocale* return_locale = g_current_thread_locale;
+  g_current_thread_locale = (PrivateLocale*)newloc;
+
+  return (locale_t)return_locale;
 }
 
 void freelocale(locale_t loc) {
-  // if (loc) {
-  //   delete reinterpret_cast<lconv*>(loc);
-  // }
+  delete (PrivateLocale*)loc;
 }
 
 struct lconv* localeconv(void) {
@@ -349,14 +412,22 @@ struct lconv* localeconv(void) {
 
 locale_t duplocale(locale_t loc) {
   if (loc == LC_GLOBAL_LOCALE) {
-    return LC_GLOBAL_LOCALE;
+    PrivateLocale* global_copy = new PrivateLocale();
+    for (int i = 0; i < MAX_LC_ID; ++i) {
+      global_copy->categories[i] = g_current_locale.categories[i];
+    }
+    return (locale_t)global_copy;
   }
+
   if (loc == (locale_t)0) {
     return (locale_t)0;
   }
-  lconv* new_lconv = new lconv;
-  memcpy(new_lconv, reinterpret_cast<lconv*>(loc), sizeof(lconv));
-  return reinterpret_cast<locale_t>(new_lconv);
+
+  PrivateLocale* new_copy = new PrivateLocale();
+  for (int i = 0; i < MAX_LC_ID; ++i) {
+    new_copy->categories[i] = ((PrivateLocale*)loc)->categories[i];
+  }
+  return (locale_t)new_copy;
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
