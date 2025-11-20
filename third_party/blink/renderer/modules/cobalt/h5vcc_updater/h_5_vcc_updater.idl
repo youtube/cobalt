@@ -15,9 +15,8 @@
 // Custom API for getting and setting Evergreen update settings.
 
 interface H5vccUpdater {
-
+  // Gets the URL the updater will use for updates. This should only be used for
+  // testing and should not be available in production.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getUpdateServerUrl();
-
-
 };

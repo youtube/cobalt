@@ -1,15 +1,15 @@
 import {
-  H5vccUpdater
+  H5vccUpdater, H5vccUpdaterReceiver
 } from '/gen/cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.m.js';
 
 
-// Implementation of h5vcc_system.mojom.H5vccUpdater.
+// Implementation of h5vcc_updater.mojom.H5vccUpdater.
 class MockH5vccUpdater {
   constructor() {
     this.interceptor_ =
-      new MojoInterfaceInterceptor(H5vccSystem.$interfaceName);
+      new MojoInterfaceInterceptor(H5vccUpdater.$interfaceName);
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
-    this.receiver_ = new H5vccSystemReceiver(this);
+    this.receiver_ = new H5vccUpdaterReceiver(this);
 
     this.stub_result_ = new Map();
   }

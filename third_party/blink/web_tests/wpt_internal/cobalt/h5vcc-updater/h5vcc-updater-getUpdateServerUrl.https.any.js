@@ -9,7 +9,7 @@ h5vcc_updater_tests(async (t, mockH5vccUpdater) => {
   // currently stubbed out and not implemented, so test will fail.
   // placeholder value here till the updater plumbing is done.
   const expected = '1';
-  mockH5vccUpdater.stubUpdateServerUrl(expected);
-  let actual = window.h5vcc.updater.updateServerUrl();
+  mockH5vccUpdater.stubGetUpdateServerUrl(expected);
+  let actual = window.h5vcc.updater.getUpdateServerUrl();
   assert_equals(actual, expected);
 }, 'exercises H5vccUpdater.updateServerUrl()');
