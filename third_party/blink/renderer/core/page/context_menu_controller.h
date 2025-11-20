@@ -119,15 +119,6 @@ class CORE_EXPORT ContextMenuController
  private:
   friend class ContextMenuControllerTest;
 
-<<<<<<< HEAD
- protected:
-  // Returns whether a Context Menu was actually shown.
-  // TODO(): upstream virtual to Chromium
-  virtual bool ShowContextMenu(LocalFrame*,
-                               const PhysicalOffset&,
-                               WebMenuSourceType,
-                               const MouseEvent* mouse_event = nullptr);
-=======
   // Returns whether a Context Menu was actually shown. Changing this is not
   // recommended.
   bool ShowContextMenu(LocalFrame*, const PhysicalOffset&, WebMenuSourceType);
@@ -135,7 +126,6 @@ class CORE_EXPORT ContextMenuController
                                const PhysicalOffset&,
                                WebMenuSourceType,
                                const MouseEvent* mouse_event);
->>>>>>> a41bba55e10 (blink/renderer: backport Context Menu Controller upstream changes (#8101))
 
   bool ShouldShowContextMenuFromTouch(const ContextMenuData&);
 
