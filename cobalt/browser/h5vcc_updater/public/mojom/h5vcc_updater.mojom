@@ -19,4 +19,4 @@ module h5vcc_updater.mojom;
 interface H5vccUpdater {
   // Get the update server url for the device.
   GetUpdateServerUrl() => (string update_server_url);
-  };
+};
