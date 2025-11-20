@@ -49,6 +49,11 @@ runs:
         test_output="${results_dir}/shard_${{ matrix.shard }}"
         mkdir -p ${test_output}
 
+        if [[ "${{ matrix.platform }}" == "linux-x64x11" ]]; then
+             echo "Forcing failure for linux-x64x11 to test rerun workflow."
+             exit 1
+        fi
+
         failed_suites=""
         cd unit_test/
 
@@ -99,9 +104,6 @@ runs:
         if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
           # Fail the job so it's easy to retrigger.
-          if [[ "${{ matrix.platform }}" == "linux-x64x11" ]]; then
-             echo "matrix.platform is: ${{ matrix.platform }}"
-          fi
           exit 1
         fi
     - name: Archive Test Results
