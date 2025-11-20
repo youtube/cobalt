@@ -22,7 +22,10 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/storage_partition.h"
+#include "services/network/public/mojom/cookie_manager.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -51,6 +54,15 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
+  if (browser_context()) {
+    content::StoragePartition* partition =
+        browser_context()->GetDefaultStoragePartition();
+    if (partition) {
+      partition->GetCookieManagerForBrowserProcess()->FlushCookieStore(
+          base::DoNothing());
+      partition->Flush();
+    }
+  }
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }
