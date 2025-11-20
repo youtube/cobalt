@@ -423,10 +423,10 @@ PipelineStatus DemuxerManager::CreateDemuxer(
       SetDemuxer(CreateProgressiveDemuxer());
     } else {
       LOG(INFO) << "Cobalt progressive playback is disabled via base features.";
-      return DEMUXER_ERROR_COULD_NOT_OPEN;
+      return DEMUXER_ERROR_PROGRESSIVE_DISABLED;
     }
 #else
-    return DEMUXER_ERROR_COULD_NOT_OPEN;
+    return DEMUXER_ERROR_PROGRESSIVE_DISABLED;
 #endif
   } else {
     DCHECK(!HasDataSource());

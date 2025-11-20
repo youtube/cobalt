@@ -66,8 +66,23 @@ enum PipelineStatusCodes : StatusCodeType {
   // The remote media component was disconnected unexpectedly, e.g. crash.
   PIPELINE_ERROR_DISCONNECTED = 24,
 
+<<<<<<< HEAD
   // Must be equal to the largest value ever logged.
   PIPELINE_STATUS_MAX = PIPELINE_ERROR_DISCONNECTED,
+=======
+  // Bitstream format conversion related errors.
+  DEMUXER_ERROR_BITSTREAM_CONVERSION_FAILED = 25,
+
+  // Issued when a component in the pipeline runs out of memory.
+  PIPELINE_ERROR_OUT_OF_MEMORY = 26,
+
+  // Used when a Progressive Demuxer cannot be created because it is disabled,
+  // rather than it being unsupported.
+  DEMUXER_ERROR_PROGRESSIVE_DISABLED = 27,
+
+  // Must be equal to the largest value ever logged.
+  PIPELINE_STATUS_MAX = DEMUXER_ERROR_PROGRESSIVE_DISABLED,
+>>>>>>> dd10cf81e71 (Cherry-pick Add PipelineStatusCode DEMUXER_ERROR_PROGRESSIVE_DISABLED (#7827))
 };
 
 struct PipelineStatusTraits {
