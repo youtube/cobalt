@@ -14,8 +14,7 @@
   "includes": [
     {
       "name": "arm-softfp",
-      "platform": "evergreen-arm-softfp",
-      "sb_api_version": 17
+      "platform": "evergreen-arm-softfp"
     }
   ]
 }

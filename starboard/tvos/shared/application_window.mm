@@ -702,10 +702,11 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
           return;
         }
         NSString* searchString = searchController.searchBar.text;
-        if (searchResultLastString && searchResultLastString == searchString) {
+        if (searchResultLastString &&
+            [searchResultLastString isEqualToString:searchString]) {
           return;
         }
-        searchResultLastString = searchString;
+        searchResultLastString = [searchString copy];
         SBDWindowManager* windowManager = SBDGetApplication().windowManager;
         [windowManager.currentApplicationWindow.keyboardInputDevice
             onScreenKeyboardTextEntered:searchString];
