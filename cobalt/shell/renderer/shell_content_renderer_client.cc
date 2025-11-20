@@ -225,7 +225,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
 
   void SetOnline(bool is_online) override {}
 
- private:
+private:
   // Set only when `this` was created on the main thread, or cloned from a
   // provider which was created on the main thread.
   scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
