@@ -617,11 +617,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   [_viewController.applicationView.playerContainer addSubview:playerView];
 }
 
-- (void)attachUiNavigationView:(UIView*)view {
-  [_viewController.applicationView.interfaceContainer addSubview:view];
-  [_viewController.applicationView.interfaceContainer bringSubviewToFront:view];
-}
-
 - (void)setFocus:(id<UIFocusEnvironment>)focus {
   // In order to change focus, a focus update needs to happen on the
   // environment containing the current focus. This UIWindow is guaranteed to

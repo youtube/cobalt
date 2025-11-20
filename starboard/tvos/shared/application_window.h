@@ -141,11 +141,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)attachPlayerView:(UIView*)playerView;
 
 /**
- *  @brief Attach a view to handle focus interactions.
- */
-- (void)attachUiNavigationView:(UIView*)view;
-
-/**
  *  @brief Update focus to the requested item.
  */
 - (void)setFocus:(id<UIFocusEnvironment>)focus;
