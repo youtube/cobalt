@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -53,16 +54,22 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
-void CobaltBrowserMainParts::PostDestroyThreads() {
+void CobaltBrowserMainParts::PostMainMessageLoopRun() {
   if (browser_context()) {
     content::StoragePartition* partition =
         browser_context()->GetDefaultStoragePartition();
     if (partition) {
+      base::RunLoop run_loop;
       partition->GetCookieManagerForBrowserProcess()->FlushCookieStore(
-          base::DoNothing());
+          run_loop.QuitClosure());
+      run_loop.Run();
       partition->Flush();
     }
   }
+  ShellBrowserMainParts::PostMainMessageLoopRun();
+}
+
+void CobaltBrowserMainParts::PostDestroyThreads() {
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }
