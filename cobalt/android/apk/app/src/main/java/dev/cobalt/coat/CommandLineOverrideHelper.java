@@ -70,7 +70,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
-
+        // Don't enumerate or use real capture devices (audio, video).
+        paramOverrides.add("--use-fake-device-for-media-stream");
         return paramOverrides;
     }
 
