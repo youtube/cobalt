@@ -14,6 +14,14 @@ jobs:
       actions: write
       checks: read
     steps:
+      - name: Download CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ci-essentials-*
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Check Retry Count
         id: retry_check
         env:
@@ -26,14 +34,14 @@ jobs:
         run: |
           set +x
           # Attempt to access the last attempt of the workflow that triggereed this one.
-          if gh run view ${WORKFLOW} --attempt ${MAX_RETRIES}; then
+          if gh run view ${WORKFLOW} --attempt ${DEFLAKE_ATTEMPTS}; then
             echo "continue=false" >> ${GITHUB_OUTPUT}
           else
             echo "continue=true" >> ${GITHUB_OUTPUT}
           fi
 
       - name: Rerun Failing Checks
-        if: steps.retry_check.outputs.outcome == 'success'
+        if: steps.retry_check.outputs.continue == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
