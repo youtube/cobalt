@@ -101,7 +101,8 @@ config("modular") {
     defines += [ "ADDRESS_SANITIZER" ]
 
     if (asan_symbolizer_path != "") {
-      defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
+      defines += [ "ASAN_SYMBOLIZER_PATH=\"" +
+                   rebase_path(asan_symbolizer_path, "") + "\"" ]
     }
   } else if (use_tsan) {
     cflags += [
