@@ -23,5 +23,5 @@ runs:
       run: |
         mkdir -p "${CHECKOUT_PATH}"
         ln -sf /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
-        # Add safe directory for git
-        git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"
+    - name: Set Safe Directory
+      run: git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"
