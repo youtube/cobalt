@@ -134,8 +134,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
-  std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
-      cobalt_header_clients_;
 
   THREAD_CHECKER(thread_checker_);
 };
