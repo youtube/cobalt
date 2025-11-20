@@ -1,0 +1,6 @@
+{
+  "comment": "Filtered due to library load failure (missing fstat64 symbol).",
+  "failing_tests": [
+    "*"
+  ]
+}
