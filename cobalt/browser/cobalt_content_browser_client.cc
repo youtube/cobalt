@@ -55,11 +55,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
-<<<<<<< HEAD
-=======
-#include "content/public/common/user_agent.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
->>>>>>> eadec47ed5d (fix: Complete memory leak fix for URLLoaderHeaderClient (#8127))
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
