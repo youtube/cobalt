@@ -260,9 +260,12 @@ void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
 
   is_memory_pool_allocated_on_demand_ = enabled;
   // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
-  // reset the the strategy.
+  // reset the strategy.
   if (is_memory_pool_allocated_on_demand_ && strategy_ &&
       strategy_->GetAllocated() == 0) {
+    LOG(INFO) << "Freed " << strategy_->GetCapacity()
+              << " bytes of media buffer pool since allocator now allocates on "
+                 "demand.";
     strategy_.reset();
   }
 }
