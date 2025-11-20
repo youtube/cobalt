@@ -45,7 +45,7 @@ void H5vccUpdaterImpl::Create(
 
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run();
+  std::move(callback).Run("");
 }
 
 }  // namespace h5vcc_updater
