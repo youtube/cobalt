@@ -38,7 +38,7 @@ namespace {
 // be different.
 const size_t kSmallAllocationThreshold = 512;
 
-const char* GetEnabledString(bool value) {
+const char* ToString(bool value) {
   return value ? "enabled" : "disabled";
 }
 
@@ -238,9 +238,8 @@ void DecoderBufferAllocator::SetEnabled(bool enabled) {
     return;
   }
 
-  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: "
-            << GetEnabledString(enabled_) << " -> "
-            << GetEnabledString(enabled);
+  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: " << ToString(enabled_)
+            << " -> " << ToString(enabled);
   enabled_ = enabled;
   if (!enabled_ && strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -256,19 +255,15 @@ void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
   }
 
   LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
-            << GetEnabledString(is_memory_pool_allocated_on_demand_) << " -> "
-            << GetEnabledString(enabled);
+            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
+            << ToString(enabled);
 
   is_memory_pool_allocated_on_demand_ = enabled;
-
-  if (is_memory_pool_allocated_on_demand_) {
-    // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
-    // reset the the strategy.
-    if (strategy_ && strategy_->GetAllocated() == 0) {
-      strategy_.reset();
-    }
-  } else {
-    EnsureStrategyIsCreated();
+  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
+  // reset the the strategy.
+  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
+      strategy_->GetAllocated() == 0) {
+    strategy_.reset();
   }
 }
 

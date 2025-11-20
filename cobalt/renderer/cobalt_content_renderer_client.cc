@@ -32,10 +32,10 @@ namespace cobalt {
 namespace {
 
 const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
-const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
-    "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
