@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
-#define COBALT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_
+#define COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_
 
 #include "content/public/gpu/content_gpu_client.h"
 #include "services/network/public/mojom/network_service_test.mojom-forward.h"
@@ -39,4 +39,4 @@ class ShellContentGpuClient : public ContentGpuClient {
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_

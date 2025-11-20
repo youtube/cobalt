@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_COMMON_POWER_MONITOR_TEST_IMPL_H_
-#define COBALT_SHELL_COMMON_POWER_MONITOR_TEST_IMPL_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_COMMON_POWER_MONITOR_TEST_IMPL_H_
+#define COBALT_TESTING_BROWSER_TESTS_COMMON_POWER_MONITOR_TEST_IMPL_H_
 
 #include "base/power_monitor/power_monitor.h"
 #include "cobalt/shell/common/power_monitor_test.mojom.h"
@@ -52,4 +52,4 @@ class PowerMonitorTestImpl : public base::PowerStateObserver,
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_COMMON_POWER_MONITOR_TEST_IMPL_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_COMMON_POWER_MONITOR_TEST_IMPL_H_

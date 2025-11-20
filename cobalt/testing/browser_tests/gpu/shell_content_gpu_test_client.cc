@@ -13,13 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/gpu/shell_content_gpu_client.h"
+#include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
 
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/power_monitor_test_impl.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
 namespace content {
@@ -32,12 +30,9 @@ void ShellContentGpuClient::ExposeInterfacesToBrowser(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     mojo::BinderMap* binders) {
-// TODO(b/437981348): will move the entire file to browsertests_sources
-#if defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::PowerMonitorTest>(
       base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-#endif  // defined(RUN_BROWSER_TESTS)
 }
 
 }  // namespace content

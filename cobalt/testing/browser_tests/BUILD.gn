@@ -217,6 +217,7 @@ test("cobalt_browsertests") {
 
   deps = [
     ":browsertest_support",
+    ":browsertests_mojom",
     ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
@@ -421,6 +422,8 @@ static_library("cobalt_shell_test_lib") {
   ]
 
   deps = [
+    ":browsertests_mojom",
+    ":browsertests_sources",
     "//cc/base",
     "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:browsertests_sources",
@@ -463,4 +466,26 @@ action("copy_test_data") {
   script = "data/update_build_gn.py"
   outputs = [ "$target_gen_dir/copy_test_data.stamp" ]
   args = [ rebase_path(root_out_dir, root_build_dir) ]
+}
+
+source_set("browsertests_sources") {
+  testonly = true
+  sources = [
+    "common/power_monitor_test_impl.cc",
+    "common/power_monitor_test_impl.h",
+  ]
+
+  public_deps = [
+    ":browsertests_mojom",
+    "//content/test:content_test_mojo_bindings",
+    "//content/test:test_support",
+  ]
+}
+
+mojom("browsertests_mojom") {
+  sources = [ "common/power_monitor_test.mojom" ]
+  public_deps = [
+    "//sandbox/policy/mojom",
+    "//third_party/blink/public/mojom/tokens",
+  ]
 }
