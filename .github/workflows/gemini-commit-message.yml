@@ -46,7 +46,7 @@ jobs:
 
           # The following lines save the diff content into a GitHub Actions output variable.
           echo "diff_content<<EOF" >> $GITHUB_OUTPUT
-          echo "$diff_content" >> $GITHUB_OUTPUT
+          echo "${diff_content}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       # Step 2: Call the Gemini API directly with a detailed prompt.
@@ -108,7 +108,7 @@ jobs:
           api_response=$(curl -s -X POST \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${{ secrets.GEMINI_ACTIONS_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "$json_payload")
+            -d "${json_payload}")
 
           # Extract only the text content from the API's JSON response using jq.
           # The 'jq -r' command outputs the raw string without quotes.
@@ -117,7 +117,7 @@ jobs:
 
           # Set the final text as an output variable for the next step to use.
           echo "response<<EOF" >> $GITHUB_OUTPUT
-          echo "$gemini_text_response" >> $GITHUB_OUTPUT
+          echo "${gemini_text_response}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       # Step 3: Post Gemini's generated commit message back to the PR.
