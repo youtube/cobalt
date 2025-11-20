@@ -19,18 +19,29 @@ jobs:
     env:
       MAX_RETRIES: 2
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Get PR Number and Commit SHA
         id: event_details
         shell: bash
         run: |
-          echo "pr_number=$(jq --raw-output '.workflow_run.pull_requests[0].number' ${GITHUB_EVENT_PATH})" >> ${GITHUB_OUTPUT}
+          pr_number=$(jq --raw-output '.workflow_run.pull_requests[0].number // empty' ${GITHUB_EVENT_PATH})
+          echo "pr_number=${pr_number}" >> ${GITHUB_OUTPUT}
           echo "commit_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
       - name: Check Retry Count
         id: retry_check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          if [ -z "${{ steps.event_details.outputs.pr_number }}" ]; then
+            echo "Not a PR run (PR Number is empty). Skipping retry logic."
+            echo "continue=false" >> ${GITHUB_OUTPUT}
+            exit 0
+          fi
+
           workflow_name="${{ github.workflow }}"
           commit_sha="${{ steps.event_details.outputs.commit_sha }}"
 
@@ -78,5 +89,5 @@ jobs:
           echo "The following run IDs will be re-run: ${run_ids_to_rerun}"
           for run_id in ${run_ids_to_rerun}; do
             echo "Rerunning run ID: ${run_id}"
-            gh run rerun "${run_id}" --repo "${REPO}"
+            gh run rerun "${run_id}" --repo "${REPO}" || echo "Failed to rerun ${run_id} (likely not a workflow run), continuing..."
           done

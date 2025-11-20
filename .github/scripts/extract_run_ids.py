@@ -6,7 +6,7 @@ run_ids = set()
 for line in sys.stdin:
   # Check if the line contains a job name ending in '_tests' followed by
   # a tab and the 'fail' status
-  if re.search(r'\s+(Failed|Cancelled)\s+', line, re.IGNORECASE):
+  if re.search(r'\s+(Failed|Cancelled|fail|cancel)\s+', line, re.IGNORECASE):
     try:
       # The URL is the last element on the line
       url = line.strip().split()[-1]
