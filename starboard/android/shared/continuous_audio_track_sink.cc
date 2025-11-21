@@ -110,26 +110,15 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     return;
   }
 
-<<<<<<< HEAD
-  pthread_create(&audio_out_thread_, nullptr,
-                 &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_DCHECK_NE(audio_out_thread_, 0);
-=======
   audio_out_thread_ = std::make_unique<AudioOutThread>(this);
   audio_out_thread_->Start();
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
-<<<<<<< HEAD
-  if (audio_out_thread_ != 0) {
-    SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
-=======
   if (audio_out_thread_) {
     audio_out_thread_->Join();
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 }
 
@@ -144,23 +133,6 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-<<<<<<< HEAD
-// static
-void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "continous_audio_track_sink");
-  SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
-
-  ContinuousAudioTrackSink* sink =
-      reinterpret_cast<ContinuousAudioTrackSink*>(context);
-  sink->AudioThreadFunc();
-
-  JNIState::GetVM()->DetachCurrentThread();
-  return NULL;
-}
-
-=======
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();

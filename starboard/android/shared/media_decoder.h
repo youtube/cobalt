@@ -220,11 +220,7 @@ class MediaDecoder final
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-<<<<<<< HEAD
-  pthread_t decoder_thread_ = 0;
-=======
   std::unique_ptr<Thread> decoder_thread_;
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

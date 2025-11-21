@@ -40,21 +40,6 @@ class JobThread::WorkerThread : public Thread {
         mutex_(mutex),
         cv_(cv) {}
 
-<<<<<<< HEAD
-struct ThreadParam {
-  explicit ThreadParam(JobThread* job_thread,
-                       const char* name,
-                       SbThreadPriority priority)
-      : condition_variable(mutex),
-        job_thread(job_thread),
-        thread_name(name),
-        thread_priority(priority) {}
-  Mutex mutex;
-  ConditionVariable condition_variable;
-  JobThread* job_thread;
-  std::string thread_name;
-  SbThreadPriority thread_priority;
-=======
   void Run() override {
     SbThreadSetPriority(priority_);
     {
@@ -70,7 +55,6 @@ struct ThreadParam {
   SbThreadPriority priority_;
   std::mutex* mutex_;
   std::condition_variable* cv_;
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 };
 
 JobThread::JobThread(const char* thread_name,
@@ -83,20 +67,8 @@ JobThread::JobThread(const char* thread_name,
       this, thread_name, stack_size, priority, &mutex, &condition_variable);
   thread_->Start();
 
-<<<<<<< HEAD
-  pthread_create(&thread_, &attributes, &JobThread::ThreadEntryPoint,
-                 &thread_param);
-  pthread_attr_destroy(&attributes);
-
-  SB_DCHECK_NE(thread_, 0);
-  ScopedLock scoped_lock(thread_param.mutex);
-  while (!job_queue_) {
-    thread_param.condition_variable.Wait();
-  }
-=======
   std::unique_lock lock(mutex);
   condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   SB_DCHECK(job_queue_);
 }
 
@@ -107,33 +79,7 @@ JobThread::~JobThread() {
   if (job_queue_) {
     job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
   }
-<<<<<<< HEAD
-  pthread_join(thread_, nullptr);
-}
-
-// static
-void* JobThread::ThreadEntryPoint(void* context) {
-  ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != nullptr);
-
-  pthread_setname_np(pthread_self(), param->thread_name.c_str());
-  shared::pthread::ThreadSetPriority(param->thread_priority);
-
-  JobThread* job_thread = param->job_thread;
-  {
-    ScopedLock scoped_lock(param->mutex);
-    job_thread->job_queue_.reset(new JobQueue);
-    param->condition_variable.Signal();
-  }
-  job_thread->RunLoop();
-
-#if defined(ANDROID)
-  android::shared::JNIState::GetVM()->DetachCurrentThread();
-#endif
-  return nullptr;
-=======
   thread_->Join();
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 void JobThread::RunLoop() {

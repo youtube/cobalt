@@ -156,11 +156,7 @@ class AudioTrackAudioSink
   AudioTrackBridge bridge_;
 
   volatile bool quit_ = false;
-<<<<<<< HEAD
-  pthread_t audio_out_thread_ = 0;
-=======
   std::unique_ptr<Thread> audio_out_thread_;
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;

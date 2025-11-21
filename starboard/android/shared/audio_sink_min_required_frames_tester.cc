@@ -67,20 +67,13 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
-<<<<<<< HEAD
-  if (tester_thread_ != 0) {
+  if (tester_thread_) {
     {
       ScopedLock scoped_lock(mutex_);
       condition_variable_.Signal();
     }
-    pthread_join(tester_thread_, NULL);
-    tester_thread_ = 0;
-=======
-  if (tester_thread_) {
-    test_complete_cv_.notify_one();
     tester_thread_->Join();
     tester_thread_.reset();
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
   }
 }
 
@@ -92,7 +85,7 @@ void MinRequiredFramesTester::AddTest(
     int default_required_frames) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester doesn't support to add test after starts.
-  SB_DCHECK_EQ(tester_thread_, 0);
+  SB_DCHECK(!tester_thread_);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
@@ -101,30 +94,10 @@ void MinRequiredFramesTester::AddTest(
 void MinRequiredFramesTester::Start() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester only supports to start once.
-  SB_DCHECK_EQ(tester_thread_, 0);
+  SB_DCHECK(!tester_thread_);
 
-<<<<<<< HEAD
-  pthread_create(&tester_thread_, nullptr,
-                 &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_DCHECK_NE(tester_thread_, 0);
-}
-
-// static
-void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLowest);
-
-  pthread_setname_np(pthread_self(), "audio_track_tester");
-
-  SB_DCHECK(context);
-  MinRequiredFramesTester* tester =
-      static_cast<MinRequiredFramesTester*>(context);
-  tester->TesterThreadFunc();
-  JNIState::GetVM()->DetachCurrentThread();
-  return NULL;
-=======
   tester_thread_ = std::make_unique<TesterThread>(this);
   tester_thread_->Start();
->>>>>>> 4384f0a435d (starboard: Refactor threading to use starboard::Thread (#8064))
 }
 
 void MinRequiredFramesTester::TesterThreadFunc() {
