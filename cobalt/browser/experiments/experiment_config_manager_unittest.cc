@@ -20,6 +20,7 @@
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/pref_names.h"
@@ -40,10 +41,14 @@ class ExperimentConfigManagerTest : public testing::Test {
         kExperimentConfigFeatures);
     pref_service_->registry()->RegisterDictionaryPref(
         kExperimentConfigFeatureParams);
+    pref_service_->registry()->RegisterStringPref(kExperimentConfigMinVersion,
+                                                  std::string());
     pref_service_->registry()->RegisterStringPref(kSafeConfigActiveConfigData,
                                                   std::string());
     pref_service_->registry()->RegisterDictionaryPref(kSafeConfigFeatures);
     pref_service_->registry()->RegisterDictionaryPref(kSafeConfigFeatureParams);
+    pref_service_->registry()->RegisterStringPref(kSafeConfigMinVersion,
+                                                  std::string());
     pref_service_->registry()->RegisterDictionaryPref(kFinchParameters);
     pref_service_->registry()->RegisterTimePref(
         variations::prefs::kVariationsLastFetchTime, base::Time());
@@ -398,6 +403,78 @@ TEST_F(ExperimentConfigManagerTest,
   // Expect regular config because the metrics crash streak is 0.
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsEmptyOnRegularConfigRollback) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  pref_service_->SetString(kExperimentConfigMinVersion, "99.android.0");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsRegularWhenVersionMatches) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  pref_service_->SetString(kExperimentConfigMinVersion, COBALT_VERSION);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsRegularWhenMinVersionIsOlder) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  pref_service_->SetString(kExperimentConfigMinVersion, "0.lts.0");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsEmptyOnSafeConfigRollback) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    kCrashStreakSafeConfigThreshold);
+  pref_service_->SetString(kSafeConfigMinVersion, "99.lts.0");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsSafeWhenVersionMatches) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    kCrashStreakSafeConfigThreshold);
+  pref_service_->SetString(kSafeConfigMinVersion, COBALT_VERSION);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsSafeWhenVersionIsOlder) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    kCrashStreakSafeConfigThreshold);
+  pref_service_->SetString(kSafeConfigMinVersion, "0.lts.0");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsRegularWhenMinVersionIsEmpty) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  pref_service_->SetString(kExperimentConfigMinVersion, "");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsSafeWhenMinVersionIsEmpty) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    kCrashStreakSafeConfigThreshold);
+  pref_service_->SetString(kSafeConfigMinVersion, "");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
 }
 
 }  // namespace cobalt
