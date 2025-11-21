@@ -21,6 +21,8 @@ static_library("libc") {
     sources += [
       "locale/locale.cc",
       "locale/locale.h",
+      "locale/locale_support.cc",
+      "locale/locale_support.h",
       "stdlib/environment.cc",
       "time/gmtime.cc",
       "time/icu_time_support.cc",

@@ -4,7 +4,6 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
-    "PosixLocale*",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbAudioSinkTest.*",
     "SbLogFlushTest.DontCrashMeBro",
@@ -16,5 +15,16 @@
     "SbPlayerTest.*",
     "SbPlayerWriteSampleTests*",
     "VerticalVideoTests/VerticalVideoTest*"
+    "VerticalVideoTests/VerticalVideoTest*",
+
+    "PosixLocaleSetTest.LocaleConvC",
+    "PosixLocaleSetTest.NewUseFreeLocale",
+    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
+    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
+    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
+    "PosixLocaleThreadTest.DupLocale",
+    "PosixLocaleThreadTest.DupLocaleNonDefault",
+    "Posix/NlLanginfoTest*",
+    "Posix/NlLanginfoLTest*"
   ]
 }
