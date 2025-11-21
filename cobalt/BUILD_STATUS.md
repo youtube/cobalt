@@ -194,24 +194,24 @@
 | **raspi-2**   | [![Status][raspi-22-badge]][raspi-22-link]     | [![Status][raspi-22-nightly-badge]][raspi-22-nightly-link]     |
 
 [android-22-badge]: https://github.com/youtube/cobalt/actions/workflows/android_22.lts.1+.yaml/badge.svg?event=push&branch=22.lts.1%2B
-[android-22-link]: https://github.com/youtube/cobalt/actions/workflows/android_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Apush
+[android-22-link]: https://github.com/youtube/cobalt/actions/workflows/android_22.lts.1+.yaml?query=event%3Apush+branch%3A22.lts.1%2B
 [android-22-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/android_22.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=22.lts.1%2B
-[android-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/android_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Aworkflow_dispatch
+[android-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/android_22.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A22.lts.1%2B
 
 [eg-22-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_22.lts.1+.yaml/badge.svg?event=push&branch=22.lts.1%2B
-[eg-22-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Apush
+[eg-22-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_22.lts.1+.yaml?query=event%3Apush+branch%3A22.lts.1%2B
 [eg-22-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_22.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=22.lts.1%2B
-[eg-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Aworkflow_dispatch
+[eg-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_22.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A22.lts.1%2B
 
 [linux-22-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_22.lts.1+.yaml/badge.svg?event=push&branch=22.lts.1%2B
-[linux-22-link]: https://github.com/youtube/cobalt/actions/workflows/linux_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Apush
+[linux-22-link]: https://github.com/youtube/cobalt/actions/workflows/linux_22.lts.1+.yaml?query=event%3Apush+branch%3A22.lts.1%2B
 [linux-22-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_22.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=22.lts.1%2B
-[linux-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Aworkflow_dispatch
+[linux-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_22.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A22.lts.1%2B
 
 [raspi-22-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_22.lts.1+.yaml/badge.svg?event=push&branch=22.lts.1%2B
-[raspi-22-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Apush
+[raspi-22-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_22.lts.1+.yaml?query=event%3Apush+branch%3A22.lts.1%2B
 [raspi-22-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_22.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=22.lts.1%2B
-[raspi-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_22.lts.1+.yaml?query=branch%3A22.lts.1%2B+event%3Aworkflow_dispatch
+[raspi-22-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_22.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A22.lts.1%2B
 
 ### 21.lts.1+
 
@@ -222,19 +222,19 @@
 | **raspi-2**   | [![Status][raspi-21-badge]][raspi-21-link]     | [![Status][raspi-21-nightly-badge]][raspi-21-nightly-link]     |
 
 [eg-21-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_21.lts.1+.yaml/badge.svg?event=push&branch=21.lts.1%2B
-[eg-21-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_21.lts.1+.yaml?query=branch%3A21.lts.1%2B+event%3Apush
+[eg-21-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_21.lts.1+.yaml?query=event%3Apush+branch%3A21.lts.1%2B
 [eg-21-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_21.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=21.lts.1%2B
 [eg-21-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_21.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A21.lts.1%2B
 
 [linux-21-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_21.lts.1+.yaml/badge.svg?event=push&branch=21.lts.1%2B
-[linux-21-link]: https://github.com/youtube/cobalt/actions/workflows/linux_21.lts.1+.yaml?query=branch%3A21.lts.1%2B+event%3Apush
+[linux-21-link]: https://github.com/youtube/cobalt/actions/workflows/linux_21.lts.1+.yaml?query=event%3Apush+branch%3A21.lts.1%2B
 [linux-21-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_21.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=21.lts.1%2B
 [linux-21-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_21.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A21.lts.1%2B
 
 [raspi-21-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_21.lts.1+.yaml/badge.svg?event=push&branch=21.lts.1%2B
-[raspi-21-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_21.lts.1+.yaml?query=branch%3A21.lts.1%2B+event%3Apush
+[raspi-21-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_21.lts.1+.yaml?query=event%3Apush+branch%3A21.lts.1%2B
 [raspi-21-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_21.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=21.lts.1%2B
-[raspi-21-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_21.lts.1+.yaml?query=branch%3A21.lts.1%2B+event%3Aworkflow_dispatch
+[raspi-21-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_21.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A21.lts.1%2B
 
 ### 20.lts.1+
 
@@ -244,14 +244,14 @@
 | **raspi-2**   | [![Status][raspi-20-badge]][raspi-20-link]     | [![Status][raspi-20-nightly-badge]][raspi-20-nightly-link]     |
 
 [linux-20-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_20.lts.1+.yaml/badge.svg?event=push&branch=20.lts.1%2B
-[linux-20-link]: https://github.com/youtube/cobalt/actions/workflows/linux_20.lts.1+.yaml?query=branch%3A20.lts.1%2B+event%3Apush
+[linux-20-link]: https://github.com/youtube/cobalt/actions/workflows/linux_20.lts.1+.yaml?query=event%3Apush+branch%3A20.lts.1%2B
 [linux-20-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_20.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=20.lts.1%2B
 [linux-20-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_20.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A20.lts.1%2B
 
 [raspi-20-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_20.lts.1+.yaml/badge.svg?event=push&branch=20.lts.1%2B
-[raspi-20-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_20.lts.1+.yaml?query=branch%3A20.lts.1%2B+event%3Apush
+[raspi-20-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_20.lts.1+.yaml?query=event%3Apush+branch%3A20.lts.1%2B
 [raspi-20-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_20.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=20.lts.1%2B
-[raspi-20-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_20.lts.1+.yaml?query=branch%3A20.lts.1%2B+event%3Aworkflow_dispatch
+[raspi-20-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_20.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A20.lts.1%2B
 
 ### 19.lts.1+
 
@@ -261,14 +261,14 @@
 | **raspi-2**   | [![Status][raspi-19-badge]][raspi-19-link]     | [![Status][raspi-19-nightly-badge]][raspi-19-nightly-link]     |
 
 [linux-19-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_19.lts.1+.yaml/badge.svg?event=push&branch=19.lts.1%2B
-[linux-19-link]: https://github.com/youtube/cobalt/actions/workflows/linux_19.lts.1+.yaml?query=branch%3A19.lts.1%2B+event%3Apush
+[linux-19-link]: https://github.com/youtube/cobalt/actions/workflows/linux_19.lts.1+.yaml?query=event%3Apush+branch%3A19.lts.1%2B
 [linux-19-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_19.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=19.lts.1%2B
 [linux-19-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_19.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A19.lts.1%2B
 
 [raspi-19-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_19.lts.1+.yaml/badge.svg?event=push&branch=19.lts.1%2B
-[raspi-19-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_19.lts.1+.yaml?query=branch%3A19.lts.1%2B+event%3Apush
+[raspi-19-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_19.lts.1+.yaml?query=event%3Apush+branch%3A19.lts.1%2B
 [raspi-19-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_19.lts.1+.yaml/badge.svg?event=workflow_dispatch&branch=19.lts.1%2B
-[raspi-19-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_19.lts.1+.yaml?query=branch%3A19.lts.1%2B+event%3Aworkflow_dispatch
+[raspi-19-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2_19.lts.1+.yaml?query=event%3Aworkflow_dispatch+branch%3A19.lts.1%2B
 
 ### RC11
 
