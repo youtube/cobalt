@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
-#define COBALT_SHELL_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
+#define COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
 
 #include "content/public/renderer/render_frame_observer.h"
 
@@ -38,4 +38,4 @@ class ShellRenderFrameObserver : public RenderFrameObserver {
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_

@@ -223,7 +223,6 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
-    "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
@@ -352,11 +351,6 @@ test("cobalt_browsertests") {
     "//third_party/mesa_headers",
   ]
 
-  # official builds do not include this in content_shell_lib
-  if (is_official_build) {
-    deps += [ "//cobalt/shell:browsertests_sources" ]
-  }
-
   if (is_android) {
     deps += [
       ":content_browsertests_java",
@@ -394,7 +388,6 @@ test("cobalt_browsertests") {
 
   if (is_linux && !is_tsan) {
     deps += [
-      "//cobalt/shell:shell_controller_mojom",
       "//components/variations:variations",
       "//components/variations/field_trial_config:field_trial_config",
       "//mojo/public/cpp/platform",
@@ -425,11 +418,8 @@ static_library("cobalt_shell_test_lib") {
     ":browsertests_mojom",
     ":browsertests_sources",
     "//cc/base",
-    "//cobalt/shell:browsertests_mojom",
-    "//cobalt/shell:browsertests_sources",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
-    "//cobalt/shell:shell_controller_mojom",
     "//cobalt/shell:shell_test_switches_lib",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
@@ -475,24 +465,57 @@ source_set("browsertests_sources") {
     "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
+    "renderer/render_frame_test_helper.cc",
+    "renderer/render_frame_test_helper.h",
+    "renderer/shell_render_frame_observer.cc",
+    "renderer/shell_render_frame_observer.h",
   ]
 
   public_deps = [
     ":browsertests_mojom",
+    ":shell_controller_mojom",
+    "//cobalt/shell:shell_test_switches_lib",
+    "//components/custom_handlers:test_support",
+    "//components/metrics:test_support",
+    "//components/services/storage/test_api",
     "//content/common:main_frame_counter",
+    "//content/public/child",
+    "//content/public/common",
+    "//content/public/renderer",
+    "//content/public/utility",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
   ]
+
+  if (use_aura) {
+    public_deps += [ "//ui/aura:test_support" ]
+
+    if (shell_use_toolkit_views) {
+      public_deps += [
+        "//ui/views:test_support",
+        "//ui/wm:test_support",
+      ]
+    }
+  }
 }
 
 mojom("browsertests_mojom") {
   sources = [
     "common/main_frame_counter_test.mojom",
     "common/power_monitor_test.mojom",
+    "common/render_frame_test_helper.mojom",
   ]
 
   public_deps = [
     "//sandbox/policy/mojom",
     "//third_party/blink/public/mojom/tokens",
   ]
+}
+
+mojom("shell_controller_mojom") {
+  testonly = true
+  sources = [ "common/shell_controller.test-mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
 }

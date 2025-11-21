@@ -17,7 +17,7 @@ module content.mojom;
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/values.mojom";
 
-// A control interface which can be accessed by clients launching Content Shell
+// A control interface which can be accessed by clients launching Cobalt Shell
 // with a Mojo invitation on the command line. This is used by
 // LaunchAsMojoClientBrowserTest to exercise that mode of execution.
 interface ShellController {
