@@ -18,8 +18,8 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_TVOS_SHARED_CONFIGURATION_PUBLIC_H_
-#define INTERNAL_STARBOARD_DARWIN_TVOS_SHARED_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_DARWIN_TVOS_SHARED_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_DARWIN_TVOS_SHARED_CONFIGURATION_PUBLIC_H_
 
 // --- System Header Configuration -------------------------------------------
 
@@ -106,4 +106,4 @@
 #define LIBEVENT_PLATFORM_HEADER \
   "starboard/shared/uikit/libevent/libevent-starboard.h"
 
-#endif  // INTERNAL_STARBOARD_DARWIN_TVOS_SHARED_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_DARWIN_TVOS_SHARED_CONFIGURATION_PUBLIC_H_

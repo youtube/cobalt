@@ -15,7 +15,7 @@
 #ifndef STARBOARD_COMMON_TIME_H_
 #define STARBOARD_COMMON_TIME_H_
 
-#include "starboard/types.h"
+#include <cstdint>
 
 namespace starboard {
 

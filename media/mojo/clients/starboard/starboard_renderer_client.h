@@ -186,6 +186,9 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
       video_geometry_change_client_receiver_{this};
 
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<StarboardRendererClient> weak_factory_{this};
 };
 

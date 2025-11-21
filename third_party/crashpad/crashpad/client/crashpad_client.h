@@ -370,6 +370,12 @@ class CrashpadClient {
   //!     path as its `--metrics-dir` argument.
   //! \param[in] url The URL of an upload server. The handler will be started
   //!     with this URL as its `--url` argument.
+#if BUILDFLAG(IS_STARBOARD)
+  //! \param[in] ca_certificates_path The absolute path to a directory
+  //!     containing trusted Certificate Authority (CA) root certificates. The
+  //!     handler will be started with this path as its `--ca-certificates-path`
+  //!     argument.
+#endif
   //! \param[in] annotations Process annotations to set in each crash report.
   //!     The handler will be started with an `--annotation` argument for each
   //!     element in this map.
@@ -387,6 +393,9 @@ class CrashpadClient {
       const base::FilePath& database,
       const base::FilePath& metrics_dir,
       const std::string& url,
+#if BUILDFLAG(IS_STARBOARD)
+      const base::FilePath& ca_certificates_path,
+#endif
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments,
       const std::vector<base::FilePath>& attachments = {});

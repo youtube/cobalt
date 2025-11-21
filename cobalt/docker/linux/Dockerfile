@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     git \
     xz-utils \
+    zstd \
     pkgconf \
     libglib2.0-0 \
     libnss3 \

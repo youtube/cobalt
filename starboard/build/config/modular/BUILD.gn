@@ -17,7 +17,6 @@ config("modular") {
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
-    "-nostdlibinc",
   ]
 
   cflags += [ "-fPIC" ]

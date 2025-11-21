@@ -44,19 +44,19 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
-  HandlerResult Init(SbPlayer player,
-                     UpdateMediaInfoCB update_media_info_cb,
-                     GetPlayerStateCB get_player_state_cb,
-                     UpdatePlayerStateCB update_player_state_cb,
-                     UpdatePlayerErrorCB update_player_error_cb) override;
-  HandlerResult Seek(int64_t seek_to_time, int ticket) override;
-  HandlerResult WriteSamples(const InputBuffers& input_buffers,
-                             int* samples_written) override;
-  HandlerResult WriteEndOfStream(SbMediaType sample_type) override;
-  HandlerResult SetPause(bool pause) override;
-  HandlerResult SetPlaybackRate(double playback_rate) override;
+  Result<void> Init(SbPlayer player,
+                    UpdateMediaInfoCB update_media_info_cb,
+                    GetPlayerStateCB get_player_state_cb,
+                    UpdatePlayerStateCB update_player_state_cb,
+                    UpdatePlayerErrorCB update_player_error_cb) override;
+  Result<void> Seek(int64_t seek_to_time, int ticket) override;
+  Result<void> WriteSamples(const InputBuffers& input_buffers,
+                            int* samples_written) override;
+  Result<void> WriteEndOfStream(SbMediaType sample_type) override;
+  Result<void> SetPause(bool pause) override;
+  Result<void> SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-  HandlerResult SetBounds(const Bounds& bounds) override;
+  Result<void> SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
   void Stop() override;
 

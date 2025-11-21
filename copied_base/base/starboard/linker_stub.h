@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef BASE_STARBOARD_LINKER_STUB_H_
-#define BASE_STARBOARD_LINKER_STUB_H_
+#ifndef COPIED_BASE_BASE_STARBOARD_LINKER_STUB_H_
+#define COPIED_BASE_BASE_STARBOARD_LINKER_STUB_H_
 
 #include "starboard/common/log.h"
 
@@ -37,4 +37,4 @@
   SbSystemBreakIntoDebugger();
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-#endif  // BASE_STARBOARD_LINKER_STUB_H_
+#endif  // COPIED_BASE_BASE_STARBOARD_LINKER_STUB_H_

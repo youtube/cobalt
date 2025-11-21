@@ -139,32 +139,28 @@ if (is_android) {
     output = content_browsertests_manifest
   }
 
-  generate_jni("content_browsertests_jni_headers") {
-    testonly = true
-    sources = [ "//content/public/android/javatests/src/org/chromium/content/browser/fakes/TestViewAndroidDelegate.java" ]
-  }
-
   android_library("content_browsertests_java") {
     testonly = true
-    resources_package = "org.chromium.content_browsertests_apk"
+    resources_package = "dev.cobalt.coat"
     sources = [
-      "//content/public/android/javatests/src/org/chromium/content/browser/fakes/TestViewAndroidDelegate.java",
-      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
-      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsActivity.java",
+      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/dev/cobalt/coat/ContentShellBrowserTestActivity.java",
     ]
     deps = [
       ":content_browsertests_manifest",
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
-      "//cobalt/shell/android:cobalt_shell_browsertests_java",
+      "//base:content_uri_utils_java",
+      "//cobalt/shell/android:cobalt_shell_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
       "//components/viz/service:service_java",
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
-      "//testing/android/native_test:native_test_java",
-      "//third_party/jni_zero:jni_zero_java",
+      "//testing/android/native_test:native_browser_test_java",
+      "//third_party/androidx:androidx_core_core_java",
       "//ui/android:ui_java",
     ]
   }
@@ -189,19 +185,20 @@ test("cobalt_browsertests") {
   }
 
   sources = [
-    "content_main_runner_impl_browsertest.cc",
-    "encrypted_media_browsertest.cc",
-    "frame_tree_browsertest.cc",
-    "media_browsertest.cc",
-    "media_browsertest.h",
-    "media_session_browsertest.cc",
-    "media_source_browsertest.cc",
-    "navigation_browsertest.cc",
-    "session_history_browsertest.cc",
-    "site_per_process_browsertest.cc",
-    "site_per_process_browsertest.h",
-    "web_contents_impl_browsertest.cc",
-    "webrtc_getusermedia_browsertest.cc",
+    # TODO(b/458665232): restore browser tests in M138.
+    #"content_main_runner_impl_browsertest.cc",
+    #"encrypted_media_browsertest.cc",
+    #"frame_tree_browsertest.cc",
+    #"media_browsertest.cc",
+    #"media_browsertest.h",
+    #"media_session_browsertest.cc",
+    #"media_source_browsertest.cc",
+    #"navigation_browsertest.cc",
+    #"session_history_browsertest.cc",
+    #"site_per_process_browsertest.cc",
+    #"site_per_process_browsertest.h",
+    #"web_contents_impl_browsertest.cc",
+    #"webrtc_getusermedia_browsertest.cc",
   ]
 
   if (is_android) {
@@ -344,7 +341,7 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "//content/test/data/",
+    "$root_build_dir/cobalt/testing/browser_tests/data",
     "//media/test/data/",
   ]
 
@@ -362,7 +359,6 @@ test("cobalt_browsertests") {
   if (is_android) {
     deps += [
       ":content_browsertests_java",
-      ":content_browsertests_jni_headers",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell/android:cobalt_shell_assets",
       "//cobalt/shell/android:cobalt_shell_java_resources",
@@ -412,17 +408,23 @@ test("cobalt_browsertests") {
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
+    "app/shell_main_test_delegate.cc",
+    "app/shell_main_test_delegate.h",
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
+    "browser/test_shell.cc",
+    "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
-    "shell/test_shell.cc",
-    "shell/test_shell.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
   ]
 
-  public_deps = [
+  deps = [
     "//cc/base",
     "//cobalt/shell:browsertests_mojom",
+    "//cobalt/shell:browsertests_sources",
+    "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:shell_controller_mojom",
     "//cobalt/shell:shell_test_switches_lib",
@@ -432,9 +434,18 @@ static_library("cobalt_shell_test_lib") {
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//content/public/utility",
     "//content/test:test_support",
     "//services/network/public/cpp",
   ]
+
+  if (use_aura) {
+    sources += [
+      "browser/shell_platform_test_data_aura.cc",
+      "browser/shell_platform_test_data_aura.h",
+    ]
+    deps += [ "//ui/aura" ]
+  }
 
   if (shell_use_toolkit_views) {
     if (use_aura) {
@@ -443,7 +454,13 @@ static_library("cobalt_shell_test_lib") {
         "browser/shell_test_platform_delegate.h",
       ]
 
-      public_deps += [ "//ui/views:test_support" ]
+      deps += [ "//ui/views:test_support" ]
     }
   }
+}
+
+action("copy_test_data") {
+  script = "data/update_build_gn.py"
+  outputs = [ "$target_gen_dir/copy_test_data.stamp" ]
+  args = [ rebase_path(root_out_dir, root_build_dir) ]
 }

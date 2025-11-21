@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -27,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -61,10 +60,6 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
-    // Stores the success status of Handler operations. If |success| is false,
-    // |error_message| may be set with details of the error.
-    using HandlerResult = Result<void>;
-
     typedef PlayerWorker::Bounds Bounds;
 
     typedef std::function<
@@ -79,23 +74,23 @@ class PlayerWorker {
     Handler() = default;
     virtual ~Handler() {}
 
-    // All the following functions set |HandlerResult.success| to false to
+    // All the following functions set |Result<void>.success| to false to
     // signal a fatal error. The event processing loop in PlayerWorker will
     // terminate in this case.
-    virtual HandlerResult Init(SbPlayer player,
-                               UpdateMediaInfoCB update_media_info_cb,
-                               GetPlayerStateCB get_player_state_cb,
-                               UpdatePlayerStateCB update_player_state_cb,
-                               UpdatePlayerErrorCB update_player_error_cb) = 0;
-    virtual HandlerResult Seek(int64_t seek_to_time, int ticket) = 0;
-    virtual HandlerResult WriteSamples(const InputBuffers& input_buffers,
-                                       int* samples_written) = 0;
-    virtual HandlerResult WriteEndOfStream(SbMediaType sample_type) = 0;
-    virtual HandlerResult SetPause(bool pause) = 0;
-    virtual HandlerResult SetPlaybackRate(double playback_rate) = 0;
+    virtual Result<void> Init(SbPlayer player,
+                              UpdateMediaInfoCB update_media_info_cb,
+                              GetPlayerStateCB get_player_state_cb,
+                              UpdatePlayerStateCB update_player_state_cb,
+                              UpdatePlayerErrorCB update_player_error_cb) = 0;
+    virtual Result<void> Seek(int64_t seek_to_time, int ticket) = 0;
+    virtual Result<void> WriteSamples(const InputBuffers& input_buffers,
+                                      int* samples_written) = 0;
+    virtual Result<void> WriteEndOfStream(SbMediaType sample_type) = 0;
+    virtual Result<void> SetPause(bool pause) = 0;
+    virtual Result<void> SetPlaybackRate(double playback_rate) = 0;
     virtual void SetVolume(double volume) = 0;
 
-    virtual HandlerResult SetBounds(const Bounds& bounds) = 0;
+    virtual Result<void> SetBounds(const Bounds& bounds) = 0;
 
     // Once this function returns, all processing on the Handler and related
     // objects has to be stopped.  The JobQueue will be destroyed immediately
@@ -173,6 +168,8 @@ class PlayerWorker {
   }
 
  private:
+  class WorkerThread;
+
   PlayerWorker(SbMediaAudioCodec audio_codec,
                SbMediaVideoCodec video_codec,
                std::unique_ptr<Handler> handler,
@@ -191,10 +188,9 @@ class PlayerWorker {
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);
   void UpdatePlayerError(SbPlayerError error,
-                         Handler::HandlerResult result,
+                         Result<void> result,
                          const std::string& message);
 
-  static void* ThreadEntryPoint(void* context);
   void RunLoop();
   void DoInit();
   void DoSeek(int64_t seek_to_time, int ticket);
@@ -209,7 +205,7 @@ class PlayerWorker {
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
-  std::optional<pthread_t> thread_;
+  std::unique_ptr<Thread> thread_;
   std::unique_ptr<JobQueue> job_queue_;
 
   SbMediaAudioCodec audio_codec_;

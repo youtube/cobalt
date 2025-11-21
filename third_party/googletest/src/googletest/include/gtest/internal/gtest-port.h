@@ -295,6 +295,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "starboard/common/log.h" // nogncheck
 #include "starboard/common/spin_lock.h" // nogncheck
 #include "starboard/common/string.h" // nogncheck
@@ -302,7 +305,6 @@
 #include "starboard/log.h" // nogncheck
 #include "starboard/system.h" // nogncheck
 #include "starboard/thread.h" // nogncheck
-#include "starboard/types.h" // nogncheck
 #endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <cerrno>
@@ -1063,15 +1065,10 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-// TODO: b/399507045 - Cobalt: Investigate and remove if unnecessary
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#define GTEST_LOG_ SB_LOG
-#else
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
       .GetStream()
-#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 inline void LogToStderr() {}
 inline void FlushInfoLog() { fflush(nullptr); }
@@ -2112,94 +2109,7 @@ inline std::string StripTrailingSpaces(std::string str) {
 // as the wrapped function.
 
 namespace posix {
-
-// TODO: b/399507045 - Cobalt: Fix build error, remove hack
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-
-typedef struct stat StatStruct;
-
-inline int FileNo(FILE* /*file*/) { return 1; } // value for stdout
-inline int DoIsATTY(int fd) { return 1; } // only called for stdout
-inline int Stat(const char* path, StatStruct* buf) {
-  return stat(path, buf);
-}
-inline char* StrDup(const char* src) { return strdup(src); }
-
-inline int RmDir(const char* dir) { return rmdir(dir); }
-inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
-
-inline const char* StrNCpy(char* dest, const char* src, size_t n) {
-  strncpy(dest, src, static_cast<int>(n));
-  return dest;
-}
-
-inline FILE* FOpen(const char* /*path*/, const char* /*mode*/) { return NULL; }
-inline int FClose(FILE* /*fp*/) { return -1; }
-inline const char* StrError(int /*errnum*/) { return "N/A"; }
-
-inline const char* GetEnv(const char* /*name*/) { return NULL; }
-inline void Abort() { SbSystemBreakIntoDebugger(); }
-
-inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
-                      va_list args) {
-  return vsnprintf(out_buffer, size, format, args);
-}
-
-inline size_t StrLen(const char *str) {
-  return strlen(str);
-}
-
-inline const char *StrChr(const char *str, char c) {
-  return strchr(str, c);
-}
-
-inline const char *StrRChr(const char *str, char c) {
-  return strrchr(str, c);
-}
-
-inline int StrNCmp(const char *s1, const char *s2, size_t n) {
-  return strncmp(s1, s2, n);
-}
-
-inline void *MemSet(void *s, int c, size_t n) {
-  return memset(s, c, n);
-}
-
-inline void Assert(bool b) { SB_CHECK(b); }
-
-inline int MkDir(const char* path, int /*mode*/) {
-  return mkdir(path, 0700);
-}
-
-inline void VPrintF(const char* format, va_list args) {
-  SbLogFormat(format, args);
-}
-
-inline void PrintF(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  VPrintF(format, args);
-  va_end(args);
-}
-
-inline void Flush() { SbLogFlush(); }
-
-inline void *Malloc(size_t n) { return malloc(n); }
-inline void Free(void *p) { return free(p); }
-
-inline int IsATTY(int fd) {
-  return DoIsATTY(fd);
-}
-
-inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
-  va_list args;
-  va_start(args, format);
-  VSNPrintF(out_buffer, size, format, args);
-  va_end(args);
-}
-
-#else // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-
+// Functions with a different name on Windows.
 
 // File system porting.
 // Note: Not every I/O-related function is related to file systems, so don't
@@ -2369,8 +2279,6 @@ GTEST_DISABLE_MSC_DEPRECATED_POP_()
 #else
 [[noreturn]] inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
-
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 }  // namespace posix
 

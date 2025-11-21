@@ -28,6 +28,7 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/url_matcher/url_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"

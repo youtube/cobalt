@@ -19,18 +19,17 @@ runs:
       run: |
         set -x
         # The web tests fail when not run from the source folder. Use the existing checkout.
-        cd src/
-        tar xf ../test_artifacts.tar.gz
+        cd cobalt/src/
+        tar -I 'zstd -T0' -xf ${GITHUB_WORKSPACE}/test_artifacts.tar.zstd
     - name: Run Web Tests
       id: run-tests
       shell: bash
       env:
-        # TODO: Once fixed this should be expanded to include more tests.
-        TEST_PATH: wpt_internal/cobalt/crash-log
+        TEST_PATH: wpt_internal/cobalt
       run: |
         set -x
         env
-        cd src/
+        cd cobalt/src/
 
         RESULTS_DIR="out/${{ matrix.platform}}_${{ matrix.config }}/layout-test-results"
         echo "RESULTS_DIR=${RESULTS_DIR}" >> $GITHUB_ENV
@@ -49,4 +48,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
-        path: src/${{ env.RESULTS_DIR }}/*
+        path: cobalt/src/${{ env.RESULTS_DIR }}/*

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_
 
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -43,9 +43,9 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
 
   // Web-exposed interface:
   ScriptPromise<IDLBoolean> setString(ScriptState*,
-                          const String& key,
-                          const String& value,
-                          ExceptionState&);
+                                      const String& key,
+                                      const String& value,
+                                      ExceptionState&);
   void triggerCrash();
 
   void Trace(Visitor*) const override;
@@ -65,4 +65,4 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_

@@ -41,6 +41,7 @@ from __future__ import print_function
 
 import argparse
 import collections
+import logging
 import os
 import re
 import subprocess
@@ -111,6 +112,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'fchmod',
     'fchown',
     'fcntl',
+    'fdopendir',
     'free',
     'freeaddrinfo',
     'freeifaddrs',
@@ -156,6 +158,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pipe2',
     'poll',
     'posix_memalign',
+    'prctl',
     'pread',
     'pthread_attr_destroy',
     'pthread_attr_getdetachstate',
@@ -222,6 +225,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir',
     'readdir_r',
     'readlink',
+    'readv',
     'realpath',
     'realloc',
     'recv',
@@ -267,10 +271,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
-
-    # TODO: b/406081586 - Symbols that haven't been implemented yet but will be.
-    'putchar',
-    'fputs',
 ]
 
 
@@ -527,7 +527,7 @@ def ProcessNmOutput(nm_output, collect_files=False):
   Yields:
     Unresolved symbols that match _RE_SYMBOL_AND_ANY_VERSION_INFO.
   """
-  for line in nm_output.decode('utf-8').splitlines():
+  for line in nm_output.splitlines():
     line = line.lstrip()
     contents = line.split(' ', 1)
     if len(contents) == 1:
@@ -543,9 +543,29 @@ def ProcessNmOutput(nm_output, collect_files=False):
       print(f'Invalid line in nm output: {line}', file=sys.stderr)
 
 
-def RunCommand(args):
-  """Executes a command with the given arguments and returns the output."""
-  return subprocess.check_output(args)
+def RunCommand(args, cwd=None):
+  """Runs a command, returning its stdout and printing stderr on failure."""
+  arg_string = ' '.join(args)
+  logging.info('Running: %s', arg_string)
+  try:
+    result = subprocess.run(
+        args,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        cwd=cwd)
+    return result.stdout
+  except subprocess.CalledProcessError as e:
+    print(f'ERROR: Failed to run `${arg_string}`', file=sys.stderr)
+    print(f'Exit Code: {e.returncode}', file=sys.stderr)
+    if e.stdout:
+      print('--- stdout ---', file=sys.stderr)
+      print(e.stdout, file=sys.stderr)
+    if e.stderr:
+      print('--- stderr ---', file=sys.stderr)
+      print(e.stderr, file=sys.stderr)
+    raise
 
 
 def main():
@@ -567,7 +587,8 @@ def main():
   allowed_c99_symbols = LoadAllowedC99Symbols()
 
   print(f'Building {config_dir} if necessary...', file=sys.stderr)
-  RunCommand(['autoninja', '-C', config_path, args.target])
+  RunCommand(['autoninja', '-C', config_path, args.target],
+             cwd=paths.REPOSITORY_ROOT)
 
   # Use the library at lib.unstripped if available, as if that's around it
   # means the top-level one has been stripped of symbols.

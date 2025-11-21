@@ -20,6 +20,8 @@
 
 #include <pthread.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -32,7 +34,6 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 namespace starboard {

@@ -71,7 +71,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/media_get_buffer_garbage_collection_duration_threshold.cc",
     "//starboard/shared/stub/media_get_buffer_padding.cc",
     "//starboard/shared/stub/media_get_initial_buffer_capacity.cc",
-    "//starboard/shared/stub/media_get_max_buffer_capacity.cc",
     "//starboard/shared/stub/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/stub/media_get_video_buffer_budget.cc",
     "//starboard/shared/stub/media_is_buffer_pool_allocate_on_demand.cc",

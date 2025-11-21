@@ -17,6 +17,8 @@
 #include <stdlib.h>  // for rand and srand
 
 #include <algorithm>  // for std::min
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -25,7 +27,6 @@
 #include "media/starboard/progressive/endian_util.h"
 #include "media/starboard/progressive/mock_data_source_reader.h"
 #include "media/starboard/progressive/mp4_parser.h"
-#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

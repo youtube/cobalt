@@ -15,13 +15,14 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_AVC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_AVC_UTIL_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

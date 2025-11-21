@@ -199,7 +199,7 @@ void OomInterventionTabHelper::OnNearOomDetected() {
       FROM_HERE, detection_window,
       base::BindOnce(&OomInterventionTabHelper::
                          OnDetectionWindowElapsedWithoutHighMemoryUsage,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr()));
 }
 
 void OomInterventionTabHelper::

@@ -15,8 +15,6 @@
 #ifndef MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_IMPL_H_
 #define MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_IMPL_H_
 
-#include <vector>
-
 #include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "media/gpu/starboard/starboard_gpu_factory.h"

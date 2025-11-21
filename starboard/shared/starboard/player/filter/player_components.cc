@@ -128,18 +128,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
             video_stream_info_.codec != kSbMediaVideoCodecNone);
 }
 
-PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const CreationParameters& that) {
-  this->audio_stream_info_ = that.audio_stream_info_;
-  this->video_stream_info_ = that.video_stream_info_;
-  this->player_ = that.player_;
-  this->output_mode_ = that.output_mode_;
-  this->max_video_input_size_ = that.max_video_input_size_;
-  this->decode_target_graphics_context_provider_ =
-      that.decode_target_graphics_context_provider_;
-  this->drm_system_ = that.drm_system_;
-}
-
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {

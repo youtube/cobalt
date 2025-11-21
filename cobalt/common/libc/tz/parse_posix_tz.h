@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_COMMON_TZ_PARSE_POSIX_TZ_H_
-#define COBALT_COMMON_TZ_PARSE_POSIX_TZ_H_
+#ifndef COBALT_COMMON_LIBC_TZ_PARSE_POSIX_TZ_H_
+#define COBALT_COMMON_LIBC_TZ_PARSE_POSIX_TZ_H_
 
 #include <optional>
 #include <string>
@@ -77,4 +77,4 @@ std::ostream& operator<<(std::ostream& out, const TransitionRule& rule);
 }  // namespace common
 }  // namespace cobalt
 
-#endif  // #ifndef COBALT_COMMON_TZ_PARSE_POSIX_TZ_H_
+#endif  // COBALT_COMMON_LIBC_TZ_PARSE_POSIX_TZ_H_

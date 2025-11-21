@@ -14,5 +14,4 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-sb_is_evergreen_compatible = true
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"

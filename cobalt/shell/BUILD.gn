@@ -24,7 +24,7 @@ import("//tools/grit/repack.gni")
 shell_use_toolkit_views = toolkit_views && !is_castos
 
 # Web test support only built for the linux-x64x11-no-starboard target.
-support_web_tests = !is_android && !is_starboard
+support_web_tests = !is_android && !is_ios && !is_starboard
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("cobalt_shell_lib_warnings") {
@@ -172,8 +172,6 @@ source_set("browsertests_sources") {
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
     "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
   ]
 
   public_deps = [
@@ -206,9 +204,19 @@ source_set("browsertests_sources") {
   }
 }
 
+static_library("cobalt_shell_switches") {
+  sources = [
+    "common/shell_switches.cc",
+    "common/shell_switches.h",
+  ]
+}
+
 static_library("cobalt_shell_lib") {
   testonly = true
-  public_deps = [ ":cobalt_shell_lib_deps" ]
+  public_deps = [
+    ":cobalt_shell_lib_deps",
+    ":cobalt_shell_switches",
+  ]
   sources = [
     "browser/shell.cc",
     "browser/shell.h",
@@ -229,8 +237,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
-    "browser/shell_platform_data_aura.cc",
-    "browser/shell_platform_data_aura.h",
     "browser/shell_platform_delegate.cc",
     "browser/shell_platform_delegate.h",
     "browser/shell_speech_recognition_manager_delegate.cc",
@@ -241,8 +247,6 @@ static_library("cobalt_shell_lib") {
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
-    "common/shell_switches.cc",
-    "common/shell_switches.h",
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
@@ -302,6 +306,11 @@ static_library("cobalt_shell_lib") {
   }
 
   if (use_aura) {
+    sources += [
+      "browser/shell_platform_data_aura.cc",
+      "browser/shell_platform_data_aura.h",
+    ]
+
     if (shell_use_toolkit_views) {
       sources += [
         "browser/cobalt_views_delegate.cc",
@@ -315,11 +324,6 @@ static_library("cobalt_shell_lib") {
         "browser/shell_web_contents_view_delegate_aura.cc",
       ]
     }
-  } else {
-    sources -= [
-      "browser/shell_platform_data_aura.cc",
-      "browser/shell_platform_data_aura.h",
-    ]
   }
 
   if (is_starboard) {
@@ -360,6 +364,13 @@ static_library("cobalt_shell_app") {
     "app/shell_main_delegate.h",
   ]
   public_deps = [ ":cobalt_shell_app_deps" ]
+
+  if (is_apple) {
+    sources += [
+      "app/paths_mac.h",
+      "app/paths_mac.mm",
+    ]
+  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",

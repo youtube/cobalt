@@ -16,6 +16,8 @@
 
 #include <inttypes.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -29,7 +31,6 @@
 #include "media/base/data_source.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/starboard_utils.h"
-#include "starboard/types.h"
 
 namespace media {
 

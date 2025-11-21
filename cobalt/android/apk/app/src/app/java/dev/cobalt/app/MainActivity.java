@@ -54,7 +54,6 @@ public class MainActivity extends CobaltActivity {
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
-    this.shouldSetJNIPrefix = false;
     super.onCreate(savedInstanceState);
   }
 }

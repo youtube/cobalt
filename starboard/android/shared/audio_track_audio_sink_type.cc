@@ -15,7 +15,9 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
 #include <unistd.h>
+
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -27,6 +29,7 @@
 #include "starboard/common/scoped_timer.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
@@ -110,6 +113,20 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
+class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
+ public:
+  explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
+      : Thread("audio_track_out"), sink_(sink) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityRealTime);
+    sink_->AudioThreadFunc();
+  }
+
+ private:
+  AudioTrackAudioSink* sink_;
+};
+
 AudioTrackAudioSink::AudioTrackAudioSink(
     Type* type,
     int channels,
@@ -164,18 +181,15 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  audio_out_thread_ = thread;
+  audio_out_thread_ = std::make_unique<AudioTrackOutThread>(this);
+  audio_out_thread_->Start();
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
+    audio_out_thread_->Join();
   }
 }
 
@@ -190,18 +204,6 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-// static
-void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "audio_track_out");
-  SB_DCHECK(context);
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
-}
-
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -214,6 +216,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
 
   int last_playback_head_position = 0;
+
+  bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
+      features::kReleaseVideoFramesAfterAudioStarts);
 
   while (!quit_) {
     int playback_head_position = 0;
@@ -282,6 +287,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       last_playback_head_event_at = -1;
       ScopedTimer timer("Play");
       bridge_.Play();
+      if (release_frames_after_audio_starts) {
+        // To promptly re-evaluate and update audio state, we restart the loop
+        // after calling AudioTrack.play() on Android, as this operation often
+        // takes hundreds of milliseconds.
+        continue;
+      }
     }
 
     if (!is_playing || frames_in_buffer == 0) {

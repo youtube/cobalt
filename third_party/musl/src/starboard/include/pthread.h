@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
-#define THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_PTHREAD_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_PTHREAD_H_
 
 #include <stdint.h>
 #include <time.h>
@@ -270,4 +270,4 @@ int pthread_kill(pthread_t, int);
 }  // extern "C"
 #endif
 
-#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_PTHREAD_H_

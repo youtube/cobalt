@@ -1,6 +1,16 @@
-// Copyright 2012 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/testing/browser_tests/site_per_process_browsertest.h"
 
@@ -10637,16 +10647,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   // be non-passive to ensure TouchStart doesn't get acked until after the
   // touch handler completes.
   EXPECT_TRUE(ExecJs(child_node,
-                     "touch_event_count = 0;\
-       function touch_handler(ev) {\
-         var start = Date.now();\
-         while (Date.now() < start + 1000) {}\
-         touch_event_count++;\
-       }\
-       document.body.addEventListener('touchstart', touch_handler,\
-                                      { passive : false });\
-       document.body.addEventListener('touchend', touch_handler,\
-                                      { passive : false });"));
+                     R"(touch_event_count = 0;
+       function touch_handler(ev) {
+         var start = Date.now();
+         while (Date.now() < start + 1000) {}
+         touch_event_count++;
+       }
+       document.body.addEventListener('touchstart', touch_handler,
+                                      { passive : false });
+       document.body.addEventListener('touchend', touch_handler,
+                                      { passive : false });)" );
 
   WaitForHitTestData(child_node->current_frame_host());
 
@@ -10681,12 +10691,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     // We need to know the center of the child's body, but in root view
     // coordinates.
     std::string str = EvalJs(child_node,
-                             "var rect = document.body.getBoundingClientRect();\
-         var point = {\
-           x: rect.left + rect.width / 2,\
-           y: rect.top + rect.height / 2\
-         };\
-         JSON.stringify(point);")
+                             "var rect = document.body.getBoundingClientRect();"
+                             "var point = {"
+                             "x: rect.left + rect.width / 2,"
+                             "y: rect.top + rect.height / 2"
+                             "};"
+                             "JSON.stringify(point);")
                           .ExtractString();
     ConvertJSONToPoint(str, &child_tap_point);
     child_tap_point = child_node->current_frame_host()
@@ -10720,7 +10730,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   root_host->QueueSyntheticGesture(
       std::move(root_tap_gesture),
       base::BindOnce([](SyntheticGesture::Result result) {
-        EXPECT_EQ(SyntheticGesture::GESTURE_FINISHED, result);
+    EXPECT_EQ(SyntheticGesture::GESTURE_FINISHED, result);
       }));
 
   root_ack_waiter.Wait();
@@ -11610,15 +11620,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe is visible and generates paint events.  See
 // https://crbug.com/638375.
 // TODO(b/437371782): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  SubframeVisibleAfterRenderViewBecomesSwappedOut
-#else
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
+IN_PROC_BROWSER_TEST_P(
+    SitePerProcessBrowserTest,
+    DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 

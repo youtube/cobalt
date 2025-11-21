@@ -41,4 +41,9 @@ struct dirent* __abi_wrap_readdir(DIR* dirp);
 struct dirent* readdir(DIR* dirp) {
   return __abi_wrap_readdir(dirp);
 }
+
+DIR* __abi_wrap_fdopendir(int fd);
+DIR* fdopendir(int fd) {
+  return __abi_wrap_fdopendir(fd);
+}
 }

@@ -26,8 +26,8 @@
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_controller.test-mojom.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
@@ -45,6 +45,8 @@
 #include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/service/variations_service_client.h"
+#include "components/variations/synthetic_trial_registry.h"
+#include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_switches.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
@@ -115,7 +117,7 @@ class ShellControllerImpl : public mojom::ShellController {
     CHECK(!Shell::windows().empty());
     WebContents* contents = Shell::windows()[0]->web_contents();
     contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-        script, std::move(callback));
+        script, std::move(callback), ISOLATED_WORLD_ID_GLOBAL);
   }
 
   void ShutDown() override { Shell::Shutdown(); }
@@ -170,7 +172,8 @@ ShellContentBrowserTestClient::CreateURLLoaderThrottles(
     BrowserContext* browser_context,
     const base::RepeatingCallback<WebContents*()>& wc_getter,
     NavigationUIData* navigation_ui_data,
-    int frame_tree_node_id) {
+    FrameTreeNodeId frame_tree_node_id,
+    std::optional<int64_t> navigation_id) {
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>> result;
 
   auto* factory = custom_handlers::SimpleProtocolHandlerRegistryFactory::
@@ -193,8 +196,7 @@ void ShellContentBrowserTestClient::AppendExtraCommandLineSwitches(
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                 kForwardTestSwitches,
-                                 std::size(kForwardTestSwitches));
+                                 kForwardTestSwitches);
 }
 
 void ShellContentBrowserTestClient::CreateFeatureListAndFieldTrials() {
@@ -208,16 +210,16 @@ void ShellContentBrowserTestClient::CreateFeatureListAndFieldTrials() {
 void ShellContentBrowserTestClient::SetUpFieldTrials() {
   metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
                                                            /*enabled=*/false);
-  base::FilePath path;
-  base::PathService::Get(SHELL_DIR_USER_DATA, &path);
+  base::FilePath user_data_dir;
+  base::PathService::Get(SHELL_DIR_USER_DATA, &user_data_dir);
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager =
       metrics::MetricsStateManager::Create(
           GetSharedState().local_state.get(), &enabled_state_provider,
-          std::wstring(), path, metrics::StartupVisibility::kUnknown,
+          std::wstring(), user_data_dir, metrics::StartupVisibility::kUnknown,
           {
               .force_benchmarking_mode =
                   base::CommandLine::ForCurrentProcess()->HasSwitch(
-                      cc::switches::kEnableGpuBenchmarking),
+                      switches::kEnableGpuBenchmarking),
           });
   metrics_state_manager->InstantiateFieldTrialList();
 
@@ -238,8 +240,18 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
       &variations_service_client,
       std::make_unique<variations::VariationsSeedStore>(
           GetSharedState().local_state.get(), std::move(initial_seed),
-          /*signature_verification_enabled=*/true),
-      variations::UIStringOverrider());
+          /*signature_verification_enabled=*/true,
+          std::make_unique<variations::VariationsSafeSeedStoreLocalState>(
+              GetSharedState().local_state.get(),
+              variations_service_client.GetVariationsSeedFileDir(),
+              variations_service_client.GetChannelForVariations(),
+              /*entropy_providers=*/nullptr),
+          variations_service_client.GetChannelForVariations(),
+          variations_service_client.GetVariationsSeedFileDir()),
+      variations::UIStringOverrider(),
+      // The limited entropy synthetic trial will not be registered for this
+      // purpose.
+      /*limited_entropy_synthetic_trial=*/nullptr);
 
   variations::SafeSeedManager safe_seed_manager(
       GetSharedState().local_state.get());
@@ -247,11 +259,11 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
 
-  // Overrides for cobalt/common and lower layers' switches.
+  // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
 
-  // Overrides for cobalt/shell switches.
+  // Overrides for content/shell switches.
 
   // Overrides for --run-web-tests.
   if (test_switches::IsRunWebTestsSwitchPresent()) {
@@ -267,15 +279,18 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
 
   // Since this is a test-only code path, some arguments to SetUpFieldTrials are
   // null.
-  // TODO(crbug/1248066): Consider passing a low entropy source.
+  // TODO(crbug.com/40790318): Consider passing a low entropy source.
   variations::PlatformFieldTrials platform_field_trials;
+  variations::SyntheticTrialRegistry synthetic_trial_registry;
   field_trial_creator.SetUpFieldTrials(
       variation_ids,
       command_line.GetSwitchValueASCII(
           variations::switches::kForceVariationIds),
       feature_overrides, std::move(feature_list), metrics_state_manager.get(),
-      &platform_field_trials, &safe_seed_manager,
-      /*add_entropy_source_to_variations_ids=*/false);
+      &synthetic_trial_registry, &platform_field_trials, &safe_seed_manager,
+      /*add_entropy_source_to_variations_ids=*/false,
+      *metrics_state_manager->CreateEntropyProviders(
+          /*enable_limited_entropy_mode=*/false));
 }
 
 }  // namespace content

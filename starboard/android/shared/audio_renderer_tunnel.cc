@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
+#include "starboard/android/shared/audio_renderer_tunnel.h"
 
 #include <algorithm>
 #include <mutex>
@@ -22,6 +22,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 
 namespace starboard {
 

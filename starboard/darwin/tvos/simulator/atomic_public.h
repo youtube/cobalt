@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INTERNAL_STARBOARD_DARWIN_TVOS_SIMULATOR_ATOMIC_PUBLIC_H_
-#define INTERNAL_STARBOARD_DARWIN_TVOS_SIMULATOR_ATOMIC_PUBLIC_H_
+#ifndef STARBOARD_DARWIN_TVOS_SIMULATOR_ATOMIC_PUBLIC_H_
+#define STARBOARD_DARWIN_TVOS_SIMULATOR_ATOMIC_PUBLIC_H_
 
 #include "starboard/shared/gcc/atomic_gcc_public.h"
 
-#endif  // INTERNAL_STARBOARD_DARWIN_TVOS_SIMULATOR_ATOMIC_PUBLIC_H_
+#endif  // STARBOARD_DARWIN_TVOS_SIMULATOR_ATOMIC_PUBLIC_H_

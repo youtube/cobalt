@@ -186,15 +186,14 @@ run_package_release_pipeline () {
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
 
-    local package_platform="linux"
+    local package_platform=""
     if [[ "${PLATFORM}" =~ "android" ]]; then
       package_platform="android"
-    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-rdk" ]]; then
-      package_platform="evergreen-arm-hardfp-rdk"
-    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-raspi" ]]; then
-      package_platform="evergreen-arm-hardfp-raspi"
-    elif [[ "${PLATFORM}" =~ "evergreen-x64" ]]; then
-      package_platform="evergreen-x64"
+    elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
+      # Evergreen packages differently for each of its subplatforms.
+      package_platform="${TARGET_PLATFORM}"
+    elif [[ "${PLATFORM}" =~ "linux" ]]; then
+      package_platform="linux"
     fi
 
     # IMPORTANT: chromedriver must be built without starboardizations. We ensure

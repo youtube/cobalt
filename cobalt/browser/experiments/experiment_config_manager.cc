@@ -80,17 +80,25 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
 
 }  // namespace
 
+ExperimentConfigManager::ExperimentConfigManager(
+    PrefService* experiment_config,
+    PrefService* metrics_local_state)
+    : experiment_config_(experiment_config),
+      metrics_local_state_(metrics_local_state) {
+  DCHECK(experiment_config_);
+  DCHECK(metrics_local_state_);
+}
+
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // First, determine the config type based on the crash streak.
-  DCHECK(experiment_config_);
+  DCHECK(metrics_local_state_);
   DCHECK(!called_store_safe_config_);
-  int num_crashes =
-      experiment_config_->GetInteger(variations::prefs::kVariationsCrashStreak);
+  int num_crashes = metrics_local_state_->GetInteger(
+      variations::prefs::kVariationsCrashStreak);
   static_assert(
       kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
-
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
     return ExperimentConfigType::kEmptyConfig;
   }
@@ -118,7 +126,6 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
     return ExperimentConfigType::kEmptyConfig;
   }
-
   return config_type;
 }
 

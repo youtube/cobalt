@@ -22,78 +22,78 @@ import org.jni_zero.JNINamespace;
 @JNINamespace("starboard")
 public class CaptionSettings {
 
-  private final boolean isEnabled;
-  private final float fontScale;
-  private final int edgeType;
-  private final boolean hasEdgeType;
-  private final int foregroundColor;
-  private final boolean hasForegroundColor;
-  private final int backgroundColor;
-  private final boolean hasBackgroundColor;
-  private final int windowColor;
-  private final boolean hasWindowColor;
+  private final boolean mIsEnabled;
+  private final float mFontScale;
+  private final int mEdgeType;
+  private final boolean mHasEdgeType;
+  private final int mForegroundColor;
+  private final boolean mHasForegroundColor;
+  private final int mBackgroundColor;
+  private final boolean mHasBackgroundColor;
+  private final int mWindowColor;
+  private final boolean mHasWindowColor;
 
   public CaptionSettings(CaptioningManager cm) {
     CaptioningManager.CaptionStyle style = cm.getUserStyle();
-    isEnabled = cm.isEnabled();
-    fontScale = cm.getFontScale();
-    edgeType = style.edgeType;
-    hasEdgeType = style.hasEdgeType();
-    foregroundColor = style.foregroundColor;
-    hasForegroundColor = style.hasForegroundColor();
-    backgroundColor = style.backgroundColor;
-    hasBackgroundColor = style.hasBackgroundColor();
-    windowColor = style.windowColor;
-    hasWindowColor = style.hasWindowColor();
+    mIsEnabled = cm.isEnabled();
+    mFontScale = cm.getFontScale();
+    mEdgeType = style.edgeType;
+    mHasEdgeType = style.hasEdgeType();
+    mForegroundColor = style.foregroundColor;
+    mHasForegroundColor = style.hasForegroundColor();
+    mBackgroundColor = style.backgroundColor;
+    mHasBackgroundColor = style.hasBackgroundColor();
+    mWindowColor = style.windowColor;
+    mHasWindowColor = style.hasWindowColor();
   }
 
   @CalledByNative
   public boolean isEnabled() {
-    return isEnabled;
+    return mIsEnabled;
   }
 
   @CalledByNative
   public float getFontScale() {
-    return fontScale;
+    return mFontScale;
   }
 
   @CalledByNative
   public int getEdgeType() {
-    return edgeType;
+    return mEdgeType;
   }
 
   @CalledByNative
   public boolean hasEdgeType() {
-    return hasEdgeType;
+    return mHasEdgeType;
   }
 
   @CalledByNative
   public int getForegroundColor() {
-    return foregroundColor;
+    return mForegroundColor;
   }
 
   @CalledByNative
   public boolean hasForegroundColor() {
-    return hasForegroundColor;
+    return mHasForegroundColor;
   }
 
   @CalledByNative
   public int getBackgroundColor() {
-    return backgroundColor;
+    return mBackgroundColor;
   }
 
   @CalledByNative
   public boolean hasBackgroundColor() {
-    return hasBackgroundColor;
+    return mHasBackgroundColor;
   }
 
   @CalledByNative
   public int getWindowColor() {
-    return windowColor;
+    return mWindowColor;
   }
 
   @CalledByNative
   public boolean hasWindowColor() {
-    return hasWindowColor;
+    return mHasWindowColor;
   }
 }

@@ -190,7 +190,7 @@ component("webnn_service") {
     deps += [ "//third_party/onnxruntime_headers" ]
   }
 
-  if (is_mac || webnn_use_tflite) {
+  if (is_apple || webnn_use_tflite) {
     sources += [
       "queueable_resource_state.h",
       "queueable_resource_state_base.cc",
