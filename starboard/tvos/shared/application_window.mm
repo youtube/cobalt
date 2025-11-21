@@ -16,13 +16,11 @@
 
 #import <GLKit/GLKit.h>
 
-#include <unordered_set>
-
 #include "starboard/event.h"
 #import "starboard/tvos/shared/application_darwin.h"
 #import "starboard/tvos/shared/application_view.h"
 #import "starboard/tvos/shared/defines.h"
-#import "starboard/tvos/shared/keyboard_input_device.h"
+#import "starboard/tvos/shared/input_device.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/media/egl_surface.h"
 #import "starboard/tvos/shared/search_results_view_controller.h"
@@ -114,20 +112,12 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
    *  @brief Cache the window properties so it can be accessed from any thread.
    */
   SbWindowSize _windowSize;
-
-  /**
-   *  @brief Track the set of keydown UIPresses that need a keyup sent. This is
-   *      used to ensure that a keyup is sent every time a keydown was sent.
-   *      The set is only used to track navigation UIPresses at the moment.
-   */
-  std::unordered_set<NSInteger> _processedKeydownPressTypes;
 }
 
 - (instancetype)initWithName:(nullable NSString*)name {
   CGSize size = [UIScreen mainScreen].bounds.size;
   self = [super initWithFrame:CGRectMake(0, 0, size.width, size.height)];
   if (self) {
-    _keyboardInputDevice = [[SBDKeyboardInputDevice alloc] init];
     _viewController = [[SBDApplicationWindowViewController alloc] init];
 
     CGFloat scale = [UIScreen mainScreen].scale;
@@ -350,7 +340,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
     // TODO: Is _processUIPresses still needed?
     // Only initiate a keydown if UIPresses should be processed.
     if (_processUIPresses) {
-      [_keyboardInputDevice keyPressed:sbkey modifiers:modifiers];
     }
   }
   [super pressesBegan:presses withEvent:event];
@@ -381,8 +370,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
     if (sbkey == kSbKeyUnknown) {
       continue;
     }
-
-    [_keyboardInputDevice keyUnpressed:sbkey modifiers:modifiers];
   }
   [super pressesEnded:presses withEvent:event];
 }
@@ -488,9 +475,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
           return;
         }
         searchResultLastString = [searchString copy];
-        SBDWindowManager* windowManager = SBDGetApplication().windowManager;
-        [windowManager.currentApplicationWindow.keyboardInputDevice
-            onScreenKeyboardTextEntered:searchString];
       });
 }
 
