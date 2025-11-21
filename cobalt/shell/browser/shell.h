@@ -34,9 +34,6 @@
 #include "ipc/ipc_channel.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"
-#endif
 
 class GURL;
 
@@ -260,11 +257,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
-
-#if BUILDFLAG(USE_EVERGREEN)
-  // Cobalt Updater.
-  std::unique_ptr<cobalt::updater::UpdaterModule> updater_module_;
-#endif
 };
 
 }  // namespace content
