@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_APP_COBALT_SWITCH_DEFAULTS_STARBOARD_H_
-#define COBALT_APP_COBALT_SWITCH_DEFAULTS_STARBOARD_H_
+#ifndef COBALT_APP_COBALT_SWITCH_DEFAULTS_H_
+#define COBALT_APP_COBALT_SWITCH_DEFAULTS_H_
 
-#include <array>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/command_line.h"
 #include "cobalt/browser/switches.h"
@@ -39,6 +39,12 @@ class CommandLinePreprocessor {
 #endif  // UNIT_TEST
 
  private:
+  // Returns the toggled switches for Cobalt.
+  const std::vector<const char*>& GetCobaltToggleSwitches();
+
+  // Returns the map of switches with parameters and their defaults.
+  const base::CommandLine::SwitchMap& GetCobaltParamSwitchDefaults();
+
   base::CommandLine cmd_line_;
 
   std::string startup_url_;
@@ -47,4 +53,4 @@ class CommandLinePreprocessor {
 
 }  // namespace cobalt
 
-#endif  // COBALT_APP_COBALT_SWITCH_DEFAULTS_STARBOARD_H_
+#endif  // COBALT_APP_COBALT_SWITCH_DEFAULTS_H_

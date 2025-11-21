@@ -28,9 +28,7 @@ namespace browser {
 class CobaltTrustedURLLoaderHeaderClient
     : public network::mojom::TrustedURLLoaderHeaderClient {
  public:
-  CobaltTrustedURLLoaderHeaderClient(
-      mojo::PendingReceiver<network::mojom::TrustedURLLoaderHeaderClient>
-          receiver);
+  CobaltTrustedURLLoaderHeaderClient();
 
   CobaltTrustedURLLoaderHeaderClient(
       const CobaltTrustedURLLoaderHeaderClient&) = delete;
@@ -52,8 +50,6 @@ class CobaltTrustedURLLoaderHeaderClient
  private:
   void CreateAndBindCobaltTrustedHeaderClient(
       mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
-
-  mojo::Receiver<network::mojom::TrustedURLLoaderHeaderClient> receiver_;
 };
 
 }  // namespace browser

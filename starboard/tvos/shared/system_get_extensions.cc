@@ -20,7 +20,6 @@
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/media/player_configuration.h"
 #include "starboard/extension/media_session.h"
-#include "starboard/extension/on_screen_keyboard.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
@@ -29,7 +28,6 @@
 #include "starboard/tvos/shared/graphics.h"
 #include "starboard/tvos/shared/ifa.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
-#include "starboard/tvos/shared/on_screen_keyboard.h"
 #include "starboard/tvos/shared/platform_service.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
@@ -42,9 +40,6 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
     return starboard::shared::uikit::GetMediaSessionApi();
-  }
-  if (strcmp(name, kCobaltExtensionOnScreenKeyboardName) == 0) {
-    return starboard::shared::uikit::GetOnScreenKeyboardApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::shared::uikit::GetCrashHandlerApi();
