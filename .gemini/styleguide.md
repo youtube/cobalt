@@ -2,11 +2,7 @@
 
 All code submitted to this repository must adhere to the established upstream Chromium style guides.
 
-Primary Reference: When reviewing code, the ultimate source of truth for style, naming conventions, formatting, and best practices resides under the root styleguide/ directory of the repository.
-
-Specific Languages: Reviewers are expected to verify compliance with the relevant style guide for the language in question (e.g., C++, Python, JavaScript).
-
-Automation: While automated tools (linters, formatters) are used, the reviewer must still ensure the spirit of the style guide is followed, especially regarding readability, clarity, and architectural soundness.
+Primary Reference: When reviewing code, the ultimate source of truth for style, naming conventions, formatting, and best practices resides under the root styleguide/ directory of the repository. Code reviews are expected to observe the relevant style guide for the language in question (e.g., C++, Java).
 
 # Review Scope Exclusion (Backports and Cherry-Picks)
 
