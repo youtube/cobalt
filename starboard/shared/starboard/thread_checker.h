@@ -17,12 +17,6 @@
 
 #include <pthread.h>
 
-#include <atomic>
-
-#include "build/build_config.h"
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
-
 namespace starboard {
 
 class ThreadChecker {
