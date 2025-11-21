@@ -40,8 +40,7 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
  *  @brief The @c UIViewController for the EGL surface and player views.
  */
 @interface SBDApplicationWindowViewController
-    : UIViewController <UISearchResultsUpdating,
-                        UISearchControllerDelegate>
+    : UIViewController <UISearchResultsUpdating, UISearchControllerDelegate>
 
 /**
  *  @brief The Starboard application's viewport.
