@@ -12,11 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_ios) {
+  # For `target_environment` and `target_platform`.
+  import("//build/config/apple/mobile_config.gni")
+}
+
 source_set("h5vcc_system") {
   sources = [
-    "h5vcc_system_impl.cc",
-    "h5vcc_system_impl.h",
+    "h5vcc_system_impl_base.cc",
+    "h5vcc_system_impl_base.h",
   ]
+
+  if (is_android) {
+    sources += [ "h5vcc_system_impl_android.cc" ]
+  } else if (is_starboard) {
+    sources += [ "h5vcc_system_impl_starboard.cc" ]
+  } else if (is_ios && target_platform == "tvos") {
+    sources += [ "h5vcc_system_impl_tvos.mm" ]
+  }
 
   deps = [
     "//base",
