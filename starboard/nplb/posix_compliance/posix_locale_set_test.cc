@@ -213,7 +213,6 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
 
   int category = GetParam().category;
   const char* category_locale_1 = strdup(setlocale(category, NULL));
-  SB_LOG(INFO) << "This is category_1 locale: " << category_locale_1;
   ASSERT_NE(nullptr, category_locale_1);
   EXPECT_STREQ(kTestLocale, category_locale_1);
 
@@ -284,14 +283,14 @@ TEST_P(PosixLocaleSetAlternativeFormatTest, HandlesLocaleStringWithCodeSet) {
 
   std::string locale_string_with_codeset = param.locale_string;
 
+  // if the locale comes with an @ modifier like "sr_RS@latin", the codeset must
+  // be added before the modifier, not after.
   if (locale_string_with_codeset.find('@') != std::string::npos) {
     locale_string_with_codeset.insert(locale_string_with_codeset.find('@'),
                                       ".UTF-8");
   } else {
     locale_string_with_codeset.append(".UTF-8");
   }
-
-  std::cout << locale_string_with_codeset << std::endl;
 
   const char* result = setlocale(LC_ALL, locale_string_with_codeset.c_str());
   ASSERT_NE(nullptr, result)
@@ -307,8 +306,6 @@ TEST_P(PosixLocaleSetAlternativeFormatTest, HandlesLocaleStringInBcp47Format) {
   std::string bcp47_locale_string = param.locale_string;
   std::replace(bcp47_locale_string.begin(), bcp47_locale_string.end(), '_',
                '-');
-
-  std::cout << bcp47_locale_string << std::endl;
 
   const char* result = setlocale(LC_ALL, bcp47_locale_string.c_str());
   ASSERT_NE(nullptr, result)

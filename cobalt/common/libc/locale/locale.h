@@ -21,19 +21,9 @@
 extern "C" {
 #endif
 
-#define LC_CTYPE 0
-#define LC_NUMERIC 1
-#define LC_TIME 2
-#define LC_COLLATE 3
-#define LC_MONETARY 4
-#define LC_MESSAGES 5
-#define LC_ALL 6
-#define LC_PAPER 7
-#define LC_NAME 8
-#define LC_ADDRESS 9
-#define LC_TELEPHONE 10
-#define LC_MEASUREMENT 11
-#define LC_IDENTIFICATION 12
+constexpr int kAllValidCategoriesMask =
+    LC_CTYPE_MASK | LC_NUMERIC_MASK | LC_TIME_MASK | LC_COLLATE_MASK |
+    LC_MONETARY_MASK | LC_MESSAGES_MASK | LC_ALL_MASK;
 
 char* setlocale(int category, const char* locale);
 locale_t newlocale(int category_mask, const char* locale, locale_t base);
