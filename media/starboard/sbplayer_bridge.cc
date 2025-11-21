@@ -198,6 +198,10 @@ SbPlayerBridge::SbPlayerBridge(
                      &SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
                      callback_helper_));
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::LogDecodingBuffersSize, AsWeakPtr()),
+      base::Seconds(5));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -249,7 +253,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 #if SB_HAS(PLAYER_WITH_URL)
       is_url_based_(false)
-#endif  // SB_HAS(PLAYER_WITH_URL
+#endif  // SB_HAS(PLAYER_WITH_URL)
 {
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
@@ -284,6 +288,10 @@ SbPlayerBridge::SbPlayerBridge(
                        callback_helper_));
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::LogDecodingBuffersSize, AsWeakPtr()),
+      base::Seconds(5));
 }
 
 SbPlayerBridge::~SbPlayerBridge() {
@@ -307,6 +315,19 @@ SbPlayerBridge::~SbPlayerBridge() {
     cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
   }
+}
+
+void SbPlayerBridge::LogDecodingBuffersSize() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!SbPlayerIsValid(player_)) {
+    return;
+  }
+  LOG(INFO) << "SbPlayerBridge: decoding_buffers_ size: "
+            << decoding_buffers_.size();
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::LogDecodingBuffersSize, AsWeakPtr()),
+      base::Seconds(5));
 }
 
 void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,

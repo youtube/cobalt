@@ -51,7 +51,7 @@
 
 namespace media {
 
-class SbPlayerBridge {
+class SbPlayerBridge : public base::SupportsWeakPtr<SbPlayerBridge> {
  public:
   class Host {
    public:
@@ -277,6 +277,7 @@ class SbPlayerBridge {
 
   void LogStartupLatency() const;
   void SendColorSpaceHistogram() const;
+  void LogDecodingBuffersSize();
 
 // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)

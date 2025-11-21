@@ -158,6 +158,8 @@ class VideoDecoder
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
+  const int max_pending_inputs_size_;
+
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
@@ -232,6 +234,8 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+
+  int64_t last_pending_frames_log_us_ = 0;
 
   base::WeakPtrFactory<VideoDecoder> weak_factory_{this};
 };

@@ -267,12 +267,27 @@ const int kNonInitialPrerollFrameCount = 1;
 
 const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
-const int kMaxPendingInputsSize = 128;
+const int kDefaultMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+
+int GetMaxPendingInputsSize() {
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get("debug.cobalt.max_pending_inputs_size", value)) {
+    int max_pending_inputs_size = atoi(value);
+    if (max_pending_inputs_size > 0) {
+      SB_LOG(INFO) << "Setting max pending inputs size to "
+                   << max_pending_inputs_size << " from system property.";
+      return max_pending_inputs_size;
+    }
+  }
+  SB_LOG(INFO) << "Setting max pending inputs size to default value="
+               << kDefaultMaxPendingInputsSize;
+  return kDefaultMaxPendingInputsSize;
+}
 
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
@@ -411,6 +426,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(GetInitialMaxFramesInDecoder()),
+      max_pending_inputs_size_(GetMaxPendingInputsSize()),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -441,7 +457,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
+        std::make_unique<VideoFrameTracker>(max_pending_inputs_size_ * 2);
   }
 
   if (require_software_codec_) {
@@ -888,7 +904,17 @@ void VideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+
+  int number_of_pending_inputs = media_decoder_->GetNumberOfPendingInputs();
+  if (number_of_pending_inputs > 10) {
+    int64_t now_us = CurrentMonotonicTime();
+    if (now_us - last_pending_frames_log_us_ > 5'000'000) {
+      SB_LOG(INFO) << "Pending encoded frames: " << number_of_pending_inputs;
+      last_pending_frames_log_us_ = now_us;
+    }
+  }
+
+  if (number_of_pending_inputs < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -923,8 +949,8 @@ void VideoDecoder::WriteInputBuffersInternal(
             max_timestamp >= video_frame_tracker_->seek_to_time();
       }
 
-      bool cache_full =
-          media_decoder_->GetNumberOfPendingInputs() >= kMaxPendingInputsSize;
+      bool cache_full = media_decoder_->GetNumberOfPendingInputs() >=
+                        max_pending_inputs_size_;
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
@@ -1283,7 +1309,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
