@@ -164,8 +164,6 @@ group("cobalt_shell_lib_deps") {
 source_set("browsertests_sources") {
   testonly = true
   sources = [
-    "common/main_frame_counter_test_impl.cc",
-    "common/main_frame_counter_test_impl.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
@@ -497,10 +495,7 @@ group("resources") {
 }
 
 mojom("browsertests_mojom") {
-  sources = [
-    "common/main_frame_counter_test.mojom",
-    "common/render_frame_test_helper.mojom",
-  ]
+  sources = [ "common/render_frame_test_helper.mojom" ]
   public_deps = [
     "//sandbox/policy/mojom",
     "//third_party/blink/public/mojom/tokens",
