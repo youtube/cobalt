@@ -24,6 +24,8 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -52,10 +54,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.annotations.JNINamespace;
@@ -70,9 +68,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 @JNINamespace("cobalt")
@@ -118,8 +116,8 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private PlatformError mPlatformError;
-  private ScheduledExecutorService networkCheckExecutor;
-  private Future<?> networkCheckFuture;
+  private Handler timeoutHandler;
+  private Runnable timeoutRunnable;
 
   private Boolean isMainFrameLoaded = false;
   private final Object lock = new Object();
@@ -470,8 +468,7 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    // Use a pool of 2 threads. 1 for the network task, 1 for the watchdog.
-    networkCheckExecutor = Executors.newScheduledThreadPool(2);
+    timeoutHandler = new Handler(Looper.getMainLooper());
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -616,8 +613,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (networkCheckExecutor != null) {
-      networkCheckExecutor.shutdownNow();
+    if (timeoutRunnable != null) {
+      timeoutHandler.removeCallbacks(timeoutRunnable);
     }
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -830,14 +827,13 @@ public abstract class CobaltActivity extends Activity {
   }
 
   // Try to generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
-  // error dialog on an unsuccessful network check. This functions runs 2 threads: one for the
-  // generate_204 check and one for a separate Future timeout check in the case that a connection
-  // can't be established ie. a DNS resolution hang.
+  // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
-    // If a previous check is still running, cancel it to prevent dangling threads.
-    if (networkCheckFuture != null && !networkCheckFuture.isDone()) {
-      networkCheckFuture.cancel(true);
+    // Keep a separate timeout for edge cases in case a DNS error occurs
+    if (timeoutRunnable != null) {
+      timeoutHandler.removeCallbacks(timeoutRunnable);
     }
+<<<<<<< HEAD
 
     // Keep a separate timeout for edge cases such as a DNS resolution hang
     Runnable networkCheckTask =
@@ -884,6 +880,47 @@ public abstract class CobaltActivity extends Activity {
               Log.w(TAG, "Active Network check failed: " + e.getMessage());
             }
 
+=======
+    timeoutRunnable =
+      () -> {
+        Log.w(TAG, "Active Network check timed out after 10 seconds.");
+        if (mPlatformError == null || !mPlatformError.isShowing()) {
+          mPlatformError =
+              new PlatformError(
+                  getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
+          mPlatformError.raise();
+        }
+        mShouldReloadOnResume = true;
+        timeoutRunnable = null;
+      };
+    timeoutHandler.postDelayed(timeoutRunnable, NETWORK_CHECK_TIMEOUT_MS);
+
+    new Thread(
+      () -> {
+        HttpURLConnection urlConnection = null;
+        try {
+          URL url = new URL("https://www.google.com/generate_204");
+          urlConnection = (HttpURLConnection) url.openConnection();
+          urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
+          urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
+          urlConnection.connect();
+          if (urlConnection.getResponseCode() != 204) {
+            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+          }
+
+          if (timeoutRunnable != null) {
+            timeoutHandler.removeCallbacks(timeoutRunnable);
+            timeoutRunnable = null;
+          }
+
+          Log.i(TAG, "Active Network check successful." + mPlatformError);
+          if (mPlatformError != null) {
+            mPlatformError.setResponse(PlatformError.POSITIVE);
+            mPlatformError.dismiss();
+            mPlatformError = null;
+          }
+          if (mShouldReloadOnResume) {
+>>>>>>> bab72dae977 (Revert "android: refactor activeNetworkCheck() to use ScheduledThreadPool" (#8170))
             runOnUiThread(
                 () -> {
                   if (mPlatformError == null || !mPlatformError.isShowing()) {
@@ -897,6 +934,7 @@ public abstract class CobaltActivity extends Activity {
                 });
             mShouldReloadOnResume = true;
           }
+<<<<<<< HEAD
         };
 
     // Submit the task and get its Future
@@ -954,6 +992,31 @@ public abstract class CobaltActivity extends Activity {
         urlConnection.disconnect();
       }
     }
+=======
+        } catch (IOException e) {
+          if (timeoutRunnable != null) {
+            timeoutHandler.removeCallbacks(timeoutRunnable);
+            timeoutRunnable = null;
+          }
+          Log.w(TAG, "Active Network check failed with IOException: "+ e.getClass().getName(), e);
+          runOnUiThread(
+            () -> {
+              if (mPlatformError == null || !mPlatformError.isShowing()) {
+                mPlatformError =
+                  new PlatformError(
+                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
+                mPlatformError.raise();
+              }
+            });
+          mShouldReloadOnResume = true;
+        } finally {
+          if (urlConnection != null) {
+            urlConnection.disconnect();
+          }
+        }
+      })
+    .start();
+>>>>>>> bab72dae977 (Revert "android: refactor activeNetworkCheck() to use ScheduledThreadPool" (#8170))
   }
 
   public long getAppStartTimestamp() {
