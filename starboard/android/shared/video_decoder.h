@@ -58,7 +58,10 @@ class VideoDecoder
       VideoRendererSink;
 
   class Sink;
-
+  struct FlowControlOptions {
+    std::optional<int> initial_max_frames_in_decoder;
+    std::optional<int> max_pending_input_frames;
+  };
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
                SbPlayerOutputMode output_mode,
@@ -74,6 +77,7 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
+               FlowControlOptions flow_control_options,
                std::string* error_message);
   ~VideoDecoder() override;
 

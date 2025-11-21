@@ -15,9 +15,8 @@
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/check_op.h"
 
-#include <android/native_window.h>
+#include <android/api-level.h>
 #include <jni.h>
-#include <sys/system_properties.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -66,28 +65,6 @@ inline std::ostream& operator<<(std::ostream& stream,
     stream << "nullopt";
   }
   return stream;
-}
-
-std::optional<int> GetInitialMaxFramesInDecoder() {
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  // Do nothing
-#else
-  char value[PROP_VALUE_MAX];
-  if (__system_property_get("debug.cobalt.initial_max_frames_in_decoder",
-                            value)) {
-    int max_frames = atoi(value);
-    if (max_frames > 0) {
-      SB_LOG(INFO) << "Setting max frames in decoder to " << max_frames
-                   << " from system property.";
-      return max_frames;
-    }
-  }
-#endif
-  SB_LOG(INFO)
-      << "System property debug.cobalt.initial_max_frames_in_decoder is not "
-         "set or invalid. Using default value: "
-      << kInitialMaxFramesInDecoder;
-  return kInitialMaxFramesInDecoder;
 }
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
@@ -274,21 +251,6 @@ const int kFpsGuesstimateRequiredInputBufferCount = 3;
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
-int GetMaxPendingInputsSize() {
-  char value[PROP_VALUE_MAX];
-  if (__system_property_get("debug.cobalt.max_pending_inputs_size", value)) {
-    int max_pending_inputs_size = atoi(value);
-    if (max_pending_inputs_size > 0) {
-      SB_LOG(INFO) << "Setting max pending inputs size to "
-                   << max_pending_inputs_size << " from system property.";
-      return max_pending_inputs_size;
-    }
-  }
-  SB_LOG(INFO) << "Setting max pending inputs size to default value="
-               << kDefaultMaxPendingInputsSize;
-  return kDefaultMaxPendingInputsSize;
-}
-
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
@@ -418,6 +380,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool enable_flush_during_seek,
                            int64_t reset_delay_usec,
                            int64_t flush_delay_usec,
+                           FlowControlOptions flow_control_options,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -425,8 +388,13 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      initial_max_frames_in_decoder_(GetInitialMaxFramesInDecoder()),
-      max_pending_inputs_size_(GetMaxPendingInputsSize()),
+      initial_max_frames_in_decoder_(
+          flow_control_options.initial_max_frames_in_decoder
+              ? flow_control_options.initial_max_frames_in_decoder
+              : kInitialMaxFramesInDecoder),
+      max_pending_inputs_size_(
+          flow_control_options.max_pending_input_frames.value_or(
+              kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),

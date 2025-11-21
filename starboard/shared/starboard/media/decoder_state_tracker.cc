@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ namespace starboard {
 namespace {
 
 constexpr int kFramesLowWatermark = 2;
-constexpr int kMaxFrameIncrement = 2;
+constexpr int kMaxFrameIncrement = 1;
 // Copied from Chromium.
 constexpr int kMaxInFlightFrames = 24;
 constexpr std::optional<int64_t> kFrameTrackerLogIntervalUs =
@@ -118,7 +118,7 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           auto it = frames_in_flight_.upper_bound(presentation_time_us);
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
-          if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
+          if (reached_max_ && frames_in_flight_.size() < kFramesLowWatermark) {
             if (max_frames_ < kMaxInFlightFrames) {
               int old_max = max_frames_;
               max_frames_ = std::min(max_frames_ + kMaxFrameIncrement,
