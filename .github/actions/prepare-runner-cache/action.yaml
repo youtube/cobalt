@@ -2,11 +2,11 @@ name: Prepare Runner Cache
 description: Check the runner cache directory for build
 runs:
   using: "composite"
+  env:
+    CHECKOUT_PATH: /runner-cache/cobalt/src
   steps:
     - name: Check Runner Cache Status
       run: |
-        echo "CHECKOUT_PATH=/runner-cache/cobalt/src" >> $GITHUB_ENV
-        CHECKOUT_PATH="/runner-cache/cobalt/src"
         # If .git/index.lock exists, it indicates a previous abnormal exit.
         if [ -f "${CHECKOUT_PATH}/.git/index.lock" ]; then
           echo "index.lock found, removing the cache."

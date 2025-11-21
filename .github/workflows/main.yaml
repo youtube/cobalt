@@ -319,12 +319,10 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
-      - name: Checkout prepare-runner-cache
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
         with:
-          # Only need the action file, which is now at the root-level .github folder.
-          fetch-depth: 1
-          sparse-checkout: .github/actions/prepare-runner-cache
+          name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
         uses: ./.github/actions/prepare-runner-cache
       - name: Checkout
@@ -498,12 +496,10 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
-      - name: Checkout prepare-runner-cache
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
         with:
-          # Only need the action file, which is now at the root-level .github folder.
-          fetch-depth: 1
-          sparse-checkout: .github/actions/prepare-runner-cache
+          name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
         uses: ./.github/actions/prepare-runner-cache
       - name: Checkout
