@@ -1,13 +1,15 @@
 {
-	"lucicfg": "1.45.8",
+	"lucicfg": "1.46.1",
 	"packages": [
 		{
 			"name": "@chromium-project",
 			"deps": [
-				"@chromium-luci"
+				"@chromium-luci",
+				"@chromium-targets"
 			],
 			"lucicfg": "1.44.1",
 			"resources": [
+				"autoshard_exceptions.json",
 				"dev/chromium-header.textpb",
 				"lib/linux-default.json",
 				"luci-analysis-dev.cfg",
@@ -16,7 +18,6 @@
 				"luci-bisection.cfg",
 				"milestones.json",
 				"settings.json",
-				"targets/autoshard_exceptions.json",
 				"templates/build_with_step_summary.template",
 				"templates/tree_closure_email.template",
 				"testhaus-staging.cfg",
@@ -35,6 +36,16 @@
 				"path": "starlark-libs/chromium-luci"
 			},
 			"lucicfg": "1.45.0"
+		},
+		{
+			"name": "@chromium-targets",
+			"source": {
+				"path": "./targets"
+			},
+			"deps": [
+				"@chromium-luci"
+			],
+			"lucicfg": "1.46.1"
 		}
 	]
 }
