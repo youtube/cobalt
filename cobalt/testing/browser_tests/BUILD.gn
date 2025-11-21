@@ -471,19 +471,26 @@ action("copy_test_data") {
 source_set("browsertests_sources") {
   testonly = true
   sources = [
+    "common/main_frame_counter_test_impl.cc",
+    "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
   ]
 
   public_deps = [
     ":browsertests_mojom",
+    "//content/common:main_frame_counter",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
   ]
 }
 
 mojom("browsertests_mojom") {
-  sources = [ "common/power_monitor_test.mojom" ]
+  sources = [
+    "common/main_frame_counter_test.mojom",
+    "common/power_monitor_test.mojom",
+  ]
+
   public_deps = [
     "//sandbox/policy/mojom",
     "//third_party/blink/public/mojom/tokens",
