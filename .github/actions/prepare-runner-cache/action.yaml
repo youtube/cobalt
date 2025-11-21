@@ -23,9 +23,8 @@ runs:
       env:
         CHECKOUT_PATH: /runner-cache/cobalt/src
       shell: bash
-    - name: Link runner cache
+    - name: Link Runner Cache
       run: |
-        mkdir -p "${{ env.CHECKOUT_PATH }}"
         ln -sf /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
       shell: bash
     - name: Set Safe Directory
