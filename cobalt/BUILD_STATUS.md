@@ -5,9 +5,9 @@
 | Platform      | Build Status                             | Nightly Build                                            |
 | :-------------| :----------------------------------------| :--------------------------------------------------------|
 | **android**   | [![Status][android-badge]][android-link] | [![Status][android-nightly-badge]][android-nightly-link] |
+| **evergreen** | [![Status][eg-badge]][eg-link]           | [![Status][eg-nightly-badge]][eg-nightly-link]           |
 | **linux**     | [![Status][linux-badge]][linux-link]     | [![Status][linux-nightly-badge]][linux-nightly-link]     |
-| **evergreen** | [![Status][eg-badge]][eg-link]           |                                                          |
-| **raspi-2**   | [![Status][raspi-badge]][raspi-link]     |                                                          |
+| **raspi-2**   | [![Status][raspi-badge]][raspi-link]     | [![Status][raspi-nightly-badge]][raspi-nightly-link]     |
 
 [android-badge]: https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?event=push&branch=main
 [android-link]: https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Apush+branch%3Amain
@@ -16,6 +16,8 @@
 
 [eg-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml/badge.svg?event=push&branch=main
 [eg-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml?query=event%3Apush+branch%3Amain
+[eg-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml/badge.svg?event=workflow_dispatch&branch=main
+[eg-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml?query=event%3Aworkflow_dispatch+branch%3Amain
 
 [linux-badge]: https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?event=push&branch=main
 [linux-link]: https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Apush+branch%3Amain
@@ -24,8 +26,33 @@
 
 [raspi-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml/badge.svg?event=push&branch=main
 [raspi-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml?query=event%3Apush+branch%3Amain
+[raspi-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml/badge.svg?event=workflow_dispatch&branch=main
+[raspi-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml?query=event%3Aworkflow_dispatch+branch%3Amain
 
 ## LTS Versions
+
+### 26.eap
+
+| Platform      | Build Status                                           | Nightly Status                                                         |
+| :-------------| :----------------------------------------------------| :------------------------------------------------------------------------|
+| **linux**     | [![Status][linux-26-eap-badge]][linux-26-eap-link]     | [![Status][linux-26-eap-nightly-badge]][linux-26-eap-nightly-link]     |
+| **evergreen** | [![Status][eg-26-eap-badge]][eg-26-eap-link]           | [![Status][eg-26-eap-nightly-badge]][eg-26-eap-nightly-link]           |
+| **raspi-2**   | [![Status][raspi-26-eap-badge]][raspi-26-eap-link]     | [![Status][raspi-26-nightly-eap-badge]][raspi-26-nightly-eap-link]     |
+
+[linux-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml/badge.svg?event=push&branch=26.eap
+[linux-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml?query=event%3Apush+branch%3A26.eap
+[linux-26-eap-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml/badge.svg?event=workflow_dispatch&branch=26.eap
+[linux-26-eap-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml?query=event%3Aworkflow_dispatch+branch%3A26.eap
+
+[eg-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml/badge.svg?event=push&branch=26.eap
+[eg-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml?query=event%3Apush+branch%3A26.eap
+[eg-26-eap-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml/badge.svg?event=workflow_dispatch&branch=26.eap
+[eg-26-eap-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml?query=event%3Aworkflow_dispatch+branch%3A26.eap
+
+[raspi-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_26.eap.yaml/badge.svg?event=push&branch=26.eap
+[raspi-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_26.eap.yaml?query=event%3Apush+branch%3A26.eap
+[raspi-26-nightly-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_26.eap.yaml/badge.svg?event=workflow_dispatch&branch=26.eap
+[raspi-26-nightly-eap-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_26.eap.yaml?query=event%3Aworkflow_dispatch+branch%3A26.eap
 
 ### 26.android
 
@@ -43,23 +70,6 @@
 [linux-26-android-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.android.yaml?query=event%3Apush+branch%3A26.android
 [linux-26-android-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.android.yaml/badge.svg?event=workflow_dispatch&branch=26.android
 [linux-26-android-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.android.yaml?query=event%3Aworkflow_dispatch+branch%3A26.android
-
-### 26.eap
-
-| Platform      | Build Status                                           | Nightly Status                                                         |
-| :-------------| :----------------------------------------------------| :------------------------------------------------------------------------|
-| **evergreen** | [![Status][eg-26-eap-badge]][eg-26-eap-link]           | [![Status][eg-26-eap-nightly-badge]][eg-26-eap-nightly-link]           |
-| **linux**     | [![Status][linux-26-eap-badge]][linux-26-eap-link]     | [![Status][linux-26-eap-nightly-badge]][linux-26-eap-nightly-link]     |
-
-[eg-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml/badge.svg?event=push&branch=26.eap
-[eg-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml?query=event%3Apush+branch%3A26.eap
-[eg-26-eap-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml/badge.svg?event=workflow_dispatch&branch=26.eap
-[eg-26-eap-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml?query=event%3Aworkflow_dispatch+branch%3A26.eap
-
-[linux-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml/badge.svg?event=push&branch=26.eap
-[linux-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml?query=event%3Apush+branch%3A26.eap
-[linux-26-eap-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml/badge.svg?event=workflow_dispatch&branch=26.eap
-[linux-26-eap-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml?query=event%3Aworkflow_dispatch+branch%3A26.eap
 
 ### 25.lts.1+
 
