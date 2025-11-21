@@ -38,6 +38,10 @@ namespace {
 // be different.
 const size_t kSmallAllocationThreshold = 512;
 
+const char* ToString(bool value) {
+  return value ? "enabled" : "disabled";
+}
+
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
@@ -74,11 +78,10 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
-
-  base::AutoLock scoped_lock(mutex_);
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -88,11 +91,11 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
-  base::AutoLock scoped_lock(mutex_);
   EnsureStrategyIsCreated();
 }
 
@@ -230,21 +233,39 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DecoderBufferAllocator::SetEnabled(bool enabled) {
-  static const auto to_string = [](bool value) {
-    return value ? "enabled" : "disabled";
-  };
-
   base::AutoLock scoped_lock(mutex_);
   if (enabled_ == enabled) {
     return;
   }
 
-  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: " << to_string(enabled_)
-            << " -> " << to_string(enabled);
+  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: " << ToString(enabled_)
+            << " -> " << ToString(enabled);
   enabled_ = enabled;
   if (!enabled_ && strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
               << " bytes of media buffer pool since allocator is disabled.";
+    strategy_.reset();
+  }
+}
+
+void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
+  base::AutoLock scoped_lock(mutex_);
+  if (is_memory_pool_allocated_on_demand_ == enabled) {
+    return;
+  }
+
+  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
+            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
+            << ToString(enabled);
+
+  is_memory_pool_allocated_on_demand_ = enabled;
+  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
+  // reset the strategy.
+  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
+      strategy_->GetAllocated() == 0) {
+    LOG(INFO) << "Freed " << strategy_->GetCapacity()
+              << " bytes of media buffer pool since allocator now allocates on "
+                 "demand.";
     strategy_.reset();
   }
 }
