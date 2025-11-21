@@ -73,7 +73,7 @@ import org.chromium.net.NetworkChangeNotifier;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
-  private static final int NETWORK_CHECK_TIMEOUT_MS = 10000;
+  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000;
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
