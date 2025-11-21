@@ -135,8 +135,6 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
     _windowSize.height = static_cast<int>(size.height * scale);
     _windowSize.video_pixel_ratio = 1.0f;
 
-    _processUIPresses = YES;
-
     self.rootViewController = _viewController;
     self.accessibilityIdentifier = name;
     self.backgroundColor = [SBDApplicationWindow defaultWindowColor];
@@ -345,12 +343,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
       // Skip any unknown presses, this includes redundant UIKeyInput @"\r"
       // presses and UIKeyInput navigation presses.
       continue;
-    }
-
-    // TODO: Is _processUIPresses still needed?
-    // Only initiate a keydown if UIPresses should be processed.
-    if (_processUIPresses) {
-      [_keyboardInputDevice keyPressed:sbkey modifiers:modifiers];
     }
   }
   [super pressesBegan:presses withEvent:event];
