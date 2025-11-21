@@ -1,4 +1,4 @@
-Gemini Code Review Style Guide
+# Cobalt projet code review style guide
 
 All code submitted to this repository must adhere to the established upstream Chromium style guides.
 
@@ -8,7 +8,7 @@ Specific Languages: Reviewers are expected to verify compliance with the relevan
 
 Automation: While automated tools (linters, formatters) are used, the reviewer must still ensure the spirit of the style guide is followed, especially regarding readability, clarity, and architectural soundness.
 
-2. Review Scope Exclusion (Backports and Cherry-Picks)
+# Review Scope Exclusion (Backports and Cherry-Picks)
 
 To prevent redundant reviews and streamline the process for necessary maintenance tasks, the following rule must be observed:
 
