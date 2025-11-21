@@ -63,7 +63,7 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
   std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
       StarboardRendererTraits traits) final {
 #if BUILDFLAG(IS_ANDROID)
-    traits.android_overlay_factory_cb = std::move(android_overlay_factory_cb_);
+    traits.android_overlay_factory_cb = android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
     return std::make_unique<StarboardRendererWrapper>(std::move(traits));
   }

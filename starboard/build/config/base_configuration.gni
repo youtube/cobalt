@@ -33,7 +33,7 @@ declare_args() {
 
   # The Starboard API version of the current build configuration. The default
   # value is meant to be overridden by a Starboard ABI file.
-  sb_api_version = 17
+  sb_api_version = 18
 
   # Enables embedding Cobalt as a shared library within another app. This
   # requires a 'lib' starboard implementation for the corresponding platform.

@@ -27,13 +27,12 @@
 
 namespace starboard {
 
-class ApplicationDarwin : public shared::starboard::QueueApplication {
+class ApplicationDarwin : public QueueApplication {
  public:
   explicit ApplicationDarwin(SbEventHandleCallback sb_event_handle_callback)
       : QueueApplication(sb_event_handle_callback) {}
   static ApplicationDarwin* Get() {
-    shared::starboard::Application* application =
-        shared::starboard::Application::Get();
+    Application* application = Application::Get();
     return static_cast<ApplicationDarwin*>(application);
   }
 
@@ -63,8 +62,7 @@ class ApplicationDarwin : public shared::starboard::QueueApplication {
   // --- Application overrides ---
   bool IsStartImmediate() override { return false; }
   bool MayHaveSystemEvents() override { return false; }
-  shared::starboard::Application::Event* WaitForSystemEventWithTimeout(
-      int64_t time) override {
+  Application::Event* WaitForSystemEventWithTimeout(int64_t time) override {
     return nullptr;
   }
   void WakeSystemEventWait() override {}
