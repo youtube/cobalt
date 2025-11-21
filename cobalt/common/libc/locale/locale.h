@@ -21,10 +21,6 @@
 extern "C" {
 #endif
 
-constexpr int kAllValidCategoriesMask =
-    LC_CTYPE_MASK | LC_NUMERIC_MASK | LC_TIME_MASK | LC_COLLATE_MASK |
-    LC_MONETARY_MASK | LC_MESSAGES_MASK | LC_ALL_MASK;
-
 char* setlocale(int category, const char* locale);
 locale_t newlocale(int category_mask, const char* locale, locale_t base);
 locale_t uselocale(locale_t newloc);
