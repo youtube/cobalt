@@ -427,10 +427,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onPause() {
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
-    }
+    CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
   }
 
@@ -466,6 +463,7 @@ public abstract class CobaltActivity extends Activity {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
+    CobaltContentBrowserClient.dispatchFocus();
   }
 
   @Override

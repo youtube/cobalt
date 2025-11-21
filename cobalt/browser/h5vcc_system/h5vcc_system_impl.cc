@@ -119,6 +119,10 @@ void PerformExitStrategy() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->RequestSuspend(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement application exit/suspend functionality for
+  // tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif
