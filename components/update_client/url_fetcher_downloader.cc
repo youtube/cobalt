@@ -314,7 +314,12 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
 }
 #endif // BUILDFLAG(IS_STARBOARD)
 
+#if defined(IN_MEMORY_UPDATES)
+void UrlFetcherDownloader::OnNetworkFetcherComplete(std::string* dst,
+                                                    int net_error,
+#else
 void UrlFetcherDownloader::OnNetworkFetcherComplete(int net_error,
+#endif
                                                     int64_t content_size) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
