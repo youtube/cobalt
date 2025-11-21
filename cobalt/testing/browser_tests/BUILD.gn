@@ -439,6 +439,14 @@ static_library("cobalt_shell_test_lib") {
     "//services/network/public/cpp",
   ]
 
+  if (use_aura) {
+    sources += [
+      "browser/shell_platform_test_data_aura.cc",
+      "browser/shell_platform_test_data_aura.h",
+    ]
+    deps += [ "//ui/aura" ]
+  }
+
   if (shell_use_toolkit_views) {
     if (use_aura) {
       sources += [

@@ -27,7 +27,11 @@ namespace media {
 class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
  public:
   GpuMojoMediaClientStarboard(GpuMojoMediaClientTraits& traits)
-      : GpuMojoMediaClient(traits) {}
+      : GpuMojoMediaClient(traits) {
+#if BUILDFLAG(IS_ANDROID)
+    android_overlay_factory_cb_ = std::move(traits.android_overlay_factory_cb);
+#endif  // BUILDFLAG(IS_ANDROID)
+  }
   ~GpuMojoMediaClientStarboard() final = default;
 
  protected:
@@ -56,16 +60,23 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
     return nullptr;
   }
 
+  std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
+      StarboardRendererTraits traits) final {
+#if BUILDFLAG(IS_ANDROID)
+    traits.android_overlay_factory_cb = android_overlay_factory_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
+    return std::make_unique<StarboardRendererWrapper>(std::move(traits));
+  }
+
   std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
       mojom::FrameInterfaceFactory* frame_interfaces) final {
     return std::make_unique<media::StarboardCdmFactory>();
   }
-};
 
-std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
-    StarboardRendererTraits traits) {
-  return std::make_unique<StarboardRendererWrapper>(std::move(traits));
-}
+#if BUILDFLAG(IS_ANDROID)
+  AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
+};
 
 std::unique_ptr<GpuMojoMediaClient> CreateGpuMediaService(
     GpuMojoMediaClientTraits& traits) {

@@ -112,6 +112,15 @@ H5vccSystemImpl::H5vccSystemImpl(
 
 H5vccSystemImpl::~H5vccSystemImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  // (Kabuki reload): This destructor is used as the primary signal to close
+  // all active h5vcc platform services when the generic H5vcc C++
+  // object is destroyed during a normal JavaScript page unload/reload.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->CloseAllCobaltService(env);
+#endif
 }
 
 void H5vccSystemImpl::Create(
