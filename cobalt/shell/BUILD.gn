@@ -166,8 +166,6 @@ source_set("browsertests_sources") {
   sources = [
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
@@ -247,8 +245,6 @@ static_library("cobalt_shell_lib") {
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
-    "gpu/shell_content_gpu_client.cc",
-    "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
@@ -503,7 +499,6 @@ group("resources") {
 mojom("browsertests_mojom") {
   sources = [
     "common/main_frame_counter_test.mojom",
-    "common/power_monitor_test.mojom",
     "common/render_frame_test_helper.mojom",
   ]
   public_deps = [
