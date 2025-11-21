@@ -68,9 +68,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 @JNINamespace("cobalt")
@@ -172,8 +172,8 @@ public abstract class CobaltActivity extends Activity {
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
-    a11yHelper = new CobaltA11yHelper(this,
-        mShellManager.getContentViewRenderView().getSurfaceView());
+    a11yHelper =
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null
         || mStartupUrl.isEmpty()
@@ -293,10 +293,14 @@ public abstract class CobaltActivity extends Activity {
                 public void onWebContentsLoaded() {
                   // Switch to pending shell after a timeout, or when the main app finishes loading,
                   // whichever comes first.
-                  Log.i(TAG, String.format("NativeSplash: shellManager load splash timeout %dms",
-                                    mSplashTimeoutMs));
-                  final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
-                  handler.postDelayed(new SwitchRunnable(CobaltActivity.this, handler), mSplashTimeoutMs);
+                  Log.i(
+                      TAG,
+                      String.format(
+                          "NativeSplash: shellManager load splash timeout %dms", mSplashTimeoutMs));
+                  final android.os.Handler handler =
+                      new android.os.Handler(android.os.Looper.getMainLooper());
+                  handler.postDelayed(
+                      new SwitchRunnable(CobaltActivity.this, handler), mSplashTimeoutMs);
                 }
               });
       Log.i(TAG, "shellManager load splash url:" + mSplashUrl);
@@ -328,17 +332,23 @@ public abstract class CobaltActivity extends Activity {
         if (activity.isMainFrameLoaded) {
           return;
         }
-        if (activity.mShellManager.getAppShell() != null && (activity.mShellManager.getSplashShell() == null || activity.mShellManager.getSplashShell().isDestroyed())) {
-          Log.i(TAG, String.format(
-                          "NativeSplash: switch to main shell after timeout %dms",
-                          activity.mSplashTimeoutMs));
+        if (activity.mShellManager.getAppShell() != null
+            && (activity.mShellManager.getSplashShell() == null
+                || activity.mShellManager.getSplashShell().isDestroyed())) {
+          Log.i(
+              TAG,
+              String.format(
+                  "NativeSplash: switch to main shell after timeout %dms",
+                  activity.mSplashTimeoutMs));
           activity.isMainFrameLoaded = true;
           activity.mShellManager.showAppShell();
         } else if (retries < MAX_RETRIES) {
           retries++;
           handler.postDelayed(this, RETRY_DELAY_MS);
         } else {
-            Log.w(TAG, "Timed out waiting for AppShell. Deferring to onWebContentsLoaded() on AppShell.");
+          Log.w(
+              TAG,
+              "Timed out waiting for AppShell. Deferring to onWebContentsLoaded() on AppShell.");
         }
       }
     }
@@ -833,190 +843,86 @@ public abstract class CobaltActivity extends Activity {
     if (timeoutRunnable != null) {
       timeoutHandler.removeCallbacks(timeoutRunnable);
     }
-<<<<<<< HEAD
-
-    // Keep a separate timeout for edge cases such as a DNS resolution hang
-    Runnable networkCheckTask =
-        () -> {
-          try {
-            // Check if the thread has been interrupted before starting.
-            if (Thread.currentThread().isInterrupted()) {
-              return;
-            }
-
-            boolean probeURL = performSingleProbe("https://www.google.com/generate_204");
-            // Fallback URL
-            if (!probeURL) {
-              Log.w(TAG, "Primary connectivity check failed, trying fallback.");
-              probeURL = performSingleProbe("http://connectivitycheck.gstatic.com/generate_204");
-            }
-
-            if (!probeURL) {
-              // Throw an exception to trigger the error dialog logic
-              throw new IOException("Both primary and fallback connectivity checks failed.");
-            }
-
-            // If we reach here, the check was successful.
-            Log.i(TAG, "Active Network check successful." + mPlatformError);
-            if (mPlatformError != null) {
-              mPlatformError.setResponse(PlatformError.POSITIVE);
-              mPlatformError.dismiss();
-              mPlatformError = null;
-            }
-            if (mShouldReloadOnResume) {
-              runOnUiThread(
-                  () -> {
-                    WebContents webContents = getActiveWebContents();
-                    if (webContents != null) {
-                      webContents.getNavigationController().reload(true);
-                    }
-                    mShouldReloadOnResume = false;
-                  });
-            }
-          } catch (Exception e) {
-            if (Thread.currentThread().isInterrupted()) {
-              Log.w(TAG, "Active Network check was cancelled by timeout.");
-            } else {
-              Log.w(TAG, "Active Network check failed: " + e.getMessage());
-            }
-
-=======
     timeoutRunnable =
-      () -> {
-        Log.w(TAG, "Active Network check timed out after 10 seconds.");
-        if (mPlatformError == null || !mPlatformError.isShowing()) {
-          mPlatformError =
-              new PlatformError(
-                  getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-          mPlatformError.raise();
-        }
-        mShouldReloadOnResume = true;
-        timeoutRunnable = null;
-      };
+        () -> {
+          Log.w(TAG, "Active Network check timed out after 10 seconds.");
+          if (mPlatformError == null || !mPlatformError.isShowing()) {
+            mPlatformError =
+                new PlatformError(
+                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
+            mPlatformError.raise();
+          }
+          mShouldReloadOnResume = true;
+          timeoutRunnable = null;
+        };
     timeoutHandler.postDelayed(timeoutRunnable, NETWORK_CHECK_TIMEOUT_MS);
 
     new Thread(
-      () -> {
-        HttpURLConnection urlConnection = null;
-        try {
-          URL url = new URL("https://www.google.com/generate_204");
-          urlConnection = (HttpURLConnection) url.openConnection();
-          urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
-          urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
-          urlConnection.connect();
-          if (urlConnection.getResponseCode() != 204) {
-            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
-          }
-
-          if (timeoutRunnable != null) {
-            timeoutHandler.removeCallbacks(timeoutRunnable);
-            timeoutRunnable = null;
-          }
-
-          Log.i(TAG, "Active Network check successful." + mPlatformError);
-          if (mPlatformError != null) {
-            mPlatformError.setResponse(PlatformError.POSITIVE);
-            mPlatformError.dismiss();
-            mPlatformError = null;
-          }
-          if (mShouldReloadOnResume) {
->>>>>>> bab72dae977 (Revert "android: refactor activeNetworkCheck() to use ScheduledThreadPool" (#8170))
-            runOnUiThread(
-                () -> {
-                  if (mPlatformError == null || !mPlatformError.isShowing()) {
-                    mPlatformError =
-                        new PlatformError(
-                            getStarboardBridge().getActivityHolder(),
-                            PlatformError.CONNECTION_ERROR,
-                            0);
-                    mPlatformError.raise();
-                  }
-                });
-            mShouldReloadOnResume = true;
-          }
-<<<<<<< HEAD
-        };
-
-    // Submit the task and get its Future
-    networkCheckFuture = networkCheckExecutor.submit(networkCheckTask);
-
-    // Schedule the cancellation task. It will run after the timeout and interrupt the network
-    // thread.
-    networkCheckExecutor.schedule(
-        () -> {
-          if (!networkCheckFuture.isDone()) {
-            networkCheckFuture.cancel(true);
-          }
-        },
-        NETWORK_CHECK_TIMEOUT_MS,
-        TimeUnit.MILLISECONDS);
-  }
-
-  // Perform a network check on a single URL endpoint
-  private boolean performSingleProbe(String urlString) {
-    HttpURLConnection urlConnection = null;
-    try {
-      if (Thread.currentThread().isInterrupted()) {
-        return false;
-      }
-
-      URL url = new URL(urlString);
-      urlConnection = (HttpURLConnection) url.openConnection();
-      urlConnection.setInstanceFollowRedirects(false);
-      urlConnection.setRequestMethod("GET");
-      urlConnection.setUseCaches(false);
-      urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
-      urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
-
-      urlConnection.connect();
-
-      int responseCode = urlConnection.getResponseCode();
-      if (responseCode == 204) {
-        return true;
-      } else {
-        Log.w(
-            TAG,
-            "Connectivity check to " + urlString + " failed with response code: " + responseCode);
-        return false;
-      }
-    } catch (IOException e) {
-      Log.w(
-          TAG,
-          "Connectivity check to "
-              + urlString
-              + " failed with exception: "
-              + e.getClass().getSimpleName());
-      return false;
-    } finally {
-      if (urlConnection != null) {
-        urlConnection.disconnect();
-      }
-    }
-=======
-        } catch (IOException e) {
-          if (timeoutRunnable != null) {
-            timeoutHandler.removeCallbacks(timeoutRunnable);
-            timeoutRunnable = null;
-          }
-          Log.w(TAG, "Active Network check failed with IOException: "+ e.getClass().getName(), e);
-          runOnUiThread(
             () -> {
-              if (mPlatformError == null || !mPlatformError.isShowing()) {
-                mPlatformError =
-                  new PlatformError(
-                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-                mPlatformError.raise();
+              HttpURLConnection urlConnection = null;
+              try {
+                URL url = new URL("https://www.google.com/generate_204");
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
+                urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
+                urlConnection.connect();
+                if (urlConnection.getResponseCode() != 204) {
+                  throw new IOException("Bad response code: " + urlConnection.getResponseCode());
+                }
+
+                if (timeoutRunnable != null) {
+                  timeoutHandler.removeCallbacks(timeoutRunnable);
+                  timeoutRunnable = null;
+                }
+
+                Log.i(TAG, "Active Network check successful." + mPlatformError);
+                if (mPlatformError != null) {
+                  mPlatformError.setResponse(PlatformError.POSITIVE);
+                  mPlatformError.dismiss();
+                  mPlatformError = null;
+                }
+                if (mShouldReloadOnResume) {
+                  runOnUiThread(
+                      () -> {
+                        if (mPlatformError == null || !mPlatformError.isShowing()) {
+                          mPlatformError =
+                              new PlatformError(
+                                  getStarboardBridge().getActivityHolder(),
+                                  PlatformError.CONNECTION_ERROR,
+                                  0);
+                          mPlatformError.raise();
+                        }
+                      });
+                  mShouldReloadOnResume = true;
+                }
+              } catch (IOException e) {
+                if (timeoutRunnable != null) {
+                  timeoutHandler.removeCallbacks(timeoutRunnable);
+                  timeoutRunnable = null;
+                }
+                Log.w(
+                    TAG,
+                    "Active Network check failed with IOException: " + e.getClass().getName(),
+                    e);
+                runOnUiThread(
+                    () -> {
+                      if (mPlatformError == null || !mPlatformError.isShowing()) {
+                        mPlatformError =
+                            new PlatformError(
+                                getStarboardBridge().getActivityHolder(),
+                                PlatformError.CONNECTION_ERROR,
+                                0);
+                        mPlatformError.raise();
+                      }
+                    });
+                mShouldReloadOnResume = true;
+              } finally {
+                if (urlConnection != null) {
+                  urlConnection.disconnect();
+                }
               }
-            });
-          mShouldReloadOnResume = true;
-        } finally {
-          if (urlConnection != null) {
-            urlConnection.disconnect();
-          }
-        }
-      })
-    .start();
->>>>>>> bab72dae977 (Revert "android: refactor activeNetworkCheck() to use ScheduledThreadPool" (#8170))
+            })
+        .start();
   }
 
   public long getAppStartTimestamp() {
