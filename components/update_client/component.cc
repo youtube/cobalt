@@ -1385,7 +1385,9 @@ void Component::StateDownloading::DownloadComplete(
   }
 
   if (download_result.error) {
+#if !defined(IN_MEMORY_UPDATES)
     CHECK(download_result.response.empty());
+#endif
     component.error_category_ = ErrorCategory::kDownload;
     component.error_code_ = download_result.error;
 
