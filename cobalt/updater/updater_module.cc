@@ -153,6 +153,24 @@ namespace updater {
 // The delay before the first update check.
 const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
+// static
+base::NoDestructor<UpdaterModule>* UpdaterModule::instance_ = nullptr;
+
+void UpdaterModule::CreateInstance(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    base::TimeDelta update_check_delay) {
+  DCHECK(!instance_)
+      << "UpdaterModule::CreateInstance() called more than once.";
+  instance_ = new base::NoDestructor<UpdaterModule>(
+      std::move(url_loader_factory), update_check_delay);
+}
+
+UpdaterModule* UpdaterModule::GetInstance() {
+  DCHECK(instance_)
+      << "UpdaterModule::GetInstance() called before CreateInstance().";
+  return instance_->get();
+}
+
 void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
@@ -199,7 +217,7 @@ UpdaterModule::UpdaterModule(
     base::TimeDelta update_check_delay)
     : url_loader_factory_(std::move(url_loader_factory)),
       update_check_delay_(update_check_delay) {
-  LOG(INFO) << "UpdaterModule::UpdaterModule";
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO(b/453693299): investigate using sequence to replace base::Thread
   updater_thread_.reset(new base::Thread("Updater"));
   updater_thread_->StartWithOptions(
@@ -215,7 +233,7 @@ UpdaterModule::UpdaterModule(
 }
 
 UpdaterModule::~UpdaterModule() {
-  LOG(INFO) << "UpdaterModule::~UpdaterModule";
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO(b/452142372): Investigate UpdaterModule destruction sequence
 
   // This is necessary to allow blocking for proper cleanup and to prevent
