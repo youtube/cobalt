@@ -2,8 +2,6 @@ name: Prepare Runner Cache
 description: Check the runner cache directory for build
 runs:
   using: "composite"
-  env:
-    CHECKOUT_PATH: /runner-cache/cobalt/src
   steps:
     - name: Check Runner Cache Status
       run: |
@@ -22,6 +20,8 @@ runs:
         fi
         # Ensure the base directory exists before the symlink step
         mkdir -p /runner-cache/cobalt
+      env:
+        CHECKOUT_PATH: /runner-cache/cobalt/src
       shell: bash
     - name: Link runner cache
       run: |
