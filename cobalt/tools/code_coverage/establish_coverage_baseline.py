@@ -40,15 +40,13 @@ class CoverageBaselineRunner:
         self.cobalt_src_root / f'out/lcov_merged_{self.platform}.info')
     self.html_report_dir = (
         self.cobalt_src_root / f'out/lcov_html_report_{self.platform}')
-    self.test_targets_json = (
-        self.cobalt_src_root /
-        f'cobalt/build/testing/targets/{self.platform}/'
-        f'{self.build_type}/test_targets.json')
+    base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
+    platform_target_dir = self.platform
     if self.platform == 'android-x86':
-      self.test_targets_json = (
-          self.cobalt_src_root /
-          f'cobalt/build/testing/targets/android-arm/'
-          f'{self.build_type}/test_targets.json')
+      platform_target_dir = 'android-arm'
+
+    self.test_targets_json = (
+        base_target_path / platform_target_dir / 'test_targets.json')
 
     os.chdir(self.cobalt_src_root)
 
@@ -66,7 +64,7 @@ class CoverageBaselineRunner:
     Returns:
       The CompletedProcess object.
     """
-    print(f'Running: {" ".join(command)}', flush=True)
+    print(f'Running: {' '.join(command)}', flush=True)  # pylint: disable=W1309
     try:
       result = subprocess.run(
           command, check=check, cwd=cwd, capture_output=True, text=True)
@@ -133,8 +131,8 @@ class CoverageBaselineRunner:
                 if test.get('type') == 'test')))
 
     if not targets:
-      print(
-          f'No test targets of type \'test\' found in {self.test_targets_json}')
+      print(f'No test targets of type \'test\' found in '
+            f'{self.test_targets_json}')  # pylint: disable=W1405
     else:
       print(f'Found test targets: {", ".join(targets)}')
     return targets
@@ -151,8 +149,7 @@ class CoverageBaselineRunner:
 
     print('--- Building test targets for coverage ---')
     self._run_command(
-        ['autoninja', '-C',
-         str(self.coverage_build_dir)] + list(targets))
+        ['autoninja', '-C', str(self.coverage_build_dir)] + list(targets))
     print('Build complete.')
 
   def run_coverage_for_target(self, test_name: str) -> bool:
