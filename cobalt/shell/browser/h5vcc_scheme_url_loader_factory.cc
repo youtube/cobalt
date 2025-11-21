@@ -28,6 +28,15 @@
 
 namespace content {
 
+// TODO - b/456482732: remove unsafe-inline.
+const char kH5vccContentSecurityPolicy[] =
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' data: blob:; "
+    "connect-src 'self' blob: data:;";
+
 class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
   H5vccSchemeURLLoader(
@@ -94,6 +103,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                                       mime_type);
     response_head->headers->AddHeader(net::HttpRequestHeaders::kContentLength,
                                       std::to_string(data_content.size()));
+    response_head->headers->AddHeader("Content-Security-Policy",
+                                      kH5vccContentSecurityPolicy);
     // We should support HTTP range requests.
     response_head->headers->AddHeader("Accept-Ranges", "none");
 
