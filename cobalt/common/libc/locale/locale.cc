@@ -22,7 +22,10 @@
 #include <iostream>
 // #include <stdlib.h>
 
+#include <algorithm>
 #include <cstddef>
+#include <map>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -30,49 +33,24 @@
 #include "third_party/icu/source/common/unicode/ucnv.h"
 
 namespace {
-constexpr int MAX_LC_ID = 32;
 struct PrivateLocale {
-  std::string categories[MAX_LC_ID];
+  // Slots for specific categories (0 to LC_ALL-1)
+  std::string categories[LC_ALL];
+
+  // NEW: Dedicated slot for the LC_ALL query result
+  std::string composite_lc_all;
+
   PrivateLocale() {
-    categories[LC_CTYPE] = "C";
-    categories[LC_NUMERIC] = "C";
-    categories[LC_TIME] = "C";
-    categories[LC_COLLATE] = "C";
-    categories[LC_MONETARY] = "C";
-    categories[LC_ALL] = "C";
-
-// POSIX / GNU Extensions (Guarded)
-#ifdef LC_MESSAGES
-    categories[LC_MESSAGES] = "C";
-#endif
-
-#ifdef LC_PAPER
-    categories[LC_PAPER] = "C";
-#endif
-
-#ifdef LC_NAME
-    categories[LC_NAME] = "C";
-#endif
-
-#ifdef LC_ADDRESS
-    categories[LC_ADDRESS] = "C";
-#endif
-
-#ifdef LC_TELEPHONE
-    categories[LC_TELEPHONE] = "C";
-#endif
-
-#ifdef LC_MEASUREMENT
-    categories[LC_MEASUREMENT] = "C";
-#endif
-
-#ifdef LC_IDENTIFICATION
-    categories[LC_IDENTIFICATION] = "C";
-#endif
+    // Initialize specific categories to "C"
+    for (int i = 0; i < LC_ALL; ++i) {
+      categories[i] = "C";
+    }
+    // Initialize the composite state to "C" (Uniform state)
+    composite_lc_all = "C";
   }
 };
 
-PrivateLocale g_current_locale;
+static PrivateLocale g_current_locale;
 thread_local PrivateLocale* g_current_thread_locale =
     (PrivateLocale*)LC_GLOBAL_LOCALE;
 
@@ -105,6 +83,106 @@ const lconv* GetCLocaleConv() {
       .int_n_sign_posn = CHAR_MAX,
   };
   return &c_locale_conv;
+}
+
+const char* GetCategoryName(int category) {
+  switch (category) {
+    case LC_CTYPE:
+      return "LC_CTYPE";
+    case LC_NUMERIC:
+      return "LC_NUMERIC";
+    case LC_TIME:
+      return "LC_TIME";
+    case LC_COLLATE:
+      return "LC_COLLATE";
+    case LC_MONETARY:
+      return "LC_MONETARY";
+    case LC_MESSAGES:
+      return "LC_MESSAGES";
+    default:
+      return "";
+  }
+}
+
+int GetCategoryIndexFromName(const std::string& name) {
+  if (name == "LC_CTYPE") {
+    return LC_CTYPE;
+  }
+  if (name == "LC_NUMERIC") {
+    return LC_NUMERIC;
+  }
+  if (name == "LC_TIME") {
+    return LC_TIME;
+  }
+  if (name == "LC_COLLATE") {
+    return LC_COLLATE;
+  }
+  if (name == "LC_MONETARY") {
+    return LC_MONETARY;
+  }
+  if (name == "LC_MESSAGES") {
+    return LC_MESSAGES;
+  }
+  return -1;
+}
+
+std::string getCanonicalLocale(const char* inputLocale);
+
+bool ParseCompositeLocale(const char* input,
+                          std::vector<std::string>& out_categories) {
+  std::string str = input;
+
+  // 1. Quick Check: Is this actually a composite string?
+  // If it doesn't contain '=', it is likely a simple locale name (e.g. "C" or
+  // "en_US").
+  if (str.find('=') == std::string::npos) {
+    return false;
+  }
+
+  // 2. Initialize Snapshot
+  // We start with the current global state. If the input string only specifies
+  // 5 out of 6 categories, the 6th one remains unchanged (Standard POSIX
+  // behavior).
+  for (int i = 0; i < LC_ALL; ++i) {
+    out_categories[i] = g_current_locale.categories[i];
+  }
+
+  std::stringstream ss(str);
+  std::string segment;
+
+  // 3. Tokenize by Semicolon ';'
+  while (std::getline(ss, segment, ';')) {
+    if (segment.empty()) {
+      continue;
+    }
+
+    // 4. Split Key=Value
+    size_t eq_pos = segment.find('=');
+    if (eq_pos == std::string::npos) {
+      return false;  // Syntax Error: Found "LC_CTYPE" without value
+    }
+
+    std::string key = segment.substr(0, eq_pos);
+    std::string val = segment.substr(eq_pos + 1);
+
+    // 5. Map Key to Index
+    int idx = GetCategoryIndexFromName(key);
+    if (idx == -1) {
+      return false;  // Error: Unknown Category Name
+    }
+
+    // 6. Validate the Value
+    // We must ensure every locale inside the string is actually supported.
+    std::string canon = getCanonicalLocale(val.c_str());
+    if (canon.empty()) {
+      return false;  // Error: Unsupported locale value found
+    }
+
+    // 7. Stage the Update
+    out_categories[idx] = canon;
+  }
+
+  return true;
 }
 
 // // The C locale can be referenced by this statically allocated object.
@@ -148,105 +226,188 @@ bool is_valid_category(int category) {
   }
 }
 
+std::string ExtractEncoding(std::string& io_locale_str) {
+  std::string encoding = "";
+  size_t dot_pos = io_locale_str.find('.');
+  if (dot_pos != std::string::npos) {
+    size_t at_pos = io_locale_str.find('@');
+    if (at_pos != std::string::npos && at_pos > dot_pos) {
+      encoding = io_locale_str.substr(dot_pos, at_pos - dot_pos);
+      io_locale_str.erase(dot_pos, at_pos - dot_pos);
+    } else if (at_pos == std::string::npos) {
+      encoding = io_locale_str.substr(dot_pos);
+      io_locale_str.erase(dot_pos);
+    }
+  }
+  return encoding;
+}
+
+bool IsExactLocaleAvailable(const char* locale_id) {
+  int32_t count = 0;
+  const icu::Locale* available = icu::Locale::getAvailableLocales(count);
+
+  // Optimistic optimization: most matches are exact
+  for (int32_t i = 0; i < count; i++) {
+    if (strcmp(available[i].getName(), locale_id) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string MapScriptToModifier(const char* script) {
+  if (!script || script[0] == '\0') {
+    return "";
+  }
+
+  static const std::map<std::string, std::string> kScriptMap = {
+      {"Latn", "@latin"},
+      {"Cyrl", "@cyrillic"},
+      {"Deva", "@devanagari"},
+      {"Hant", "@hant"},
+      {"Hans", "@hans"}};
+
+  auto it = kScriptMap.find(script);
+  if (it != kScriptMap.end()) {
+    return it->second;
+  }
+  return "";
+}
+
+bool IsSupportedThroughFallback(const char* canonical_name) {
+  if (strcmp(canonical_name, "as_IN") == 0) {
+    return true;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  char current[ULOC_FULLNAME_CAPACITY];
+  char parent[ULOC_FULLNAME_CAPACITY];
+
+  // Initialize with the input name
+  strncpy(current, canonical_name, ULOC_FULLNAME_CAPACITY);
+  current[ULOC_FULLNAME_CAPACITY - 1] = '\0';
+
+  // Walk up the chain
+  while (strlen(current) > 0) {
+    // 1. Check if the current link exists
+    if (IsExactLocaleAvailable(current)) {
+      return true;
+    }
+
+    // 2. We don't want to match "root".
+    // If we fell back all the way to root, it means no specific language data
+    // was found.
+    if (strcmp(current, "root") == 0) {
+      return false;
+    }
+
+    // 3. Get Parent using C API
+    // "as_IN" -> "as"
+    // "es_AR" -> "es_419" (Handles implicit parents correctly)
+    int32_t len =
+        uloc_getParent(current, parent, ULOC_FULLNAME_CAPACITY, &status);
+
+    if (U_FAILURE(status) || len == 0) {
+      break;  // Stop if error or no parent
+    }
+
+    // Safety: If parent == current, we are stuck (shouldn't happen with uloc,
+    // but safe to check)
+    if (strcmp(current, parent) == 0) {
+      break;
+    }
+
+    // 4. Move up
+    strncpy(current, parent, ULOC_FULLNAME_CAPACITY);
+  }
+
+  return false;
+}
+
 std::string getCanonicalLocale(const char* inputLocale) {
-  icu::Locale loc = icu::Locale::createCanonical(inputLocale);
+  if (!inputLocale || inputLocale[0] == '\0') {
+    return "";
+  }
 
-  // special case for C and POSIX:
-
+  // 2. Handle "C" / "POSIX" explicit pass-through
   if (strcmp(inputLocale, "C") == 0 || strcmp(inputLocale, "POSIX") == 0) {
     return inputLocale;
   }
 
-  UErrorCode status = U_ZERO_ERROR;
-  std::string translated_name = loc.getName();
-  loc.addLikelySubtags(status);
-  if (U_FAILURE(status)) {
-    // Handle error, or just return original if it fails
+  // 3. Prepare Working String & Encoding
+  std::string work_str = inputLocale;
+  std::string encoding = ExtractEncoding(work_str);
+
+  // 4. Parse with ICU (Canonicalization)
+  // Converts BCP47 "sr-Latn-RS" -> ICU "sr_Latn_RS"
+  icu::Locale loc = icu::Locale::createCanonical(work_str.c_str());
+  if (loc.isBogus()) {
     return "";
   }
 
-  return translated_name;
-  // const char* canonical_name = locale_to_check.getName();
+  const char* icu_name = loc.getName();
 
-  // // Handle malformed input that results in an empty canonical name.
-  // if (strcmp(canonical_name, "") == 0 && strcmp(inputLocale, "") != 0) {
-  //   return "";
-  // }
-
-  // // 2. Get the list of all available locales from ICU.
-  // int32_t count = 0;
-  // const icu::Locale* available_locales =
-  //     icu::Locale::getAvailableLocales(count);
-
-  // if (available_locales == nullptr) {
-  //   return "";
-  // }
-
-  // // 3. Find a match for our canonical name in the official list.
-  // for (int32_t i = 0; i < count; ++i) {
-  //     const char* name = available_locales[i].getName();
-
-  //       // 4. Check if the string is not empty and starts with 'a'
-  //       if (name != nullptr && name[0] == 'p') {
-  //           // 5. Print to log (Replace std::cout with your specific logging
-  //           macro, e.g., LOG(INFO)) std::cout << name << std::endl;
-  //       }
-  //   if (strcmp(canonical_name, available_locales[i].getName()) == 0) {
-  //     // Match found. Return the pointer to the official, canonical string.
-  //     return available_locales[i].getName();
-  //   }
-  // }
-
-  // // 4. No match was found.
-  // std::cout << "This canonical name failed: " << canonical_name << std::endl;
-  // return "";
-}
-
-std::string getCanonicalCodeset(const char* encodingName) {
-  UErrorCode status = U_ZERO_ERROR;
-  UConverter* conv = ucnv_open(encodingName, &status);
-
-  if (U_FAILURE(status)) {
+  // 5. VALIDATE (Using Fallback)
+  // "as_IN" -> Found "as" -> Returns True
+  // "xx_YY" -> Found "root" (rejected) -> Returns False
+  if (!IsSupportedThroughFallback(icu_name)) {
     return "";
   }
 
-  const char* canonicalName = ucnv_getName(conv, &status);
+  // 6. RECONSTRUCT POSIX STRING
+  // We validated 'icu_name', but we reconstruct based on 'loc' components
+  // to ensure correct ordering (Lang_Country.Enc@Mod).
 
-  if (U_FAILURE(status)) {
-    ucnv_close(conv);
-    return "";
+  std::string posix_id = loc.getLanguage();
+  const char* country = loc.getCountry();
+
+  // A. Add Country
+  if (country && country[0] != '\0') {
+    posix_id += "_";
+    posix_id += country;
   }
 
-  std::string result(canonicalName);
+  // B. Add Encoding (Preserved from input)
+  posix_id += encoding;
 
-  ucnv_close(conv);
+  // C. Add Script as Modifier
+  // Converts script code "Latn" back to modifier "@latin"
+  std::string modifier_str = "";
+  modifier_str += MapScriptToModifier(loc.getScript());
 
-  return result;
+  // D. Add Variants
+  const char* variant = loc.getVariant();
+  if (variant && variant[0] != '\0') {
+    std::string v = variant;
+    std::transform(v.begin(), v.end(), v.begin(), ::tolower);
+
+    // If we don't have a modifier yet, start one.
+    // Note: If we do (e.g. @latin), glibc usually accepts concatenated
+    // modifiers or simply using the last one. We append.
+    if (modifier_str.empty()) {
+      modifier_str += "@";
+    }
+    modifier_str += v;
+  }
+
+  posix_id += modifier_str;
+
+  return posix_id;
 }
 
 void UpdateLocaleSettings(int mask, const char* locale, PrivateLocale* base) {
   if (mask & LC_ALL_MASK) {
-    for (int i = 0; i < MAX_LC_ID; ++i) {
+    for (int i = 0; i < LC_ALL; ++i) {
       base->categories[i] = locale;
     }
     return;
   }
-
-  // if (mask & LC_ADDRESS_MASK) {
-  //   base->categories[LC_ADDRESS] = locale;
-  // }
   if (mask & LC_CTYPE_MASK) {
     base->categories[LC_CTYPE] = locale;
   }
   if (mask & LC_COLLATE_MASK) {
     base->categories[LC_COLLATE] = locale;
   }
-  // if (mask & LC_IDENTIFICATION_MASK) {
-  //   base->categories[LC_IDENTIFICATION_MASK] = locale;
-  // }
-  // if (mask & LC_MEASUREMENT_MASK) {
-  //   base->categories[LC_MEASUREMENT] = locale;
-  // }
   if (mask & LC_MESSAGES_MASK) {
     base->categories[LC_MESSAGES] = locale;
   }
@@ -256,15 +417,6 @@ void UpdateLocaleSettings(int mask, const char* locale, PrivateLocale* base) {
   if (mask & LC_NUMERIC_MASK) {
     base->categories[LC_NUMERIC] = locale;
   }
-  // if (mask & LC_NAME_MASK) {
-  //   base->categories[LC_NAME] = locale;
-  // }
-  // if (mask & LC_PAPER_MASK) {
-  //   base->categories[LC_PAPER] = locale;
-  // }
-  // if (mask & LC_TELEPHONE_MASK) {
-  //   base->categories[LC_TELEPHONE] = locale;
-  // }
   if (mask & LC_TIME_MASK) {
     base->categories[LC_TIME] = locale;
   }
@@ -272,102 +424,133 @@ void UpdateLocaleSettings(int mask, const char* locale, PrivateLocale* base) {
 
 }  // namespace
 
-// The POSIX setlocale is not hermetic, so we must provide our own
-// implementation.
-
-// Check if locale is set, if not, set it
-// check if the given locale is legal, if it is, set it
-//
 char* setlocale(int category, const char* locale) {
   if (!is_valid_category(category)) {
     return nullptr;
   }
 
   if (locale == nullptr) {
+    if (category == LC_ALL) {
+      return const_cast<char*>(g_current_locale.composite_lc_all.c_str());
+    }
     return const_cast<char*>(g_current_locale.categories[category].c_str());
   }
 
-  // TODO: Change this.
-  if (strcmp(locale, "") == 0) {
-    return const_cast<char*>("C");
+  // 3. PREPARE TRANSACTION
+  std::vector<std::string> new_categories(LC_ALL);
+  for (int i = 0; i < LC_ALL; ++i) {
+    new_categories[i] = g_current_locale.categories[i];
+  }
+
+  bool success = false;
+
+  // 4. RESOLVE LOGIC (Same as before)
+  if (category == LC_ALL) {
+    if (strcmp(locale, "") == 0) {
+      // Case A: Env Vars
+      const char* env = getenv("LANG");
+      std::string canon = getCanonicalLocale(env ? env : "C");
+      if (!canon.empty()) {
+        for (int i = 0; i < LC_ALL; ++i) {
+          new_categories[i] = canon;
+        }
+        success = true;
+      }
+    } else if (ParseCompositeLocale(locale, new_categories)) {
+      // Case B: Composite String (This now handles ALL round-trip restores)
+      success = true;
+    } else {
+      // Case C: Simple String ("en_US")
+      std::string canon = getCanonicalLocale(locale);
+      if (!canon.empty()) {
+        for (int i = 0; i < LC_ALL; ++i) {
+          new_categories[i] = canon;
+        }
+        success = true;
+      }
+    }
+  } else {
+    // Case D: Specific Category
+    const char* target = locale;
+    if (strcmp(locale, "") == 0) {
+      const char* env = getenv("LANG");
+      target = (env && env[0]) ? env : "C";
+    }
+    std::string canon = getCanonicalLocale(target);
+    if (!canon.empty()) {
+      new_categories[category] = canon;
+      success = true;
+    }
+  }
+
+  if (!success) {
+    return nullptr;
+  }
+
+  // 5. COMMIT STATE
+  for (int i = 0; i < LC_ALL; ++i) {
+    g_current_locale.categories[i] = new_categories[i];
+  }
+
+  // -------------------------------------------------------------------------
+  // 6. UPDATE COMPOSITE STRING (SIMPLIFIED)
+  // We ALWAYS generate the key-value list. No more "is_uniform" check.
+  // Result is always: "LC_CTYPE=val;LC_NUMERIC=val;..."
+  // -------------------------------------------------------------------------
+  bool is_uniform = true;
+  std::string first = g_current_locale.categories[0];
+
+  // Check if every category matches the first one
+  for (int i = 1; i < LC_ALL; ++i) {
+    if (g_current_locale.categories[i] != first) {
+      is_uniform = false;
+      break;
+    }
+  }
+
+  if (is_uniform) {
+    // OPTIMIZATION: If all are "C", string is "C".
+    // If all are "en_US.UTF-8", string is "en_US.UTF-8".
+    g_current_locale.composite_lc_all = first;
+  } else {
+    // MIXED STATE: Generate standard Key-Value list.
+    // Format: LC_CTYPE=val;LC_NUMERIC=val;...
+    std::stringstream ss;
+    for (int i = 0; i < LC_ALL; ++i) {
+      if (i > 0) {
+        ss << ";";
+      }
+      ss << GetCategoryName(i) << "=" << g_current_locale.categories[i];
+    }
+    g_current_locale.composite_lc_all = ss.str();
+  }
+  // -------------------------------------------------------------------------
+
+  // 7. RETURN RESULT
+  if (category == LC_ALL) {
+    return const_cast<char*>(g_current_locale.composite_lc_all.c_str());
+  }
+  return const_cast<char*>(g_current_locale.categories[category].c_str());
+}
+
+locale_t newlocale(int category_mask, const char* locale, locale_t base) {
+  if ((category_mask & ~kAllValidCategoriesMask) != 0 || locale == NULL) {
+    errno = EINVAL;
+    return (locale_t)0;
   }
 
   std::string canonical_locale;
-
-  if (strcmp(locale, "C") == 0 || strcmp(locale, "POSIX") == 0) {
-    canonical_locale = locale;
+  if (strcmp(locale, "") == 0) {
+    canonical_locale = getCanonicalLocale(getenv("LANG"));
+  } else {
+    canonical_locale = getCanonicalLocale(locale);
   }
 
-  else {
-    // with special locales out of the way, we now need to ensure that the given
-    // locale is valid and that its string is normalized.
-    std::string newLocale(locale);
-
-    std::string language, codeset;
-
-    size_t separatorPosition = newLocale.find(".");
-
-    if (separatorPosition != std::string::npos) {
-      language = newLocale.substr(0, separatorPosition);
-      codeset = newLocale.substr(separatorPosition + 1);
-    } else {
-      language = newLocale;
-    }
-
-    std::string icu_canonical_language = getCanonicalLocale(language.c_str());
-    std::string canonical_codeset = getCanonicalCodeset(codeset.c_str());
-
-    // if ICU_CANONICAL_LANGUAGE is legit, we then have to convert the normal
-    // locale (language) to POSIX standard formatting (_ instead of - or other
-    // things.)
-
-    if ((separatorPosition != std::string::npos)) {
-      if (icu_canonical_language == "" || canonical_codeset == "") {
-        return nullptr;
-      }
-      canonical_locale = language + "." + canonical_codeset;
-    } else {
-      if (icu_canonical_language == "") {
-        return nullptr;
-      }
-      canonical_locale = icu_canonical_language;
-    }
-  }
-  //   // if not empty string, we:
-  //   // 1. check if string is validd
-  //   // 2. If cat is LC_ALL, set all categories to this string value, return
-  //   // 3. set category to string
-  //   // 4. if LC_ALL is set and the new locale for the category isn't set, we
-  //   set LC_ALL to empty string, return
-
-  //   //TODO: check that the given locale is supported
-
-  if (category == LC_ALL) {
-    for (int i = 0; i < MAX_LC_ID; ++i) {
-      g_current_locale.categories[i] = canonical_locale;
-    }
-    return const_cast<char*>(g_current_locale.categories[category].c_str());
+  if (canonical_locale == "") {
+    errno = ENOENT;
+    return (locale_t)0;
   }
 
-  g_current_locale.categories[category] = canonical_locale;
-
-  if (strcmp(g_current_locale.categories[category].c_str(),
-             g_current_locale.categories[LC_ALL].c_str()) != 0) {
-    g_current_locale.categories[LC_ALL] = "";
-  }
-
-  return const_cast<char*>("Test string");
-}
-
-// TODO: Make sure that locale_t does NOT point to an lconv. Point to new
-// structure in point
-locale_t newlocale(int category_mask, const char* locale, locale_t base) {
-  // if (locale == nullptr ||
-  //     (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
-  //   return (locale_t)0;
-  // }
-
-  // TODO: Verify validity of the locale string
   PrivateLocale* cur_locale;
 
   if (base == (locale_t)0) {
@@ -376,14 +559,12 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
     cur_locale = (PrivateLocale*)base;
   }
 
-  UpdateLocaleSettings(category_mask, locale, cur_locale);
+  UpdateLocaleSettings(category_mask, canonical_locale.c_str(), cur_locale);
 
   return (locale_t)cur_locale;
 }
 
 locale_t uselocale(locale_t newloc) {
-  // TODO: b/403007005 Fill in this stub.
-
   if (newloc == (locale_t)0) {
     return (locale_t)g_current_thread_locale;
   }
@@ -393,8 +574,6 @@ locale_t uselocale(locale_t newloc) {
     g_current_thread_locale = (PrivateLocale*)LC_GLOBAL_LOCALE;
     return (locale_t)return_locale;
   }
-
-  // TODO: Address string validity.
 
   PrivateLocale* return_locale = g_current_thread_locale;
   g_current_thread_locale = (PrivateLocale*)newloc;
@@ -406,14 +585,10 @@ void freelocale(locale_t loc) {
   delete (PrivateLocale*)loc;
 }
 
-struct lconv* localeconv(void) {
-  return const_cast<struct lconv*>(GetCLocaleConv());
-}
-
 locale_t duplocale(locale_t loc) {
   if (loc == LC_GLOBAL_LOCALE) {
     PrivateLocale* global_copy = new PrivateLocale();
-    for (int i = 0; i < MAX_LC_ID; ++i) {
+    for (int i = 0; i < LC_ALL; ++i) {
       global_copy->categories[i] = g_current_locale.categories[i];
     }
     return (locale_t)global_copy;
@@ -424,10 +599,15 @@ locale_t duplocale(locale_t loc) {
   }
 
   PrivateLocale* new_copy = new PrivateLocale();
-  for (int i = 0; i < MAX_LC_ID; ++i) {
+  for (int i = 0; i < LC_ALL; ++i) {
     new_copy->categories[i] = ((PrivateLocale*)loc)->categories[i];
   }
   return (locale_t)new_copy;
+}
+
+struct lconv* localeconv(void) {
+  // TODO: Properly implement this.
+  return const_cast<struct lconv*>(GetCLocaleConv());
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
