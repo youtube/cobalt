@@ -13,22 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
-#define COBALT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_
+#define COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_
 
 #include "content/public/gpu/content_gpu_client.h"
 #include "services/network/public/mojom/network_service_test.mojom-forward.h"
 
 namespace content {
 
-class ShellContentGpuClient : public ContentGpuClient {
+class ShellContentGpuTestClient : public ContentGpuClient {
  public:
-  ShellContentGpuClient();
+  ShellContentGpuTestClient();
 
-  ShellContentGpuClient(const ShellContentGpuClient&) = delete;
-  ShellContentGpuClient& operator=(const ShellContentGpuClient&) = delete;
+  ShellContentGpuTestClient(const ShellContentGpuTestClient&) = delete;
+  ShellContentGpuTestClient& operator=(const ShellContentGpuTestClient&) =
+      delete;
 
-  ~ShellContentGpuClient() override;
+  ~ShellContentGpuTestClient() override;
 
   // ContentGpuClient:
   void ExposeInterfacesToBrowser(
@@ -39,4 +40,4 @@ class ShellContentGpuClient : public ContentGpuClient {
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_

@@ -49,7 +49,6 @@
 
 #if defined(RUN_BROWSER_TESTS)
 #include "cobalt/shell/common/main_frame_counter_test_impl.h"   // nogncheck
-#include "cobalt/shell/common/power_monitor_test_impl.h"        // nogncheck
 #include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
 #include "cobalt/shell/renderer/shell_render_frame_observer.h"  // nogncheck
 #include "content/public/test/test_service.mojom.h"             // nogncheck
@@ -226,7 +225,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
 
   void SetOnline(bool is_online) override {}
 
-private:
+ private:
   // Set only when `this` was created on the main thread, or cloned from a
   // provider which was created on the main thread.
   scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
@@ -247,9 +246,6 @@ void ShellContentRendererClient::ExposeInterfacesToBrowser(
 #if defined(RUN_BROWSER_TESTS)
   binders->Add<mojom::TestService>(
       base::BindRepeating(&CreateRendererTestService),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
-  binders->Add<mojom::PowerMonitorTest>(
-      base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<mojom::MainFrameCounterTest>(
       base::BindRepeating(&MainFrameCounterTestImpl::Bind),
