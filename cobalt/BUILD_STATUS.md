@@ -49,7 +49,7 @@
 | Platform      | Build Status                                           | Nightly Status                                                         |
 | :-------------| :----------------------------------------------------| :------------------------------------------------------------------------|
 | **evergreen** | [![Status][eg-26-eap-badge]][eg-26-eap-link]           | [![Status][eg-26-eap-nightly-badge]][eg-26-eap-nightly-link]           |
-| **linux**     | [![Status][linux-26-eap-badge]][linux-26-eap-link]     |                                                                        |
+| **linux**     | [![Status][linux-26-eap-badge]][linux-26-eap-link]     | [![Status][linux-26-eap-nightly-badge]][linux-26-eap-nightly-link]     |
 
 [eg-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml/badge.svg?branch=26.eap&event=push
 [eg-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/evergreen_26.eap.yaml?query=event%3Apush+branch%3A26.eap
@@ -58,6 +58,8 @@
 
 [linux-26-eap-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml/badge.svg?branch=26.eap&event=push
 [linux-26-eap-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml?query=event%3Apush+branch%3A26.eap
+[linux-26-eap-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml/badge.svg?branch=26.eap&event=workflow_dispatch
+[linux-26-eap-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_26.eap.yaml?query=event%3Aworkflow_dispatch+branch%3A26.eap
 
 ### 25.lts.1+
 
