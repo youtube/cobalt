@@ -262,7 +262,7 @@ if (!is_cronet_build || is_ios) {
       sources += [ "machine_id_provider_nonwin.cc" ]
     }
 
-    if (is_fuchsia || is_starboard) {
+    if (is_fuchsia) {
       sources += [ "drive_metrics_provider_fuchsia.cc" ]
     }
 
@@ -273,6 +273,10 @@ if (!is_cronet_build || is_ios) {
         "motherboard_metrics_provider.cc",
         "motherboard_metrics_provider.h",
       ]
+    }
+
+    if (is_starboard) {
+      sources += [ "drive_metrics_provider_starboard.cc" ]
     }
   }
 
