@@ -36,10 +36,6 @@
 #import "starboard/tvos/shared/media/av_sample_buffer_synchronizer.h"
 #import "starboard/tvos/shared/media/av_sample_buffer_video_renderer.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
-#import "starboard/tvos/shared/media/video_decoder.h"
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-#import "starboard/tvos/shared/media/vpx_video_decoder.h"  // nogncheck
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
 namespace starboard {
 namespace {
@@ -202,33 +198,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       video_decoder->reset();
 
-      if (creation_parameters.video_codec() == kSbMediaVideoCodecH264) {
-        video_decoder->reset(new TvosVideoDecoder(
-            creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
-      }
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-      else if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
-        video_decoder->reset(new VpxVideoDecoder(
-            creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
-      }
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-      else {
-        SB_LOG(ERROR) << "Unsupported video codec "
-                      << creation_parameters.video_codec();
-        *error_message = FormatString("Unsupported video codec %d",
-                                      creation_parameters.video_codec());
-        SB_NOTREACHED();
-        return false;
-      }
-
       video_render_algorithm->reset(new VideoRenderAlgorithmImpl([]() {
         @autoreleasepool {
           return UIScreen.mainScreen.maximumFramesPerSecond;
         }
       }));
       *video_renderer_sink = NULL;
+
+      // TODO: b/447334535 - This code needs decode to texture support and is
+      // therefore always failing here by design.
+      SB_LOG(ERROR) << "Unsupported video codec "
+                    << creation_parameters.video_codec();
+      *error_message = FormatString("Unsupported video codec %d",
+                                    creation_parameters.video_codec());
+      SB_NOTREACHED();
+      return false;
     }
 
     return true;
