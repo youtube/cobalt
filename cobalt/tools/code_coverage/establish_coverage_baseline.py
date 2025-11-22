@@ -166,7 +166,7 @@ class CoverageBaselineRunner:
     print('--- Building test targets for coverage ---')
     self._run_command(
         ['autoninja', '-C', str(self.coverage_build_dir)] + list(targets))
-    print('Build complete.')
+    print('--- Build PASSED ---')
 
   def run_coverage_for_target(self, test_name: str) -> bool:
     """Runs the coverage tool for a single test target.
@@ -177,7 +177,7 @@ class CoverageBaselineRunner:
     Returns:
       True if coverage was run successfully, False otherwise.
     """
-    print(f'--- Processing: {test_name} ---')
+    print(f'--- Running coverage for: {test_name} ---')
     test_lcov_out_dir = self.raw_lcov_dir / test_name
     test_lcov_out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -215,7 +215,6 @@ class CoverageBaselineRunner:
         return False
       return True
     except subprocess.CalledProcessError:
-      print(f'ERROR: Coverage run failed for {test_name}', file=sys.stderr)
       return False
 
   def run_all_coverage(self, targets: Sequence[str]) -> list[str]:
@@ -235,7 +234,10 @@ class CoverageBaselineRunner:
     successful_targets = []
     for target in targets:
       if self.run_coverage_for_target(target):
+        print(f'--- {target}: PASSED ---')
         successful_targets.append(target)
+      else:
+        print(f'--- {target}: FAILED ---', file=sys.stderr)
     return successful_targets
 
   def merge_lcov_files(self) -> bool:
