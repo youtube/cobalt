@@ -208,11 +208,11 @@ class CoverageBaselineRunner:
     ]
     try:
       self._run_command(cmd)
-      lcov_file = test_lcov_out_dir / 'lcov.info'
+      lcov_file = test_lcov_out_dir / 'linux' / 'coverage.lcov'
       if not lcov_file.exists():
         print(
-            f'WARNING: lcov.info not found for {test_name} in '
-            f'{test_lcov_out_dir}',
+            f'WARNING: coverage.lcov not found for {test_name} in '
+            f'{test_lcov_out_dir / "linux"}',
             file=sys.stderr)
         return False
       return True
