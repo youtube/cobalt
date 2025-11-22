@@ -25,8 +25,6 @@
 #define TZZONEINFOTAIL "/zoneinfo/"
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
 
-static char gTimeZoneInputBuffer[PATH_MAX];
-static struct stat gTimeZoneStat;
 static char gTimeZoneBuffer[PATH_MAX];
 static char* gTimeZoneBufferPtr = NULL;
 
@@ -58,45 +56,57 @@ const char* SbTimeZoneGetName() {
   But this is production-tested solution for most versions of Linux.
   */
 
-  if (gTimeZoneBufferPtr == NULL) {
-    // Copy default path into gTimeZoneBuffer
-    memcpy(gTimeZoneInputBuffer, TZDEFAULT, sizeof(TZDEFAULT));
+  struct stat timeZoneStat;
+  char timeZoneInputBuffer[PATH_MAX];
 
-    do {
-      int32_t ret = (int32_t)readlink(gTimeZoneInputBuffer, gTimeZoneBuffer,
+  if (gTimeZoneBufferPtr == NULL) {
+    // Copy default path into timeZoneInputBuffer
+    memcpy(timeZoneInputBuffer, TZDEFAULT, sizeof(TZDEFAULT));
+
+    // Follow symlinks up to a reasonable depth to avoid infinite loops.
+    for (int i = 0; i < kMaxSymlinks; ++i) {
+      int32_t ret = (int32_t)readlink(timeZoneInputBuffer, gTimeZoneBuffer,
                                       sizeof(gTimeZoneBuffer) - 1);
 
-      if (0 < ret) {
-        int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
-        gTimeZoneBuffer[ret] = 0;
-        char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
-
-        if (tzZoneInfoTailPtr != NULL &&
-            isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
-          return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
-        }
-
-        // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
-        // symlink chain:
-        //
-        //   $ readlink /etc/localtime 
-        //   /.host-etc/localtime
-        //
-        //   $ readlink /.host-etc/localtime 
-        //   /etc/zoneinfo/America/New_York
-        //
-
-        if (gTimeZoneBuffer[0] == '/' &&
-            lstat(gTimeZoneBuffer, &gTimeZoneStat) != -1 &&
-            (gTimeZoneStat.st_mode & S_IFLNK)) {
-          memcpy(gTimeZoneInputBuffer, gTimeZoneBuffer, sizeof(gTimeZoneInputBuffer));
-          continue;
-        }
+      if (ret <= 0) {
+        // Failed to read link, or it's not a link.
+        break;
       }
 
-      SB_NOTREACHED();
-      return "";
-    } while (1);
+      int32_t tzZoneInfoTailLen = sizeof(TZZONEINFOTAIL) - 1;
+      gTimeZoneBuffer[ret] = 0;
+      char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+
+      if (tzZoneInfoTailPtr != NULL &&
+          isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
+        return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
+      }
+
+      // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
+      // symlink chain:
+      //
+      //   $ readlink /etc/localtime 
+      //   /.host-etc/localtime
+      //
+      //   $ readlink /.host-etc/localtime 
+      //   /etc/zoneinfo/America/New_York
+      //
+
+      // Check if the target is another symlink to follow.
+      if (gTimeZoneBuffer[0] != '/' ||
+          lstat(gTimeZoneBuffer, &timeZoneStat) == -1 ||
+          !S_ISLNK(timeZoneStat.st_mode)) {
+        // Not an absolute path, lstat failed, or not a symlink. Stop.
+        break;
+      }
+
+      // It is another symlink, copy path and continue loop.
+      static_assert(sizeof(timeZoneInputBuffer) == sizeof(gTimeZoneBuffer));
+      memcpy(timeZoneInputBuffer, gTimeZoneBuffer, sizeof(timeZoneInputBuffer));
+    }
+
+    SB_NOTREACHED();
+    return "";
   } else {
     return gTimeZoneBufferPtr;
   }
