@@ -205,7 +205,6 @@ class CoverageBaselineRunner:
         '--coverage-tools-dir',
         str(self.llvm_bin_dir),
         '--format=lcov',
-        '--run',
     ]
     try:
       self._run_command(cmd)
