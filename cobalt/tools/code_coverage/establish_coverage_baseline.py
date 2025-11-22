@@ -316,18 +316,19 @@ class CoverageBaselineRunner:
     print(f'HTML report generated in file://{self.html_report_dir}/index.html')
     return True
 
-  def run_baseline(self) -> None:
+  def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
     """Executes the full coverage baseline process."""
     try:
-      if not self.skip_gn_gen:
-        self.setup_gn_args()
-      targets = self.get_test_targets()
-      if not targets:
-        return
+      if not skip_all_pre_processing:
+        if not self.skip_gn_gen:
+          self.setup_gn_args()
+        targets = self.get_test_targets()
+        if not targets:
+          return
 
-      if not self.skip_build:
-        self.build_tests(targets)
-      self.run_all_coverage(targets)
+        if not self.skip_build:
+          self.build_tests(targets)
+        self.run_all_coverage(targets)
 
       if self.merge_lcov_files():
         self.generate_html_report()
@@ -377,11 +378,13 @@ def main() -> None:
       help='The single test target to run.')
   args = parser.parse_args()
 
+  skip_all_pre_processing = args.skip_gn_gen and args.skip_build
+
   runner = CoverageBaselineRunner(args.platform, args.build_type,
                                   args.cobalt_src_root, args.verbose,
                                   args.skip_gn_gen, args.skip_build,
                                   args.test_target)
-  runner.run_baseline()
+  runner.run_baseline(skip_all_pre_processing)
 
 
 if __name__ == '__main__':
