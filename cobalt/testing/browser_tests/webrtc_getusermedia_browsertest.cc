@@ -190,15 +190,11 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 }
 
 // Test fails under MSan, http://crbug.com/445745
+// TODO(b/437427316): Investigate failing test.
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_RenderSameTrackMediastreamAndStop \
   DISABLED_RenderSameTrackMediastreamAndStop
-#else
-#define MAYBE_RenderSameTrackMediastreamAndStop \
-  RenderSameTrackMediastreamAndStop
-#endif
-// TODO(b/437427316): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
+#elif BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_RenderSameTrackMediastreamAndStop \
   RenderSameTrackMediastreamAndStop
 #else
@@ -611,15 +607,11 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // This test calls getUserMedia and checks for aspect ratio behavior.
 // TODO(1337302): Flaky for tsan.
+// TODO(b/437427316): Investigate failing test.
 #if defined(THREAD_SANITIZER)
 #define MAYBE_TestGetUserMediaAspectRatio4To3 \
   DISABLED_TestGetUserMediaAspectRatio4To3
-#else
-#define MAYBE_TestGetUserMediaAspectRatio4To3 TestGetUserMediaAspectRatio4To3
-#endif
-// TODO(b/437427316): Investigate failing test.
-// TODO(b/437427316): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
+#elif BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_TestGetUserMediaAspectRatio4To3 TestGetUserMediaAspectRatio4To3
 #else
 #define MAYBE_TestGetUserMediaAspectRatio4To3 \
@@ -661,14 +653,11 @@ IN_PROC_BROWSER_TEST_F(WebRtcGetUserMediaBrowserTest,
 
 // This test calls getUserMedia and checks for aspect ratio behavior.
 // TODO(1337302): Flaky for tsan
+// TODO(b/437427316): Investigate failing test.
 #if defined(THREAD_SANITIZER)
 #define MAYBE_TestGetUserMediaAspectRatio1To1 \
   DISABLED_TestGetUserMediaAspectRatio1To1
-#else
-#define MAYBE_TestGetUserMediaAspectRatio1To1 TestGetUserMediaAspectRatio1To1
-#endif
-// TODO(b/437427316): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
+#elif BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_TestGetUserMediaAspectRatio1To1 TestGetUserMediaAspectRatio1To1
 #else
 #define MAYBE_TestGetUserMediaAspectRatio1To1 \

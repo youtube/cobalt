@@ -17,6 +17,7 @@ import("//build/config/ozone.gni")
 source_set("starboard") {
   visibility = [
     "//cobalt:*",
+    "//cobalt/testing/browser_tests:*",
     "//ui/ozone/*",
   ]
 
