@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <limits.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -24,6 +24,8 @@
 #define TZZONEINFOTAIL "/zoneinfo/"
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
 
+static char gTimeZoneInputBuffer[PATH_MAX];
+static struct stat gTimeZoneStat;
 static char gTimeZoneBuffer[PATH_MAX];
 static char* gTimeZoneBufferPtr = NULL;
 
@@ -56,20 +58,44 @@ const char* SbTimeZoneGetName() {
   */
 
   if (gTimeZoneBufferPtr == NULL) {
-    int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer,
-                                    sizeof(gTimeZoneBuffer) - 1);
-    if (0 < ret) {
-      int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
-      gTimeZoneBuffer[ret] = 0;
-      char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+    // Copy default path into gTimeZoneBuffer
+    memcpy(gTimeZoneInputBuffer, TZDEFAULT, sizeof(TZDEFAULT));
 
-      if (tzZoneInfoTailPtr != NULL &&
-          isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
-        return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
+    do {
+      int32_t ret = (int32_t)readlink(gTimeZoneInputBuffer, gTimeZoneBuffer,
+                                      sizeof(gTimeZoneBuffer) - 1);
+
+      if (0 < ret) {
+        int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
+        gTimeZoneBuffer[ret] = 0;
+        char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+
+        if (tzZoneInfoTailPtr != NULL &&
+            isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
+          return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
+        }
+
+        // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
+        // symlink chain:
+        //
+        //   $ readlink /etc/localtime 
+        //   /.host-etc/localtime
+        //
+        //   $ readlink /.host-etc/localtime 
+        //   /etc/zoneinfo/America/New_York
+        //
+
+        if (gTimeZoneBuffer[0] == '/' &&
+            lstat(gTimeZoneBuffer, &gTimeZoneStat) != -1 &&
+            (gTimeZoneStat.st_mode & S_IFLNK)) {
+          memcpy(gTimeZoneInputBuffer, gTimeZoneBuffer, sizeof(gTimeZoneInputBuffer));
+          continue;
+        }
       }
-    }
-    SB_NOTREACHED();
-    return "";
+
+      SB_NOTREACHED();
+      return "";
+    } while (1);
   } else {
     return gTimeZoneBufferPtr;
   }
