@@ -18,7 +18,10 @@ class CoverageBaselineRunner:
                platform: str,
                build_type: str = 'qa',
                cobalt_src_root: str = '.',
-               verbose: bool = False):
+               verbose: bool = False,
+               skip_gn_gen: bool = False,
+               skip_build: bool = False,
+               test_target: str = None):
     """Initializes the CoverageBaselineRunner.
 
     Args:
@@ -26,11 +29,17 @@ class CoverageBaselineRunner:
       build_type: The build type, e.g., 'qa', 'devel'.
       cobalt_src_root: The path to the root of the Cobalt source code.
       verbose: Whether to print verbose output.
+      skip_gn_gen: Whether to skip the 'gn gen' step.
+      skip_build: Whether to skip the build step.
+      test_target: The single test target to run.
     """
     self.platform = platform
     self.build_type = build_type
     self.cobalt_src_root = pathlib.Path(cobalt_src_root).resolve()
     self.verbose = verbose
+    self.skip_gn_gen = skip_gn_gen
+    self.skip_build = skip_build
+    self.test_target = test_target
 
     self.gn_gen_dir = (
         self.cobalt_src_root / f'out/{self.platform}_{self.build_type}')
@@ -132,6 +141,9 @@ class CoverageBaselineRunner:
     Returns:
       A list of unit test target names.
     """
+    if self.test_target:
+      return [self.test_target]
+
     print(f'--- Finding Unit Test Targets for {self.platform} ---')
     if not self.test_targets_json.exists():
       raise FileNotFoundError(
@@ -307,12 +319,14 @@ class CoverageBaselineRunner:
   def run_baseline(self) -> None:
     """Executes the full coverage baseline process."""
     try:
-      self.setup_gn_args()
+      if not self.skip_gn_gen:
+        self.setup_gn_args()
       targets = self.get_test_targets()
       if not targets:
         return
 
-      self.build_tests(targets)
+      if not self.skip_build:
+        self.build_tests(targets)
       self.run_all_coverage(targets)
 
       if self.merge_lcov_files():
@@ -349,10 +363,24 @@ def main() -> None:
       '--verbose',
       action='store_true',
       help='Enable verbose output for debugging.')
+  parser.add_argument(
+      '--skip-gn-gen',
+      action='store_true',
+      help='Skip the "gn gen" step.')
+  parser.add_argument(
+      '--skip-build',
+      action='store_true',
+      help='Skip the build step.')
+  parser.add_argument(
+      '--test-target',
+      type=str,
+      help='The single test target to run.')
   args = parser.parse_args()
 
   runner = CoverageBaselineRunner(args.platform, args.build_type,
-                                  args.cobalt_src_root, args.verbose)
+                                  args.cobalt_src_root, args.verbose,
+                                  args.skip_gn_gen, args.skip_build,
+                                  args.test_target)
   runner.run_baseline()
 
 
