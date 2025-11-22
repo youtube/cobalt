@@ -102,7 +102,7 @@ const char* SbTimeZoneGetName() {
       }
 
       // It is another symlink, copy path and continue loop.
-      strcpy(timeZoneInputBuffer, gTimeZoneBuffer);
+      strncpy(timeZoneInputBuffer, gTimeZoneBuffer, sizeof(timeZoneInputBuffer));
     }
 
     SB_NOTREACHED();
