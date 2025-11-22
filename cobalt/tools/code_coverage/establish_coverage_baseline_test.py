@@ -219,6 +219,62 @@ class TestCoverageBaselineRunner(unittest.TestCase):
                                      text=True)
     self.assertTrue(self.runner.html_report_dir.exists())
 
+  def test_get_test_targets_empty(self):
+    """Test that an empty list is returned for empty test targets."""
+    self.runner.test_targets_json.parent.mkdir(parents=True, exist_ok=True)
+    with open(self.runner.test_targets_json, 'w', encoding='utf-8') as f:
+      json.dump({'test_targets': []}, f)
+    targets = self.runner.get_test_targets()
+    self.assertEqual(targets, [])
+
+  @mock.patch('subprocess.run')
+  def test_build_tests_no_targets(self, mock_run):
+    """Test that no build command is run for an empty list of targets."""
+    self.runner.build_tests([])
+    mock_run.assert_not_called()
+
+  def test_run_coverage_for_target_binary_not_found(self):
+    """Test that coverage run fails if the test binary is not found."""
+    result = self.runner.run_coverage_for_target('non_existent_binary')
+    self.assertFalse(result)
+
+  def test_merge_lcov_files_no_lcov_files(self):
+    """Test that merge fails gracefully if no lcov files are found."""
+    self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
+    result = self.runner.merge_lcov_files()
+    self.assertFalse(result)
+
+  @mock.patch('shutil.which', return_value=None)
+  def test_merge_lcov_files_lcov_not_found(self, mock_which):
+    """Test that an EnvironmentError is raised if lcov is not found."""
+    del mock_which
+    self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
+    (self.runner.raw_lcov_dir / 'test1').mkdir()
+    (self.runner.raw_lcov_dir / 'test1' / 'lcov.info').touch()
+    with self.assertRaises(EnvironmentError):
+      self.runner.merge_lcov_files()
+
+  @mock.patch('shutil.which', return_value=None)
+  def test_generate_html_report_genhtml_not_found(self, mock_which):
+    """Test that an EnvironmentError is raised if genhtml is not found."""
+    del mock_which
+    self.runner.merged_lcov_file.touch()
+    with self.assertRaises(EnvironmentError):
+      self.runner.generate_html_report()
+
+  def test_android_x86_platform_path(self):
+    """Test that android-x86 platform uses the android-arm test targets."""
+    with mock.patch('pathlib.Path.resolve',
+                    return_value=self.mock_cobalt_root):
+      with mock.patch('os.chdir'):
+        runner = CoverageBaselineRunner(
+            'android-x86',
+            self.build_type,
+            cobalt_src_root=str(self.mock_cobalt_root))
+        self.assertEqual(
+            runner.test_targets_json, self.mock_cobalt_root /
+            'cobalt/build/testing/targets/android-arm/test_targets.json')
+
 
 if __name__ == '__main__':
   unittest.main()
