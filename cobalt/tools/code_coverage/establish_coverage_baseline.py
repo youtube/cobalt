@@ -17,17 +17,20 @@ class CoverageBaselineRunner:
   def __init__(self,
                platform: str,
                build_type: str = 'qa',
-               cobalt_src_root: str = '.'):
+               cobalt_src_root: str = '.',
+               verbose: bool = False):
     """Initializes the CoverageBaselineRunner.
 
     Args:
       platform: The target platform, e.g., 'linux-x64'.
       build_type: The build type, e.g., 'qa', 'devel'.
       cobalt_src_root: The path to the root of the Cobalt source code.
+      verbose: Whether to print verbose output.
     """
     self.platform = platform
     self.build_type = build_type
     self.cobalt_src_root = pathlib.Path(cobalt_src_root).resolve()
+    self.verbose = verbose
 
     self.gn_gen_dir = (
         self.cobalt_src_root / f'out/{self.platform}_{self.build_type}')
@@ -47,6 +50,18 @@ class CoverageBaselineRunner:
 
     self.test_targets_json = (
         base_target_path / platform_target_dir / 'test_targets.json')
+
+    if self.verbose:
+      print('--- Runner Initialized with the following paths ---')
+      print(f'Cobalt src root: {self.cobalt_src_root}')
+      print(f'GN gen dir: {self.gn_gen_dir}')
+      print(f'Coverage build dir: {self.coverage_build_dir}')
+      print(f'LLVM bin dir: {self.llvm_bin_dir}')
+      print(f'Raw LCOV dir: {self.raw_lcov_dir}')
+      print(f'Merged LCOV file: {self.merged_lcov_file}')
+      print(f'HTML report dir: {self.html_report_dir}')
+      print(f'Test targets JSON: {self.test_targets_json}')
+      print('----------------------------------------------------')
 
     os.chdir(self.cobalt_src_root)
 
@@ -68,9 +83,10 @@ class CoverageBaselineRunner:
     try:
       result = subprocess.run(
           command, check=check, cwd=cwd, capture_output=True, text=True)
-      print(result.stdout, flush=True)
-      if result.stderr:
-        print(result.stderr, file=sys.stderr, flush=True)
+      if self.verbose:
+        print(result.stdout, flush=True)
+        if result.stderr:
+          print(result.stderr, file=sys.stderr, flush=True)
       return result
     except subprocess.CalledProcessError as e:
       print(f'Command failed: {e}', file=sys.stderr, flush=True)
@@ -324,10 +340,15 @@ def main() -> None:
       '--cobalt_src_root',
       default='.',
       help='Path to the Cobalt source root directory')
+  parser.add_argument(
+      '-v',
+      '--verbose',
+      action='store_true',
+      help='Enable verbose output for debugging.')
   args = parser.parse_args()
 
   runner = CoverageBaselineRunner(args.platform, args.build_type,
-                                  args.cobalt_src_root)
+                                  args.cobalt_src_root, args.verbose)
   runner.run_baseline()
 
 
