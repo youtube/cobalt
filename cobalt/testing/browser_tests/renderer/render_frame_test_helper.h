@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_RENDERER_RENDER_FRAME_TEST_HELPER_H_
-#define COBALT_SHELL_RENDERER_RENDER_FRAME_TEST_HELPER_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_RENDERER_RENDER_FRAME_TEST_HELPER_H_
+#define COBALT_TESTING_BROWSER_TESTS_RENDERER_RENDER_FRAME_TEST_HELPER_H_
 
-#include "cobalt/shell/common/render_frame_test_helper.mojom.h"
+#include "cobalt/testing/browser_tests/common/render_frame_test_helper.mojom.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -49,4 +49,4 @@ class RenderFrameTestHelper : public mojom::RenderFrameTestHelper,
 
 }  // namespace content
 
-#endif  // COBALT_SHELL_RENDERER_RENDER_FRAME_TEST_HELPER_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_RENDERER_RENDER_FRAME_TEST_HELPER_H_
