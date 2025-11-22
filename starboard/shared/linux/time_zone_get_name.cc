@@ -64,6 +64,7 @@ const char* SbTimeZoneGetName() {
     memcpy(timeZoneInputBuffer, TZDEFAULT, sizeof(TZDEFAULT));
 
     // Follow symlinks up to a reasonable depth to avoid infinite loops.
+    const int kMaxSymlinks = 8;
     for (int i = 0; i < kMaxSymlinks; ++i) {
       int32_t ret = (int32_t)readlink(timeZoneInputBuffer, gTimeZoneBuffer,
                                       sizeof(gTimeZoneBuffer) - 1);
@@ -101,8 +102,7 @@ const char* SbTimeZoneGetName() {
       }
 
       // It is another symlink, copy path and continue loop.
-      static_assert(sizeof(timeZoneInputBuffer) == sizeof(gTimeZoneBuffer));
-      memcpy(timeZoneInputBuffer, gTimeZoneBuffer, sizeof(timeZoneInputBuffer));
+      strcpy(timeZoneInputBuffer, gTimeZoneBuffer);
     }
 
     SB_NOTREACHED();
