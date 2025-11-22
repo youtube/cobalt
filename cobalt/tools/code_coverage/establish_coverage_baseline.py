@@ -164,8 +164,9 @@ class CoverageBaselineRunner:
       return
 
     print('--- Building test targets for coverage ---')
-    self._run_command(
-        ['autoninja', '-C', str(self.coverage_build_dir)] + list(targets))
+    self._run_command([
+        'time', '-v', 'autoninja', '-C', str(self.coverage_build_dir)
+    ] + list(targets))
     print('--- Build PASSED ---')
 
   def run_coverage_for_target(self, test_name: str) -> bool:
@@ -190,6 +191,8 @@ class CoverageBaselineRunner:
       return False
 
     cmd = [
+        'time',
+        '-v',
         'vpython3',
         'tools/code_coverage/coverage.py',
         test_name,
