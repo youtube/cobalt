@@ -63,6 +63,16 @@ const char* SbTimeZoneGetName() {
     // Copy default path into timeZoneInputBuffer
     memcpy(timeZoneInputBuffer, TZDEFAULT, sizeof(TZDEFAULT));
 
+    // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
+    // symlink chain:
+    //
+    //   $ readlink /etc/localtime 
+    //   /.host-etc/localtime
+    //
+    //   $ readlink /.host-etc/localtime 
+    //   /etc/zoneinfo/America/New_York
+    //
+
     // Follow symlinks up to a reasonable depth to avoid infinite loops.
     const int kMaxSymlinks = 8;
     for (int i = 0; i < kMaxSymlinks; ++i) {
@@ -78,20 +88,11 @@ const char* SbTimeZoneGetName() {
       gTimeZoneBuffer[ret] = 0;
       char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
 
+      // Stop on the first symlink that is a valid time zone.
       if (tzZoneInfoTailPtr != NULL &&
           isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
         return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
       }
-
-      // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
-      // symlink chain:
-      //
-      //   $ readlink /etc/localtime 
-      //   /.host-etc/localtime
-      //
-      //   $ readlink /.host-etc/localtime 
-      //   /etc/zoneinfo/America/New_York
-      //
 
       // Check if the target is another symlink to follow.
       if (gTimeZoneBuffer[0] != '/' ||
