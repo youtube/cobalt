@@ -126,9 +126,9 @@ class CoverageBaselineRunner:
 
     targets = sorted(
         list(
-            set(test['target']
-                for test in test_data.get('tests', [])
-                if test.get('type') == 'test')))
+            set(
+                target.split(':')[1]
+                for target in test_data.get('test_targets', []))))
 
     if not targets:
       print(f'No test targets of type \'test\' found in '

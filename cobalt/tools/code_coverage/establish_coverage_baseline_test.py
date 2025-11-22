@@ -9,10 +9,9 @@ import sys
 import unittest
 from unittest import mock
 
-import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from establish_coverage_baseline import CoverageBaselineRunner
+from establish_coverage_baseline import CoverageBaselineRunner  # pylint: disable=C0413
 
 
 class TestCoverageBaselineRunner(unittest.TestCase):
@@ -30,8 +29,7 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     self.original_cwd = os.getcwd()
     os.chdir(self.test_dir)
 
-    with mock.patch('pathlib.Path.resolve',
-                    return_value=self.mock_cobalt_root):
+    with mock.patch('pathlib.Path.resolve', return_value=self.mock_cobalt_root):
       with mock.patch('os.chdir'):
         self.runner = CoverageBaselineRunner(
             self.platform,
@@ -66,12 +64,11 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     mock_run.return_value = mock.Mock(stdout='ok', stderr='', returncode=0)
     # pylint: disable=protected-access
     self.runner._run_command(['echo', 'hello'])
-    mock_run.assert_called_once_with(
-        ['echo', 'hello'],
-        check=True,
-        cwd=None,
-        capture_output=True,
-        text=True)
+    mock_run.assert_called_once_with(['echo', 'hello'],
+                                     check=True,
+                                     cwd=None,
+                                     capture_output=True,
+                                     text=True)
 
   @mock.patch('subprocess.run')
   @mock.patch('shutil.copy')
@@ -87,8 +84,8 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     mock_copy.assert_called_once_with(
         base_args, self.runner.coverage_build_dir / 'args.gn')
 
-    coverage_args_content = (
-        self.runner.coverage_build_dir / 'args.gn').read_text()
+    coverage_args_content = (self.runner.coverage_build_dir /
+                             'args.gn').read_text()
     self.assertIn('use_clang_coverage=true', coverage_args_content)
     self.assertIn('is_component_build=false', coverage_args_content)
     self.assertIn('is_debug=false', coverage_args_content)
@@ -104,25 +101,16 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     """Test that test targets are correctly extracted from the JSON file."""
     self.runner.test_targets_json.parent.mkdir(parents=True, exist_ok=True)
     test_data = {
-        'tests': [{
-            'target': 'test1',
-            'type': 'test'
-        }, {
-            'target': 'test2',
-            'type': 'test'
-        }, {
-            'target': 'test1',
-            'type': 'test'
-        }, {
-            'target': 'benchmark1',
-            'type': 'benchmark'
-        }]
+        'test_targets': [
+            'group1:test1', 'group2:test2', 'group1:test1',
+            'group3:benchmark1'
+        ]
     }
     with open(self.runner.test_targets_json, 'w', encoding='utf-8') as f:
       json.dump(test_data, f)
 
     targets = self.runner.get_test_targets()
-    self.assertEqual(targets, ['test1', 'test2'])
+    self.assertEqual(targets, ['benchmark1', 'test1', 'test2'])
 
   @mock.patch('subprocess.run')
   def test_build_tests(self, mock_run):
@@ -185,26 +173,24 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     self.runner.merge_lcov_files()
 
     expected_calls = [
-        mock.call(
-            [
-                'lcov', '-a',
-                str(self.runner.raw_lcov_dir / 'test1' / 'lcov.info'), '-o',
-                str(self.runner.merged_lcov_file)
-            ],
-            check=True,
-            cwd=None,
-            capture_output=True,
-            text=True),
-        mock.call(
-            [
-                'lcov', '-a',
-                str(self.runner.raw_lcov_dir / 'test2' / 'lcov.info'), '-o',
-                str(self.runner.merged_lcov_file)
-            ],
-            check=True,
-            cwd=None,
-            capture_output=True,
-            text=True),
+        mock.call([
+            'lcov', '-a',
+            str(self.runner.raw_lcov_dir / 'test1' / 'lcov.info'), '-o',
+            str(self.runner.merged_lcov_file)
+        ],
+                  check=True,
+                  cwd=None,
+                  capture_output=True,
+                  text=True),
+        mock.call([
+            'lcov', '-a',
+            str(self.runner.raw_lcov_dir / 'test2' / 'lcov.info'), '-o',
+            str(self.runner.merged_lcov_file)
+        ],
+                  check=True,
+                  cwd=None,
+                  capture_output=True,
+                  text=True),
     ]
     mock_run.assert_has_calls(expected_calls, any_order=True)
 
@@ -222,16 +208,15 @@ class TestCoverageBaselineRunner(unittest.TestCase):
 
     mock_run.side_effect = create_report_dir
     self.runner.generate_html_report()
-    mock_run.assert_called_once_with(
-        [
-            'genhtml',
-            str(self.runner.merged_lcov_file), '--output-directory',
-            str(self.runner.html_report_dir)
-        ],
-        check=True,
-        cwd=None,
-        capture_output=True,
-        text=True)
+    mock_run.assert_called_once_with([
+        'genhtml',
+        str(self.runner.merged_lcov_file), '--output-directory',
+        str(self.runner.html_report_dir)
+    ],
+                                     check=True,
+                                     cwd=None,
+                                     capture_output=True,
+                                     text=True)
     self.assertTrue(self.runner.html_report_dir.exists())
 
 
