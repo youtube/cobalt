@@ -154,21 +154,21 @@ namespace updater {
 const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
 // static
-base::NoDestructor<UpdaterModule>* UpdaterModule::instance_ = nullptr;
+base::NoDestructor<UpdaterModule>* UpdaterModule::updater_module_ = nullptr;
 
 void UpdaterModule::CreateInstance(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     base::TimeDelta update_check_delay) {
-  DCHECK(!instance_)
+  DCHECK(!updater_module_)
       << "UpdaterModule::CreateInstance() called more than once.";
-  instance_ = new base::NoDestructor<UpdaterModule>(
+  updater_module_ = new base::NoDestructor<UpdaterModule>(
       std::move(url_loader_factory), update_check_delay);
 }
 
 UpdaterModule* UpdaterModule::GetInstance() {
-  DCHECK(instance_)
+  DCHECK(updater_module_)
       << "UpdaterModule::GetInstance() called before CreateInstance().";
-  return instance_->get();
+  return updater_module_->get();
 }
 
 void Observer::OnEvent(Events event, const std::string& id) {
