@@ -45,10 +45,6 @@ class CoverageBaselineRunner:
     self.llvm_bin_dir = (
         self.cobalt_src_root / 'third_party/llvm-build/Release+Asserts/bin')
     self.raw_lcov_dir = self.cobalt_src_root / f'out/lcov_raw_{self.platform}'
-    self.merged_lcov_file = (
-        self.coverage_build_dir / 'final_coverage.lcov')
-    self.html_report_dir = (
-        self.cobalt_src_root / f'out/lcov_html_report_{self.platform}')
     base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
     platform_target_dir = self.platform
     if self.platform == 'android-x86':
@@ -236,47 +232,7 @@ class CoverageBaselineRunner:
         print(f'--- {target}: FAILED ---', file=sys.stderr)
     return successful_targets
 
-  def merge_lcov_files(self) -> bool:
-    """Merges individual lcov.info files into a single file.
-
-    Returns:
-      True if merge was successful, False otherwise.
-    """
-    print('--- Merging LCOV files ---')
-    lcov_files = glob.glob(
-        str(self.raw_lcov_dir / '*' / 'linux' / 'coverage.lcov'))
-
-    if not lcov_files:
-      print(f'No coverage.lcov files found in {self.raw_lcov_dir}/**/linux/')
-      return False
-
-    if shutil.which('lcov') is None:
-      raise EnvironmentError(
-          'lcov tool not found. Please install it, e.g., \'sudo apt-get '
-          'install lcov\'')
-
-    if self.merged_lcov_file.exists():
-      self.merged_lcov_file.unlink()
-
-    first_file = lcov_files.pop(0)
-    self.merged_lcov_file.touch()  # Workaround for lcov bug.
-    self._run_command([
-        'lcov', '-a', first_file, '-o', str(self.merged_lcov_file),
-        '--ignore-errors', 'inconsistent,corrupt'
-    ])
-
-    for lcov_file in lcov_files:
-      self._run_command([
-          'lcov', '-a', lcov_file, '-o', str(self.merged_lcov_file),
-          '--ignore-errors', 'inconsistent,corrupt'
-      ])
-
-    print(f'Merged LCOV data written to {self.merged_lcov_file}')
-    return True
-
-
-
-  def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
+    def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
     """Executes the full coverage baseline process."""
     try:
       if not skip_all_pre_processing:
@@ -287,9 +243,6 @@ class CoverageBaselineRunner:
           return
 
         self.run_all_coverage(targets)
-
-      if self.merge_lcov_files():
-        pass
 
       print('--- Coverage baseline script finished ---')
 
