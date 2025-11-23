@@ -243,10 +243,11 @@ class CoverageBaselineRunner:
       True if merge was successful, False otherwise.
     """
     print('--- Merging LCOV files ---')
-    lcov_files = glob.glob(str(self.raw_lcov_dir / '*' / 'lcov.info'))
+    lcov_files = glob.glob(
+        str(self.raw_lcov_dir / '*' / 'linux' / 'coverage.lcov'))
 
     if not lcov_files:
-      print(f'No lcov.info files found in {self.raw_lcov_dir}')
+      print(f'No coverage.lcov files found in {self.raw_lcov_dir}/**/linux/')
       return False
 
     if shutil.which('lcov') is None:
