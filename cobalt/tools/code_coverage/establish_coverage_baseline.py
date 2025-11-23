@@ -261,13 +261,16 @@ class CoverageBaselineRunner:
     first_file = lcov_files.pop(0)
     self.merged_lcov_file.touch()  # Workaround for lcov bug.
     self._run_command(
-        ['lcov', '-a', first_file, '-o',
-         str(self.merged_lcov_file)])
+    subprocess_cmd = [
+        'lcov', '-a', first_file, '-o', str(self.merged_lcov_file),
+        '--ignore-errors', 'inconsistent,corrupt'
+    ])
 
     for lcov_file in lcov_files:
-      self._run_command(
-          ['lcov', '-a', lcov_file, '-o',
-           str(self.merged_lcov_file)])
+      self._run_command([
+          'lcov', '-a', lcov_file, '-o', str(self.merged_lcov_file),
+          '--ignore-errors', 'inconsistent,corrupt'
+      ])
 
     print(f'Merged LCOV data written to {self.merged_lcov_file}')
     return True
