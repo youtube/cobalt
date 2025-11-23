@@ -233,7 +233,7 @@ class CoverageBaselineRunner:
     return successful_targets
 
 
-def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
+  def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
     """Executes the full coverage baseline process."""
     try:
       if not skip_all_pre_processing:
