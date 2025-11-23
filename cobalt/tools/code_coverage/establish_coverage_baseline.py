@@ -85,7 +85,7 @@ class CoverageBaselineRunner:
     Returns:
       The CompletedProcess object.
     """
-    print(f'Running: {' '.join(command)}', flush=True)  # pylint: disable=W1309
+    print(f'--- Running command: {" ".join(command)} ---', flush=True)
     try:
       result = subprocess.run(
           command, check=check, cwd=cwd, capture_output=True, text=True)
