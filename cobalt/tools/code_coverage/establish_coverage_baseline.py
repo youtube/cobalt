@@ -218,6 +218,7 @@ class CoverageBaselineRunner:
         str(self.llvm_bin_dir),
         '--format=lcov',
     ]
+    print(f'Coverage.py command: {" ".join(cmd)}', flush=True)
     try:
       self._run_command(cmd)
       lcov_file = test_lcov_out_dir / 'linux' / 'coverage.lcov'
