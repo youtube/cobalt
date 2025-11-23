@@ -46,7 +46,7 @@ class CoverageBaselineRunner:
         self.cobalt_src_root / 'third_party/llvm-build/Release+Asserts/bin')
     self.raw_lcov_dir = self.cobalt_src_root / f'out/lcov_raw_{self.platform}'
     self.merged_lcov_file = (
-        self.cobalt_src_root / f'out/lcov_merged_{self.platform}.info')
+        self.coverage_build_dir / 'final_coverage.lcov')
     self.html_report_dir = (
         self.cobalt_src_root / f'out/lcov_html_report_{self.platform}')
     base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
@@ -274,32 +274,7 @@ class CoverageBaselineRunner:
     print(f'Merged LCOV data written to {self.merged_lcov_file}')
     return True
 
-  def generate_html_report(self) -> bool:
-    """Generates an HTML report from the merged LCOV file.
 
-    Returns:
-      True if the report was generated, False otherwise.
-    """
-    print('--- Generating HTML report ---')
-    if not self.merged_lcov_file.exists():
-      print(f'Merged LCOV file not found: {self.merged_lcov_file}')
-      return False
-
-    if shutil.which('genhtml') is None:
-      raise EnvironmentError(
-          'genhtml tool not found. Please install it (part of lcov package)')
-
-    if self.html_report_dir.exists():
-      shutil.rmtree(self.html_report_dir)
-
-    self._run_command([
-        'genhtml',
-        str(self.merged_lcov_file),
-        '--output-directory',
-        str(self.html_report_dir),
-    ])
-    print(f'HTML report generated in file://{self.html_report_dir}/index.html')
-    return True
 
   def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
     """Executes the full coverage baseline process."""
@@ -314,7 +289,7 @@ class CoverageBaselineRunner:
         self.run_all_coverage(targets)
 
       if self.merge_lcov_files():
-        self.generate_html_report()
+        pass
 
       print('--- Coverage baseline script finished ---')
 
