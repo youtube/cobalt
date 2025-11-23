@@ -436,6 +436,10 @@ jobs:
       - name: Run E2E Tests
         uses: ./.github/actions/e2e_tests
         with:
+          artifact_basename: >-
+            ${{ contains(matrix.platform, 'android') && format('{0}_qa/Cobalt.apk', matrix.platform) ||
+               contains(matrix.platform, 'evergreen-arm-hardfp') && format('{0}_qa.zip', matrix.platform) ||
+               '' }}
           e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'

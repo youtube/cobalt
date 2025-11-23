@@ -7,9 +7,9 @@ inputs:
   e2e_test_targets:
     description: "E2E test targets."
     required: true
-  artifact_name:
-    description: "The name of the artifact to be used for E2E tests (e.g., Cobalt.apk)."
-    default: "Cobalt.apk"
+  artifact_basename:
+    description: "The basename of the artifact to be used for E2E tests."
+    required: true
   test_attempts:
     description: "Number of attempts for the tests."
     default: ""
@@ -36,7 +36,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa/${{ inputs.artifact_name }}
+        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ inputs.artifact_basename }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
