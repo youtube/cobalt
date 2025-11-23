@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "base/memory/weak_ptr.h"
 #include "starboard/android/shared/decode_target.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
@@ -59,8 +58,7 @@ class VideoDecoder
 
   class Sink;
   struct FlowControlOptions {
-    std::optional<int> initial_max_frames_in_decoder;
-    std::optional<int> max_pending_input_frames;
+    int max_pending_input_frames;
   };
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
@@ -77,7 +75,7 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
-               FlowControlOptions flow_control_options,
+               std::optional<FlowControlOptions> flow_control_options,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -146,7 +144,7 @@ class VideoDecoder
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
-  const std::optional<int> initial_max_frames_in_decoder_;
+  const bool enable_decoder_throttling_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
@@ -238,10 +236,6 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
-
-  int64_t last_pending_frames_log_us_ = 0;
-
-  base::WeakPtrFactory<VideoDecoder> weak_factory_{this};
 };
 
 }  // namespace starboard::android::shared

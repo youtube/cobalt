@@ -52,10 +52,6 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-// TODO: b/455938352 - Connect this value to h5vcc settings.
-// By default, we turn off decoder throttling.
-constexpr std::optional<int> kInitialMaxFramesInDecoder = std::nullopt;
-
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const std::optional<T>& maybe_value) {
@@ -365,36 +361,34 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   bool rendered_;
 };
 
-VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
-                           SbDrmSystem drm_system,
-                           SbPlayerOutputMode output_mode,
-                           SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider,
-                           const std::string& max_video_capabilities,
-                           int tunnel_mode_audio_session_id,
-                           bool force_secure_pipeline_under_tunnel_mode,
-                           bool force_reset_surface,
-                           bool force_reset_surface_under_tunnel_mode,
-                           bool force_big_endian_hdr_metadata,
-                           int max_video_input_size,
-                           bool enable_flush_during_seek,
-                           int64_t reset_delay_usec,
-                           int64_t flush_delay_usec,
-                           FlowControlOptions flow_control_options,
-                           std::string* error_message)
+VideoDecoder::VideoDecoder(
+    const VideoStreamInfo& video_stream_info,
+    SbDrmSystem drm_system,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    const std::string& max_video_capabilities,
+    int tunnel_mode_audio_session_id,
+    bool force_secure_pipeline_under_tunnel_mode,
+    bool force_reset_surface,
+    bool force_reset_surface_under_tunnel_mode,
+    bool force_big_endian_hdr_metadata,
+    int max_video_input_size,
+    bool enable_flush_during_seek,
+    int64_t reset_delay_usec,
+    int64_t flush_delay_usec,
+    std::optional<FlowControlOptions> flow_control_options,
+    std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      initial_max_frames_in_decoder_(
-          flow_control_options.initial_max_frames_in_decoder
-              ? flow_control_options.initial_max_frames_in_decoder
-              : kInitialMaxFramesInDecoder),
+      enable_decoder_throttling_(flow_control_options.has_value()),
       max_pending_inputs_size_(
-          flow_control_options.max_pending_input_frames.value_or(
-              kDefaultMaxPendingInputsSize)),
+          flow_control_options ? flow_control_options->max_pending_input_frames
+                               : kDefaultMaxPendingInputsSize),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -770,7 +764,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
+      max_video_input_size_, flush_delay_usec_, enable_decoder_throttling_,
       error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
@@ -872,17 +866,7 @@ void VideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-
-  int number_of_pending_inputs = media_decoder_->GetNumberOfPendingInputs();
-  if (number_of_pending_inputs > 10) {
-    int64_t now_us = CurrentMonotonicTime();
-    if (now_us - last_pending_frames_log_us_ > 5'000'000) {
-      SB_LOG(INFO) << "Pending encoded frames: " << number_of_pending_inputs;
-      last_pending_frames_log_us_ = now_us;
-    }
-  }
-
-  if (number_of_pending_inputs < max_pending_inputs_size_) {
+  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -957,11 +941,8 @@ void VideoDecoder::ProcessOutputBuffer(
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         [weak_this = weak_factory_.GetWeakPtr()](
-                             int64_t pts, int64_t release_us) {
-                           if (weak_this) {
-                             weak_this->OnVideoFrameRelease(pts, release_us);
-                           }
+                         [this](int64_t pts, int64_t release_us) {
+                           OnVideoFrameRelease(pts, release_us);
                          }));
 }
 

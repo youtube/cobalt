@@ -104,7 +104,7 @@ class MediaDecoder final
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
                int64_t flush_delay_usec,
-               std::optional<int> initial_max_frames_in_decoder,
+               bool enable_decoder_throttling,
                std::string* error_message);
   ~MediaDecoder();
 

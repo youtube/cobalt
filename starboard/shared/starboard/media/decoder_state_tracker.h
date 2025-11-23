@@ -45,9 +45,12 @@ class DecoderStateTracker
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(int initial_max_frames,
-                      StateChangedCB state_changed_cb,
+  DecoderStateTracker(StateChangedCB state_changed_cb,
                       shared::starboard::player::JobQueue* job_queue);
+  DecoderStateTracker(int max_frames,
+                      StateChangedCB state_changed_cb,
+                      shared::starboard::player::JobQueue* job_queue,
+                      std::optional<int> log_interval_us);
   ~DecoderStateTracker() = default;
 
   void SetFrameAdded(int64_t presentation_time_us);
@@ -66,6 +69,7 @@ class DecoderStateTracker
 
   State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
+  bool IsFull_Locked(const State& state) const;
   void EngageKillSwitch_Locked(std::string_view reason, int64_t pts);
   void LogStateAndReschedule(int64_t log_interval_us);
 

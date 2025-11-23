@@ -85,15 +85,18 @@ std::optional<int> ReadSystemPropertyPositiveInt(const char* key) {
   return int_val;
 }
 
-VideoDecoder::FlowControlOptions ReadFlowControlOptionsFromSystemProperty() {
-  VideoDecoder::FlowControlOptions options;
+std::optional<VideoDecoder::FlowControlOptions>
+ReadFlowControlOptionsFromSystemProperty() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  options.initial_max_frames_in_decoder = ReadSystemPropertyPositiveInt(
-      "debug.cobalt.initial_max_frames_in_decoder");
-  options.max_pending_input_frames =
-      ReadSystemPropertyPositiveInt("debug.cobalt.max_pending_inputs_size");
+  if (auto val =
+          ReadSystemPropertyPositiveInt("debug.cobalt.max_pending_inputs_size");
+      val) {
+    VideoDecoder::FlowControlOptions options;
+    options.max_pending_input_frames = *val;
+    return options;
+  }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  return options;
+  return std::nullopt;
 }
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.

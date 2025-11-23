@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/decoder_state_tracker.h"
 
 #include <atomic>
+#include <optional>
 #include <sstream>
 
 #include "starboard/common/time.h"
@@ -41,7 +42,8 @@ class DecoderStateTrackerTest : public ::testing::Test {
                      DecoderStateTracker::StateChangedCB state_changed_cb) {
     job_thread_.ScheduleAndWait([=]() {
       decoder_state_tracker_ = std::make_unique<DecoderStateTracker>(
-          max_frames, state_changed_cb, job_thread_.job_queue());
+          max_frames, state_changed_cb, job_thread_.job_queue(),
+          /*log_interval_us=*/std::nullopt);
     });
   }
 
