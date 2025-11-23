@@ -236,21 +236,17 @@ class CoverageBaselineRunner:
     return successful_targets
 
 
-  def run_baseline(self) -> None:
+  def run_baseline(self, skip_gn_gen: bool = False) -> None:
     """Executes the full coverage baseline process."""
     try:
-      if self.post_process_only:
-        self.merge_lcov_files()
-        print('--- Coverage baseline script finished ---')
-        return
+      if not self.post_process_only:
+        if not skip_gn_gen:
+          self.setup_gn_args()
+        targets = self.get_test_targets()
+        if not targets:
+          return
 
-      if not self.skip_gn_gen:
-        self.setup_gn_args()
-      targets = self.get_test_targets()
-      if not targets:
-        return
-
-      self.run_all_coverage(targets)
+        self.run_all_coverage(targets)
 
       print('--- Coverage baseline script finished ---')
 
