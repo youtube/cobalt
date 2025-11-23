@@ -79,7 +79,7 @@ std::optional<int> ReadSystemPropertyPositiveInt(const char* key) {
   long val = strtol(value, &end, 10);
   if (end == value || *end != '\0' || val <= 0 || val > INT_MAX) {
     SB_LOG(WARNING) << "Failed to read system property: Got " << key << "="
-                    << value << ", but it's not a expected positive integer.";
+                    << value << ", but it's not an expected positive integer.";
     return std::nullopt;
   }
   SB_LOG(INFO) << "Read system property: " << key << "=" << val;

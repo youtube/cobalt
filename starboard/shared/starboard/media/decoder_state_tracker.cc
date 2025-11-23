@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <optional>
 #include <ostream>
+#include <sstream>
 #include <string_view>
 #include <utility>
 
@@ -27,18 +28,30 @@
 namespace starboard {
 namespace {
 
+// Low-water mark for in-flight frames.
+// If the total number of in-flight frames goes lower than this value,
+// max frames will increase.
 constexpr int kFramesLowWatermark = 2;
-constexpr int kMaxFrameIncrement = 1;
-// Copied from Chromium.
-constexpr int kMaxInFlightFrames = 24;
 
 constexpr int kInitialMaxFramesInDecoder = 6;
+
+// Maximum number of endoding frames to accept when no frame is generated.
+// Some devices need a large number of frames when generating the 1st
+// decoded frame. See b/405467220#comment36 for details.
+constexpr int kMaxAllowedFramesWhenNoDecodedFrameYet = 10;
 
 std::string to_ms_string(std::optional<int64_t> us_opt) {
   if (!us_opt) {
     return "(nullopt)";
   }
   return std::to_string(*us_opt / 1'000);
+}
+
+template <class T>
+std::string to_string(const T& val) {
+  std::stringstream ss;
+  ss << val;
+  return ss.str();
 }
 
 }  // namespace
@@ -75,9 +88,10 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (disabled_) {
     return;
   }
-  if (frames_in_flight_.size() > max_frames_) {
-    EngageKillSwitch_Locked("Too many frames in flight: size=" +
-                                std::to_string(frames_in_flight_.size()),
+  if (frames_in_flight_.size() >
+      std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
+    EngageKillSwitch_Locked("Too many frames in flight: state=" +
+                                to_string(GetCurrentState_Locked()),
                             presentation_time_us);
     return;
   }
@@ -128,16 +142,12 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
           State new_state = GetCurrentState_Locked();
-          if (reached_max_ && new_state.decoded_frames < kFramesLowWatermark) {
-            if (max_frames_ < kMaxInFlightFrames) {
-              int old_max = max_frames_;
-              max_frames_ = std::min(max_frames_ + kMaxFrameIncrement,
-                                     kMaxInFlightFrames);
-              reached_max_ = false;
-              SB_LOG(WARNING)
-                  << "Increasing max frames from " << old_max << " to "
-                  << max_frames_ << ": state=" << new_state;
-            }
+          if (reached_max_ && frames_in_flight_.size() < kFramesLowWatermark) {
+            int old_max = max_frames_;
+            max_frames_++;
+            reached_max_ = false;
+            SB_LOG(WARNING) << "Bump up max frames from " << old_max << " to "
+                            << max_frames_ << ": state=" << new_state;
           }
 
           if (was_full && !IsFull_Locked(new_state)) {
@@ -199,7 +209,7 @@ bool DecoderStateTracker::IsFull_Locked(const State& state) const {
   // Some devices need a large number of frames when generating the 1st
   // decoded frame. See b/405467220#comment36 for details.
   if (state.decoded_frames == 0) {
-    return state.total_frames() >= kMaxInFlightFrames;
+    return state.total_frames() >= kMaxAllowedFramesWhenNoDecodedFrameYet;
   }
   return state.total_frames() >= max_frames_;
 }
