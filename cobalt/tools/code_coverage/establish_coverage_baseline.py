@@ -299,9 +299,8 @@ def main() -> None:
 
   runner = CoverageBaselineRunner(args.platform, args.build_type,
                                   args.cobalt_src_root, args.verbose,
-                                  args.skip_gn_gen, args.test_target,
-                                  args.post_process_only)
-  runner.run_baseline()
+                                  args.skip_gn_gen, args.test_target)
+  runner.run_baseline(args.skip_gn_gen)
 
 
 if __name__ == '__main__':
