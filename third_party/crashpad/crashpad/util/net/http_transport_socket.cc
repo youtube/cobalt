@@ -337,7 +337,11 @@ base::ScopedFD CreateSocket(const std::string& hostname,
         } else if (WaitUntilSocketIsReady(result.get())) {
           return result;
         }
-        return base::ScopedFD();
+        #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+            continue;
+        #else
+            return base::ScopedFD();
+        #endif
       }
 
       return result;
