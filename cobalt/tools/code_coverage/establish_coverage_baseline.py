@@ -20,7 +20,6 @@ class CoverageBaselineRunner:
                cobalt_src_root: str = '.',
                verbose: bool = False,
                skip_gn_gen: bool = False,
-               skip_build: bool = False,
                test_target: str = None):
     """Initializes the CoverageBaselineRunner.
 
@@ -30,7 +29,6 @@ class CoverageBaselineRunner:
       cobalt_src_root: The path to the root of the Cobalt source code.
       verbose: Whether to print verbose output.
       skip_gn_gen: Whether to skip the 'gn gen' step.
-      skip_build: Whether to skip the build step.
       test_target: The single test target to run.
     """
     self.platform = platform
@@ -38,7 +36,6 @@ class CoverageBaselineRunner:
     self.cobalt_src_root = pathlib.Path(cobalt_src_root).resolve()
     self.verbose = verbose
     self.skip_gn_gen = skip_gn_gen
-    self.skip_build = skip_build
     self.test_target = test_target
 
     self.gn_gen_dir = (
@@ -164,22 +161,6 @@ class CoverageBaselineRunner:
     else:
       print(f'Found test targets: {", ".join(targets)}')
     return targets
-
-  def build_tests(self, targets: Sequence[str]) -> None:
-    """Builds the specified test targets.
-
-    Args:
-      targets: A list of test target names to build.
-    """
-    if not targets:
-      print('No targets to build.')
-      return
-
-    print('--- Building test targets for coverage ---')
-    self._run_command([
-        'time', '-v', 'autoninja', '-C', str(self.coverage_build_dir)
-    ] + list(targets))
-    print('--- Build PASSED ---')
 
   def run_coverage_for_target(self, test_name: str) -> bool:
     """Runs the coverage tool for a single test target.
@@ -327,8 +308,6 @@ class CoverageBaselineRunner:
         if not targets:
           return
 
-        if not self.skip_build:
-          self.build_tests(targets)
         self.run_all_coverage(targets)
 
       if self.merge_lcov_files():
@@ -370,22 +349,15 @@ def main() -> None:
       action='store_true',
       help='Skip the "gn gen" step.')
   parser.add_argument(
-      '--skip-build',
-      action='store_true',
-      help='Skip the build step.')
-  parser.add_argument(
       '--test-target',
       type=str,
       help='The single test target to run.')
   args = parser.parse_args()
 
-  skip_all_pre_processing = args.skip_gn_gen and args.skip_build
-
   runner = CoverageBaselineRunner(args.platform, args.build_type,
                                   args.cobalt_src_root, args.verbose,
-                                  args.skip_gn_gen, args.skip_build,
-                                  args.test_target)
-  runner.run_baseline(skip_all_pre_processing)
+                                  args.skip_gn_gen, args.test_target)
+  runner.run_baseline(args.skip_gn_gen)
 
 
 if __name__ == '__main__':
