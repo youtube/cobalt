@@ -322,6 +322,14 @@ void MediaDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
+    auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
+      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
+        return false;
+      }
+      return pending_input_to_retry_ ||
+             (!pending_inputs.empty() && !input_buffer_indices.empty());
+    };
+
     while (!destroying_.load()) {
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
@@ -362,14 +370,7 @@ void MediaDecoder::DecoderThreadFunc() {
         host_->Tick(media_codec_bridge_.get());
       }
 
-      bool can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
-        can_process_input = false;
-      }
-
-      if (can_process_input) {
+      if (can_process_input()) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -379,16 +380,11 @@ void MediaDecoder::DecoderThreadFunc() {
         ticked = host_->Tick(media_codec_bridge_.get());
       }
 
-      can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+      if (!ticked && !can_process_input() && dequeue_output_results.empty()) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
-        can_process_input =
-            !pending_inputs.empty() && !input_buffer_indices.empty();
-        if (!can_process_input && dequeue_output_results.empty()) {
+        if (!can_process_input() && dequeue_output_results.empty()) {
           condition_variable_.WaitTimed(1000);
         }
       }
@@ -522,7 +518,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  if (size > 0 && decoder_state_tracker_) {
+  if (!input_buffer_already_written && size > 0 && decoder_state_tracker_) {
     decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
   }
 

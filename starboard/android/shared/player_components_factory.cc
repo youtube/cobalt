@@ -72,17 +72,18 @@ constexpr int64_t kFlushDelayUsecOverride = 0;
 
 std::optional<int> ReadSystemPropertyPositiveInt(const char* key) {
   char value[PROP_VALUE_MAX];
-  if (!__system_property_get(key, value)) {
+  if (__system_property_get(key, value) == 0) {
     return std::nullopt;
   }
-  int int_val = atoi(value);
-  if (int_val <= 0) {
+  char* end;
+  long val = strtol(value, &end, 10);
+  if (end == value || *end != '\0' || val <= 0 || val > INT_MAX) {
     SB_LOG(WARNING) << "Failed to read system property: Got " << key << "="
                     << value << ", but it's not a expected positive integer.";
     return std::nullopt;
   }
-  SB_LOG(INFO) << "Read system property: " << key << "=" << int_val;
-  return int_val;
+  SB_LOG(INFO) << "Read system property: " << key << "=" << val;
+  return static_cast<int>(val);
 }
 
 std::optional<VideoDecoder::FlowControlOptions>

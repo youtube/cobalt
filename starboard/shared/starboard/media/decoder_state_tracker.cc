@@ -55,22 +55,18 @@ DecoderStateTracker::DecoderStateTracker(
     int max_frames,
     StateChangedCB state_changed_cb,
     shared::starboard::player::JobQueue* job_queue,
-    std::optional<int> frame_log_interval_us)
+    std::optional<int> log_interval_us)
     : JobOwner(job_queue),
       max_frames_(max_frames),
       state_changed_cb_(std::move(state_changed_cb)) {
-  // ... rest of the constructor logic from the original constructor
   SB_CHECK(state_changed_cb_);
-  if (frame_log_interval_us) {
+  if (log_interval_us) {
     Schedule(
-        [this, frame_log_interval_us] {
-          LogStateAndReschedule(*frame_log_interval_us);
-        },
-        *frame_log_interval_us);
+        [this, log_interval_us] { LogStateAndReschedule(*log_interval_us); },
+        *log_interval_us);
   }
   SB_LOG(INFO) << "DecoderStateTracker is created: max_frames=" << max_frames_
-               << ", log_interval(msec)="
-               << to_ms_string(frame_log_interval_us);
+               << ", log_interval(msec)=" << to_ms_string(log_interval_us);
 }
 
 void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
