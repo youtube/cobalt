@@ -20,7 +20,8 @@ class CoverageBaselineRunner:
                cobalt_src_root: str = '.',
                verbose: bool = False,
                skip_gn_gen: bool = False,
-               test_target: str = None):
+               test_target: str = None,
+               post_process_only: bool = False):
     """Initializes the CoverageBaselineRunner.
 
     Args:
@@ -30,6 +31,7 @@ class CoverageBaselineRunner:
       verbose: Whether to print verbose output.
       skip_gn_gen: Whether to skip the 'gn gen' step.
       test_target: The single test target to run.
+      post_process_only: Whether to only run the post-processing steps.
     """
     self.platform = platform
     self.build_type = build_type
@@ -37,6 +39,7 @@ class CoverageBaselineRunner:
     self.verbose = verbose
     self.skip_gn_gen = skip_gn_gen
     self.test_target = test_target
+    self.post_process_only = post_process_only
 
     self.gn_gen_dir = (
         self.cobalt_src_root / f'out/{self.platform}_{self.build_type}')
@@ -233,17 +236,21 @@ class CoverageBaselineRunner:
     return successful_targets
 
 
-  def run_baseline(self, skip_all_pre_processing: bool = False) -> None:
+  def run_baseline(self) -> None:
     """Executes the full coverage baseline process."""
     try:
-      if not skip_all_pre_processing:
-        if not self.skip_gn_gen:
-          self.setup_gn_args()
-        targets = self.get_test_targets()
-        if not targets:
-          return
+      if self.post_process_only:
+        self.merge_lcov_files()
+        print('--- Coverage baseline script finished ---')
+        return
 
-        self.run_all_coverage(targets)
+      if not self.skip_gn_gen:
+        self.setup_gn_args()
+      targets = self.get_test_targets()
+      if not targets:
+        return
+
+      self.run_all_coverage(targets)
 
       print('--- Coverage baseline script finished ---')
 
@@ -284,12 +291,17 @@ def main() -> None:
       '--test-target',
       type=str,
       help='The single test target to run.')
+  parser.add_argument(
+      '--post-process-only',
+      action='store_true',
+      help='Only run the post-processing steps (merge lcov files).')
   args = parser.parse_args()
 
   runner = CoverageBaselineRunner(args.platform, args.build_type,
                                   args.cobalt_src_root, args.verbose,
-                                  args.skip_gn_gen, args.test_target)
-  runner.run_baseline(args.skip_gn_gen)
+                                  args.skip_gn_gen, args.test_target,
+                                  args.post_process_only)
+  runner.run_baseline()
 
 
 if __name__ == '__main__':
