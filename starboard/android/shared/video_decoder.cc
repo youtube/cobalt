@@ -868,6 +868,10 @@ void VideoDecoder::WriteInputBuffersInternal(
 
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
+    SB_LOG(INFO) << "VideoDecoder::WriteInputBuffersInternal: Signaling "
+                    "kNeedMoreInput. Pending="
+                 << media_decoder_->GetNumberOfPendingInputs() << "/"
+                 << max_pending_inputs_size_;
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -875,6 +879,11 @@ void VideoDecoder::WriteInputBuffersInternal(
     // to the renderer again.  Schedule a task to check back.
     Schedule(std::bind(&VideoDecoder::OnTunnelModeCheckForNeedMoreInput, this),
              kNeedMoreInputCheckIntervalInTunnelMode);
+  } else {
+    SB_LOG(INFO) << "VideoDecoder::WriteInputBuffersInternal: Suppressing "
+                    "kNeedMoreInput. Pending="
+                 << media_decoder_->GetNumberOfPendingInputs() << "/"
+                 << max_pending_inputs_size_;
   }
 
   if (tunnel_mode_audio_session_id_ != -1) {
@@ -938,6 +947,10 @@ void VideoDecoder::ProcessOutputBuffer(
                                      max_buffered_output_frames_);
       }
     }
+  }
+  if (!is_end_of_stream) {
+    SB_LOG(INFO) << "VideoDecoder::ProcessOutputBuffer: Signaling "
+                    "kNeedMoreInput (Output Produced).";
   }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,

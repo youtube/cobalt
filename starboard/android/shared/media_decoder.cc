@@ -323,14 +323,37 @@ void MediaDecoder::DecoderThreadFunc() {
     std::vector<DequeueOutputResult> dequeue_output_results;
 
     auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
-      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
-        return false;
+      auto ret = [&] {
+        if (decoder_state_tracker_ &&
+            !decoder_state_tracker_->CanAcceptMore()) {
+          return false;
+        }
+        return pending_input_to_retry_ ||
+               (!pending_inputs.empty() && !input_buffer_indices.empty());
+      }();
+
+      static int64_t last_log_time = 0;
+      int64_t now = CurrentMonotonicTime();
+      if (now - last_log_time > 1'000) {
+        SB_LOG(INFO) << "can_process_input: ret=" << (ret ? "true" : "false")
+                     << ", pending_input_to_retry="
+                     << (pending_input_to_retry_ ? "true" : "false")
+                     << ", pending_inputs.size()=" << pending_inputs.size()
+                     << ", input_buffer_indices.size()="
+                     << input_buffer_indices.size()
+                     << ", decoder_state_tracker.state="
+                     << decoder_state_tracker_->GetCurrentStateForTest();
+        last_log_time = now;
       }
-      return pending_input_to_retry_ ||
-             (!pending_inputs.empty() && !input_buffer_indices.empty());
+      return ret;
     };
 
+    int64_t last_tick_us = CurrentMonotonicTime();
     while (!destroying_.load()) {
+      int64_t now = CurrentMonotonicTime();
+      SB_LOG(INFO) << __func__ << " > iteration: elapsed(msec)="
+                   << (now - last_tick_us) / 1000;
+      last_tick_us = now;
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
       bool has_input =
@@ -385,6 +408,18 @@ void MediaDecoder::DecoderThreadFunc() {
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
         if (!can_process_input() && dequeue_output_results.empty()) {
+          // Log only when we are waiting for something.
+          static int64_t last_wait_log_time = 0;
+          int64_t now = CurrentMonotonicTime();
+          if (now - last_wait_log_time > 5'000'000) {
+            bool tracker_blocking = decoder_state_tracker_ &&
+                                    !decoder_state_tracker_->CanAcceptMore();
+            SB_LOG(INFO) << "MediaDecoder waiting. pending_inputs="
+                         << pending_inputs.size()
+                         << ", input_buffers=" << input_buffer_indices.size()
+                         << ", tracker_blocking=" << tracker_blocking;
+            last_wait_log_time = now;
+          }
           condition_variable_.WaitTimed(1000);
         }
       }
@@ -436,6 +471,7 @@ void MediaDecoder::CollectPendingData_Locked(
 bool MediaDecoder::ProcessOneInputBuffer(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
+  SB_LOG(INFO) << __func__;
   SB_DCHECK(media_codec_bridge_);
 
   // During secure playback, and only secure playback, it is possible that our
