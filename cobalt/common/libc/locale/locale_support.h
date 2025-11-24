@@ -21,6 +21,11 @@
 #include <string>
 #include <vector>
 
+namespace cobalt {
+namespace common {
+namespace libc {
+namespace locale {
+
 // Enums values that represent the corresponding LC type inside
 // LocaleImpl::categories. For example categories[kCobaltLcCtype] stores the
 // locale string for LC_CTYPE.
@@ -34,7 +39,7 @@ enum CobaltLocaleCategoryIndex {
   kCobaltLcCount = 6  // Total size of LocaleImpl's internal array
 };
 
-// LocaleImpl is the struct that will store the state of any give locale.
+// LocaleImpl is the struct that will store the state of any given locale.
 // It stores the set locales for all LC categories, along with a composite
 // string that represents the state of LC_ALL. Upon initialization, all values
 // are set to the default "C" locale.
@@ -48,7 +53,7 @@ struct LocaleImpl {
   // locale.
   //
   // This requirement gets tricky when a call such as setlocale(LC_ALL, nullptr)
-  // is called. In the event that the categories are in a mixed state (LC_CTYPE
+  // occurs. In the event that the categories are in a mixed state (LC_CTYPE
   // = en_US but LC_NUMERIC = sr_RS), we must return a string that if setlocale
   // is called again with this mixed string, will properly restore all the
   // categories to their original state when setlocale(LC_ALL, nullptr) was
@@ -59,8 +64,8 @@ struct LocaleImpl {
   // |composite_lc_all| will just hold the value "C". However, if the categories
   // are not all the same value, then |composite_lc_all| will store all the
   // categories and their values, following the pattern of
-  // category1=value;category2=value etc. Our locale functions are then able to
-  // parse and construct this string, ensuring that the representaition of
+  // category1=value1;category2=value2 etc. Our locale functions are then able
+  // to parse and construct this string, ensuring that the representaition of
   // LC_ALL is accurate at all times.
   std::string composite_lc_all;
 
@@ -93,5 +98,10 @@ void RefreshCompositeString(LocaleImpl* loc);
 
 // Updates the LocaleImpl struct based on a given mask and locale string.
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base);
+
+}  // namespace locale
+}  // namespace libc
+}  // namespace common
+}  // namespace cobalt
 
 #endif  // COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
