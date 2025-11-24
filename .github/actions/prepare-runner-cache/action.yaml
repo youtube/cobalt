@@ -10,16 +10,16 @@ runs:
         if [ -f "${CHECKOUT_PATH}/.git/index.lock" ]; then
           echo "index.lock found, removing the cache."
           rm -rf "${CHECKOUT_PATH}"
-          echo "cache_reused=false" >> $GITHUB_OUTPUT
+          echo "cache_reused=false" >> "$GITHUB_OUTPUT"
         elif [ -d "${CHECKOUT_PATH}/.git" ]; then
           echo "Existing Git repository found. Performing hard reset and clean."
-          echo "cache_reused=true" >> $GITHUB_OUTPUT
+          echo "cache_reused=true" >> "$GITHUB_OUTPUT"
           cd "${CHECKOUT_PATH}"
           git reset --hard
           # Remove unmerged/conflict markers if any merge was aborted
           git merge --abort || true
         else
-          echo "cache_reused=false" >> $GITHUB_OUTPUT
+          echo "cache_reused=false" >> "$GITHUB_OUTPUT"
         fi
         # Ensure the base directory exists before the symlink step
         mkdir -p /runner-cache/cobalt
