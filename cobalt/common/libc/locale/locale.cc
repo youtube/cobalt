@@ -67,6 +67,8 @@ const lconv* GetCLocaleConv() {
   return &c_locale_conv;
 }
 
+// |kAllValidCategoriesMask| combines all bit masks together. It is used in
+// newlocale to ensure that no extra bits inside the |category_mask| are set.
 constexpr int kAllValidCategoriesMask =
     LC_CTYPE_MASK | LC_NUMERIC_MASK | LC_TIME_MASK | LC_COLLATE_MASK |
     LC_MONETARY_MASK | LC_MESSAGES_MASK | LC_ALL_MASK;
@@ -107,13 +109,9 @@ char* setlocale(int category, const char* locale) {
     return const_cast<char*>(global_locale->categories[category_index].c_str());
   }
 
-  std::vector<std::string> new_categories(kCobaltLcCount);
-  for (int i = 0; i < kCobaltLcCount; ++i) {
-    new_categories[i] = global_locale->categories[i];
-  }
-
+  std::array<std::string, kCobaltLcCount> new_categories =
+      global_locale->categories;
   bool success = false;
-
   // Special case where the locale string is the composite locale created from
   // setlocale(LC_ALL, NULL);
   if (ParseCompositeLocale(locale, *global_locale, new_categories)) {
@@ -126,9 +124,7 @@ char* setlocale(int category, const char* locale) {
       canonical_locale = GetCanonicalLocale(locale);
     }
     if (!canonical_locale.empty()) {
-      for (int i = 0; i < kCobaltLcCount; ++i) {
-        new_categories[i] = canonical_locale;
-      }
+      new_categories.fill(canonical_locale);
       success = true;
     }
   }
@@ -138,9 +134,7 @@ char* setlocale(int category, const char* locale) {
   }
 
   // Update global locale to resolved new locales.
-  for (int i = 0; i < kCobaltLcCount; ++i) {
-    global_locale->categories[i] = new_categories[i];
-  }
+  global_locale->categories = new_categories;
 
   // With the locales updated, we must update our composite string so that
   // setlocale(LC_ALL, NULL) is accurate.
@@ -186,7 +180,6 @@ locale_t uselocale(locale_t newloc) {
   }
 
   LocaleImpl* return_locale = g_current_thread_locale;
-
   if (newloc == (locale_t)LC_GLOBAL_LOCALE) {
     g_current_thread_locale = reinterpret_cast<LocaleImpl*>(LC_GLOBAL_LOCALE);
     return reinterpret_cast<locale_t>(return_locale);
@@ -201,25 +194,16 @@ void freelocale(locale_t loc) {
 }
 
 locale_t duplocale(locale_t loc) {
-  if (loc == LC_GLOBAL_LOCALE) {
-    LocaleImpl* global_locale = GetGlobalLocale();
-    LocaleImpl* global_copy = new LocaleImpl();
-    for (int i = 0; i < kCobaltLcCount; ++i) {
-      global_copy->categories[i] = global_locale->categories[i];
-    }
-    global_copy->composite_lc_all = global_locale->composite_lc_all;
-    return reinterpret_cast<locale_t>(global_copy);
-  }
-
   if (loc == (locale_t)0) {
     return (locale_t)0;
   }
 
-  LocaleImpl* original_loc = reinterpret_cast<LocaleImpl*>(loc);
+  const LocaleImpl* original_loc =
+      (loc == LC_GLOBAL_LOCALE) ? GetGlobalLocale()
+                                : reinterpret_cast<const LocaleImpl*>(loc);
+
   LocaleImpl* new_copy = new LocaleImpl();
-  for (int i = 0; i < kCobaltLcCount; ++i) {
-    new_copy->categories[i] = original_loc->categories[i];
-  }
+  new_copy->categories = original_loc->categories;
   new_copy->composite_lc_all = original_loc->composite_lc_all;
   return reinterpret_cast<locale_t>(new_copy);
 }

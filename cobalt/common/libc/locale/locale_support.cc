@@ -235,16 +235,13 @@ std::string GetCanonicalLocale(const char* inputLocale) {
 
   // If our locale given explicitly had an @ modifier like "sr_RS@latin", ICU
   // will store @latin inside its variant field. We retrieve the field and
-  // append it.
+  // append it. If for some reason the modifier string already has an @ modifier
+  // present, we do not use the contents of the variant.
   const char* variant = loc.getVariant();
-  if (variant && variant[0] != '\0') {
+  if (variant && variant[0] != '\0' && modifier_str.empty()) {
     std::string v = variant;
     std::transform(v.begin(), v.end(), v.begin(), ::tolower);
-
-    if (modifier_str.empty()) {
-      modifier_str += "@";
-    }
-    modifier_str += v;
+    modifier_str = "@" + v;
   }
 
   posix_id += modifier_str;
@@ -252,9 +249,10 @@ std::string GetCanonicalLocale(const char* inputLocale) {
   return posix_id;
 }
 
-bool ParseCompositeLocale(const char* input,
-                          const LocaleImpl& current_state,
-                          std::vector<std::string>& out_categories) {
+bool ParseCompositeLocale(
+    const char* input,
+    const LocaleImpl& current_state,
+    std::array<std::string, kCobaltLcCount>& out_categories) {
   std::string str = input;
 
   // Our pattern for the composite locale is LC_CTYPE=C;LC_TIME=POSIX...
@@ -264,9 +262,7 @@ bool ParseCompositeLocale(const char* input,
     return false;
   }
 
-  for (int i = 0; i < kCobaltLcCount; ++i) {
-    out_categories[i] = current_state.categories[i];
-  }
+  out_categories = current_state.categories;
 
   std::stringstream ss(str);
   std::string segment;
@@ -330,9 +326,7 @@ void RefreshCompositeString(LocaleImpl* loc) {
 
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base) {
   if (mask & LC_ALL_MASK) {
-    for (int i = 0; i < kCobaltLcCount; ++i) {
-      base->categories[i] = locale;
-    }
+    base->categories.fill(locale);
     return;
   }
   if (mask & LC_CTYPE_MASK) {

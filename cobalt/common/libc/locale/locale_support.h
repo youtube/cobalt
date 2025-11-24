@@ -17,6 +17,7 @@
 
 #include <locale.h>
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,7 @@ enum CobaltLocaleCategoryIndex {
 // string that represents the state of LC_ALL. Upon initialization, all values
 // are set to the default "C" locale.
 struct LocaleImpl {
-  std::string categories[kCobaltLcCount];
+  std::array<std::string, kCobaltLcCount> categories;
 
   // From the PUBS open group documentation on setlocale:
   //
@@ -66,9 +67,7 @@ struct LocaleImpl {
   // On initialization, all LocaleImpl objects are set to the "C" locale (all
   // conforming systems must support this locale).
   LocaleImpl() {
-    for (int i = 0; i < kCobaltLcCount; ++i) {
-      categories[i] = "C";
-    }
+    categories.fill("C");
     composite_lc_all = "C";
   }
 };
@@ -83,9 +82,10 @@ std::string GetCanonicalLocale(const char* input_locale);
 
 // Parses a composite string like "LC_CTYPE=en_US;LC_TIME=fr_FR..."
 // Returns true on success, updating out_categories.
-bool ParseCompositeLocale(const char* input,
-                          const LocaleImpl& current_state,
-                          std::vector<std::string>& out_categories);
+bool ParseCompositeLocale(
+    const char* input,
+    const LocaleImpl& current_state,
+    std::array<std::string, kCobaltLcCount>& out_categories);
 
 // Updates a LocaleImpl's composite string value to the values stored inside the
 // categories.
