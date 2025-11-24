@@ -22,7 +22,6 @@
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 
 static NSString* kAVSBDLStatusKeyPath = @"status";
 static NSString* kAVSBDLOutputObscuredKeyPath =
