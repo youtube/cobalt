@@ -24,8 +24,8 @@ class ShellContentRendererTestClient : public ShellContentRendererClient {
   ShellContentRendererTestClient();
   ~ShellContentRendererTestClient() override;
 
-  // ContentRendererClient implementation.
   void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
+  void RenderFrameCreated(RenderFrame* render_frame) override;
   void DidInitializeWorkerContextOnWorkerThread(
       v8::Local<v8::Context> context) override;
 };

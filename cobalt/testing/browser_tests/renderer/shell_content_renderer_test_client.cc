@@ -20,6 +20,9 @@
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cobalt/shell/common/shell_test_switches.h"
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
+#include "cobalt/testing/browser_tests/renderer/shell_render_frame_observer.h"
 #include "content/public/common/pseudonymization_util.h"
 #include "content/public/test/test_service.mojom.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -147,6 +150,20 @@ void ShellContentRendererTestClient::ExposeInterfacesToBrowser(
   binders->Add<mojom::TestService>(
       base::BindRepeating(&CreateRendererTestService),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+  binders->Add<mojom::PowerMonitorTest>(
+      base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+  binders->Add<mojom::MainFrameCounterTest>(
+      base::BindRepeating(&MainFrameCounterTestImpl::Bind),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+}
+
+void ShellContentRendererTestClient::RenderFrameCreated(
+    RenderFrame* render_frame) {
+  // TODO(danakj): The ShellRenderFrameObserver is doing stuff only for
+  // browser tests. If we only create that for browser tests then the override
+  // of this method in WebTestContentRendererClient would not be needed.
+  new ShellRenderFrameObserver(render_frame);
 }
 
 void ShellContentRendererTestClient::DidInitializeWorkerContextOnWorkerThread(
