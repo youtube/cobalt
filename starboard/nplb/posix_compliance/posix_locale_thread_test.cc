@@ -171,7 +171,7 @@ TEST_F(PosixLocaleThreadTest, DupLocale) {
   uselocale(previous_locale);
 
   freelocale(loc1);
-  freelocale(loc3);
+  freelocale(loc2);
 }
 
 TEST_F(PosixLocaleThreadTest, DupLocaleNonDefault) {

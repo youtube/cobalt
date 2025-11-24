@@ -20,6 +20,9 @@
 #include <string>
 #include <vector>
 
+// Enums values that represent the corresponding LC type inside
+// LocaleImpl::categories. For example categories[kCobaltLcCtype] stores the
+// locale string for LC_CTYPE.
 enum CobaltLocaleCategoryIndex {
   kCobaltLcCtype = 0,
   kCobaltLcNumeric = 1,
@@ -30,21 +33,42 @@ enum CobaltLocaleCategoryIndex {
   kCobaltLcCount = 6  // Total size of LocaleImpl's internal array
 };
 
-// The private structure used to store locale state.
-// Exposed here so locale.cc can instantiate it.
+// LocaleImpl is the struct that will store the state of any give locale.
+// It stores the set locales for all LC categories, along with a composite
+// string that represents the state of LC_ALL. Upon initialization, all values
+// are set to the default "C" locale.
 struct LocaleImpl {
-  // Slots for specific categories (0 to LC_ALL-1)
   std::string categories[kCobaltLcCount];
 
-  // NEW: Dedicated slot for the LC_ALL query result
+  // From the PUBS open group documentation on setlocale:
+  //
+  // The string returned by setlocale() is such that a subsequent call with that
+  // string and its associated category shall restore that part of the program's
+  // locale.
+  //
+  // This requirement gets tricky when a call such as setlocale(LC_ALL, nullptr)
+  // is called. In the event that the categories are in a mixed state (LC_CTYPE
+  // = en_US but LC_NUMERIC = sr_RS), we must return a string that if setlocale
+  // is called again with this mixed string, will properly restore all the
+  // categories to their original state when setlocale(LC_ALL, nullptr) was
+  // called.
+  //
+  // To address this, we store all the states of the categories inside
+  // |composite_lc_all|. If all the categories are the same, e.g. "C",
+  // |composite_lc_all| will just hold the value "C". However, if the categories
+  // are not all the same value, then |composite_lc_all| will store all the
+  // categories and their values, following the pattern of
+  // category1=value;category2=value etc. Our locale functions are then able to
+  // parse and construct this string, ensuring that the representaition of
+  // LC_ALL is accurate at all times.
   std::string composite_lc_all;
 
+  // On initialization, all LocaleImpl objects are set to the "C" locale (all
+  // conforming systems must support this locale).
   LocaleImpl() {
-    // Initialize specific categories to "C"
     for (int i = 0; i < kCobaltLcCount; ++i) {
       categories[i] = "C";
     }
-    // Initialize the composite state to "C" (Uniform state)
     composite_lc_all = "C";
   }
 };
