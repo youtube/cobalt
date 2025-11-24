@@ -211,6 +211,16 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   return params
 
 
+def _get_cobalt_files(args: argparse.Namespace) -> List[str]:
+  """Returns the list of Cobalt files based on the device family."""
+  if args.device_family == 'android':
+    return [f'cobalt_path={args.cobalt_path}']
+  elif args.device_family in ['rdk', 'raspi']:
+    return [f'cobalt_build={args.cobalt_build}']
+  else:
+    raise ValueError(f'Unsupported device family for E2E cobalt files: {args.device_family}')
+
+
 def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   """Builds the list of test requests based on the test type."""
   test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
@@ -251,7 +261,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      files = [f'cobalt_path={args.cobalt_path}']
+      files = _get_cobalt_files(args)
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
 
     else:
@@ -392,7 +402,12 @@ def main() -> int:
   e2e_test_group.add_argument(
       '--cobalt_path',
       type=str,
-      help='Path to Cobalt apk.',
+      help='Path to Cobalt apk (for Android).',
+  )
+  e2e_test_group.add_argument(
+      '--cobalt_build',
+      type=str,
+      help='Path to Cobalt build (for RDK/Raspi).',
   )
 
   # Watch command
@@ -410,8 +425,17 @@ def main() -> int:
 
   # TODO(b/428961033): Let argparse handle these checks as required arguments.
   if args.test_type == 'e2e_test':
-    if not args.cobalt_path:
-      raise ValueError('--cobalt_path is required for e2e_test')
+    if args.device_family == 'android':
+      if not args.cobalt_path:
+        raise ValueError('--cobalt_path is required for e2e_test on Android')
+    elif args.device_family in ['rdk', 'raspi']:
+      if not args.cobalt_build:
+        raise ValueError('--cobalt_build is required for e2e_test on RDK/Raspi')
+    elif not args.device_family:
+      raise ValueError('--device_family is required for e2e_test')
+    else:
+      # This case should be caught by _get_cobalt_files, but as a safeguard:
+      raise ValueError(f'Unsupported device_family {args.device_family} for e2e_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
       raise ValueError('--device_family is required for unit_test')

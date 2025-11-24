@@ -10,6 +10,9 @@ inputs:
   artifact_basename:
     description: "The basename of the artifact to be used for E2E tests."
     required: true
+  test_device_family:
+    description: "Test device family."
+    required: true
   test_attempts:
     description: "Number of attempts for the tests."
     default: ""
@@ -61,6 +64,7 @@ runs:
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
+          --device_family '${{ inputs.test_device_family }}' \
           --test_type ${TEST_TYPE} \
           --targets '${{ inputs.e2e_test_targets }}' \
           --retry_level ${TEST_RETRY_LEVEL} \

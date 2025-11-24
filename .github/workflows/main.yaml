@@ -442,6 +442,7 @@ jobs:
                '' }}
           e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
