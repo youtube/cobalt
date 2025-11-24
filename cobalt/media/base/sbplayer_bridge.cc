@@ -1213,7 +1213,7 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player, void* context,
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
-    if (helper->TryToSetPlayerCreationErrorMessage(message)) {
+    if (helper->TryToSetPlayerCreationErrorMessage(message ? message : "")) {
       return;
     }
   }
