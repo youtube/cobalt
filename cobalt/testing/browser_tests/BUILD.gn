@@ -103,6 +103,7 @@ static_library("cobalt_browsertests_test_runner") {
     "//components/services/storage:storage",
     "//content/app:for_content_tests",
     "//content/browser:for_content_tests",
+    "//content/test:test_support",
     "//gin",
     "//media",
     "//net",

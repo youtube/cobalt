@@ -50,7 +50,7 @@ class TestRendererServiceImpl : public mojom::TestService {
   TestRendererServiceImpl(const TestRendererServiceImpl&) = delete;
   TestRendererServiceImpl& operator=(const TestRendererServiceImpl&) = delete;
 
-  ~TestRendererServiceImpl() override {}
+  ~TestRendererServiceImpl() override = default;
 
  private:
   void OnConnectionError() { delete this; }
@@ -139,9 +139,9 @@ void CreateRendererTestService(
 
 }  // namespace
 
-ShellContentRendererTestClient::ShellContentRendererTestClient() {}
+ShellContentRendererTestClient::ShellContentRendererTestClient() = default;
 
-ShellContentRendererTestClient::~ShellContentRendererTestClient() {}
+ShellContentRendererTestClient::~ShellContentRendererTestClient() = default;
 
 void ShellContentRendererTestClient::ExposeInterfacesToBrowser(
     mojo::BinderMap* binders) {
