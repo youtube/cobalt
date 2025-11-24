@@ -39,13 +39,13 @@ AomVideoDecoder::AomVideoDecoder(SbMediaVideoCodec video_codec,
 }
 
 AomVideoDecoder::~AomVideoDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   Reset();
 }
 
 void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                  const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -56,7 +56,7 @@ void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 }
 
 void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
@@ -77,7 +77,7 @@ void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void AomVideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
@@ -96,7 +96,7 @@ void AomVideoDecoder::WriteEndOfStream() {
 }
 
 void AomVideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     decoder_thread_->job_queue()->ScheduleAndWait(

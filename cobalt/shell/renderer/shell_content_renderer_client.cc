@@ -48,12 +48,9 @@
 #include "v8/include/v8.h"
 
 #if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"   // nogncheck
-#include "cobalt/shell/common/power_monitor_test_impl.h"        // nogncheck
-#include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
-#include "cobalt/shell/renderer/shell_render_frame_observer.h"  // nogncheck
-#include "content/public/test/test_service.mojom.h"             // nogncheck
-#include "third_party/blink/public/web/web_testing_support.h"   // nogncheck
+#include "cobalt/shell/common/shell_test_switches.h"           // nogncheck
+#include "content/public/test/test_service.mojom.h"            // nogncheck
+#include "third_party/blink/public/web/web_testing_support.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -226,7 +223,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
 
   void SetOnline(bool is_online) override {}
 
-private:
+ private:
   // Set only when `this` was created on the main thread, or cloned from a
   // provider which was created on the main thread.
   scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
@@ -248,12 +245,6 @@ void ShellContentRendererClient::ExposeInterfacesToBrowser(
   binders->Add<mojom::TestService>(
       base::BindRepeating(&CreateRendererTestService),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-  binders->Add<mojom::PowerMonitorTest>(
-      base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
-  binders->Add<mojom::MainFrameCounterTest>(
-      base::BindRepeating(&MainFrameCounterTestImpl::Bind),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif  // defined(RUN_BROWSER_TESTS)
   binders->Add<web_cache::mojom::WebCache>(
       base::BindRepeating(&web_cache::WebCacheImpl::BindReceiver,
@@ -262,13 +253,6 @@ void ShellContentRendererClient::ExposeInterfacesToBrowser(
 }
 
 #if defined(RUN_BROWSER_TESTS)
-void ShellContentRendererClient::RenderFrameCreated(RenderFrame* render_frame) {
-  // TODO(danakj): The ShellRenderFrameObserver is doing stuff only for
-  // browser tests. If we only create that for browser tests then the override
-  // of this method in WebTestContentRendererClient would not be needed.
-  new ShellRenderFrameObserver(render_frame);
-}
-
 void ShellContentRendererClient::DidInitializeWorkerContextOnWorkerThread(
     v8::Local<v8::Context> context) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
