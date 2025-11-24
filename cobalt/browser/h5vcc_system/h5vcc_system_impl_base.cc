@@ -18,6 +18,8 @@
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
+
+using ::starboard::StarboardBridge;
 #endif
 
 namespace h5vcc_system {

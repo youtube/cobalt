@@ -26,7 +26,6 @@
 #include "starboard/tvos/shared/configuration.h"
 #include "starboard/tvos/shared/crash_handler.h"
 #include "starboard/tvos/shared/graphics.h"
-#include "starboard/tvos/shared/ifa.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
 #include "starboard/tvos/shared/platform_service.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
@@ -46,9 +45,6 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::shared::uikit::GetPlatformServiceApi();
-  }
-  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
-    return starboard::shared::uikit::GetIfaApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerConfigurationName) == 0) {
     return starboard::shared::uikit::GetPlayerConfigurationApi();
