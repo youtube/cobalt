@@ -19,7 +19,6 @@
 #define STARBOARD_COMMON_ALLOCATOR_H_
 
 #include <cstddef>
-#include <vector>
 
 namespace starboard {
 

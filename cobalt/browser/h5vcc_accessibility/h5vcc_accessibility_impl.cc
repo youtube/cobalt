@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 
+#include <string>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
