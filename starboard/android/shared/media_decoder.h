@@ -31,6 +31,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/decoder_state_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -103,6 +104,7 @@ class MediaDecoder final
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
                int64_t flush_delay_usec,
+               bool enable_decoder_throttling,
                std::string* error_message);
   ~MediaDecoder();
 
@@ -119,6 +121,10 @@ class MediaDecoder final
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   bool Flush();
+
+  DecoderStateTracker* decoder_state_tracker() {
+    return decoder_state_tracker_.get();
+  }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -193,6 +199,8 @@ class MediaDecoder final
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
+
+  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   ErrorCB error_cb_;
 
