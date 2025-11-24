@@ -22,9 +22,6 @@
 #include <vector>
 
 namespace cobalt {
-namespace common {
-namespace libc {
-namespace locale {
 
 // Enums values that represent the corresponding LC type inside
 // LocaleImpl::categories. For example categories[kCobaltLcCtype] stores the
@@ -99,9 +96,6 @@ void RefreshCompositeString(LocaleImpl* loc);
 // Updates the LocaleImpl struct based on a given mask and locale string.
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base);
 
-}  // namespace locale
-}  // namespace libc
-}  // namespace common
 }  // namespace cobalt
 
 #endif  // COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_

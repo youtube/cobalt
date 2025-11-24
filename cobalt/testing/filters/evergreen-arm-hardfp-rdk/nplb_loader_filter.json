@@ -18,8 +18,7 @@
     "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
     "PosixLocaleThreadTest.DupLocale",
     "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "Posix/NlLanginfoTest*",
-    "Posix/NlLanginfoLTest*",
+    "Posix/NlLanginfo*",
 
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",

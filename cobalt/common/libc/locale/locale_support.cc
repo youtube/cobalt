@@ -27,9 +27,6 @@
 #include "third_party/icu/source/common/unicode/ucnv.h"
 
 namespace cobalt {
-namespace common {
-namespace libc {
-namespace locale {
 
 namespace {
 // Returns the string name of a category (e.g., "LC_TIME").
@@ -354,7 +351,4 @@ void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base) {
   }
 }
 
-}  // namespace locale
-}  // namespace libc
-}  // namespace common
 }  // namespace cobalt
