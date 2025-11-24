@@ -19,7 +19,6 @@
 #include <locale.h>
 #include <string.h>
 
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -27,8 +26,13 @@
 
 namespace {
 
-thread_local PrivateLocale* g_current_thread_locale =
-    (PrivateLocale*)LC_GLOBAL_LOCALE;
+LocaleImpl* GetGlobalLocale() {
+  static LocaleImpl g_current_locale;
+  return &g_current_locale;
+}
+
+thread_local LocaleImpl* g_current_thread_locale =
+    (LocaleImpl*)LC_GLOBAL_LOCALE;
 
 // The default locale is the C locale.
 const lconv* GetCLocaleConv() {
@@ -68,61 +72,61 @@ constexpr int kAllValidCategoriesMask =
 }  // namespace
 
 char* setlocale(int category, const char* locale) {
-  if (!IsValidCategory(category)) {
+  LocaleImpl* global_locale = GetGlobalLocale();
+  int category_index = SystemToCobaltIndex(category);
+  if (category_index == -1) {
     return nullptr;
   }
 
   if (locale == nullptr) {
     if (category == LC_ALL) {
-      return const_cast<char*>(GetGlobalLocale()->composite_lc_all.c_str());
+      return const_cast<char*>(global_locale->composite_lc_all.c_str());
     }
-    return const_cast<char*>(GetGlobalLocale()->categories[category].c_str());
+    return const_cast<char*>(global_locale->categories[category_index].c_str());
   }
 
-  // 3. PREPARE TRANSACTION
-  std::vector<std::string> new_categories(LC_ALL);
-  for (int i = 0; i < LC_ALL; ++i) {
-    new_categories[i] = GetGlobalLocale()->categories[i];
+  if (category != LC_ALL) {
+    std::string source_locale;
+    if (strcmp(locale, "") == 0) {
+      source_locale = GetCanonicalLocale(getenv("LANG"));
+    } else {
+      source_locale = GetCanonicalLocale(locale);
+    }
+
+    if (source_locale.empty()) {
+      return nullptr;  // Fail without touching global state
+    }
+
+    global_locale->categories[category_index] = source_locale;
+
+    // We still need to check uniformity to keep LC_ALL return value correct.
+    RefreshCompositeString(global_locale);
+
+    return const_cast<char*>(global_locale->categories[category_index].c_str());
+  }
+
+  std::vector<std::string> new_categories(kCobaltLcCount);
+  for (int i = 0; i < kCobaltLcCount; ++i) {
+    new_categories[i] = global_locale->categories[i];
   }
 
   bool success = false;
 
-  // 4. RESOLVE LOGIC (Same as before)
-  if (category == LC_ALL) {
-    if (strcmp(locale, "") == 0) {
-      // Case A: Env Vars
-      const char* env = getenv("LANG");
-      std::string canon = GetCanonicalLocale(env ? env : "C");
-      if (!canon.empty()) {
-        for (int i = 0; i < LC_ALL; ++i) {
-          new_categories[i] = canon;
-        }
-        success = true;
-      }
-    } else if (ParseCompositeLocale(locale, *GetGlobalLocale(),
-                                    new_categories)) {
-      // Case B: Composite String (This now handles ALL round-trip restores)
-      success = true;
-    } else {
-      // Case C: Simple String ("en_US")
-      std::string canon = GetCanonicalLocale(locale);
-      if (!canon.empty()) {
-        for (int i = 0; i < LC_ALL; ++i) {
-          new_categories[i] = canon;
-        }
-        success = true;
-      }
-    }
+  // Special case where the locale string is the composite locale created from
+  // setlocale(LC_ALL, NULL);
+  if (ParseCompositeLocale(locale, *global_locale, new_categories)) {
+    success = true;
   } else {
-    // Case D: Specific Category
-    const char* target = locale;
+    std::string canonical_locale;
     if (strcmp(locale, "") == 0) {
-      const char* env = getenv("LANG");
-      target = (env && env[0]) ? env : "C";
+      canonical_locale = GetCanonicalLocale(getenv("LANG"));
+    } else {
+      canonical_locale = GetCanonicalLocale(locale);
     }
-    std::string canon = GetCanonicalLocale(target);
-    if (!canon.empty()) {
-      new_categories[category] = canon;
+    if (!canonical_locale.empty()) {
+      for (int i = 0; i < LC_ALL; ++i) {
+        new_categories[i] = canonical_locale;
+      }
       success = true;
     }
   }
@@ -131,50 +135,16 @@ char* setlocale(int category, const char* locale) {
     return nullptr;
   }
 
-  // 5. COMMIT STATE
-  for (int i = 0; i < LC_ALL; ++i) {
-    GetGlobalLocale()->categories[i] = new_categories[i];
+  // Update global locale to resolved new locales
+  for (int i = 0; i < kCobaltLcCount; ++i) {
+    global_locale->categories[i] = new_categories[i];
   }
 
-  // -------------------------------------------------------------------------
-  // 6. UPDATE COMPOSITE STRING (SIMPLIFIED)
-  // We ALWAYS generate the key-value list. No more "is_uniform" check.
-  // Result is always: "LC_CTYPE=val;LC_NUMERIC=val;..."
-  // -------------------------------------------------------------------------
-  bool is_uniform = true;
-  std::string first = GetGlobalLocale()->categories[0];
+  // With the locales updated, we must update our composite string so that
+  // setlocale(LC_ALL, NULL) is accurate.
+  RefreshCompositeString(global_locale);
 
-  // Check if every category matches the first one
-  for (int i = 1; i < LC_ALL; ++i) {
-    if (GetGlobalLocale()->categories[i] != first) {
-      is_uniform = false;
-      break;
-    }
-  }
-
-  if (is_uniform) {
-    // OPTIMIZATION: If all are "C", string is "C".
-    // If all are "en_US.UTF-8", string is "en_US.UTF-8".
-    GetGlobalLocale()->composite_lc_all = first;
-  } else {
-    // MIXED STATE: Generate standard Key-Value list.
-    // Format: LC_CTYPE=val;LC_NUMERIC=val;...
-    std::stringstream ss;
-    for (int i = 0; i < LC_ALL; ++i) {
-      if (i > 0) {
-        ss << ";";
-      }
-      ss << GetCategoryName(i) << "=" << GetGlobalLocale()->categories[i];
-    }
-    GetGlobalLocale()->composite_lc_all = ss.str();
-  }
-  // -------------------------------------------------------------------------
-
-  // 7. RETURN RESULT
-  if (category == LC_ALL) {
-    return const_cast<char*>(GetGlobalLocale()->composite_lc_all.c_str());
-  }
-  return const_cast<char*>(GetGlobalLocale()->categories[category].c_str());
+  return const_cast<char*>(global_locale->composite_lc_all.c_str());
 }
 
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
@@ -195,12 +165,12 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
     return (locale_t)0;
   }
 
-  PrivateLocale* cur_locale;
+  LocaleImpl* cur_locale;
 
   if (base == (locale_t)0) {
-    cur_locale = new PrivateLocale();
+    cur_locale = new LocaleImpl();
   } else {
-    cur_locale = (PrivateLocale*)base;
+    cur_locale = (LocaleImpl*)base;
   }
 
   UpdateLocaleSettings(category_mask, canonical_locale.c_str(), cur_locale);
@@ -214,25 +184,25 @@ locale_t uselocale(locale_t newloc) {
   }
 
   if (newloc == (locale_t)LC_GLOBAL_LOCALE) {
-    PrivateLocale* return_locale = g_current_thread_locale;
-    g_current_thread_locale = (PrivateLocale*)LC_GLOBAL_LOCALE;
+    LocaleImpl* return_locale = g_current_thread_locale;
+    g_current_thread_locale = (LocaleImpl*)LC_GLOBAL_LOCALE;
     return (locale_t)return_locale;
   }
 
-  PrivateLocale* return_locale = g_current_thread_locale;
-  g_current_thread_locale = (PrivateLocale*)newloc;
+  LocaleImpl* return_locale = g_current_thread_locale;
+  g_current_thread_locale = (LocaleImpl*)newloc;
 
   return (locale_t)return_locale;
 }
 
 void freelocale(locale_t loc) {
-  delete (PrivateLocale*)loc;
+  delete (LocaleImpl*)loc;
 }
 
 locale_t duplocale(locale_t loc) {
   if (loc == LC_GLOBAL_LOCALE) {
-    PrivateLocale* global_copy = new PrivateLocale();
-    for (int i = 0; i < LC_ALL; ++i) {
+    LocaleImpl* global_copy = new LocaleImpl();
+    for (int i = 0; i < kCobaltLcCount; ++i) {
       global_copy->categories[i] = GetGlobalLocale()->categories[i];
     }
     return (locale_t)global_copy;
@@ -242,9 +212,9 @@ locale_t duplocale(locale_t loc) {
     return (locale_t)0;
   }
 
-  PrivateLocale* new_copy = new PrivateLocale();
-  for (int i = 0; i < LC_ALL; ++i) {
-    new_copy->categories[i] = ((PrivateLocale*)loc)->categories[i];
+  LocaleImpl* new_copy = new LocaleImpl();
+  for (int i = 0; i < kCobaltLcCount; ++i) {
+    new_copy->categories[i] = ((LocaleImpl*)loc)->categories[i];
   }
   return (locale_t)new_copy;
 }
