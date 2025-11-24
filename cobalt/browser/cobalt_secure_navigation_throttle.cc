@@ -92,10 +92,6 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceCSP(
 // presence or absence of CSP headers
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::EnforceCSPHeaders() {
-  const GURL& url = navigation_handle()->GetURL();
-  if (url.SchemeIs(kH5vccEmbeddedScheme)) {
-    return content::NavigationThrottle::PROCEED;
-  }
   std::string CSP_value;
   const net::HttpResponseHeaders* response_headers =
       navigation_handle()->GetResponseHeaders();
