@@ -3685,7 +3685,6 @@ test("base_unittests") {
     sources -= [
       "process/memory_unittest.cc",
       "state_transitions_unittest.cc",
-      # "tools_sanity_unittest.cc",
     ]
   }
 

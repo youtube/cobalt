@@ -57,14 +57,6 @@ int stat_helper(int retval,
     return -1;
   }
 
-  musl_info->st_dev = stat_info->st_dev;
-  musl_info->st_ino = stat_info->st_ino;
-  musl_info->st_nlink = stat_info->st_nlink;
-  musl_info->st_uid = stat_info->st_uid;
-  musl_info->st_gid = stat_info->st_gid;
-  musl_info->st_rdev = stat_info->st_rdev;
-  musl_info->st_blksize = stat_info->st_blksize;
-  musl_info->st_blocks = stat_info->st_blocks;
   musl_info->st_size = stat_info->st_size;
   musl_info->st_mode = stat_info->st_mode;
 

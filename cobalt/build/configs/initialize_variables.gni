@@ -41,7 +41,7 @@ declare_args() {
 }
 
 declare_args() {
-  use_asan = !is_official_build && is_linux && !use_tsan
+  use_asan = !is_official_build && is_linux && !use_evergreen && !use_tsan
 }
 
 assert(!(is_starboard && is_native_target_build),
