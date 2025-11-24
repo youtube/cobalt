@@ -14,7 +14,6 @@
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerTest.*",
     "SbPlayerWriteSampleTests*",
-    "VerticalVideoTests/VerticalVideoTest*"
     "VerticalVideoTests/VerticalVideoTest*",
 
     "PosixLocaleSetTest.LocaleConvC",

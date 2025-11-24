@@ -20,6 +20,8 @@
 #include <cstring>
 #include <map>
 #include <sstream>
+#include <string>
+#include <unordered_set>
 
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
@@ -90,16 +92,17 @@ std::string ExtractEncoding(std::string& io_locale_str) {
 
 // Checks to see if the given locale exists within ICU's database.
 bool IsExactLocaleAvailable(const char* locale_id) {
-  int32_t count = 0;
-  const icu::Locale* available = icu::Locale::getAvailableLocales(count);
-
-  // Optimistic optimization: most matches are exact
-  for (int32_t i = 0; i < count; i++) {
-    if (strcmp(available[i].getName(), locale_id) == 0) {
-      return true;
+  static const auto kAvailableLocales = []() {
+    std::unordered_set<std::string> locales;
+    int32_t count = 0;
+    const icu::Locale* available = icu::Locale::getAvailableLocales(count);
+    for (int32_t i = 0; i < count; ++i) {
+      locales.insert(available[i].getName());
     }
-  }
-  return false;
+    return locales;
+  }();
+
+  return kAvailableLocales.count(locale_id) > 0;
 }
 
 // Helps convert an ICU language script (like "Latn" in sr_Latn_RS) to its
