@@ -27,7 +27,7 @@ jobs:
     with:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
-      # run_api_leak_detector: true
+      run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   evergreen-arm-hardfp-raspi:
