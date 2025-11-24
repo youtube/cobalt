@@ -25,6 +25,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard::android::shared {
@@ -88,6 +89,7 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
+      decoder_state_tracker_(nullptr),
       condition_variable_(mutex_) {
   SB_CHECK(host_);
 
@@ -129,6 +131,7 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
+    bool enable_decoder_throttling,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -137,6 +140,12 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
+      decoder_state_tracker_(
+          enable_decoder_throttling
+              ? std::make_unique<DecoderStateTracker>(
+                    [this] { condition_variable_.Signal(); },
+                    ::starboard::shared::starboard::player::JobQueue::current())
+              : nullptr),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
@@ -313,6 +322,14 @@ void MediaDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
+    auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
+      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
+        return false;
+      }
+      return pending_input_to_retry_ ||
+             (!pending_inputs.empty() && !input_buffer_indices.empty());
+    };
+
     while (!destroying_.load()) {
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
@@ -353,10 +370,7 @@ void MediaDecoder::DecoderThreadFunc() {
         host_->Tick(media_codec_bridge_.get());
       }
 
-      bool can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (can_process_input) {
+      if (can_process_input()) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -366,16 +380,11 @@ void MediaDecoder::DecoderThreadFunc() {
         ticked = host_->Tick(media_codec_bridge_.get());
       }
 
-      can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+      if (!ticked && !can_process_input() && dequeue_output_results.empty()) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
-        can_process_input =
-            !pending_inputs.empty() && !input_buffer_indices.empty();
-        if (!can_process_input && dequeue_output_results.empty()) {
+        if (!can_process_input() && dequeue_output_results.empty()) {
           condition_variable_.WaitTimed(1000);
         }
       }
@@ -507,6 +516,10 @@ bool MediaDecoder::ProcessOneInputBuffer(
     SB_DCHECK_LE(size, capacity);
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     memcpy(address, data, size);
+  }
+
+  if (!input_buffer_already_written && size > 0 && decoder_state_tracker_) {
+    decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
   }
 
   jint status;
@@ -665,6 +678,10 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
+  if (size > 0 && decoder_state_tracker_) {
+    decoder_state_tracker_->SetFrameDecoded(presentation_time_us);
+  }
+
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -732,6 +749,10 @@ bool MediaDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
+
+    if (decoder_state_tracker_) {
+      decoder_state_tracker_->Reset();
+    }
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

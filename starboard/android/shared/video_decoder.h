@@ -57,7 +57,9 @@ class VideoDecoder
       VideoRendererSink;
 
   class Sink;
-
+  struct FlowControlOptions {
+    int max_pending_input_frames;
+  };
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
                SbPlayerOutputMode output_mode,
@@ -74,6 +76,7 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
+               std::optional<FlowControlOptions> flow_control_options,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -127,7 +130,7 @@ class VideoDecoder
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease();
+  void OnVideoFrameRelease(int64_t pts, int64_t release_us);
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
@@ -142,6 +145,7 @@ class VideoDecoder
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
+  const bool enable_decoder_throttling_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
@@ -156,6 +160,8 @@ class VideoDecoder
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
+
+  const int max_pending_inputs_size_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   void* surface_view_;

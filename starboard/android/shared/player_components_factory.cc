@@ -50,6 +50,8 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
+#include <sys/system_properties.h>
+
 namespace starboard::android::shared {
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
@@ -67,6 +69,36 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // wait during Reset()/Flush().
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
+
+std::optional<int> ReadSystemPropertyPositiveInt(const char* key) {
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get(key, value) == 0) {
+    return std::nullopt;
+  }
+  char* end;
+  long val = strtol(value, &end, 10);
+  if (end == value || *end != '\0' || val <= 0 || val > INT_MAX) {
+    SB_LOG(WARNING) << "Failed to read system property: Got " << key << "="
+                    << value << ", but it's not an expected positive integer.";
+    return std::nullopt;
+  }
+  SB_LOG(INFO) << "Read system property: " << key << "=" << val;
+  return static_cast<int>(val);
+}
+
+std::optional<VideoDecoder::FlowControlOptions>
+ReadFlowControlOptionsFromSystemProperty() {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (auto val =
+          ReadSystemPropertyPositiveInt("debug.cobalt.max_pending_inputs_size");
+      val) {
+    VideoDecoder::FlowControlOptions options;
+    options.max_pending_input_frames = *val;
+    return options;
+  }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  return std::nullopt;
+}
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -545,7 +577,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
                    << " of " << flush_delay_usec << "us during Flush().";
     }
-
+    // TODO: b/455938352 - Connect flow_control_options to h5vcc settings.
+    auto flow_control_options = ReadFlowControlOptionsFromSystemProperty();
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -555,7 +588,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         creation_parameters.surface_view(), enable_flush_during_seek,
-        reset_delay_usec, flush_delay_usec, error_message);
+        reset_delay_usec, flush_delay_usec, flow_control_options, error_message);
     if ((*error_message).empty() &&
         (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
          video_decoder->is_decoder_created())) {
