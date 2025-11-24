@@ -156,7 +156,6 @@ bool IsSupportedThroughFallback(const char* canonical_name) {
     if (U_FAILURE(status) || len == 0) {
       break;
     }
-
     strncpy(current, parent, ULOC_FULLNAME_CAPACITY);
   }
 
@@ -226,18 +225,19 @@ std::string GetCanonicalLocale(const char* inputLocale) {
 
   posix_id += encoding;
 
+  // If our locale given was "sr_latn_RS", the |_latn_| will be converted to
+  // @latin.
   std::string modifier_str = "";
   modifier_str += MapScriptToModifier(loc.getScript());
 
-  // D. Add Variants
+  // If our locale given explicitly had an @ modifier like "sr_RS@latin", ICU
+  // will store @latin inside its variant field. We retrieve the field and
+  // append it.
   const char* variant = loc.getVariant();
   if (variant && variant[0] != '\0') {
     std::string v = variant;
     std::transform(v.begin(), v.end(), v.begin(), ::tolower);
 
-    // If we don't have a modifier yet, start one.
-    // Note: If we do (e.g. @latin), glibc usually accepts concatenated
-    // modifiers or simply using the last one. We append.
     if (modifier_str.empty()) {
       modifier_str += "@";
     }
@@ -254,17 +254,13 @@ bool ParseCompositeLocale(const char* input,
                           std::vector<std::string>& out_categories) {
   std::string str = input;
 
-  // 1. Quick Check: Is this actually a composite string?
+  // Our pattern for the composite locale is LC_CTYPE=C;LC_TIME=POSIX...
   // If it doesn't contain '=', it is likely a simple locale name (e.g. "C" or
   // "en_US").
   if (str.find('=') == std::string::npos) {
     return false;
   }
 
-  // 2. Initialize Snapshot
-  // We start with the current global state. If the input string only specifies
-  // 5 out of 6 categories, the 6th one remains unchanged (Standard POSIX
-  // behavior).
   for (int i = 0; i < kCobaltLcCount; ++i) {
     out_categories[i] = current_state.categories[i];
   }
@@ -272,38 +268,32 @@ bool ParseCompositeLocale(const char* input,
   std::stringstream ss(str);
   std::string segment;
 
-  // 3. Tokenize by Semicolon ';'
   while (std::getline(ss, segment, ';')) {
     if (segment.empty()) {
       continue;
     }
 
-    // 4. Split Key=Value
     size_t eq_pos = segment.find('=');
     if (eq_pos == std::string::npos) {
-      return false;  // Syntax Error: Found "LC_CTYPE" without value
+      return false;
     }
 
     std::string key = segment.substr(0, eq_pos);
     std::string val = segment.substr(eq_pos + 1);
 
-    // 5. Map Key to Index
     int idx = GetCategoryIndexFromName(key);
     if (idx == -1) {
-      return false;  // Error: Unknown Category Name
+      return false;
     }
 
-    // 6. Validate the Value
-    // We must ensure every locale inside the string is actually supported.
+    // As a safety measure, we check that every locale inside the string is
+    // actually supported.
     std::string canon = GetCanonicalLocale(val.c_str());
     if (canon.empty()) {
-      return false;  // Error: Unsupported locale value found
+      return false;
     }
-
-    // 7. Stage the Update
     out_categories[idx] = canon;
   }
-
   return true;
 }
 
@@ -318,6 +308,9 @@ void RefreshCompositeString(LocaleImpl* loc) {
     }
   }
 
+  // If all the LC categories contain the same string, we can just set
+  // the composite locale string to the single locale. If not, we construct
+  // the composite string.
   if (is_uniform) {
     loc->composite_lc_all = first;
   } else {

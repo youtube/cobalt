@@ -14,9 +14,11 @@
 
 #include "cobalt/common/libc/locale/locale.h"
 
+#include <errno.h>
 #include <langinfo.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <string>
@@ -32,7 +34,7 @@ LocaleImpl* GetGlobalLocale() {
 }
 
 thread_local LocaleImpl* g_current_thread_locale =
-    (LocaleImpl*)LC_GLOBAL_LOCALE;
+    reinterpret_cast<LocaleImpl*>(LC_GLOBAL_LOCALE);
 
 // The default locale is the C locale.
 const lconv* GetCLocaleConv() {
@@ -94,7 +96,7 @@ char* setlocale(int category, const char* locale) {
     }
 
     if (source_locale.empty()) {
-      return nullptr;  // Fail without touching global state
+      return nullptr;
     }
 
     global_locale->categories[category_index] = source_locale;
@@ -124,7 +126,7 @@ char* setlocale(int category, const char* locale) {
       canonical_locale = GetCanonicalLocale(locale);
     }
     if (!canonical_locale.empty()) {
-      for (int i = 0; i < LC_ALL; ++i) {
+      for (int i = 0; i < kCobaltLcCount; ++i) {
         new_categories[i] = canonical_locale;
       }
       success = true;
@@ -135,7 +137,7 @@ char* setlocale(int category, const char* locale) {
     return nullptr;
   }
 
-  // Update global locale to resolved new locales
+  // Update global locale to resolved new locales.
   for (int i = 0; i < kCobaltLcCount; ++i) {
     global_locale->categories[i] = new_categories[i];
   }
@@ -148,7 +150,7 @@ char* setlocale(int category, const char* locale) {
 }
 
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
-  if ((category_mask & ~kAllValidCategoriesMask) != 0 || locale == NULL) {
+  if ((category_mask & ~kAllValidCategoriesMask) != 0 || locale == nullptr) {
     errno = EINVAL;
     return (locale_t)0;
   }
@@ -166,57 +168,60 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
   }
 
   LocaleImpl* cur_locale;
-
   if (base == (locale_t)0) {
     cur_locale = new LocaleImpl();
   } else {
-    cur_locale = (LocaleImpl*)base;
+    cur_locale = reinterpret_cast<LocaleImpl*>(base);
   }
 
   UpdateLocaleSettings(category_mask, canonical_locale.c_str(), cur_locale);
+  RefreshCompositeString(cur_locale);
 
-  return (locale_t)cur_locale;
+  return reinterpret_cast<locale_t>(cur_locale);
 }
 
 locale_t uselocale(locale_t newloc) {
   if (newloc == (locale_t)0) {
-    return (locale_t)g_current_thread_locale;
-  }
-
-  if (newloc == (locale_t)LC_GLOBAL_LOCALE) {
-    LocaleImpl* return_locale = g_current_thread_locale;
-    g_current_thread_locale = (LocaleImpl*)LC_GLOBAL_LOCALE;
-    return (locale_t)return_locale;
+    return reinterpret_cast<locale_t>(g_current_thread_locale);
   }
 
   LocaleImpl* return_locale = g_current_thread_locale;
-  g_current_thread_locale = (LocaleImpl*)newloc;
 
-  return (locale_t)return_locale;
+  if (newloc == (locale_t)LC_GLOBAL_LOCALE) {
+    g_current_thread_locale = reinterpret_cast<LocaleImpl*>(LC_GLOBAL_LOCALE);
+    return reinterpret_cast<locale_t>(return_locale);
+  }
+
+  g_current_thread_locale = reinterpret_cast<LocaleImpl*>(newloc);
+  return reinterpret_cast<locale_t>(return_locale);
 }
 
 void freelocale(locale_t loc) {
-  delete (LocaleImpl*)loc;
+  delete reinterpret_cast<LocaleImpl*>(loc);
 }
 
 locale_t duplocale(locale_t loc) {
   if (loc == LC_GLOBAL_LOCALE) {
+    LocaleImpl* global_locale = GetGlobalLocale();
     LocaleImpl* global_copy = new LocaleImpl();
     for (int i = 0; i < kCobaltLcCount; ++i) {
-      global_copy->categories[i] = GetGlobalLocale()->categories[i];
+      global_copy->categories[i] = global_locale->categories[i];
     }
-    return (locale_t)global_copy;
+    global_copy->composite_lc_all = global_locale->composite_lc_all;
+    return reinterpret_cast<locale_t>(global_copy);
   }
 
   if (loc == (locale_t)0) {
     return (locale_t)0;
   }
 
+  LocaleImpl* original_loc = reinterpret_cast<LocaleImpl*>(loc);
   LocaleImpl* new_copy = new LocaleImpl();
   for (int i = 0; i < kCobaltLcCount; ++i) {
-    new_copy->categories[i] = ((LocaleImpl*)loc)->categories[i];
+    new_copy->categories[i] = original_loc->categories[i];
   }
-  return (locale_t)new_copy;
+  new_copy->composite_lc_all = original_loc->composite_lc_all;
+  return reinterpret_cast<locale_t>(new_copy);
 }
 
 struct lconv* localeconv(void) {
