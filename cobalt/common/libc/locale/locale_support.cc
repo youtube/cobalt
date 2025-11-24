@@ -25,126 +25,7 @@
 #include "third_party/icu/source/common/unicode/ucnv.h"
 
 namespace {
-std::string ExtractEncoding(std::string& io_locale_str) {
-  std::string encoding = "";
-  size_t dot_pos = io_locale_str.find('.');
-  if (dot_pos != std::string::npos) {
-    size_t at_pos = io_locale_str.find('@');
-    if (at_pos != std::string::npos && at_pos > dot_pos) {
-      encoding = io_locale_str.substr(dot_pos, at_pos - dot_pos);
-      io_locale_str.erase(dot_pos, at_pos - dot_pos);
-    } else if (at_pos == std::string::npos) {
-      encoding = io_locale_str.substr(dot_pos);
-      io_locale_str.erase(dot_pos);
-    }
-  }
-  return encoding;
-}
-
-bool IsExactLocaleAvailable(const char* locale_id) {
-  int32_t count = 0;
-  const icu::Locale* available = icu::Locale::getAvailableLocales(count);
-
-  // Optimistic optimization: most matches are exact
-  for (int32_t i = 0; i < count; i++) {
-    if (strcmp(available[i].getName(), locale_id) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-std::string MapScriptToModifier(const char* script) {
-  if (!script || script[0] == '\0') {
-    return "";
-  }
-
-  static const std::map<std::string, std::string> kScriptMap = {
-      {"Latn", "@latin"},
-      {"Cyrl", "@cyrillic"},
-      {"Deva", "@devanagari"},
-      {"Hant", "@hant"},
-      {"Hans", "@hans"}};
-
-  auto it = kScriptMap.find(script);
-  if (it != kScriptMap.end()) {
-    return it->second;
-  }
-  return "";
-}
-bool IsSupportedThroughFallback(const char* canonical_name) {
-  // TODO: b/462446756 - Properly support the "as_IN" locale.
-  if (strcmp(canonical_name, "as_IN") == 0) {
-    return true;
-  }
-
-  UErrorCode status = U_ZERO_ERROR;
-  char current[ULOC_FULLNAME_CAPACITY];
-  char parent[ULOC_FULLNAME_CAPACITY];
-
-  // Initialize with the input name
-  strncpy(current, canonical_name, ULOC_FULLNAME_CAPACITY);
-  current[ULOC_FULLNAME_CAPACITY - 1] = '\0';
-
-  // Walk up the chain
-  while (strlen(current) > 0) {
-    // 1. Check if the current link exists
-    if (IsExactLocaleAvailable(current)) {
-      return true;
-    }
-
-    // 2. We don't want to match "root".
-    // If we fell back all the way to root, it means no specific language data
-    // was found.
-    if (strcmp(current, "root") == 0) {
-      return false;
-    }
-
-    // 3. Get Parent using C API
-    // "as_IN" -> "as"
-    // "es_AR" -> "es_419" (Handles implicit parents correctly)
-    int32_t len =
-        uloc_getParent(current, parent, ULOC_FULLNAME_CAPACITY, &status);
-
-    if (U_FAILURE(status) || len == 0) {
-      break;  // Stop if error or no parent
-    }
-
-    // Safety: If parent == current, we are stuck (shouldn't happen with uloc,
-    // but safe to check)
-    if (strcmp(current, parent) == 0) {
-      break;
-    }
-
-    // 4. Move up
-    strncpy(current, parent, ULOC_FULLNAME_CAPACITY);
-  }
-
-  return false;
-}
-
-}  // namespace
-
-PrivateLocale* GetGlobalLocale() {
-  static PrivateLocale g_current_locale;
-  return &g_current_locale;
-}
-
-bool IsValidCategory(int category) {
-  switch (category) {
-    case LC_ALL:
-    case LC_COLLATE:
-    case LC_CTYPE:
-    case LC_MONETARY:
-    case LC_NUMERIC:
-    case LC_TIME:
-    case LC_MESSAGES:
-      return true;
-    default:
-      return false;
-  }
-}
-
+// Returns the string name of a category (e.g., "LC_TIME").
 const char* GetCategoryName(int category) {
   switch (category) {
     case LC_CTYPE:
@@ -164,6 +45,7 @@ const char* GetCategoryName(int category) {
   }
 }
 
+// Returns the index of a category from its name.
 int GetCategoryIndexFromName(const std::string& name) {
   if (name == "LC_CTYPE") {
     return LC_CTYPE;
@@ -186,22 +68,136 @@ int GetCategoryIndexFromName(const std::string& name) {
   return -1;
 }
 
+// Extracts the locale string's encoding (ex. UTF-8) from the locale. This
+// encoding value string is returned, if it exists. We do this because when
+// giving a POSIX formatted locale to ICU, ICU always drops the encoding. This
+// function ensures that the encoding isn't loss upon conversion.
+std::string ExtractEncoding(std::string& io_locale_str) {
+  std::string encoding = "";
+  size_t dot_pos = io_locale_str.find('.');
+  if (dot_pos != std::string::npos) {
+    size_t at_pos = io_locale_str.find('@');
+    if (at_pos != std::string::npos && at_pos > dot_pos) {
+      encoding = io_locale_str.substr(dot_pos, at_pos - dot_pos);
+      io_locale_str.erase(dot_pos, at_pos - dot_pos);
+    } else if (at_pos == std::string::npos) {
+      encoding = io_locale_str.substr(dot_pos);
+      io_locale_str.erase(dot_pos);
+    }
+  }
+  return encoding;
+}
+
+// Checks to see if the given locale exists within ICU's database.
+bool IsExactLocaleAvailable(const char* locale_id) {
+  int32_t count = 0;
+  const icu::Locale* available = icu::Locale::getAvailableLocales(count);
+
+  // Optimistic optimization: most matches are exact
+  for (int32_t i = 0; i < count; i++) {
+    if (strcmp(available[i].getName(), locale_id) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Helps convert an ICU language script (like "Latn" in sr_Latn_RS) to its
+// corresponding POSIX compliant @ modifier (@latin for sr_RS@latin), if the
+// script exists.
+std::string MapScriptToModifier(const char* script) {
+  if (!script || script[0] == '\0') {
+    return "";
+  }
+
+  // The values inside kScriptMap are the only ones we need to support.
+  static const std::map<std::string, std::string> kScriptMap = {
+      {"Latn", "@latin"},
+      {"Cyrl", "@cyrillic"},
+      {"Hant", "@hant"},
+      {"Hans", "@hans"}};
+
+  auto it = kScriptMap.find(script);
+  if (it != kScriptMap.end()) {
+    return it->second;
+  }
+  return "";
+}
+
+// Check to see if the given locale is supported by ICU. If it isn't, we try
+// to see if the locale's parent is supported.
+bool IsSupportedThroughFallback(const char* canonical_name) {
+  // TODO: b/462446756 - Properly address the "as_IN" locale.
+  if (strcmp(canonical_name, "as_IN") == 0) {
+    return true;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  char current[ULOC_FULLNAME_CAPACITY];
+  char parent[ULOC_FULLNAME_CAPACITY];
+
+  strncpy(current, canonical_name, ULOC_FULLNAME_CAPACITY);
+  current[ULOC_FULLNAME_CAPACITY - 1] = '\0';
+
+  while (strlen(current) > 0) {
+    if (IsExactLocaleAvailable(current)) {
+      return true;
+    }
+
+    // If we fell back all the way to root, it means no specific language data
+    // was found.
+    if (strcmp(current, "root") == 0) {
+      return false;
+    }
+
+    int32_t len =
+        uloc_getParent(current, parent, ULOC_FULLNAME_CAPACITY, &status);
+
+    if (U_FAILURE(status) || len == 0) {
+      break;
+    }
+
+    strncpy(current, parent, ULOC_FULLNAME_CAPACITY);
+  }
+
+  return false;
+}
+
+}  // namespace
+
+int SystemToCobaltIndex(int system_category) {
+  switch (system_category) {
+    case LC_CTYPE:
+      return kCobaltLcCtype;
+    case LC_NUMERIC:
+      return kCobaltLcNumeric;
+    case LC_TIME:
+      return kCobaltLcTime;
+    case LC_COLLATE:
+      return kCobaltLcCollate;
+    case LC_MONETARY:
+      return kCobaltLcMonetary;
+    case LC_MESSAGES:
+      return kCobaltLcMessages;
+    case LC_ALL:
+      return kCobaltLcCount;
+    default:
+      return -1;
+  }
+}
+
 std::string GetCanonicalLocale(const char* inputLocale) {
   if (!inputLocale || inputLocale[0] == '\0') {
     return "";
   }
 
-  // 2. Handle "C" / "POSIX" explicit pass-through
   if (strcmp(inputLocale, "C") == 0 || strcmp(inputLocale, "POSIX") == 0) {
     return inputLocale;
   }
 
-  // 3. Prepare Working String & Encoding
   std::string work_str = inputLocale;
   std::string encoding = ExtractEncoding(work_str);
 
-  // 4. Parse with ICU (Canonicalization)
-  // Converts BCP47 "sr-Latn-RS" -> ICU "sr_Latn_RS"
   icu::Locale loc = icu::Locale::createCanonical(work_str.c_str());
   if (loc.isBogus()) {
     return "";
@@ -209,31 +205,27 @@ std::string GetCanonicalLocale(const char* inputLocale) {
 
   const char* icu_name = loc.getName();
 
-  // 5. VALIDATE (Using Fallback)
-  // "as_IN" -> Found "as" -> Returns True
-  // "xx_YY" -> Found "root" (rejected) -> Returns False
   if (!IsSupportedThroughFallback(icu_name)) {
     return "";
   }
 
-  // 6. RECONSTRUCT POSIX STRING
-  // We validated 'icu_name', but we reconstruct based on 'loc' components
-  // to ensure correct ordering (Lang_Country.Enc@Mod).
+  // Since we have validated that the locale exists inside ICU, we now
+  // reconstruct the string in POSIX format for the locale functions to use.
+  // According to the man pages of setlocale, a POSIX compliant locale will
+  // follow the form:
+  //
+  // language[_territory][.codeset][@modifier]
 
   std::string posix_id = loc.getLanguage();
   const char* country = loc.getCountry();
 
-  // A. Add Country
   if (country && country[0] != '\0') {
     posix_id += "_";
     posix_id += country;
   }
 
-  // B. Add Encoding (Preserved from input)
   posix_id += encoding;
 
-  // C. Add Script as Modifier
-  // Converts script code "Latn" back to modifier "@latin"
   std::string modifier_str = "";
   modifier_str += MapScriptToModifier(loc.getScript());
 
@@ -258,7 +250,7 @@ std::string GetCanonicalLocale(const char* inputLocale) {
 }
 
 bool ParseCompositeLocale(const char* input,
-                          const PrivateLocale& current_state,
+                          const LocaleImpl& current_state,
                           std::vector<std::string>& out_categories) {
   std::string str = input;
 
@@ -273,7 +265,7 @@ bool ParseCompositeLocale(const char* input,
   // We start with the current global state. If the input string only specifies
   // 5 out of 6 categories, the 6th one remains unchanged (Standard POSIX
   // behavior).
-  for (int i = 0; i < LC_ALL; ++i) {
+  for (int i = 0; i < kCobaltLcCount; ++i) {
     out_categories[i] = current_state.categories[i];
   }
 
@@ -315,29 +307,54 @@ bool ParseCompositeLocale(const char* input,
   return true;
 }
 
-void UpdateLocaleSettings(int mask, const char* locale, PrivateLocale* base) {
+void RefreshCompositeString(LocaleImpl* loc) {
+  bool is_uniform = true;
+  const std::string& first = loc->categories[0];
+
+  for (int i = 1; i < kCobaltLcCount; ++i) {
+    if (loc->categories[i] != first) {
+      is_uniform = false;
+      break;
+    }
+  }
+
+  if (is_uniform) {
+    loc->composite_lc_all = first;
+  } else {
+    std::stringstream ss;
+    for (int i = 0; i < kCobaltLcCount; ++i) {
+      if (i > 0) {
+        ss << ";";
+      }
+      ss << GetCategoryName(i) << "=" << loc->categories[i];
+    }
+    loc->composite_lc_all = ss.str();
+  }
+}
+
+void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base) {
   if (mask & LC_ALL_MASK) {
-    for (int i = 0; i < LC_ALL; ++i) {
+    for (int i = 0; i < kCobaltLcCount; ++i) {
       base->categories[i] = locale;
     }
     return;
   }
   if (mask & LC_CTYPE_MASK) {
-    base->categories[LC_CTYPE] = locale;
+    base->categories[kCobaltLcCtype] = locale;
   }
   if (mask & LC_COLLATE_MASK) {
-    base->categories[LC_COLLATE] = locale;
+    base->categories[kCobaltLcCollate] = locale;
   }
   if (mask & LC_MESSAGES_MASK) {
-    base->categories[LC_MESSAGES] = locale;
+    base->categories[kCobaltLcMessages] = locale;
   }
   if (mask & LC_MONETARY_MASK) {
-    base->categories[LC_MONETARY] = locale;
+    base->categories[kCobaltLcMonetary] = locale;
   }
   if (mask & LC_NUMERIC_MASK) {
-    base->categories[LC_NUMERIC] = locale;
+    base->categories[kCobaltLcNumeric] = locale;
   }
   if (mask & LC_TIME_MASK) {
-    base->categories[LC_TIME] = locale;
+    base->categories[kCobaltLcTime] = locale;
   }
 }
