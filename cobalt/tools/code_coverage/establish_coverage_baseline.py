@@ -48,6 +48,8 @@ class CoverageBaselineRunner:
     self.llvm_bin_dir = (
         self.cobalt_src_root / 'third_party/llvm-build/Release+Asserts/bin')
     self.raw_lcov_dir = self.cobalt_src_root / f'out/lcov_raw_{self.platform}'
+    self.merged_lcov_file = self.raw_lcov_dir / 'merged.lcov'
+    self.html_report_dir = self.cobalt_src_root / f'out/lcov_html_report_{self.platform}'
     base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
     platform_target_dir = self.platform
     if self.platform == 'android-x86':
@@ -176,12 +178,6 @@ class CoverageBaselineRunner:
 
     test_binary_path = self.coverage_build_dir / test_name
 
-    if not test_binary_path.exists():
-      print(
-          f'WARNING: Test binary not found at {test_binary_path}. Skipping.',
-          file=sys.stderr)
-      return False
-
     cmd = [
         'time',
         '-v',
@@ -282,8 +278,6 @@ class CoverageBaselineRunner:
         str(self.merged_lcov_file), '--output-directory',
         str(self.html_report_dir)
     ])
-    print(f'Successfully generated HTML report in {self.html_report_dir}')
-
     print(f'Successfully generated HTML report in {self.html_report_dir}')
 
   def run_baseline(self,
