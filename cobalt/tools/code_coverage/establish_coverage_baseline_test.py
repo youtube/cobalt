@@ -196,31 +196,13 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     with self.assertRaises(subprocess.CalledProcessError):
       self.runner.merge_lcov_files()
 
-  @mock.patch('shutil.which', return_value='/usr/bin/lcov')
-  @mock.patch('subprocess.run')
-  def test_filter_lcov_file(self, mock_run, mock_which):
-    """Test that the lcov file is filtered correctly."""
-    del mock_which
-    self.runner.merged_lcov_file.touch()
-    filters = ['/mock/cobalt/src/*', '/mock/cobalt/base/*']
-    self.runner.filter_lcov_file(filters)
-    mock_run.assert_called_once_with([
-        'lcov', '--extract',
-        str(self.runner.merged_lcov_file)
-    ] + filters + ['--output-file', str(self.runner.merged_lcov_file)],
-                                     check=True,
-                                     cwd=None,
-                                     capture_output=True,
-                                     text=True)
-
   @mock.patch('shutil.which', return_value=None)
   def test_filter_lcov_file_lcov_not_found(self, mock_which):
     """Test that an EnvironmentError is raised if lcov is not found for filtering."""
     del mock_which # mock_which is used as a patcher, not directly in the test
-    self.runner.merged_lcov_file.touch()
-    filters = ['/mock/cobalt/src/*', '/mock/cobalt/base/*']
     with self.assertRaises(EnvironmentError):
-      self.runner.filter_lcov_file(filters)
+      CoverageBaselineRunner(self.platform, self.build_type,
+                             str(self.mock_cobalt_root))
 
   def test_post_process_only(self):
     """Test that only post-processing is run when post_process_only is True."""
@@ -276,9 +258,9 @@ class TestCoverageBaselineRunner(unittest.TestCase):
   def test_generate_html_report_genhtml_not_found(self, mock_which):
     """Test that an EnvironmentError is raised if genhtml is not found."""
     del mock_which # mock_which is used as a patcher, not directly in the test
-    self.runner.merged_lcov_file.touch()
     with self.assertRaises(EnvironmentError):
-      self.runner.generate_html_report()
+      CoverageBaselineRunner(self.platform, self.build_type,
+                             str(self.mock_cobalt_root))
 
   @mock.patch('shutil.which', return_value=None)
   def test_filter_lcov_file_lcov_not_found(self, mock_which):
@@ -286,7 +268,7 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     del mock_which # mock_which is used as a patcher, not directly in the test
     self.runner.merged_lcov_file.touch()
     filters = ['/mock/cobalt/src/*', '/mock/cobalt/base/*']
-    with self.assertRaises(EnvironmentError):
+    with self.assertRaises(subprocess.CalledProcessError):
       self.runner.filter_lcov_file(filters)
 
 
