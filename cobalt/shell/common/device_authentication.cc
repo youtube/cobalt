@@ -83,22 +83,23 @@ std::string BuildMessageFragment(const std::string& key,
 std::string GetCertScopeFromPlatform() {
   // Get cert_scope and base_64_secret
   const size_t kCertificationScopeLength = 1023;
-  char cert_scope_property[kCertificationScopeLength + 1] = {0};
+  std::string cert_scope_property(kCertificationScopeLength, 0);
   bool result =
       SbSystemGetProperty(kSbSystemPropertyCertificationScope,
-                          cert_scope_property, kCertificationScopeLength);
+                          &cert_scope_property[0], kCertificationScopeLength);
   if (!result) {
     DLOG(ERROR) << "Unable to get kSbSystemPropertyCertificationScope";
     return std::string();
   }
-
+  cert_scope_property.resize(strlen(cert_scope_property.c_str()));
   return cert_scope_property;
 }
 
 // Returns the start time provided by the platform for use with device
 // authentication.
 std::string GetStartTime() {
-  return std::to_string(static_cast<int64_t>(base::Time::Now().InSecondsFSinceUnixEpoch()));
+  return std::to_string(
+      static_cast<int64_t>(base::Time::Now().InSecondsFSinceUnixEpoch()));
 }
 
 }  // namespace
