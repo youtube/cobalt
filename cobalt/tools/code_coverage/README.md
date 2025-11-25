@@ -60,8 +60,8 @@ robust and portable Python implementation.
 ### Workflow
 
 1.  Installs the `diff-cover` Python dependency.
-2.  Runs the Chromium `coverage.py` tool to build the `crypto_unittests` target
-    and generate an LCOV report.
+2.  Runs the Chromium `coverage.py` tool to build a specified test target
+    (or `crypto_unittests` by default) and generate an LCOV report.
 3.  Runs `check_coverage.py` to:
     -   Calculate absolute and differential coverage.
     -   Enforce an 80% coverage threshold on new code.
