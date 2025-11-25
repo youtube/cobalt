@@ -409,6 +409,12 @@ ScriptPromise MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  LOG(INFO) << "YO THOR - GET USER MEDIA!";
+  auto tracer =
+      std::make_unique<ScopedMediaStreamTracer>("MediaDevices.GetUserMedia");
+
   // This timeout of base::Seconds(8) is an initial value and based on the data
   // in Media.MediaDevices.GetUserMedia.Latency, it should be iterated upon.
   auto* resolver = MakeGarbageCollected<
