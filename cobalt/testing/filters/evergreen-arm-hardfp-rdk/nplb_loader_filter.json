@@ -25,6 +25,7 @@
     "SbPlayerTest.*",
     "SbPlayerWriteSampleTests*",
     "SbSystemGetLocaleIdTest.SunnyDay",
+    "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.*",
     "SbSystemSymbolizeTest.SunnyDay",
