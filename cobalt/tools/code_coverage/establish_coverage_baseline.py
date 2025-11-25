@@ -22,7 +22,6 @@ class CoverageBaselineRunner:
                skip_gn_gen: bool = False,
                test_target: str = None,
                post_process_only: bool = False,
-               test_filters_dir: str = None,
                include_skipped_tests: bool = False):
     """Initializes the CoverageBaselineRunner.
 
@@ -34,7 +33,6 @@ class CoverageBaselineRunner:
       skip_gn_gen: Whether to skip the 'gn gen' step.
       test_target: The single test target to run.
       post_process_only: Whether to only run the post-processing steps.
-      test_filters_dir: Directory containing test filter JSON files.
       include_skipped_tests: Whether to include tests skipped by filters.
     """
     self.platform = platform
@@ -44,8 +42,15 @@ class CoverageBaselineRunner:
     self.skip_gn_gen = skip_gn_gen
     self.test_target = test_target
     self.post_process_only = post_process_only
-    self.test_filters_dir = test_filters_dir
     self.include_skipped_tests = include_skipped_tests
+
+    # Determine the test filters directory based on the platform.
+    filter_platform = self.platform
+    if self.platform == 'android-x86':
+      filter_platform = 'android-arm'
+    self.test_filters_dir = (
+        self.cobalt_src_root / 'cobalt' / 'testing' / 'filters' /
+        filter_platform)
 
     self.gn_gen_dir = (
         self.cobalt_src_root / f'out/{self.platform}_{self.build_type}')
@@ -391,10 +396,6 @@ def main() -> None:
       nargs='+',
       help='A list of directory patterns to include in the report.')
   parser.add_argument(
-      '--test-filters-dir',
-      type=str,
-      help='Directory containing test filter JSON files.')
-  parser.add_argument(
       '--include-skipped-tests',
       action='store_true',
       help='Include tests that are normally skipped by the filters.')
@@ -404,7 +405,6 @@ def main() -> None:
                                   args.cobalt_src_root, args.verbose,
                                   args.skip_gn_gen, args.test_target,
                                   args.post_process_only,
-                                  args.test_filters_dir,
                                   args.include_skipped_tests)
   runner.run_baseline(args.skip_gn_gen, args.generate_html_report,
                       args.lcov_filter)

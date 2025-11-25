@@ -294,6 +294,36 @@ if __name__ == '__main__':
   unittest.main()
 
 
+class TestFilterDirectoryMapping(unittest.TestCase):
+  """Tests for the automatic filter directory mapping."""
+
+  def test_maps_android_arm_to_correct_dir(self):
+    """Verify android-arm platform maps to the android-arm filter dir."""
+    with mock.patch('pathlib.Path.resolve', return_value=pathlib.Path('/mock')):
+      with mock.patch('os.chdir'):
+        runner = CoverageBaselineRunner(platform='android-arm')
+        expected_path = pathlib.Path(
+            '/mock/cobalt/testing/filters/android-arm')
+        self.assertEqual(runner.test_filters_dir, expected_path)
+
+  def test_maps_android_x86_to_android_arm_dir(self):
+    """Verify android-x86 platform maps to the android-arm filter dir."""
+    with mock.patch('pathlib.Path.resolve', return_value=pathlib.Path('/mock')):
+      with mock.patch('os.chdir'):
+        runner = CoverageBaselineRunner(platform='android-x86')
+        expected_path = pathlib.Path(
+            '/mock/cobalt/testing/filters/android-arm')
+        self.assertEqual(runner.test_filters_dir, expected_path)
+
+  def test_maps_other_platform_to_correct_dir(self):
+    """Verify a generic platform maps to its own filter dir."""
+    with mock.patch('pathlib.Path.resolve', return_value=pathlib.Path('/mock')):
+      with mock.patch('os.chdir'):
+        runner = CoverageBaselineRunner(platform='linux-x64')
+        expected_path = pathlib.Path('/mock/cobalt/testing/filters/linux-x64')
+        self.assertEqual(runner.test_filters_dir, expected_path)
+
+
 class TestTestFiltering(unittest.TestCase):
   """Test cases for the test filtering functionality."""
 
@@ -306,16 +336,18 @@ class TestTestFiltering(unittest.TestCase):
     self.test_dir.mkdir(exist_ok=True)
     self.original_cwd = os.getcwd()
     os.chdir(self.test_dir)
-    self.filters_dir = self.test_dir / 'filters'
-    self.filters_dir.mkdir(parents=True, exist_ok=True)
 
     with mock.patch('pathlib.Path.resolve', return_value=self.mock_cobalt_root):
       with mock.patch('os.chdir'):
         self.runner = CoverageBaselineRunner(
             self.platform,
             self.build_type,
-            cobalt_src_root=str(self.mock_cobalt_root),
-            test_filters_dir=str(self.filters_dir))
+            cobalt_src_root=str(self.mock_cobalt_root))
+    
+    # The filter dir is now auto-determined, let's mock it for the test
+    self.filters_dir = self.test_dir / 'filters'
+    self.filters_dir.mkdir(parents=True, exist_ok=True)
+    self.runner.test_filters_dir = self.filters_dir
 
     self.runner.coverage_build_dir = self.test_dir / 'out'
     self.runner.raw_lcov_dir = self.test_dir / 'lcov'
@@ -342,6 +374,18 @@ class TestTestFiltering(unittest.TestCase):
     mock_run.assert_called_once()
     args, _ = mock_run.call_args
     self.assertIn('--gtest_filter=-Test.Case1:Test.Case2', args[0])
+
+  @mock.patch('subprocess.run')
+  @mock.patch('pathlib.Path.exists', return_value=False)
+  def test_gracefully_handles_non_existent_filter_dir(self, mock_exists, mock_run):
+    """Test that no filter is applied if the filter directory doesn't exist."""
+    test_name = 'my_cool_test'
+    # We are mocking that the filter *file* doesn't exist.
+    self.runner.run_coverage_for_target(test_name)
+    
+    mock_run.assert_called_once()
+    args, _ = mock_run.call_args
+    self.assertNotIn('--gtest_filter', ' '.join(args[0]))
 
   @mock.patch('subprocess.run')
   @mock.patch('pathlib.Path.exists', return_value=True)
