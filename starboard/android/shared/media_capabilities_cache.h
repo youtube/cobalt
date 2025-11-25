@@ -62,10 +62,7 @@ class CodecCapability {
   bool is_tunnel_mode_supported() const { return is_tunnel_mode_supported_; }
 
  protected:
-  CodecCapability(const CodecCapabilityData& data);
-  CodecCapabilityData BuildData(
-      JNIEnv* env,
-      base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
+  explicit CodecCapability(const CodecCapabilityData& data);
 
  private:
   CodecCapability(const CodecCapability&) = delete;
@@ -90,19 +87,16 @@ class AudioCodecCapability : public CodecCapability {
       base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
-  bool IsBitrateSupported(int bitrate) const;
+  static std::unique_ptr<AudioCodecCapability> CreateForTest(
+      const AudioCodecCapabilityData& data);
 
- protected:
-  AudioCodecCapability(const AudioCodecCapabilityData& data);
+  bool IsBitrateSupported(int bitrate) const;
 
  private:
   AudioCodecCapability(const AudioCodecCapability&) = delete;
   AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
 
-  AudioCodecCapabilityData BuildData(
-      JNIEnv* env,
-      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
-      base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
+  AudioCodecCapability(const AudioCodecCapabilityData& data);
 
   const Range supported_bitrates_;
 };
@@ -126,6 +120,9 @@ class VideoCodecCapability : public CodecCapability {
       base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override = default;
 
+  static std::unique_ptr<VideoCodecCapability> CreateForTest(
+      const VideoCodecCapabilityData& data);
+
   bool is_software_decoder() const { return is_software_decoder_; }
   bool is_hdr_capable() const { return is_hdr_capable_; }
 
@@ -140,7 +137,6 @@ class VideoCodecCapability : public CodecCapability {
                                              int fps) const;
 
  protected:
-  VideoCodecCapability(const VideoCodecCapabilityData& data);
   bool ResolutionAndRateAreWithinBounds(int frame_width,
                                         int frame_height,
                                         int fps) const;
@@ -149,10 +145,7 @@ class VideoCodecCapability : public CodecCapability {
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 
-  VideoCodecCapabilityData BuildData(
-      JNIEnv* env,
-      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
-      base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
+  explicit VideoCodecCapability(const VideoCodecCapabilityData& data);
 
   const bool is_software_decoder_;
   const bool is_hdr_capable_;

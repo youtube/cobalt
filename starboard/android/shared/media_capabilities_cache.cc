@@ -227,54 +227,43 @@ CodecCapability::CodecCapability(const CodecCapabilityData& data)
       is_tunnel_mode_required_(data.is_tunnel_mode_required),
       is_tunnel_mode_supported_(data.is_tunnel_mode_supported) {}
 
-CodecCapability::CodecCapability(
-    JNIEnv* env,
-    base::android::ScopedJavaLocalRef<jobject>& j_codec_info)
-    : CodecCapability(BuildData(env, j_codec_info)) {}
+CodecCapability::CodecCapability(JNIEnv* env,
+                                 ScopedJavaLocalRef<jobject>& j_codec_info)
+    : name_(ConvertJavaStringToUTF8(
+          env,
+          Java_CodecCapabilityInfo_getDecoderName(env, j_codec_info))),
+      is_secure_required_(
+          Java_CodecCapabilityInfo_isSecureRequired(env, j_codec_info)),
+      is_secure_supported_(
+          Java_CodecCapabilityInfo_isSecureSupported(env, j_codec_info)),
+      is_tunnel_mode_required_(
+          Java_CodecCapabilityInfo_isTunnelModeRequired(env, j_codec_info)),
+      is_tunnel_mode_supported_(
+          Java_CodecCapabilityInfo_isTunnelModeSupported(env, j_codec_info)) {}
 
-CodecCapability::CodecCapabilityData CodecCapability::BuildData(
-    JNIEnv* env,
-    base::android::ScopedJavaLocalRef<jobject>& j_codec_info) {
-  CodecCapabilityData data;
-
-  data.name = ConvertJavaStringToUTF8(
-      env, Java_CodecCapabilityInfo_getDecoderName(env, j_codec_info));
-  data.is_secure_required =
-      Java_CodecCapabilityInfo_isSecureRequired(env, j_codec_info);
-  data.is_secure_supported =
-      Java_CodecCapabilityInfo_isSecureSupported(env, j_codec_info);
-  data.is_tunnel_mode_required =
-      Java_CodecCapabilityInfo_isTunnelModeRequired(env, j_codec_info);
-  data.is_tunnel_mode_supported =
-      Java_CodecCapabilityInfo_isTunnelModeSupported(env, j_codec_info);
-
-  return data;
+// static
+std::unique_ptr<AudioCodecCapability> AudioCodecCapability::CreateForTest(
+    const AudioCodecCapabilityData& data) {
+  return std::unique_ptr<AudioCodecCapability>(new AudioCodecCapability(data));
 }
 
 AudioCodecCapability::AudioCodecCapability(const AudioCodecCapabilityData& data)
     : CodecCapability(data.base_data),
       supported_bitrates_(data.supported_bitrates) {}
 
-AudioCodecCapability::AudioCodecCapabilityData AudioCodecCapability::BuildData(
-    JNIEnv* env,
-    ScopedJavaLocalRef<jobject>& j_codec_info,
-    ScopedJavaLocalRef<jobject>& j_audio_capabilities) {
-  AudioCodecCapabilityData data;
-
-  data.base_data = CodecCapability::BuildData(env, j_codec_info);
-
-  data.supported_bitrates = GetRange(env, j_audio_capabilities,
-                                     &Java_MediaCodecUtil_getAudioBitrateRange);
-  data.supported_bitrates.minimum = 0;
-
-  return data;
-}
-
 AudioCodecCapability::AudioCodecCapability(
     JNIEnv* env,
     ScopedJavaLocalRef<jobject>& j_codec_info,
     ScopedJavaLocalRef<jobject>& j_audio_capabilities)
-    : AudioCodecCapability(BuildData(env, j_codec_info, j_audio_capabilities)) {
+    : CodecCapability(env, j_codec_info),
+      supported_bitrates_([env, &j_audio_capabilities] {
+        Range supported_bitrates =
+            GetRange(env, j_audio_capabilities,
+                     &Java_MediaCodecUtil_getAudioBitrateRange);
+        // Overwrite the lower bound to 0.
+        supported_bitrates.minimum = 0;
+        return supported_bitrates;
+      }()) {
   SB_CHECK(j_codec_info);
 }
 
@@ -282,31 +271,35 @@ bool AudioCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
 
-VideoCodecCapability::VideoCodecCapabilityData VideoCodecCapability::BuildData(
+VideoCodecCapability::VideoCodecCapability(
     JNIEnv* env,
-    base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
-    base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities) {
-  VideoCodecCapabilityData data;
+    ScopedJavaLocalRef<jobject>& j_codec_info,
+    ScopedJavaLocalRef<jobject>& j_video_capabilities)
+    : CodecCapability(env, j_codec_info),
+      is_software_decoder_(
+          Java_CodecCapabilityInfo_isSoftware(env, j_codec_info)),
+      is_hdr_capable_(Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info)),
+      j_video_capabilities_(env, j_video_capabilities.obj()),
+      supported_widths_(GetRange(env,
+                                 j_video_capabilities_,
+                                 &Java_MediaCodecUtil_getVideoWidthRange)),
+      supported_heights_(GetRange(env,
+                                  j_video_capabilities_,
+                                  &Java_MediaCodecUtil_getVideoHeightRange)),
+      supported_bitrates_(GetRange(env,
+                                   j_video_capabilities_,
+                                   &Java_MediaCodecUtil_getVideoBitrateRange)),
+      supported_frame_rates_(
+          GetRange(env,
+                   j_video_capabilities_,
+                   &Java_MediaCodecUtil_getVideoFrameRateRange)) {}
 
-  data.base_data = CodecCapability::BuildData(env, j_codec_info);
-
-  data.is_software_decoder =
-      Java_CodecCapabilityInfo_isSoftware(env, j_codec_info);
-  data.is_hdr_capable =
-      Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info);
-  data.j_video_capabilities.Reset(env, j_video_capabilities.obj());
-  data.supported_widths = GetRange(env, data.j_video_capabilities,
-                                   &Java_MediaCodecUtil_getVideoWidthRange);
-  data.supported_heights = GetRange(env, data.j_video_capabilities,
-                                    &Java_MediaCodecUtil_getVideoHeightRange);
-  data.supported_bitrates = GetRange(env, data.j_video_capabilities,
-                                     &Java_MediaCodecUtil_getVideoBitrateRange);
-  data.supported_frame_rates =
-      GetRange(env, data.j_video_capabilities,
-               &Java_MediaCodecUtil_getVideoFrameRateRange);
-
-  return data;
+// static
+std::unique_ptr<VideoCodecCapability> VideoCodecCapability::CreateForTest(
+    const VideoCodecCapabilityData& data) {
+  return std::unique_ptr<VideoCodecCapability>(new VideoCodecCapability(data));
 }
+
 VideoCodecCapability::VideoCodecCapability(const VideoCodecCapabilityData& data)
     : CodecCapability(data.base_data),
       is_software_decoder_(data.is_software_decoder),
@@ -316,13 +309,6 @@ VideoCodecCapability::VideoCodecCapability(const VideoCodecCapabilityData& data)
       supported_heights_(data.supported_heights),
       supported_bitrates_(data.supported_bitrates),
       supported_frame_rates_(data.supported_frame_rates) {}
-
-VideoCodecCapability::VideoCodecCapability(
-    JNIEnv* env,
-    ScopedJavaLocalRef<jobject>& j_codec_info,
-    ScopedJavaLocalRef<jobject>& j_video_capabilities)
-    : VideoCodecCapability(BuildData(env, j_codec_info, j_video_capabilities)) {
-}
 
 bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
