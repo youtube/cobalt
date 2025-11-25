@@ -106,7 +106,7 @@ public abstract class CobaltActivity extends Activity {
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
-  private Boolean mIsKeepScreenOnEnabled = false;
+  private Boolean isKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector cobaltConnectivityDetector;
 
   private Boolean isMainFrameLoaded = false;
