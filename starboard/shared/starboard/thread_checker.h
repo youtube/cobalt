@@ -15,24 +15,20 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
-#include <atomic>
-
-#include "build/build_config.h"
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
+#include <pthread.h>
 
 namespace starboard {
 
 class ThreadChecker {
  public:
-  ThreadChecker() : thread_id_(SbThreadGetId()) {
-    SB_CHECK(SbThreadIsValidId(thread_id_));
+  ThreadChecker() : thread_id_(pthread_self()) {}
+
+  bool CalledOnValidThread() const {
+    return pthread_equal(thread_id_, pthread_self());
   }
 
-  bool CalledOnValidThread() const { return thread_id_ == SbThreadGetId(); }
-
  private:
-  const SbThreadId thread_id_;
+  const pthread_t thread_id_;
 };
 
 // Alias to prevent breaking the RDK build on CI.
