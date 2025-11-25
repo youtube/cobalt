@@ -270,9 +270,6 @@ void SbEventHandle(const SbEvent* event) {
       }
     }
 
-    InstallCrashpadHandler(
-        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
-
     if (is_evergreen_lite) {
       loader_app::RecordSlotSelectionStatus(SlotSelectionStatus::kEGLite);
       LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
@@ -297,6 +294,8 @@ void SbEventHandle(const SbEvent* event) {
         LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
       }
     }
+    InstallCrashpadHandler(
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
     // If g_sb_event_func is NULL at this point, the app has no choice but to
     // crash.
     SB_CHECK(g_sb_event_func);

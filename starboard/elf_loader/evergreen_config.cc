@@ -35,6 +35,9 @@ void EvergreenConfig::Create(
 
 const EvergreenConfig* EvergreenConfig::GetInstance() {
   std::lock_guard lock(g_evergreen_config_mutex);
+  SB_CHECK(g_evergreen_config)
+      << "EvergreenConfig::GetInstance() called but g_evergreen_config is null "
+         "and not initialized.";
   return g_evergreen_config.get();
 }
 
