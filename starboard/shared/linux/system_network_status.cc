@@ -28,10 +28,10 @@
 #include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
 namespace {
 
@@ -100,28 +100,26 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 
 }  // namespace
 
+class NotifierThread : public starboard::Thread {
+ public:
+  explicit NotifierThread(NetworkNotifier* notifier)
+      : starboard::Thread("NetworkNotifier"), notifier_(notifier) {}
+
+  void Run() override { NetworkNotifier::NotifierThreadEntry(notifier_); }
+
+ private:
+  NetworkNotifier* notifier_;
+};
+
 bool NetworkNotifier::Initialize() {
-  SB_DCHECK(!notifier_thread_);
+  SB_CHECK(!notifier_thread_);
 
-  pthread_attr_t attributes;
-  int result = pthread_attr_init(&attributes);
-  if (result != 0) {
-    return false;
-  }
-
-  pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-  pthread_t thread;
-  const int create_result = pthread_create(
-      &thread, &attributes, &NetworkNotifier::NotifierThreadEntry, this);
-  pthread_attr_destroy(&attributes);
-
-  SB_CHECK_EQ(create_result, 0);
-  notifier_thread_ = thread;
+  notifier_thread_ = std::make_unique<NotifierThread>(this);
+  notifier_thread_->Start();
   return true;
 }
 
 void* NetworkNotifier::NotifierThreadEntry(void* context) {
-  pthread_setname_np(pthread_self(), "NetworkNotifier");
   SbThreadSetPriority(kSbThreadPriorityLow);
   auto* notifier = static_cast<NetworkNotifier*>(context);
   int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);

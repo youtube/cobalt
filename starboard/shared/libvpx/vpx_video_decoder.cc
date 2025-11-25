@@ -35,13 +35,13 @@ VpxVideoDecoder::VpxVideoDecoder(SbMediaVideoCodec video_codec,
 }
 
 VpxVideoDecoder::~VpxVideoDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   Reset();
 }
 
 void VpxVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                  const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -52,7 +52,7 @@ void VpxVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 }
 
 void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
@@ -73,7 +73,7 @@ void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void VpxVideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
@@ -92,7 +92,7 @@ void VpxVideoDecoder::WriteEndOfStream() {
 }
 
 void VpxVideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.

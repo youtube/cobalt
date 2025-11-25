@@ -28,7 +28,7 @@
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
-#include "cobalt/app/cobalt_switch_defaults_starboard.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"

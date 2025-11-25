@@ -62,8 +62,8 @@
 #include "cc/base/math_util.h"
 #include "cc/input/touch_action.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"  // nogncheck
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
