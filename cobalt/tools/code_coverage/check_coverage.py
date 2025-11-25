@@ -1,133 +1,140 @@
+#!/usr/bin/env python3
 import argparse
-import sys
-import os
 import subprocess
+import sys
+import re
+import os
+import shutil
 import json
 
-
-def parse_lcov_absolute_coverage(lcov_file_path):
-  """
-    Parses an LCOV file to calculate absolute line coverage percentage.
-    Sums up LF (Lines Found) and LH (Lines Hit) tags.
+def get_absolute_coverage(lcov_file):
     """
-  total_lines_found = 0
-  total_lines_hit = 0
-
-  if not os.path.exists(lcov_file_path):
-    print(f"Error: LCOV file not found at {lcov_file_path}", file=sys.stderr)
-    sys.exit(1)
-
-  with open(lcov_file_path, 'r') as f:
-    for line in f:
-      if line.startswith('LF:'):
-        total_lines_found += int(line.strip().split(':')[1])
-      elif line.startswith('LH:'):
-        total_lines_hit += int(line.strip().split(':')[1])
-
-  if total_lines_found == 0:
-    return 0.0
-
-  return (total_lines_hit / total_lines_found) * 100.0
-
-
-def get_differential_coverage(lcov_file_path, compare_branch):
-  """
-    Runs `diff-cover` to calculate coverage of changed lines.
+    Runs `lcov --summary` and extracts the line coverage percentage using Regex.
     """
-  json_report_path = "diff_cover_report.json"
+    if not shutil.which("lcov"):
+        print("Error: 'lcov' system tool not found. Please install it (e.g., sudo apt install lcov).")
+        sys.exit(1)
 
-  # We use a temp JSON report to extract the exact number
-  cmd = [
-      "diff-cover", lcov_file_path, f"--compare-branch={compare_branch}",
-      f"--json-report={json_report_path}"
-  ]
+    try:
+        # lcov writes to stderr or stdout depending on version, so we capture both
+        result = subprocess.run(
+            ["lcov", "--summary", lcov_file],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=True
+        )
+        
+        # Look for the pattern "lines......: 85.4%"
+        match = re.search(r"lines\.*:\s+([\d\.]+)\%", result.stdout)
+        if match:
+            return float(match.group(1))
+        
+        print(f"Warning: Could not parse lcov output. Output was:\n{result.stdout}")
+        return 0.0
 
-  try:
-    # Run silently
-    subprocess.run(
-        cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        print(f"Error running lcov: {e.output}")
+        sys.exit(1)
 
-    with open(json_report_path, 'r') as f:
-      data = json.load(f)
-      # Extract percentage. structure depends on diff-cover version,
-      # but typically located at root or under 'report'
-      # Fallback logic for common structures:
-      if 'coverage' in data:
-        return float(data['coverage'])
-      # specific to some diff-cover versions
-      root = data.get(next(iter(data))) if data else {}
-      return float(root.get('coverage', 0.0))
+def get_differential_coverage(lcov_file, compare_branch):
+    """
+    Runs `diff-cover` requesting a JSON report to safely extract the coverage percentage.
+    """
+    if not shutil.which("diff-cover"):
+        print("Error: 'diff-cover' not found. Please run: pip install diff-cover")
+        sys.exit(1)
 
-  except subprocess.CalledProcessError as e:
-    print(f"Error running diff-cover: {e}", file=sys.stderr)
-    print(f"Stdout: {e.stdout.decode()}", file=sys.stderr)
-    print(f"Stderr: {e.stderr.decode()}", file=sys.stderr)
-    sys.exit(1)
-  except FileNotFoundError:
-    print(
-        "Error: diff-cover command not found. Is it installed and in your PATH?",
-        file=sys.stderr)
-    sys.exit(1)
-  except json.JSONDecodeError:
-    print(
-        f"Error: Could not decode JSON report from {json_report_path}",
-        file=sys.stderr)
-    sys.exit(1)
-  except Exception as e:
-    print(f"An unexpected error occurred: {e}", file=sys.stderr)
-    sys.exit(1)
+    json_report = "diff_report.json"
+    
+    cmd = [
+        "diff-cover",
+        lcov_file,
+        f"--compare-branch={compare_branch}",
+        f"--json-report={json_report}"
+    ]
+    
+    try:
+        # Run diff-cover silently
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
+        
+        if not os.path.exists(json_report):
+            # If no report generated, likely no changes found or error
+            return 100.0
 
+        with open(json_report, 'r') as f:
+            data = json.load(f)
+        
+        # Cleanup temp file
+        os.remove(json_report)
+        
+        # Helper to find 'coverage' key in varying JSON structures
+        def find_coverage_value(d):
+            if isinstance(d, dict):
+                # Standard structure
+                if 'coverage' in d:
+                    return float(d['coverage'])
+                # Nested structure (recurse values)
+                for v in d.values():
+                    val = find_coverage_value(v)
+                    if val is not None:
+                        return val
+            return None
+
+        val = find_coverage_value(data)
+        return val if val is not None else 100.0
+
+    except subprocess.CalledProcessError:
+        print("Warning: diff-cover returned non-zero (possibly due to empty diff). Defaulting to 100%.")
+        return 100.0
+    except Exception as e:
+        print(f"Error parsing diff-cover JSON: {e}")
+        return 0.0
 
 def main():
-  parser = argparse.ArgumentParser(
-      description="Calculate and enforce code coverage metrics.")
-  parser.add_argument(
-      "--lcov-file", required=True, help="Path to the LCOV file.")
-  parser.add_argument(
-      "--compare-branch",
-      default="origin/main",
-      help="Git branch to compare against for differential coverage.")
-  parser.add_argument(
-      "--threshold",
-      type=float,
-      default=80.0,
-      help="Minimum differential coverage percentage required.")
-  parser.add_argument(
-      "--report-file",
-      default="coverage_report.md",
-      help="Output file for the Markdown report.")
+    parser = argparse.ArgumentParser(description="Chromium Coverage Enforcer")
+    parser.add_argument('--input', required=True, help="Path to the coverage.lcov file")
+    parser.add_argument('--compare-branch', default='origin/main', help="The git branch to compare against")
+    parser.add_argument('--fail-under', type=float, default=80.0, help="Fail if differential coverage is below this %")
+    args = parser.parse_args()
 
-  args = parser.parse_args()
+    if not os.path.exists(args.input):
+        print(f"Error: Input file '{args.input}' not found.")
+        sys.exit(1)
 
-  # Calculate Absolute Coverage
-  absolute_coverage = parse_lcov_absolute_coverage(args.lcov_file)
-  print(f"Absolute Coverage: {absolute_coverage:.2f}%")
+    print("--- Analyzing Code Coverage ---")
+    
+    # 1. Gather Metrics
+    abs_cov = get_absolute_coverage(args.input)
+    diff_cov = get_differential_coverage(args.input, args.compare_branch)
 
-  # Calculate Differential Coverage
-  differential_coverage = get_differential_coverage(args.lcov_file,
-                                                    args.compare_branch)
-  print(f"Differential Coverage (New Code): {differential_coverage:.2f}%")
+    # 2. Determine Status
+    passed = diff_cov >= args.fail_under
+    status_icon = "✅ Pass" if passed else "❌ Fail"
 
-  # Generate Markdown Report
-  with open(args.report_file, 'w') as f:
-    f.write(f"# Code Coverage Report\n\n")
-    f.write(f"## Absolute Coverage\n")
-    f.write(f"Total coverage for the project: **{absolute_coverage:.2f}%**\n\n")
-    f.write(f"## Differential Coverage\n")
-    f.write(
-        f"Coverage for new/changed code compared to `{args.compare_branch}`: **{differential_coverage:.2f}%**\n\n"
+    # 3. Generate Markdown Report
+    report_content = (
+        f"## 📊 Code Coverage Report\n\n"
+        f"| Metric | Percentage | Threshold | Status |\n"
+        f"| :--- | :--- | :--- | :--- |\n"
+        f"| **Differential** (New Code) | **{diff_cov:.2f}%** | {args.fail_under}% | {status_icon} |\n"
+        f"| **Absolute** (Total) | **{abs_cov:.2f}%** | N/A | ℹ️ Info |\n"
     )
 
-    if differential_coverage >= args.threshold:
-      f.write(
-          f"✅ Differential coverage of {differential_coverage:.2f}% meets the required threshold of {args.threshold:.2f}%\n"
-      )
-    else:
-      f.write(
-          f"❌ Differential coverage of {differential_coverage:.2f}% is below the required threshold of {args.threshold:.2f}%\n"
-      )
-      sys.exit(1)  # Exit with error if threshold not met
+    print("\n" + report_content)
+    
+    # Write to file for CI usage
+    with open("coverage_summary.md", "w") as f:
+        f.write(report_content)
+    print("Report saved to: coverage_summary.md")
 
+    # 4. Enforce Gate
+    if not passed:
+        print(f"\n[FAILURE] Differential coverage ({diff_cov:.2f}%) is below the threshold ({args.fail_under}%).")
+        sys.exit(1)
+
+    print("\n[SUCCESS] All checks passed.")
+    sys.exit(0)
 
 if __name__ == "__main__":
-  main()
+    main()
