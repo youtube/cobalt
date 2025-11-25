@@ -9,7 +9,7 @@ build = common.build {
   env_vars = super.env_vars + [
     {
       key = 'EXTRA_GN_ARGUMENTS'
-      value = 'is_internal_build=true'
+      value = 'is_internal_build=true is_cobalt_on_google3=true'
     },
     {
       key = 'PLATFORM'

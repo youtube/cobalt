@@ -72,11 +72,20 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3
-  if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
-    echo "is_cobalt_on_google3 = true" >> out/${TARGET_PLATFORM}_${CONFIG}/args.gn
-  fi
+    --script-executable=/usr/bin/python3 "${EXTRA_GN_ARGUMENTS:-}"
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
+
+  # Build targets used for testing.
+  if [[ "${TARGET_PLATFORM}" =~ "android-arm" && "${CONFIG}" == "qa" ]]; then
+    # Build Cobalt.apk without `${EXTRA_GN_ARGUMENTS}` for e2e testing.
+    cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
+      --script-executable=/usr/bin/python3
+    autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}_tmp" "android:cobalt_apk"
+
+    # Replace the APK from the original build.
+    mv "out/${TARGET_PLATFORM}_${CONFIG}_tmp/apks/Cobalt.apk" \
+      "out/${TARGET_PLATFORM}_${CONFIG}/apks/"
+  fi
 
   if [[ "${TARGET_PLATFORM}" =~ "linux-x64x11" ]]; then
     # Build the linux-x64x11-no-starboard configuration for chromedriver.
