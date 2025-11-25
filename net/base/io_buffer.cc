@@ -118,12 +118,30 @@ DrainableIOBuffer::~DrainableIOBuffer() {
 GrowableIOBuffer::GrowableIOBuffer() = default;
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
+<<<<<<< HEAD
   CHECK_GE(capacity, 0);
 
   // The span will be set again in `set_offset()`. Need to clear raw pointers to
   // the data before reallocating the buffer.
   ClearSpan();
 
+=======
+  DCHECK_GE(capacity, 0);
+// Calling reallocate with size 0 and a non-null pointer causes memory leaks
+// on many platforms, since it may return nullptr while also not deallocating
+// the previously allocated memory.
+#if BUILDFLAG(IS_STARBOARD)
+  if (capacity == 0) {
+    real_data_.reset();
+    capacity_ = 0;
+    offset_ = 0;
+    data_ = nullptr;
+    return;
+  }
+#endif
+  // this will get reset in `set_offset`.
+  data_ = nullptr;
+>>>>>>> c467e28d27c (Fix: GrowableIOBuffer memory leak on SetCapacity(0) (#8183))
   // realloc will crash if it fails.
   real_data_.reset(
       static_cast<uint8_t*>(realloc(real_data_.release(), capacity)));
