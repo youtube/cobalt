@@ -29,7 +29,7 @@ void RenderFrameTestHelper::Create(
   new RenderFrameTestHelper(render_frame, std::move(receiver));
 }
 
-RenderFrameTestHelper::~RenderFrameTestHelper() {}
+RenderFrameTestHelper::~RenderFrameTestHelper() = default;
 
 void RenderFrameTestHelper::GetDocumentToken(
     GetDocumentTokenCallback callback) {
