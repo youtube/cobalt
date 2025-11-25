@@ -24,8 +24,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -47,10 +45,13 @@ import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
+<<<<<<< HEAD
 import dev.cobalt.util.UsedByNative;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+=======
+>>>>>>> 5c6adebe4f2 (android: refactor activeNetworkCheck() into new CobaltConnectivityDetector class (#8204))
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -77,7 +78,6 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
-  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000;
 
   private static final String SPLASH_URL_ARG = "--splash-url=";
   private static final String META_DATA_APP_SPLASH_URL = "cobalt.APP_SPLASH_URL";
@@ -111,13 +111,16 @@ public abstract class CobaltActivity extends Activity {
   private int mSplashTimeoutMs;
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
-  protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
+<<<<<<< HEAD
   private Boolean isKeepScreenOnEnabled = false;
   private PlatformError mPlatformError;
   private Handler timeoutHandler;
   private Runnable timeoutRunnable;
+=======
+  private Boolean mIsKeepScreenOnEnabled = false;
+  private CobaltConnectivityDetector cobaltConnectivityDetector;
+>>>>>>> 5c6adebe4f2 (android: refactor activeNetworkCheck() into new CobaltConnectivityDetector class (#8204))
 
   private Boolean isMainFrameLoaded = false;
   private final Object lock = new Object();
@@ -478,7 +481,7 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    timeoutHandler = new Handler(Looper.getMainLooper());
+    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -538,6 +541,10 @@ public abstract class CobaltActivity extends Activity {
   @UsedByNative
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+  }
+
+  public CobaltConnectivityDetector getCobaltConnectivityDetector() {
+    return cobaltConnectivityDetector;
   }
 
   @Override
@@ -612,7 +619,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    activeNetworkCheck();
+    cobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -623,8 +630,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (timeoutRunnable != null) {
-      timeoutHandler.removeCallbacks(timeoutRunnable);
+    if (cobaltConnectivityDetector != null) {
+      cobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -836,6 +843,7 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
+<<<<<<< HEAD
   // Try to generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
   // error dialog on an unsuccessful network check
   protected void activeNetworkCheck() {
@@ -925,6 +933,8 @@ public abstract class CobaltActivity extends Activity {
         .start();
   }
 
+=======
+>>>>>>> 5c6adebe4f2 (android: refactor activeNetworkCheck() into new CobaltConnectivityDetector class (#8204))
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
   }
