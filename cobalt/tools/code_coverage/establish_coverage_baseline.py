@@ -206,6 +206,7 @@ class CoverageBaselineRunner:
         
         if failing_tests:
           gtest_filter_arg = '--gtest_filter=-' + ':'.join(failing_tests)
+          print(f"Constructed gtest filter: {gtest_filter_arg}")
 
     cmd = [
         'time',
