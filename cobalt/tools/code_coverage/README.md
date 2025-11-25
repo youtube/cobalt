@@ -9,11 +9,22 @@ This script is the primary orchestrator for generating code coverage data. It
 uses Clang's source-based code coverage to instrument binaries, run tests, and
 produce LCOV files.
 
+By default, this script automatically applies test filters based on the target
+platform. These filters are defined in JSON files located under
+`cobalt/testing/filters/<platform>/`. For example, `android-arm` builds will
+use filters from `cobalt/testing/filters/android-arm/`. A special case exists
+where `android-x86` builds will also map to the `android-arm` filters.
+
 ### Usage
 
 ```bash
 python3 cobalt/tools/code_coverage/establish_coverage_baseline.py -p <platform> [options]
 ```
+
+### Key Options
+
+-   `--include-skipped-tests`: Include tests that are normally skipped by the
+    platform-specific filters.
 
 See the script's `-h` flag for a full list of options.
 
