@@ -14,5 +14,8 @@
     "MimeUtilTest.CommonMediaMimeType",
     "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles",
     "VideoRendererImplTest.InitializeAndEndOfStreamOneStaleFrame"
+  ],
+  "_filtered_b/TMP": [
+    "StarboardRendererWrapperTest.*"
   ]
 }

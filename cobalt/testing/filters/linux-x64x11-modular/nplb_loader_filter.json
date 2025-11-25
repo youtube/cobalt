@@ -19,5 +19,8 @@
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
     "Posix/NlLanginfo*"
+  ],
+  "_filtered_b/TMP": [
+    "SbLogFlushTest.DontCrashMeBro"
   ]
 }

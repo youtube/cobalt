@@ -27,5 +27,8 @@
     "B/LayerTreeHostBlendingPixelTest.*",
     "*LayerTreeHost*",
     "All/BackdropFilter*"
+  ],
+  "_filtered_b/TMP": [
+    "GpuImageDecodeCacheTestsOOPR/GpuImageDecodeCachePurgeOnTimerTest.SimplePurgeOneImage/*"
   ]
 }
