@@ -12,8 +12,9 @@ def main():
   # This regex looks for String.format(...) with a "%d" in the format string,
   # where the rest of the line does not contain "Locale.US". This is a
   # heuristic for single-line calls.
-  pattern = re.compile(r'\bString\.format\((?!.*Locale\.US)(?=.*".*?\%d.*").*?\)')
-
+  pattern = re.compile(
+      r'\bString\.format\((?!.*Locale\.US)(?=.*".*?\%d.*").*?\)')
+      
   for file_path in args.files:
     try:
       with open(file_path, 'r', encoding='utf-8') as f:
