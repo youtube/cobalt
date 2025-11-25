@@ -4,6 +4,7 @@
     "base:base_perftests",
     "base:base_unittests",
     "cobalt:cobalt_unittests",
+    "cobalt:cobalt_browsertests",
     "media:media_unittests",
     "media/midi:midi_unittests",
     "mojo:mojo_perftests",
