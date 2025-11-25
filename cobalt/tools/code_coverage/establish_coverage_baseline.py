@@ -70,9 +70,9 @@ class CoverageBaselineRunner:
 
     os.chdir(self.cobalt_src_root)
 
-  def _run_command(self,
-                   command: Sequence[str],
-                   cwd: str | None = None,
+  def _run_command(self, 
+                   command: Sequence[str], 
+                   cwd: str | None = None, 
                    check: bool = True) -> subprocess.CompletedProcess:
     """Runs a shell command and prints its output.
 
@@ -236,7 +236,60 @@ class CoverageBaselineRunner:
     return successful_targets
 
 
-  def run_baseline(self, skip_gn_gen: bool = False) -> None:
+  def merge_lcov_files(self) -> None:
+    """Merges all coverage.lcov files into a single file."""
+    print(f'--- Merging LCOV files into {self.merged_lcov_file} ---')
+    lcov_files = glob.glob(
+        str(self.raw_lcov_dir / '**' / 'coverage.lcov'), recursive=True)
+    if not lcov_files:
+      print('No .lcov files found to merge.', file=sys.stderr)
+      return
+
+    merge_cmd = ['lcov', '-o', str(self.merged_lcov_file)]
+    for file in lcov_files:
+      merge_cmd.extend(['-a', file])
+    self._run_command(merge_cmd)
+    print(f'Successfully merged {len(lcov_files)} lcov files.')
+
+  def filter_lcov_file(self, filters: Sequence[str]) -> None:
+    """Filters the merged lcov file to include only specified directories.
+
+    Args:
+      filters: A list of directory patterns to include in the report.
+    """
+    print(f'--- Filtering LCOV file with: {filters} ---')
+    if not shutil.which('lcov'):
+      raise EnvironmentError('lcov not found. Please install lcov.')
+
+    extract_cmd = [
+        'lcov', '--extract',
+        str(self.merged_lcov_file)
+    ] + list(filters) + ['--output-file', str(self.merged_lcov_file)]
+    self._run_command(extract_cmd)
+    print('Successfully filtered lcov file.')
+
+  def generate_html_report(self) -> None:
+    """Generates an HTML report from the merged lcov file."""
+    print(f'--- Generating HTML report in {self.html_report_dir} ---')
+    if not shutil.which('genhtml'):
+      raise EnvironmentError('genhtml not found. Please install lcov.')
+    if self.html_report_dir.exists():
+      shutil.rmtree(self.html_report_dir)
+    self.html_report_dir.mkdir(parents=True)
+
+    self._run_command([
+        'genhtml',
+        str(self.merged_lcov_file), '--output-directory',
+        str(self.html_report_dir)
+    ])
+    print(f'Successfully generated HTML report in {self.html_report_dir}')
+
+    print(f'Successfully generated HTML report in {self.html_report_dir}')
+
+  def run_baseline(self,
+                   skip_gn_gen: bool = False,
+                   generate_html_report: bool = False,
+                   lcov_filter: Sequence[str] | None = None) -> None:
     """Executes the full coverage baseline process."""
     try:
       if not self.post_process_only:
@@ -245,8 +298,15 @@ class CoverageBaselineRunner:
         targets = self.get_test_targets()
         if not targets:
           return
-
         self.run_all_coverage(targets)
+
+      self.merge_lcov_files()
+
+      if lcov_filter:
+        self.filter_lcov_file(lcov_filter)
+
+      if generate_html_report:
+        self.generate_html_report()
 
       print('--- Coverage baseline script finished ---')
 
@@ -291,12 +351,21 @@ def main() -> None:
       '--post-process-only',
       action='store_true',
       help='Only run the post-processing steps (merge lcov files).')
+  parser.add_argument(
+      '--generate-html-report',
+      action='store_true',
+      help='Generate an HTML report from the merged lcov file.')
+  parser.add_argument(
+      '--lcov-filter',
+      nargs='+',
+      help='A list of directory patterns to include in the report.')
   args = parser.parse_args()
 
   runner = CoverageBaselineRunner(args.platform, args.build_type,
                                   args.cobalt_src_root, args.verbose,
                                   args.skip_gn_gen, args.test_target)
-  runner.run_baseline(args.skip_gn_gen)
+  runner.run_baseline(args.skip_gn_gen, args.generate_html_report,
+                      args.lcov_filter)
 
 
 if __name__ == '__main__':

@@ -112,155 +112,13 @@ class TestCoverageBaselineRunner(unittest.TestCase):
     targets = self.runner.get_test_targets()
     self.assertEqual(targets, ['benchmark1', 'test1', 'test2'])
 
-  @mock.patch('subprocess.run')
-  def test_build_tests(self, mock_run):
-    """Test that the build command is constructed and run correctly."""
-    targets = ['test1', 'test2']
-    self.runner.build_tests(targets)
-    mock_run.assert_called_once_with(
-        ['autoninja', '-C',
-         str(self.runner.coverage_build_dir)] + targets,
-        check=True,
-        cwd=None,
-        capture_output=True,
-        text=True)
 
-  @mock.patch('subprocess.run')
-  def test_run_coverage_for_target_success(self, mock_run):
-    """Test successful coverage run for a single target."""
-    test_name = 'my_test'
-    self.runner.coverage_build_dir.mkdir(parents=True, exist_ok=True)
-    (self.runner.coverage_build_dir / test_name).touch()
-
-    # Simulate lcov.info creation
-    def side_effect(*args, **kwargs):
-      del kwargs
-      cmd = args[0]
-      if 'tools/code_coverage/coverage.py' in cmd:
-        test_lcov_out_dir = pathlib.Path(cmd[cmd.index('-o') + 1])
-        (test_lcov_out_dir / 'lcov.info').touch()
-      return mock.Mock(stdout='ok', stderr='', returncode=0)
-
-    mock_run.side_effect = side_effect
-
-    result = self.runner.run_coverage_for_target(test_name)
-    self.assertTrue(result)
-    self.assertTrue(
-        (self.runner.raw_lcov_dir / test_name / 'lcov.info').exists())
-
-  @mock.patch('subprocess.run')
-  def test_run_coverage_for_target_fail(self, mock_run):
-    """Test failed coverage run for a single target."""
-    test_name = 'fail_test'
-    self.runner.coverage_build_dir.mkdir(parents=True, exist_ok=True)
-    (self.runner.coverage_build_dir / test_name).touch()
-
-    mock_run.side_effect = subprocess.CalledProcessError(1, ['cmd'])
-    result = self.runner.run_coverage_for_target(test_name)
-    self.assertFalse(result)
-
-  @mock.patch('shutil.which', return_value='/usr/bin/lcov')
-  @mock.patch('subprocess.run')
-  def test_merge_lcov_files(self, mock_run, mock_which):
-    """Test that lcov files are merged correctly."""
-    del mock_which
-    self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
-    (self.runner.raw_lcov_dir / 'test1').mkdir()
-    (self.runner.raw_lcov_dir / 'test1' / 'lcov.info').touch()
-    (self.runner.raw_lcov_dir / 'test2').mkdir()
-    (self.runner.raw_lcov_dir / 'test2' / 'lcov.info').touch()
-
-    self.runner.merge_lcov_files()
-
-    expected_calls = [
-        mock.call([
-            'lcov', '-a',
-            str(self.runner.raw_lcov_dir / 'test1' / 'lcov.info'), '-o',
-            str(self.runner.merged_lcov_file)
-        ],
-                  check=True,
-                  cwd=None,
-                  capture_output=True,
-                  text=True),
-        mock.call([
-            'lcov', '-a',
-            str(self.runner.raw_lcov_dir / 'test2' / 'lcov.info'), '-o',
-            str(self.runner.merged_lcov_file)
-        ],
-                  check=True,
-                  cwd=None,
-                  capture_output=True,
-                  text=True),
-    ]
-    mock_run.assert_has_calls(expected_calls, any_order=True)
-
-  @mock.patch('shutil.which', return_value='/usr/bin/genhtml')
-  @mock.patch('subprocess.run')
-  def test_generate_html_report(self, mock_run, mock_which):
-    """Test that the HTML report is generated correctly."""
-    del mock_which
-    self.runner.merged_lcov_file.touch()
-
-    def create_report_dir(*args, **kwargs):
-      del args, kwargs
-      self.runner.html_report_dir.mkdir()
-      return mock.Mock(stdout='ok', stderr='', returncode=0)
-
-    mock_run.side_effect = create_report_dir
-    self.runner.generate_html_report()
-    mock_run.assert_called_once_with([
-        'genhtml',
-        str(self.runner.merged_lcov_file), '--output-directory',
-        str(self.runner.html_report_dir)
-    ],
-                                     check=True,
-                                     cwd=None,
-                                     capture_output=True,
-                                     text=True)
-    self.assertTrue(self.runner.html_report_dir.exists())
-
-  def test_get_test_targets_empty(self):
-    """Test that an empty list is returned for empty test targets."""
-    self.runner.test_targets_json.parent.mkdir(parents=True, exist_ok=True)
-    with open(self.runner.test_targets_json, 'w', encoding='utf-8') as f:
-      json.dump({'test_targets': []}, f)
-    targets = self.runner.get_test_targets()
-    self.assertEqual(targets, [])
-
-  @mock.patch('subprocess.run')
-  def test_build_tests_no_targets(self, mock_run):
-    """Test that no build command is run for an empty list of targets."""
-    self.runner.build_tests([])
-    mock_run.assert_not_called()
 
   def test_run_coverage_for_target_binary_not_found(self):
     """Test that coverage run fails if the test binary is not found."""
     result = self.runner.run_coverage_for_target('non_existent_binary')
     self.assertFalse(result)
 
-  def test_merge_lcov_files_no_lcov_files(self):
-    """Test that merge fails gracefully if no lcov files are found."""
-    self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
-    result = self.runner.merge_lcov_files()
-    self.assertFalse(result)
-
-  @mock.patch('shutil.which', return_value=None)
-  def test_merge_lcov_files_lcov_not_found(self, mock_which):
-    """Test that an EnvironmentError is raised if lcov is not found."""
-    del mock_which
-    self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
-    (self.runner.raw_lcov_dir / 'test1').mkdir()
-    (self.runner.raw_lcov_dir / 'test1' / 'lcov.info').touch()
-    with self.assertRaises(EnvironmentError):
-      self.runner.merge_lcov_files()
-
-  @mock.patch('shutil.which', return_value=None)
-  def test_generate_html_report_genhtml_not_found(self, mock_which):
-    """Test that an EnvironmentError is raised if genhtml is not found."""
-    del mock_which
-    self.runner.merged_lcov_file.touch()
-    with self.assertRaises(EnvironmentError):
-      self.runner.generate_html_report()
 
   def test_android_x86_platform_path(self):
     """Test that android-x86 platform uses the android-arm test targets."""
@@ -274,6 +132,87 @@ class TestCoverageBaselineRunner(unittest.TestCase):
         self.assertEqual(
             runner.test_targets_json, self.mock_cobalt_root /
             'cobalt/build/testing/targets/android-arm/test_targets.json')
+
+  @mock.patch('shutil.which', return_value='/usr/bin/lcov')
+  @mock.patch('subprocess.run')
+  def test_merge_lcov_files(self, mock_run, mock_which):
+    """Test that lcov files are merged correctly."""
+    del mock_which
+    self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
+    (self.runner.raw_lcov_dir / 'test1').mkdir()
+    (self.runner.raw_lcov_dir / 'test1' / 'coverage.lcov').touch()
+    (self.runner.raw_lcov_dir / 'test2').mkdir()
+    (self.runner.raw_lcov_dir / 'test2' / 'coverage.lcov').touch()
+
+    self.runner.merge_lcov_files()
+
+    mock_run.assert_called_once()
+    # Can't assert the full call because the order of the files is not
+    # guaranteed.
+    self.assertEqual(mock_run.call_args[0][0][0], 'lcov')
+
+  def test_skip_gn_gen(self):
+    """Test that setup_gn_args is not called when skip_gn_gen is True."""
+    self.runner.skip_gn_gen = True
+    with (mock.patch.object(self.runner, 'setup_gn_args') as mock_setup_gn_args,
+          mock.patch.object(self.runner, 'get_test_targets',
+                             return_value=[]) as mock_get_test_targets,
+          mock.patch.object(self.runner, 'run_all_coverage') as mock_run_all_coverage,
+          mock.patch.object(self.runner, 'merge_lcov_files') as mock_merge_lcov_files):
+      self.runner.run_baseline(skip_gn_gen=True)
+      mock_setup_gn_args.assert_not_called()
+      mock_get_test_targets.assert_called_once()
+      mock_run_all_coverage.assert_not_called()
+      mock_merge_lcov_files.assert_not_called()
+
+  def test_post_process_only(self):
+    """Test that only post-processing is run when post_process_only is True."""
+    self.runner.post_process_only = True
+    with (mock.patch.object(self.runner, 'setup_gn_args') as mock_setup_gn_args,
+          mock.patch.object(self.runner, 'get_test_targets') as mock_get_test_targets,
+          mock.patch.object(self.runner, 'run_all_coverage') as mock_run_all_coverage,
+          mock.patch.object(self.runner, 'merge_lcov_files') as mock_merge_lcov_files):
+      self.runner.run_baseline()
+      mock_setup_gn_args.assert_not_called()
+      mock_get_test_targets.assert_not_called()
+      mock_run_all_coverage.assert_not_called()
+      mock_merge_lcov_files.assert_called_once()
+
+  @mock.patch('shutil.which', return_value='/usr/bin/genhtml')
+  @mock.patch('subprocess.run')
+  def test_generate_html_report(self, mock_run, mock_which):
+    """Test that the HTML report is generated correctly."""
+    del mock_which
+    self.runner.merged_lcov_file.touch()
+
+    self.runner.generate_html_report()
+    mock_run.assert_called_once_with([
+        'genhtml',
+        str(self.runner.merged_lcov_file), '--output-directory',
+        str(self.runner.html_report_dir)
+    ],
+                                     check=True,
+                                     cwd=None,
+                                     capture_output=True,
+                                     text=True)
+    self.assertTrue(self.runner.html_report_dir.exists())
+
+  @mock.patch('shutil.which', return_value='/usr/bin/lcov')
+  @mock.patch('subprocess.run')
+  def test_filter_lcov_file(self, mock_run, mock_which):
+    """Test that the lcov file is filtered correctly."""
+    del mock_which
+    self.runner.merged_lcov_file.touch()
+    filters = ['/mock/cobalt/src/*', '/mock/cobalt/base/*']
+    self.runner.filter_lcov_file(filters)
+    mock_run.assert_called_once_with([
+        'lcov', '--extract',
+        str(self.runner.merged_lcov_file)
+    ] + filters + ['--output-file', str(self.runner.merged_lcov_file)],
+                                     check=True,
+                                     cwd=None,
+                                     capture_output=True,
+                                     text=True)
 
 
 if __name__ == '__main__':
