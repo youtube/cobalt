@@ -51,10 +51,11 @@ gates, making it ideal for CI/CD integration. It can calculate both absolute
 python3 cobalt/tools/check_coverage.py --lcov-file <path_to_lcov> --threshold <percentage>
 ```
 
-## `run_pr_coverage.sh`
+## `run_pr_coverage.py`
 
-This is an example wrapper script that demonstrates a typical CI workflow for
-checking coverage on a pull request.
+This Python script orchestrates a typical CI workflow for checking code
+coverage on a pull request. It replaces the previous shell script with a more
+robust and portable Python implementation.
 
 ### Workflow
 
@@ -64,11 +65,11 @@ checking coverage on a pull request.
 3.  Runs `check_coverage.py` to:
     -   Calculate absolute and differential coverage.
     -   Enforce an 80% coverage threshold on new code.
-    -   Generate `coverage_report.md`.
+    -   Generate `coverage_summary.md`.
 4.  Prints the location of the final report.
 
 ### Usage
 
 ```bash
-./run_pr_coverage.sh
+python3 cobalt/tools/code_coverage/run_pr_coverage.py
 ```
