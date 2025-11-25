@@ -2,8 +2,8 @@
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "test_targets": [
     "base:base_perftests",
+    "base:base_unittests",
     "cobalt:cobalt_browsertests",
-    "cobalt:cobalt_unittests",
     "cobalt:cobalt_unittests",
     "media:media_unittests",
     "media/midi:midi_unittests",
