@@ -176,6 +176,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
     ]
   }
 

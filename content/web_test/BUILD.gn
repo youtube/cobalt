@@ -45,6 +45,7 @@ mojom("web_test_common_mojom") {
       "//cobalt/browser/h5vcc_experiments/public/mojom",
       "//cobalt/browser/h5vcc_runtime/public/mojom",
       "//cobalt/browser/h5vcc_system/public/mojom",
+      "//cobalt/browser/h5vcc_updater/public/mojom",
     ]
   }
 

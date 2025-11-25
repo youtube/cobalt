@@ -12,18 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vcc Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc.idl
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vcc {
-    readonly attribute CrashLog crashLog;
-    readonly attribute H5vccAccessibility accessibility;
-    readonly attribute H5vccExperiments experiments;
-    readonly attribute H5vccMetrics metrics;
-    readonly attribute H5vccSystem system;
-    readonly attribute H5vccRuntime runtime;
-    readonly attribute H5vccUpdater updater;
+// Custom API for getting and setting Evergreen update settings.
+
+interface H5vccUpdater {
+  // Gets the URL the updater will use for updates. This should only be used for
+  // testing and should not be available in production.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getUpdateServerUrl();
 };

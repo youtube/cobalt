@@ -8,6 +8,13 @@ on:
   push:
     branches:
       - 26.eap
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   chromium_android-arm64:
