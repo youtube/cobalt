@@ -425,14 +425,14 @@ def main() -> int:
 
   # TODO(b/428961033): Let argparse handle these checks as required arguments.
   if args.test_type == 'e2e_test':
+    if not args.device_family:
+      raise ValueError('--device_family is required for e2e_test')
     if args.device_family == 'android':
       if not args.cobalt_path:
         raise ValueError('--cobalt_path is required for e2e_test on Android')
     elif args.device_family in ['rdk', 'raspi']:
       if not args.cobalt_build:
         raise ValueError('--cobalt_build is required for e2e_test on RDK/Raspi')
-    elif not args.device_family:
-      raise ValueError('--device_family is required for e2e_test')
     else:
       # This case should be caught by _get_cobalt_files, but as a safeguard:
       raise ValueError(f'Unsupported device_family {args.device_family} for e2e_test')

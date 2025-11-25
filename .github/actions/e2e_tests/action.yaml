@@ -83,8 +83,8 @@ runs:
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --dimensions '${{ inputs.test_dimensions }}' \
-          ${{ contains(matrix.platform, 'android') && format('--cobalt_path "{0}"', env.GCS_ARTIFACTS_PATH) || '' }} \
-          ${{ contains(matrix.platform, 'evergreen-arm-hardfp') && format('--cobalt_build "{0}"', env.GCS_ARTIFACTS_PATH) || '' }} \
+          ${{ inputs.test_device_family == 'android' && format('--cobalt_path "{0}"', env.GCS_ARTIFACTS_PATH) || '' }} \
+          ${{ (inputs.test_device_family == 'rdk' || inputs.test_device_family == 'raspi') && format('--cobalt_build "{0}"', env.GCS_ARTIFACTS_PATH) || '' }} \
           || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
