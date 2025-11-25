@@ -208,14 +208,14 @@ class CoverageBaselineRunner:
     except subprocess.CalledProcessError:
       return False
 
-  def run_all_coverage(self, targets: Sequence[str]) -> list[str]:
+  def run_all_coverage(self, targets: Sequence[str]) -> tuple[list[str], list[str]]:
     """Runs coverage for all specified test targets serially.
 
     Args:
       targets: A list of test target names to run.
 
     Returns:
-      A list of targets that were successfully processed.
+      A tuple containing two lists: successful targets and failed targets.
     """
     print('--- Running tests and generating coverage data (serially) ---')
     if self.raw_lcov_dir.exists():
@@ -223,13 +223,15 @@ class CoverageBaselineRunner:
     self.raw_lcov_dir.mkdir(parents=True)
 
     successful_targets = []
+    failed_targets = []
     for target in targets:
       if self.run_coverage_for_target(target):
         print(f'--- {target}: PASSED ---')
         successful_targets.append(target)
       else:
         print(f'--- {target}: FAILED ---', file=sys.stderr)
-    return successful_targets
+        failed_targets.append(target)
+    return successful_targets, failed_targets
 
 
   def merge_lcov_files(self) -> None:
@@ -286,13 +288,14 @@ class CoverageBaselineRunner:
                    lcov_filter: Sequence[str] | None = None) -> None:
     """Executes the full coverage baseline process."""
     try:
+      failed_targets = []
       if not self.post_process_only:
         if not skip_gn_gen:
           self.setup_gn_args()
         targets = self.get_test_targets()
         if not targets:
           return
-        self.run_all_coverage(targets)
+        _, failed_targets = self.run_all_coverage(targets)
 
       self.merge_lcov_files()
 
@@ -301,6 +304,13 @@ class CoverageBaselineRunner:
 
       if generate_html_report:
         self.generate_html_report()
+
+      if failed_targets:
+        print('\n--- Unit Test Failures ---', file=sys.stderr)
+        for target in failed_targets:
+          print(f'- {target}', file=sys.stderr)
+        print('--------------------------', file=sys.stderr)
+        sys.exit(1)
 
       print('--- Coverage baseline script finished ---')
 

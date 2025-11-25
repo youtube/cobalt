@@ -241,6 +241,18 @@ class TestCoverageBaselineRunner(unittest.TestCase):
           ['/mock/cobalt/src/*'])
       mock_generate_html_report.assert_called_once()
 
+  def test_run_baseline_exits_on_failure(self):
+    """Test that run_baseline exits if there are test failures."""
+    self.runner.post_process_only = False
+    with (mock.patch.object(self.runner, 'setup_gn_args'),
+          mock.patch.object(self.runner, 'get_test_targets', return_value=['test1']),
+          mock.patch.object(
+              self.runner, 'run_all_coverage', return_value=([], ['test1'])),
+          mock.patch.object(self.runner, 'merge_lcov_files'),
+          mock.patch('sys.exit') as mock_sys_exit):
+      self.runner.run_baseline()
+      mock_sys_exit.assert_called_once_with(1)
+
   @mock.patch('shutil.which', return_value='/usr/bin/genhtml')
   @mock.patch('subprocess.run')
   def test_generate_html_report(self, mock_run, mock_which):
