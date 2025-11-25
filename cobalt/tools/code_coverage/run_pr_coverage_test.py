@@ -30,8 +30,10 @@ class RunPrCoverageTest(unittest.TestCase):
     run_pr_coverage.main()
     self.assertEqual(mock_popen.call_count, 3)
     calls = mock_popen.call_args_list
+    # Verify coverage.py command uses the default target
     coverage_cmd = ' '.join(calls[1].args[0])
-    self.assertIn("crypto_unittests", coverage_cmd)
+    self.assertIn("cobalt_unittests", coverage_cmd)
+    self.assertNotIn("crypto_unittests", coverage_cmd)
 
   @mock.patch('sys.argv', ['run_pr_coverage.py', 'url_unittests'])
   @mock.patch('subprocess.Popen')

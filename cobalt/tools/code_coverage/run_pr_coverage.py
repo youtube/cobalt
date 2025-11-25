@@ -49,7 +49,7 @@ def main():
   parser.add_argument(
       'target',
       nargs='?',
-      default='crypto_unittests',
+      default='cobalt_unittests',
       help='The test target to build and run for coverage analysis.')
   args = parser.parse_args()
 

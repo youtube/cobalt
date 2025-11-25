@@ -70,7 +70,7 @@ robust and portable Python implementation.
 
 ### Usage
 
-Default target (`crypto_unittests`):
+Default target (`cobalt_unittests`):
 ```bash
 python3 cobalt/tools/code_coverage/run_pr_coverage.py
 ```
