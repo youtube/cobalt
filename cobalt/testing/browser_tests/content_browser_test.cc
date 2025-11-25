@@ -14,10 +14,11 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 
+#include "base/at_exit.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/path_service.h"
-#include "base/run_loop.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/current_thread.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
@@ -33,6 +34,11 @@
 #include "content/public/common/url_constants.h"
 #include "content/test/test_content_client.h"
 #include "ui/events/platform/platform_event_source.h"
+
+#include "base/functional/callback.h"
+#include "base/threading/thread.h"
+#include "starboard/event.h"
+#include "starboard/system.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/foundation_util.h"
@@ -54,22 +60,26 @@
 
 namespace content {
 
-ContentBrowserTest::ContentBrowserTest() {
+static ContentBrowserTest* g_instance = nullptr;
+
+void SbEventHandle(const SbEvent* event) {
+  // This is a global function that is passed to SbRunStarboardMain.
+  // We need to route this to the ContentBrowserTest instance.
+  if (g_instance) {
+    g_instance->OnStarboardEvent(event);
+  }
+}
+
+ContentBrowserTest::ContentBrowserTest()
+    : starboard_setup_complete_(
+          base::WaitableEvent::ResetPolicy::MANUAL,
+          base::WaitableEvent::InitialState::NOT_SIGNALED) {
+  g_instance = this;
   // In content browser tests ContentBrowserTestContentBrowserClient must be
   // used. ContentBrowserTestContentBrowserClient's constructor (and destructor)
   // uses this same function to change the ContentBrowserClient.
   ContentClient::SetCanChangeContentBrowserClientForTesting(false);
-#if BUILDFLAG(IS_MAC)
-  base::mac::SetOverrideAmIBundled(true);
 
-  // See comment in InProcessBrowserTest::InProcessBrowserTest().
-  base::FilePath content_shell_path;
-  CHECK(base::PathService::Get(base::FILE_EXE, &content_shell_path));
-  content_shell_path = content_shell_path.DirName();
-  content_shell_path = content_shell_path.Append(
-      FILE_PATH_LITERAL("Content Shell.app/Contents/MacOS/Content Shell"));
-  CHECK(base::PathService::Override(base::FILE_EXE, content_shell_path));
-#endif
   CreateTestServer(GetTestDataFilePath());
 
   // Fail as quickly as possible during tests, rather than attempting to reset
@@ -77,7 +87,18 @@ ContentBrowserTest::ContentBrowserTest() {
   RenderFrameHostImpl::max_accessibility_resets_ = 0;
 }
 
-ContentBrowserTest::~ContentBrowserTest() {}
+ContentBrowserTest::~ContentBrowserTest() {
+  if (g_instance == this) {
+    g_instance = nullptr;
+  }
+}
+
+void ContentBrowserTest::OnStarboardEvent(const SbEvent* event) {
+  if (event->type == kSbEventTypePreload || event->type == kSbEventTypeStart) {
+    BrowserTestBase::SetUp();
+    starboard_setup_complete_.Signal();
+  }
+}
 
 void ContentBrowserTest::SetUp() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -112,13 +133,46 @@ void ContentBrowserTest::SetUp() {
 
   ui::PlatformEventSource::SetIgnoreNativePlatformEvents(true);
 
-  BrowserTestBase::SetUp();
+  // Initialize and run the SB Application player on a separate thread.
+  starboard_thread_ = std::make_unique<base::Thread>("StarboardMainThread");
+  starboard_thread_->Start();
+
+  // Create a mutable copy of the command line arguments for SbRunStarboardMain.
+  // The ownership of this data will be passed to the task posted to the
+  // starboard_thread_, which will be responsible for cleaning it up.
+  auto argv_vector = std::make_unique<std::vector<char*>>();
+  for (const auto& arg : command_line->argv()) {
+    char* arg_copy = new char[arg.size() + 1];
+    strcpy(arg_copy, arg.c_str());
+    argv_vector->push_back(arg_copy);
+  }
+
+  starboard_thread_->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](std::unique_ptr<std::vector<char*>> argv_vector) {
+            SbRunStarboardMain(argv_vector->size(), argv_vector->data(),
+                               SbEventHandle);
+            // Clean up the allocated strings.
+            for (char* arg : *argv_vector) {
+              delete[] arg;
+            }
+          },
+          std::move(argv_vector)));
+
+  starboard_setup_complete_.Wait();
 }
 
 void ContentBrowserTest::TearDown() {
   BrowserTestBase::TearDown();
 
-  // LinuxInputMethodContextFactory has to be shutdown.
+  // Stop the Starboard application and join the thread.
+  SbSystemRequestStop(0);
+  if (starboard_thread_) {
+    starboard_thread_->Stop();
+  }
+
+// LinuxInputMethodContextFactory has to be shutdown.
 // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.
 #if BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
