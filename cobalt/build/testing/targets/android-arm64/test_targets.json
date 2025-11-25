@@ -3,8 +3,8 @@
   "test_targets": [
     "base:base_perftests",
     "base:base_unittests",
-    "cobalt:cobalt_unittests",
     "cobalt:cobalt_browsertests",
+    "cobalt:cobalt_unittests",
     "media:media_unittests",
     "media/midi:midi_unittests",
     "mojo:mojo_perftests",
