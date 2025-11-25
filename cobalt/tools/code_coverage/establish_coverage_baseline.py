@@ -1,4 +1,4 @@
-"""Automates the process of generating a code coverage baseline for Cobalt."""
+"Automates the process of generating a code coverage baseline for Cobalt."
 
 import argparse
 import glob
@@ -22,7 +22,11 @@ class CoverageBaselineRunner:
                skip_gn_gen: bool = False,
                test_target: str = None,
                post_process_only: bool = False,
-               include_skipped_tests: bool = False):
+               include_skipped_tests: bool = False,
+               merge_only: bool = False,
+               lcov_filter: Sequence[str] | None = None,
+               gen_html: bool = False,
+               output_file: str | None = None):
     """Initializes the CoverageBaselineRunner.
 
     Args:
@@ -34,6 +38,10 @@ class CoverageBaselineRunner:
       test_target: The single test target to run.
       post_process_only: Whether to only run the post-processing steps.
       include_skipped_tests: Whether to include tests skipped by filters.
+      merge_only: Whether to only run the merge lcov files step.
+      lcov_filter: A list of directory patterns to include in the report.
+      gen_html: Whether to generate an HTML report from the merged lcov file.
+      output_file: The name of the merged lcov file.
     """
     self.platform = platform
     self.build_type = build_type
@@ -43,6 +51,16 @@ class CoverageBaselineRunner:
     self.test_target = test_target
     self.post_process_only = post_process_only
     self.include_skipped_tests = include_skipped_tests
+    self.merge_only = merge_only
+    self.lcov_filter = lcov_filter
+    self.gen_html = gen_html
+    self.output_file = output_file
+
+    # Check for required tools early.
+    if not shutil.which('lcov'):
+      raise EnvironmentError('lcov not found. Please install lcov.')
+    if not shutil.which('genhtml'):
+      raise EnvironmentError('genhtml not found. Please install lcov.')
 
     # Determine the test filters directory based on the platform.
     filter_platform = self.platform
@@ -83,9 +101,9 @@ class CoverageBaselineRunner:
 
     os.chdir(self.cobalt_src_root)
 
-  def _run_command(self, 
-                   command: Sequence[str], 
-                   cwd: str | None = None, 
+  def _run_command(self,
+                   command: Sequence[str],
+                   cwd: str | None = None,
                    check: bool = True) -> subprocess.CompletedProcess:
     """Runs a shell command and prints its output.
 
@@ -192,18 +210,25 @@ class CoverageBaselineRunner:
 
     # Apply test filters unless explicitly told to include skipped tests.
     if not self.include_skipped_tests and self.test_filters_dir:
-      filter_path = (pathlib.Path(self.test_filters_dir) /
-                     f'{test_name}_filter.json')
+      filter_path = (
+          pathlib.Path(self.test_filters_dir) / f'{test_name}_filter.json')
       if filter_path.exists():
         print(f'Applying test filter: {filter_path}')
         with open(filter_path, 'r', encoding='utf-8') as f:
           filter_data = json.load(f)
-        
+
         failing_tests = filter_data.get('failing_tests', [])
+        # Ensure failing_tests is a list
+        if not isinstance(failing_tests, list):
+          print(
+              f'WARNING: Failing tests filter for {test_name} is not a list. Skipping filter.',
+              file=sys.stderr)
+          failing_tests = []  # Reset to empty list to avoid errors
+
         if failing_tests == ['*']:
           print(f'Skipping target {test_name} as per filter configuration.')
           return True  # Skipped is not a failure.
-        
+
         if failing_tests:
           gtest_filter_arg = '--gtest_filter=-' + ':'.join(failing_tests)
           print(f"Constructed gtest filter: {gtest_filter_arg}")
@@ -226,7 +251,7 @@ class CoverageBaselineRunner:
     ]
     if gtest_filter_arg:
       cmd.append(gtest_filter_arg)
-      
+
     print(f'Coverage.py command: {" ".join(cmd)}', flush=True)
     try:
       self._run_command(cmd)
@@ -241,14 +266,15 @@ class CoverageBaselineRunner:
     except subprocess.CalledProcessError:
       return False
 
-  def run_all_coverage(self, targets: Sequence[str]) -> tuple[list[str], list[str]]:
+  def run_all_coverage(self,
+                       targets: Sequence[str]) -> tuple[list[str], list[str]]:
     """Runs coverage for all specified test targets serially.
 
     Args:
       targets: A list of test target names to run.
 
     Returns:
-      A tuple containing two lists: successful targets and failed targets.
+      A tuple containing two lists: (successful_targets, failed_targets).
     """
     print('--- Running tests and generating coverage data (serially) ---')
     if self.raw_lcov_dir.exists():
@@ -265,7 +291,6 @@ class CoverageBaselineRunner:
         print(f'--- {target}: FAILED ---', file=sys.stderr)
         failed_targets.append(target)
     return successful_targets, failed_targets
-
 
   def merge_lcov_files(self) -> None:
     """Merges all coverage.lcov files into a single file."""
@@ -289,21 +314,16 @@ class CoverageBaselineRunner:
       filters: A list of directory patterns to include in the report.
     """
     print(f'--- Filtering LCOV file with: {filters} ---')
-    if not shutil.which('lcov'):
-      raise EnvironmentError('lcov not found. Please install lcov.')
-
     extract_cmd = [
-        'lcov', '--extract',
-        str(self.merged_lcov_file)
-    ] + list(filters) + ['--output-file', str(self.merged_lcov_file)]
+        'lcov', '--extract', str(self.merged_lcov_file)
+    ] + list(filters) + ['--output-file',
+                         str(self.merged_lcov_file)]
     self._run_command(extract_cmd)
     print('Successfully filtered lcov file.')
 
   def generate_html_report(self) -> None:
     """Generates an HTML report from the merged lcov file."""
     print(f'--- Generating HTML report in {self.html_report_dir} ---')
-    if not shutil.which('genhtml'):
-      raise EnvironmentError('genhtml not found. Please install lcov.')
     if self.html_report_dir.exists():
       shutil.rmtree(self.html_report_dir)
     self.html_report_dir.mkdir(parents=True)
@@ -315,15 +335,18 @@ class CoverageBaselineRunner:
     ])
     print(f'Successfully generated HTML report in {self.html_report_dir}')
 
-  def run_baseline(self,
-                   skip_gn_gen: bool = False,
-                   generate_html_report: bool = False,
-                   lcov_filter: Sequence[str] | None = None) -> None:
+  def run_baseline(self) -> None:
     """Executes the full coverage baseline process."""
     try:
+      if self.merge_only:
+        self.merge_lcov_files()
+        if self.output_file:
+          shutil.move(self.merged_lcov_file, self.output_file)
+        return
+
       failed_targets = []
       if not self.post_process_only:
-        if not skip_gn_gen:
+        if not self.skip_gn_gen:
           self.setup_gn_args()
         targets = self.get_test_targets()
         if not targets:
@@ -332,11 +355,14 @@ class CoverageBaselineRunner:
 
       self.merge_lcov_files()
 
-      if lcov_filter:
-        self.filter_lcov_file(lcov_filter)
+      if self.lcov_filter:
+        self.filter_lcov_file(self.lcov_filter)
 
-      if generate_html_report:
+      if self.gen_html:
         self.generate_html_report()
+
+      if self.output_file:
+        shutil.move(self.merged_lcov_file, self.output_file)
 
       if failed_targets:
         print('\n--- Unit Test Failures ---', file=sys.stderr)
@@ -377,13 +403,9 @@ def main() -> None:
       action='store_true',
       help='Enable verbose output for debugging.')
   parser.add_argument(
-      '--skip-gn-gen',
-      action='store_true',
-      help='Skip the "gn gen" step.')
+      '--skip-gn-gen', action='store_true', help='Skip the "gn gen" step.')
   parser.add_argument(
-      '--test-target',
-      type=str,
-      help='The single test target to run.')
+      '--test-target', type=str, help='The single test target to run.')
   parser.add_argument(
       '--post-process-only',
       action='store_true',
@@ -400,15 +422,28 @@ def main() -> None:
       '--include-skipped-tests',
       action='store_true',
       help='Include tests that are normally skipped by the filters.')
+  parser.add_argument(
+      '--merge-only',
+      action='store_true',
+      help='Only run the merge lcov files step.')
+  parser.add_argument(
+      '--filter',
+      nargs='+',
+      help='A list of directory patterns to include in the report.')
+  parser.add_argument(
+      '--gen-html',
+      action='store_true',
+      help='Generate an HTML report from the merged lcov file.')
+  parser.add_argument(
+      '--output-file', type=str, help='The name of the merged lcov file.')
   args = parser.parse_args()
 
-  runner = CoverageBaselineRunner(args.platform, args.build_type,
-                                  args.cobalt_src_root, args.verbose,
-                                  args.skip_gn_gen, args.test_target,
-                                  args.post_process_only,
-                                  args.include_skipped_tests)
-  runner.run_baseline(args.skip_gn_gen, args.generate_html_report,
-                      args.lcov_filter)
+  runner = CoverageBaselineRunner(
+      args.platform, args.build_type, args.cobalt_src_root, args.verbose,
+      args.skip_gn_gen, args.test_target, args.post_process_only,
+      args.include_skipped_tests, args.merge_only, args.lcov_filter,
+      args.gen_html, args.output_file)
+  runner.run_baseline()
 
 
 if __name__ == '__main__':

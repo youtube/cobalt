@@ -28,4 +28,3 @@ def run_command(cmd, check=True):
   except Exception as e:
     print(f"An unexpected error occurred: {e}", file=sys.stderr)
     sys.exit(1)
-

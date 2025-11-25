@@ -1,117 +1,111 @@
-import subprocess
 import sys
 import os
 import pathlib
 import argparse
+import shutil
+import importlib.util
 
-# --- Configuration ---
-# The script's location is cobalt/tools/code_coverage
-SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-# The checkout root is three levels up from this script.
-SRC_ROOT = (SCRIPT_DIR / ".." / ".." / "..").resolve()
-
-# The name of the final Markdown report file.
-REPORT_FILE = "coverage_summary.md"
+# This is the only code that should run at import time.
+# All path resolution will be done in main().
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from command_runner import run_command
 
 
-def run_command(cmd, check=True):
-  """
-  Executes a command, streams its output, and exits if it fails.
-  """
-  print(f"--- Running: {' '.join(cmd)} ---")
-  try:
-    # We stream the output instead of capturing it to provide real-time
-    # feedback in a CI environment.
-    process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+class CoverageRunner:
+  """Orchestrates a CI code coverage check."""
 
-    for line in iter(process.stdout.readline, ''):
-      sys.stdout.write(line)
+  def __init__(self, target, src_root, script_dir):
+    self.target = target
+    self.src_root = src_root
+    self.script_dir = script_dir
+    self.lcov_file = self.src_root / "out" / "lcov_report" / f"{self.target}.lcov"
 
-    process.wait()
-    if check and process.returncode != 0:
+  def run(self):
+    """Runs the full coverage analysis."""
+    self._generate_lcov_report()
+    self._check_coverage()
+    print(f"\n✅ Success! Code coverage report generated.")
+
+  def _generate_lcov_report(self):
+    """Generates an LCOV report for a given target."""
+    print(f"\n--- Generating LCOV report for '{self.target}' ---")
+    coverage_py_path = self.src_root / "tools" / "code_coverage" / "coverage.py"
+    build_dir = self.src_root / "out" / "coverage"
+    lcov_output_dir = self.src_root / "out" / "lcov_report"
+    llvm_dir = self.src_root / "third_party" / "llvm-build" / "Release+Asserts" / "bin"
+    target_build_path = build_dir / self.target
+
+    coverage_cmd = [
+        "python3",
+        str(coverage_py_path),
+        self.target,
+        "-b",
+        str(build_dir),
+        "-o",
+        str(lcov_output_dir),
+        "-c",
+        str(target_build_path),
+        "--coverage-tools-dir",
+        str(llvm_dir),
+        "--format=lcov",
+    ]
+    run_command(coverage_cmd)
+
+  def _check_coverage(self):
+    """Runs the check_coverage.py script."""
+    print("\n--- Analyzing coverage and generating report ---")
+    check_coverage_py_path = self.script_dir / "check_coverage.py"
+
+    if not self.lcov_file.exists():
       print(
-          f"\n--- Command failed with exit code {process.returncode} ---",
-          file=sys.stderr)
-      sys.exit(process.returncode)
-  except FileNotFoundError as e:
-    print(f"Error: Command not found - {e.filename}", file=sys.stderr)
-    sys.exit(1)
-  except Exception as e:
-    print(f"An unexpected error occurred: {e}", file=sys.stderr)
-    sys.exit(1)
+          f"Error: LCOV file not found at '{self.lcov_file}'", file=sys.stderr)
+      sys.exit(1)
+
+    check_cmd = [
+        "python3",
+        str(check_coverage_py_path),
+        "--input",
+        str(self.lcov_file),
+        "--compare-branch",
+        "origin/main",
+        "--fail-under",
+        "80.0",
+    ]
+    run_command(check_cmd)
+
+
+def check_dependencies():
+  """Checks for required system tools and Python packages."""
+  if not shutil.which('lcov'):
+    sys.exit("Error: 'lcov' system tool not found. Please install it.")
+  if not shutil.which('genhtml'):
+    sys.exit("Error: 'genhtml' system tool not found. Please install it.")
+  if not importlib.util.find_spec('diff_cover'):
+    sys.exit(
+        "Error: 'diff-cover' not found. Please run: pip install diff-cover")
 
 
 def main():
   """Main entry point for the script."""
+  # All path resolution is now done here, not at the global scope.
+  script_dir = pathlib.Path(__file__).parent.resolve()
+  src_root = (script_dir / ".." / ".." / "..").resolve()
+
+  check_dependencies()
   parser = argparse.ArgumentParser(
       description="Orchestrates a CI code coverage check.")
   parser.add_argument(
       'target',
       nargs='?',
       default='cobalt_unittests',
-      help='The test target to build and run for coverage analysis.')
+      help='The test target to run.')
   args = parser.parse_args()
 
-  target_to_coverage = args.target
-  lcov_file = f"out/lcov_report/{target_to_coverage}.lcov"
+  os.chdir(src_root)
 
-  # Ensure all commands are run from the root of the checkout.
-  os.chdir(SRC_ROOT)
+  runner = CoverageRunner(args.target, src_root, script_dir)
+  runner.run()
 
-  # 1. Install Python dependency
-  print("--- Installing diff-cover dependency ---")
-  run_command([sys.executable, "-m", "pip", "install", "diff-cover"])
-
-  # 2. Run the Chromium coverage tool to generate the LCOV file
-  print(f"\n--- Generating LCOV report for '{target_to_coverage}' ---")
-  coverage_py_path = SRC_ROOT / "tools" / "code_coverage" / "coverage.py"
-  build_dir = SRC_ROOT / "out" / "coverage"
-  lcov_output_dir = SRC_ROOT / "out" / "lcov_report"
-  llvm_dir = SRC_ROOT / "third_party" / "llvm-build" / "Release+Asserts" / "bin"
-
-  coverage_cmd = [
-      "python3",
-      str(coverage_py_path),
-      target_to_coverage,
-      "-b",
-      str(build_dir),
-      "-o",
-      str(lcov_output_dir),
-      "-c",
-      str(build_dir / target_to_coverage),
-      "--coverage-tools-dir",
-      str(llvm_dir),
-      "--format=lcov",
-  ]
-  run_command(coverage_cmd)
-
-  # 3. Run the check_coverage.py script
-  print("\n--- Analyzing coverage and generating report ---")
-  check_coverage_py_path = SCRIPT_DIR / "check_coverage.py"
-  final_lcov_path = SRC_ROOT / lcov_file
-
-  if not final_lcov_path.exists():
-    print(
-        f"Error: LCOV file not found at '{final_lcov_path}' after running "
-        "coverage.py.",
-        file=sys.stderr)
-    sys.exit(1)
-
-  check_cmd = [
-      "python3",
-      str(check_coverage_py_path),
-      "--input",
-      str(final_lcov_path),
-      "--compare-branch",
-      "origin/main",
-      "--fail-under",
-      "80.0",
-  ]
-  run_command(check_cmd)
-
-  # 4. Echo the location of the generated markdown report
-  print(f"\n✅ Success! Code coverage report generated at: {REPORT_FILE}")
 
 if __name__ == "__main__":
   main()

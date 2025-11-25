@@ -79,3 +79,10 @@ Specifying a custom target:
 ```bash
 python3 cobalt/tools/code_coverage/run_pr_coverage.py url_unittests
 ```
+
+## `command_runner.py`
+
+This is an internal utility script designed to standardize the execution of
+shell commands within this suite of coverage tools. It provides robust error
+handling and streams command output, making it suitable for CI environments.
+This script is not intended for direct user invocation.

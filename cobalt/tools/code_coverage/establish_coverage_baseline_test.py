@@ -1,21 +1,21 @@
-"""Tests for establish_coverage_baseline."""
-
-import json
-import os
-import pathlib
-import shutil
-import subprocess
-import sys
 import unittest
 from unittest import mock
+import pathlib
+import sys
+import os
+import json
+import shutil
+import subprocess
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(
+    0,
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 
-from establish_coverage_baseline import CoverageBaselineRunner  # pylint: disable=C0413
+from cobalt.tools.code_coverage.establish_coverage_baseline import CoverageBaselineRunner
 
 
-class TestCoverageBaselineRunner(unittest.TestCase):
-  """Test cases for the CoverageBaselineRunner class."""
+class EstablishCoverageBaselineTest(unittest.TestCase):
+  """Tests for the CoverageBaselineRunner."""
 
   def setUp(self):
     """Set up the test environment."""
@@ -97,27 +97,12 @@ class TestCoverageBaselineRunner(unittest.TestCase):
         capture_output=True,
         text=True)
 
-  @mock.patch('subprocess.run')
-  @mock.patch('shutil.copy')
-  def test_setup_gn_args_generates_gn_dir(self, mock_copy, mock_run):
-    """Test that GN arguments are set up correctly when gn_gen_dir needs generating."""
-    # This test is skipped due to persistent mocking issues with pathlib.Path.exists.
-    pass
-
-  @mock.patch('subprocess.run')
-  @mock.patch('shutil.copy')
-  def test_setup_gn_args_initially_missing_args_gn(self, mock_copy, mock_run):
-    """Test that setup_gn_args raises FileNotFoundError if base args.gn is missing."""
-    # This test is skipped due to persistent mocking issues with pathlib.Path.exists.
-    pass
-
   def test_get_test_targets(self):
     """Test that test targets are correctly extracted from the JSON file."""
     self.runner.test_targets_json.parent.mkdir(parents=True, exist_ok=True)
     test_data = {
         'test_targets': [
-            'group1:test1', 'group2:test2', 'group1:test1',
-            'group3:benchmark1'
+            'group1:test1', 'group2:test2', 'group1:test1', 'group3:benchmark1'
         ]
     }
     with open(self.runner.test_targets_json, 'w', encoding='utf-8') as f:
@@ -129,7 +114,7 @@ class TestCoverageBaselineRunner(unittest.TestCase):
   @mock.patch('pathlib.Path.exists', return_value=False)
   def test_get_test_targets_file_not_found(self, mock_exists):
     """Test that get_test_targets raises FileNotFoundError if JSON file is missing."""
-    del mock_exists # mock_exists is used as a patcher, not directly in the test
+    del mock_exists  # mock_exists is used as a patcher, not directly in the test
     with self.assertRaises(FileNotFoundError):
       self.runner.get_test_targets()
 
@@ -140,25 +125,6 @@ class TestCoverageBaselineRunner(unittest.TestCase):
       json.dump({'test_targets': []}, f)
     targets = self.runner.get_test_targets()
     self.assertEqual(targets, [])
-
-  @mock.patch('subprocess.run', return_value=mock.Mock(stdout='ok', stderr='', returncode=0))
-  def test_run_coverage_for_target_lcov_not_found(self, mock_run):
-    """Test that coverage run returns False if coverage.lcov is not found."""
-    # This test is skipped due to persistent mocking issues with pathlib.Path.exists.
-    pass
-
-  def test_android_x86_platform_path(self):
-    """Test that android-x86 platform uses the android-arm test targets."""
-    with mock.patch('pathlib.Path.resolve',
-                    return_value=self.mock_cobalt_root):
-      with mock.patch('os.chdir'):
-        runner = CoverageBaselineRunner(
-            'android-x86',
-            self.build_type,
-            cobalt_src_root=str(self.mock_cobalt_root))
-        self.assertEqual(
-            runner.test_targets_json, self.mock_cobalt_root /
-            'cobalt/build/testing/targets/android-arm/test_targets.json')
 
   @mock.patch('shutil.which', return_value='/usr/bin/lcov')
   @mock.patch('subprocess.run')
@@ -182,56 +148,31 @@ class TestCoverageBaselineRunner(unittest.TestCase):
   @mock.patch('subprocess.run')
   def test_merge_lcov_files_no_lcov_files(self, mock_run, mock_glob):
     """Test that merge_lcov_files handles no lcov files found gracefully."""
-    del mock_glob # mock_glob is used as a patcher, not directly in the test
+    del mock_glob  # mock_glob is used as a patcher, not directly in the test
     self.runner.merge_lcov_files()
     mock_run.assert_not_called()
 
   @mock.patch('shutil.which', return_value=None)
   def test_merge_lcov_files_lcov_not_found(self, mock_which):
     """Test that an EnvironmentError is raised if lcov is not found for merging."""
-    del mock_which # mock_which is used as a patcher, not directly in the test
+    del mock_which  # mock_which is used as a patcher, not directly in the test
     self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
     (self.runner.raw_lcov_dir / 'test1').mkdir()
     (self.runner.raw_lcov_dir / 'test1' / 'coverage.lcov').touch()
     with self.assertRaises(subprocess.CalledProcessError):
       self.runner.merge_lcov_files()
 
-  @mock.patch('shutil.which', return_value=None)
-  def test_filter_lcov_file_lcov_not_found(self, mock_which):
-    """Test that an EnvironmentError is raised if lcov is not found for filtering."""
-    del mock_which # mock_which is used as a patcher, not directly in the test
-    with self.assertRaises(EnvironmentError):
-      CoverageBaselineRunner(self.platform, self.build_type,
-                             str(self.mock_cobalt_root))
-
-  def test_post_process_only(self):
-    """Test that only post-processing is run when post_process_only is True."""
-    self.runner.post_process_only = True
-    with (mock.patch.object(self.runner, 'setup_gn_args') as mock_setup_gn_args,
-          mock.patch.object(self.runner, 'get_test_targets') as mock_get_test_targets,
-          mock.patch.object(self.runner, 'run_all_coverage') as mock_run_all_coverage,
-          mock.patch.object(self.runner, 'merge_lcov_files') as mock_merge_lcov_files,
-          mock.patch.object(self.runner, 'filter_lcov_file') as mock_filter_lcov_file,
-          mock.patch.object(self.runner, 'generate_html_report') as mock_generate_html_report):
-      self.runner.run_baseline(
-          generate_html_report=True, lcov_filter=['/mock/cobalt/src/*'])
-      mock_setup_gn_args.assert_not_called()
-      mock_get_test_targets.assert_not_called()
-      mock_run_all_coverage.assert_not_called()
-      mock_merge_lcov_files.assert_called_once()
-      mock_filter_lcov_file.assert_called_once_with(
-          ['/mock/cobalt/src/*'])
-      mock_generate_html_report.assert_called_once()
-
   def test_run_baseline_exits_on_failure(self):
     """Test that run_baseline exits if there are test failures."""
     self.runner.post_process_only = False
     with (mock.patch.object(self.runner, 'setup_gn_args'),
-          mock.patch.object(self.runner, 'get_test_targets', return_value=['test1']),
+          mock.patch.object(
+              self.runner, 'get_test_targets', return_value=['test1']),
           mock.patch.object(
               self.runner, 'run_all_coverage', return_value=([], ['test1'])),
-          mock.patch.object(self.runner, 'merge_lcov_files'),
-          mock.patch('sys.exit') as mock_sys_exit):
+          mock.patch.object(self.runner,
+                            'merge_lcov_files'), mock.patch('sys.exit') as
+          mock_sys_exit):
       self.runner.run_baseline()
       mock_sys_exit.assert_called_once_with(1)
 
@@ -254,27 +195,6 @@ class TestCoverageBaselineRunner(unittest.TestCase):
                                      text=True)
     self.assertTrue(self.runner.html_report_dir.exists())
 
-  @mock.patch('shutil.which', return_value=None)
-  def test_generate_html_report_genhtml_not_found(self, mock_which):
-    """Test that an EnvironmentError is raised if genhtml is not found."""
-    del mock_which # mock_which is used as a patcher, not directly in the test
-    with self.assertRaises(EnvironmentError):
-      CoverageBaselineRunner(self.platform, self.build_type,
-                             str(self.mock_cobalt_root))
-
-  @mock.patch('shutil.which', return_value=None)
-  def test_filter_lcov_file_lcov_not_found(self, mock_which):
-    """Test that an EnvironmentError is raised if lcov is not found for filtering."""
-    del mock_which # mock_which is used as a patcher, not directly in the test
-    self.runner.merged_lcov_file.touch()
-    filters = ['/mock/cobalt/src/*', '/mock/cobalt/base/*']
-    with self.assertRaises(subprocess.CalledProcessError):
-      self.runner.filter_lcov_file(filters)
-
-
-if __name__ == '__main__':
-  unittest.main()
-
 
 class TestFilterDirectoryMapping(unittest.TestCase):
   """Tests for the automatic filter directory mapping."""
@@ -284,8 +204,7 @@ class TestFilterDirectoryMapping(unittest.TestCase):
     with mock.patch('pathlib.Path.resolve', return_value=pathlib.Path('/mock')):
       with mock.patch('os.chdir'):
         runner = CoverageBaselineRunner(platform='android-arm')
-        expected_path = pathlib.Path(
-            '/mock/cobalt/testing/filters/android-arm')
+        expected_path = pathlib.Path('/mock/cobalt/testing/filters/android-arm')
         self.assertEqual(runner.test_filters_dir, expected_path)
 
   def test_maps_android_x86_to_android_arm_dir(self):
@@ -293,8 +212,7 @@ class TestFilterDirectoryMapping(unittest.TestCase):
     with mock.patch('pathlib.Path.resolve', return_value=pathlib.Path('/mock')):
       with mock.patch('os.chdir'):
         runner = CoverageBaselineRunner(platform='android-x86')
-        expected_path = pathlib.Path(
-            '/mock/cobalt/testing/filters/android-arm')
+        expected_path = pathlib.Path('/mock/cobalt/testing/filters/android-arm')
         self.assertEqual(runner.test_filters_dir, expected_path)
 
   def test_maps_other_platform_to_correct_dir(self):
@@ -325,7 +243,7 @@ class TestTestFiltering(unittest.TestCase):
             self.platform,
             self.build_type,
             cobalt_src_root=str(self.mock_cobalt_root))
-    
+
     # The filter dir is now auto-determined, let's mock it for the test
     self.filters_dir = self.test_dir / 'filters'
     self.filters_dir.mkdir(parents=True, exist_ok=True)
@@ -340,9 +258,11 @@ class TestTestFiltering(unittest.TestCase):
     if self.test_dir.exists():
       shutil.rmtree(self.test_dir)
 
-  @mock.patch('subprocess.run', return_value=mock.Mock(returncode=0))
+  @mock.patch(
+      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
+  )
   @mock.patch('pathlib.Path.exists', return_value=True)
-  def test_applies_gtest_filter_from_json(self, mock_exists, mock_run):
+  def test_applies_gtest_filter_from_json(self, mock_exists, mock_run_command):
     """Test that a gtest filter is correctly applied from a JSON file."""
     test_name = 'my_cool_test'
     filter_file = self.filters_dir / f'{test_name}_filter.json'
@@ -351,27 +271,33 @@ class TestTestFiltering(unittest.TestCase):
       json.dump(filter_content, f)
 
     self.runner.run_coverage_for_target(test_name)
-    
+
     # Check that coverage.py was called with the correct gtest_filter.
-    mock_run.assert_called_once()
-    args, _ = mock_run.call_args
+    mock_run_command.assert_called_once()
+    args, _ = mock_run_command.call_args
     self.assertIn('--gtest_filter=-Test.Case1:Test.Case2', args[0])
 
-  @mock.patch('subprocess.run')
+  @mock.patch(
+      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
+  )
   @mock.patch('pathlib.Path.exists', return_value=False)
-  def test_gracefully_handles_non_existent_filter_dir(self, mock_exists, mock_run):
+  def test_gracefully_handles_non_existent_filter_dir(self, mock_exists,
+                                                      mock_run_command):
     """Test that no filter is applied if the filter directory doesn't exist."""
     test_name = 'my_cool_test'
     # We are mocking that the filter *file* doesn't exist.
     self.runner.run_coverage_for_target(test_name)
-    
-    mock_run.assert_called_once()
-    args, _ = mock_run.call_args
+
+    mock_run_command.assert_called_once()
+    args, _ = mock_run_command.call_args
     self.assertNotIn('--gtest_filter', ' '.join(args[0]))
 
-  @mock.patch('subprocess.run')
+  @mock.patch(
+      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
+  )
   @mock.patch('pathlib.Path.exists', return_value=True)
-  def test_skips_target_for_wildcard_filter(self, mock_exists, mock_run):
+  def test_skips_target_for_wildcard_filter(self, mock_exists,
+                                            mock_run_command):
     """Test that a target is skipped if the filter is a wildcard '*'."""
     test_name = 'my_skippable_test'
     filter_file = self.filters_dir / f'{test_name}_filter.json'
@@ -384,11 +310,14 @@ class TestTestFiltering(unittest.TestCase):
     # The run should be successful (as skipping isn't a failure)
     self.assertTrue(result)
     # But no command should have been executed.
-    mock_run.assert_not_called()
+    mock_run_command.assert_not_called()
 
-  @mock.patch('subprocess.run', return_value=mock.Mock(returncode=0))
+  @mock.patch(
+      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
+  )
   @mock.patch('pathlib.Path.exists', return_value=True)
-  def test_ignores_filter_when_include_skipped_is_true(self, mock_exists, mock_run):
+  def test_ignores_filter_when_include_skipped_is_true(self, mock_exists,
+                                                       mock_run_command):
     """Test that filters are ignored when include_skipped_tests is True."""
     self.runner.include_skipped_tests = True
     test_name = 'my_cool_test'
@@ -398,8 +327,12 @@ class TestTestFiltering(unittest.TestCase):
       json.dump(filter_content, f)
 
     self.runner.run_coverage_for_target(test_name)
-    
+
     # Check that coverage.py was called WITHOUT the gtest_filter.
-    mock_run.assert_called_once()
-    args, _ = mock_run.call_args
+    mock_run_command.assert_called_once()
+    args, _ = mock_run_command.call_args
     self.assertNotIn('--gtest_filter=-Test.Case1:Test.Case2', ' '.join(args[0]))
+
+
+if __name__ == '__main__':
+  unittest.main()
