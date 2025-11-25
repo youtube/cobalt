@@ -13,7 +13,7 @@ pip install diff-cover
 # 2. Run the Chromium coverage tool to generate the LCOV file
 #    Ensure the build directory exists and targets are built with coverage flags.
 #    The coverage.py script handles the build process internally.
-python3 tools/code_coverage/coverage.py \
+python3 ../../../tools/code_coverage/coverage.py \
   "${TARGET_TO_COVERAGE}" \
   -b "out/coverage" \
   -o "out/lcov_report" \
@@ -25,7 +25,7 @@ python3 tools/code_coverage/coverage.py \
 mkdir -p "$(dirname "${LCOV_FILE}")"
 
 # 3. Run the check_coverage.py script to enforce a 80% threshold on new code
-python3 cobalt/tools/check_coverage.py \
+python3 check_coverage.py \
   --lcov-file="${LCOV_FILE}" \
   --compare-branch="origin/main" \
   --threshold=80.0 \
