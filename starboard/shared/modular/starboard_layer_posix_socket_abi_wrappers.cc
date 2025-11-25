@@ -279,12 +279,10 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
           struct sockaddr_in* address =
               reinterpret_cast<struct sockaddr_in*>(musl_ai->ai_addr);
           address->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-          // address->sin_addr.s_addr = -1;
         } else if (family == MUSL_AF_INET6) {
           struct sockaddr_in6* address =
               reinterpret_cast<struct sockaddr_in6*>(musl_ai->ai_addr);
           address->sin6_addr = IN6ADDR_LOOPBACK_INIT;
-          // address->sin6_addr.__in6_u.__u6_addr8[0] = 5;
         }
         if (*res == nullptr) {
           *res = musl_ai;
