@@ -17,22 +17,22 @@
 
 #include <GLES2/gl2.h>
 
+#include <cstdint>
+
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/queue_application.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
-class ApplicationDarwin : public shared::starboard::QueueApplication {
+class ApplicationDarwin : public QueueApplication {
  public:
   explicit ApplicationDarwin(SbEventHandleCallback sb_event_handle_callback)
       : QueueApplication(sb_event_handle_callback) {}
   static ApplicationDarwin* Get() {
-    shared::starboard::Application* application =
-        shared::starboard::Application::Get();
+    Application* application = Application::Get();
     return static_cast<ApplicationDarwin*>(application);
   }
 
@@ -62,8 +62,7 @@ class ApplicationDarwin : public shared::starboard::QueueApplication {
   // --- Application overrides ---
   bool IsStartImmediate() override { return false; }
   bool MayHaveSystemEvents() override { return false; }
-  shared::starboard::Application::Event* WaitForSystemEventWithTimeout(
-      int64_t time) override {
+  Application::Event* WaitForSystemEventWithTimeout(int64_t time) override {
     return nullptr;
   }
   void WakeSystemEventWait() override {}

@@ -42,7 +42,6 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
-#include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
@@ -56,7 +55,6 @@
 #include "media/media_buildflags.h"
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
-#include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
 namespace content {
@@ -596,28 +594,6 @@ void Shell::RendererUnresponsive(
 void Shell::ActivateContents(WebContents* contents) {
   // TODO(danakj): Move this to ShellPlatformDelegate.
   contents->Focus();
-}
-
-void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
-                           scoped_refptr<FileSelectListener> listener,
-                           const blink::mojom::FileChooserParams& params) {
-  run_file_chooser_count_++;
-  if (hold_file_chooser_) {
-    held_file_chooser_listener_ = std::move(listener);
-  } else {
-    g_platform->RunFileChooser(render_frame_host, std::move(listener), params);
-  }
-}
-
-void Shell::EnumerateDirectory(WebContents* web_contents,
-                               scoped_refptr<FileSelectListener> listener,
-                               const base::FilePath& path) {
-  run_file_chooser_count_++;
-  if (hold_file_chooser_) {
-    held_file_chooser_listener_ = std::move(listener);
-  } else {
-    listener->FileSelectionCanceled();
-  }
 }
 
 bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {

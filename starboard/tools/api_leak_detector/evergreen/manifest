@@ -20,7 +20,6 @@ fstat64
 fstatat
 getrandom
 getuid
-getwc
 if_indextoname
 inotify_add_watch
 inotify_init
@@ -37,9 +36,7 @@ pkey_get(int)
 pkey_mprotect(void*, unsigned long, int, int)
 pkey_set(int, unsigned int)
 sched_setscheduler
-setbuf
 sigaltstack
 stat64
 statx
-ungetwc
 unlinkat

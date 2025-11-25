@@ -25,7 +25,6 @@
 #import "starboard/tvos/shared/keyboard_input_device.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/media/egl_surface.h"
-#import "starboard/tvos/shared/search_results_view_controller.h"
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/window_manager.h"
 
@@ -38,53 +37,15 @@ using starboard::ApplicationDarwin;
 static const NSTimeInterval kSearchResultDebounceTime = 0.5;
 
 /**
- *  @brief A view's delegate is made aware of view lifecycle changes.
- */
-@protocol SBDSearchViewDisplayDelegate
-
-/**
- *  @brief Called when the search viewDidAppear.
- */
-- (void)searchDidAppear;
-
-/**
- *  @brief Called when the search viewDidDisappear.
- */
-- (void)searchDidDisappear;
-
-@end
-
-/**
- *  @brief The @c UISearchContainerViewController that should be used for
- *      displaying a @c UISearchController.
- */
-@interface SBDSearchContainerViewController : UISearchContainerViewController
-
-/**
- *  @brief The delegate to notify of display changes to the search view.
- */
-@property(weak, nonatomic) id<SBDSearchViewDisplayDelegate> delegate;
-
-@end
-
-/**
  *  @brief The @c UIViewController for the EGL surface and player views.
  */
 @interface SBDApplicationWindowViewController
-    : UIViewController <UISearchResultsUpdating,
-                        UISearchControllerDelegate,
-                        SBDSearchResultsFocusDelegate,
-                        SBDSearchViewDisplayDelegate>
+    : UIViewController <UISearchResultsUpdating, UISearchControllerDelegate>
 
 /**
  *  @brief The Starboard application's viewport.
  */
 @property(nonatomic, readonly) SBDApplicationView* applicationView;
-
-/**
- *  @brief When YES, indicates the on-screen keyboard is showing.
- */
-@property(nonatomic, readonly) BOOL keyboardShowing;
 
 /**
  *  @brief Indicates whether the on-screen keyboard is focused.
@@ -100,63 +61,6 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
  *  @brief Designated initializer.
  */
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
-
-/**
- *  @brief Returns the current frame or a zero rect if the on-screen keyboard
- *      isn't showing.
- */
-- (SbWindowRect)getOnScreenKeyboardFrame;
-
-/**
- *  @brief Shows the on-screen keyboard.
- *  @remarks Safe to call even if the on-screen keyboard is already
- *      shown (in which case, this method is a no-op). It is expected that the
- *      @c interfaceContainer's frame has been changed before this method
- *      returns.
- */
-- (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket;
-
-/**
- *  @brief Hides any visible on-screen keyboard.
- *  @remarks Safe to call even if the on-screen keyboard isn't being shown. It
- *      is expected that the @c interfaceContainer's frame has been changed
- *      before this method returns.
- */
-- (void)hideOnScreenKeyboardWithTicket:(NSInteger)ticket;
-
-/**
- *  @brief When @c keepFocus is @c YES, the on-screen keyboard should not allow
- *      focus to be lost.
- *  @param keepFocus Whether the on-screen keyboard should allow focus to be
- *      lost.
- */
-- (void)onScreenKeyboardKeepFocus:(BOOL)keepFocus;
-
-/**
- *  @brief Focuses the on-screen keyboard.
- */
-- (void)focusOnScreenKeyboardWithTicket:(NSInteger)ticket;
-
-/**
- *  @brief Removes focus from the on-screen keyboard.
- */
-- (void)blurOnScreenKeyboardWithTicket:(NSInteger)ticket;
-
-/**
- *  @brief Set on-screen keyboard's background color in RGB colorspace.
- *  @param red, green, blue, alpha are specified as a value from 0.0 to 1.0.
- */
-- (void)setOnScreenKeyboardBackgroundColorWithRed:(CGFloat)red
-                                            green:(CGFloat)green
-                                             blue:(CGFloat)blue
-                                            alpha:(CGFloat)alpha;
-
-/**
- *  @brief When @c lightTheme is @c YES, the on-screen keyboard should switch to
- *      light theme.
- *  @param lightTheme Whether the on-screen keyboard should  enable light theme.
- */
-- (void)setOnScreenKeyboardLightTheme:(BOOL)lightTheme;
 
 @end
 
@@ -196,8 +100,6 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
     _windowSize.width = static_cast<int>(size.width * scale);
     _windowSize.height = static_cast<int>(size.height * scale);
     _windowSize.video_pixel_ratio = 1.0f;
-
-    _processUIPresses = YES;
 
     self.rootViewController = _viewController;
     self.accessibilityIdentifier = name;
@@ -408,12 +310,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
       // presses and UIKeyInput navigation presses.
       continue;
     }
-
-    // TODO: Is _processUIPresses still needed?
-    // Only initiate a keydown if UIPresses should be processed.
-    if (_processUIPresses) {
-      [_keyboardInputDevice keyPressed:sbkey modifiers:modifiers];
-    }
   }
   [super pressesBegan:presses withEvent:event];
 }
@@ -449,149 +345,8 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   [super pressesEnded:presses withEvent:event];
 }
 
-// TODO: deprecate (void)sendEvent:(UIEvent*)event.
-// We should not override (void)sendEvent:(UIEvent*)event to intercept events,
-// but instead, we should move the logic to the publicly available API for
-// handling press events using pressesBegan/pressesEnded. Currently we still
-// need this function to send the four navigation UIPressTypes to Kabuki,
-// because Kabuki correctly handles the events from this function under
-// different cases. e.g. scrubbing videso when receiving a kSbKeyRight event,
-// but not moving focus on sign in keyboard for the same event. We also need to
-// send UIPressTypeSelect event to Kabuki from this function.
-- (void)sendEvent:(UIEvent*)event {
-  if (event.type == UIEventTypePresses) {
-    for (UIPress* press in ((UIPressesEvent*)event).allPresses) {
-      SbKey key;
-      switch (press.type) {
-        case UIPressTypeUpArrow:
-          key = kSbKeyUp;
-          break;
-        case UIPressTypeDownArrow:
-          key = kSbKeyDown;
-          break;
-        case UIPressTypeLeftArrow:
-          key = kSbKeyLeft;
-          break;
-        case UIPressTypeRightArrow:
-          key = kSbKeyRight;
-          break;
-        case UIPressTypeSelect:
-          key = kSbKeyReturn;
-          break;
-        default:
-          // TODO(b/277641150): Check if volume control key codes can also be
-          // tracked.
-          key = kSbKeyUnknown;
-          break;
-      }
-      if (press.phase == UIPressPhaseBegan) {
-        // Only initiate a keydown if UIPresses should be processed.
-        if (_processUIPresses &&
-            _processedKeydownPressTypes.count(press.type) == 0) {
-          _processedKeydownPressTypes.insert(press.type);
-          [_keyboardInputDevice keyPressed:key modifiers:kSbKeyModifiersNone];
-        }
-      } else if (press.phase == UIPressPhaseEnded ||
-                 press.phase == UIPressPhaseCancelled) {
-        // Only send a keyup if keydown was sent.
-        if (_processedKeydownPressTypes.count(press.type) > 0) {
-          _processedKeydownPressTypes.erase(press.type);
-          [_keyboardInputDevice keyUnpressed:key modifiers:kSbKeyModifiersNone];
-        }
-      }
-    }
-  }
-  [super sendEvent:event];
-}
-
-- (BOOL)keyboardShowing {
-  return _viewController.keyboardShowing;
-}
-
 - (BOOL)keyboardFocused {
   return _viewController.keyboardFocused;
-}
-
-- (SbWindowRect)getOnScreenKeyboardFrame {
-  return [_viewController getOnScreenKeyboardFrame];
-}
-
-- (void)focusOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  onApplicationMainThread(^{
-    if (![self keyboardShowing]) {
-      auto eventData = new int;
-      *eventData = ticket;
-      ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardFocused,
-                                     eventData);
-      return;
-    }
-    [self->_viewController focusOnScreenKeyboardWithTicket:ticket];
-  });
-}
-
-- (void)blurOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  onApplicationMainThread(^{
-    if (![self keyboardShowing]) {
-      auto eventData = new int;
-      *eventData = ticket;
-      ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardBlurred,
-                                     eventData);
-      return;
-    }
-    [self->_viewController blurOnScreenKeyboardWithTicket:ticket];
-  });
-}
-
-- (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [self->_viewController showOnScreenKeyboardWithText:text ticket:ticket];
-    SbWindow starboardWindow = [SBDGetApplication().windowManager
-        starboardWindowForApplicationWindow:self];
-    auto eventData = new SbEventWindowSizeChangedData;
-    eventData->window = starboardWindow;
-    eventData->size = self.size;
-    ApplicationDarwin::InjectEvent(kSbEventTypeWindowSizeChanged, eventData);
-  });
-}
-
-- (void)hideOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [self->_viewController hideOnScreenKeyboardWithTicket:ticket];
-    SbWindow starboardWindow = [SBDGetApplication().windowManager
-        starboardWindowForApplicationWindow:self];
-    auto eventData = new SbEventWindowSizeChangedData;
-    eventData->window = starboardWindow;
-    eventData->size = self.size;
-    ApplicationDarwin::InjectEvent(kSbEventTypeWindowSizeChanged, eventData);
-  });
-}
-
-- (void)onScreenKeyboardKeepFocus:(BOOL)keepFocus {
-  onApplicationMainThread(^{
-    [self->_viewController onScreenKeyboardKeepFocus:keepFocus];
-  });
-}
-
-- (void)setOnScreenKeyboardBackgroundColorWithRed:(CGFloat)red
-                                            green:(CGFloat)green
-                                             blue:(CGFloat)blue
-                                            alpha:(CGFloat)alpha {
-  onApplicationMainThread(^{
-    if ([self keyboardShowing]) {
-      [self->_viewController setOnScreenKeyboardBackgroundColorWithRed:red
-                                                                 green:green
-                                                                  blue:blue
-                                                                 alpha:alpha];
-    }
-  });
-}
-
-- (void)setOnScreenKeyboardLightTheme:(BOOL)lightTheme {
-  onApplicationMainThread(^{
-    if ([self keyboardShowing]) {
-      [self->_viewController setOnScreenKeyboardLightTheme:lightTheme];
-    }
-  });
 }
 
 - (void)close {
@@ -617,11 +372,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   [_viewController.applicationView.playerContainer addSubview:playerView];
 }
 
-- (void)attachUiNavigationView:(UIView*)view {
-  [_viewController.applicationView.interfaceContainer addSubview:view];
-  [_viewController.applicationView.interfaceContainer bringSubviewToFront:view];
-}
-
 - (void)setFocus:(id<UIFocusEnvironment>)focus {
   // In order to change focus, a focus update needs to happen on the
   // environment containing the current focus. This UIWindow is guaranteed to
@@ -641,30 +391,8 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
 
 @end
 
-@implementation SBDSearchContainerViewController
-
-- (void)viewDidAppear:(BOOL)animated {
-  [super viewDidAppear:animated];
-  [_delegate searchDidAppear];
-}
-
-- (void)viewDidDisappear:(BOOL)animated {
-  [super viewDidDisappear:animated];
-  [_delegate searchDidDisappear];
-}
-
-@end
-
 @implementation SBDApplicationWindowViewController {
   UISearchController* _searchController;
-  SBDSearchResultsViewController* _searchResultsViewController;
-  SBDSearchContainerViewController* _searchContainerViewController;
-  CGRect _resultsFrameOnShow;
-  BOOL _keyboardKeepFocus;
-  BOOL _keyboardVisible;
-  BOOL _focusWhenVisible;
-  NSInteger _delayedFocusTicket;
-  NSInteger _lastShowTicket;
 }
 
 - (instancetype)init {
@@ -686,9 +414,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   static NSDate* searchResultLastDate;
   static NSString* searchResultLastString;
 
-  if (!_keyboardShowing) {
-    return;
-  }
   searchResultLastDate = [NSDate date];
 
   // Debouncing searchResults to avoid sending too many intermediate input
@@ -702,308 +427,15 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
           return;
         }
         NSString* searchString = searchController.searchBar.text;
-        if (searchResultLastString && searchResultLastString == searchString) {
+        if (searchResultLastString &&
+            [searchResultLastString isEqualToString:searchString]) {
           return;
         }
-        searchResultLastString = searchString;
+        searchResultLastString = [searchString copy];
         SBDWindowManager* windowManager = SBDGetApplication().windowManager;
         [windowManager.currentApplicationWindow.keyboardInputDevice
             onScreenKeyboardTextEntered:searchString];
       });
-}
-
-- (SbWindowRect)getOnScreenKeyboardFrame {
-  if (!_keyboardVisible) {
-    return {0, 0, 0, 0};
-  }
-
-  // UISearchControl has three different keyboard layouts:
-
-  // case 1: Siri remote.
-  // +-------------------------------+
-  // | Searchbar (shows search text) |
-  // +-------------------------------+
-  // |           Keyboard            |
-  // +-------------------------------+
-  // |        Search Results         |
-  // |             ...               |
-  // +-------------------------------+
-
-  // case 2: Non-Siri remote, with LTR language in device's general
-  // setting.
-  // +-------------------------------+
-  // | Searchbar (shows search text) |
-  // +--------------+----------------+
-  // |   Keyboard   |     Search     |
-  // |              |     Results    |
-  // |     ...      |       ...      |
-  // +--------------+----------------+
-
-  // case 3: Non-Siri remote, with RTL language in device's general
-  // setting.
-  // +-------------------------------+
-  // | Searchbar (shows search text) |
-  // +--------------+----------------+
-  // |   Search     |     Keyboard   |
-  // |   Results    |                |
-  // |     ...      |       ...      |
-  // +--------------+----------------+
-
-  // Infer the keyboard frame based on the search result's frame.
-  CGSize screenSize = UIScreen.mainScreen.bounds.size;
-  CGRect keyboardFrame;
-  CGFloat resultsFrameLeftPadding = _resultsFrameOnShow.origin.x;
-  CGFloat resultsFrameRightPadding = screenSize.width -
-                                     _resultsFrameOnShow.origin.x -
-                                     _resultsFrameOnShow.size.width;
-
-  if (_resultsFrameOnShow.origin.x == 0) {
-    // This is the horizontal keyboard layout illustrated in case 1.
-    // Specify keyboard frame as including keyboard and search bar.
-    keyboardFrame =
-        CGRectMake(0, 0, screenSize.width, _resultsFrameOnShow.origin.y);
-  } else {
-    if (resultsFrameLeftPadding > resultsFrameRightPadding) {
-      // This is the LTR grid keyboard layout illustrated in case 2.
-      // Specify keyboard frame as only the keyboard area. This allows the
-      // caller to infer the space taken up by the search bar.
-      keyboardFrame = CGRectMake(
-          0, _resultsFrameOnShow.origin.y, _resultsFrameOnShow.origin.x,
-          screenSize.height - _resultsFrameOnShow.origin.y);
-    } else {
-      // This is the RTL grid keyboard layout illustrated in case 3.
-      // Specify keyboard frame as only the keyboard area. This allows the
-      // caller to infer the space taken up by the search bar.
-      keyboardFrame = CGRectMake(
-          _resultsFrameOnShow.origin.x + _resultsFrameOnShow.size.width,
-          _resultsFrameOnShow.origin.y,
-          screenSize.width - _resultsFrameOnShow.size.width -
-              _resultsFrameOnShow.origin.x,
-          screenSize.height - _resultsFrameOnShow.origin.y);
-    }
-  }
-
-  // Convert from points to pixels.
-  CGFloat scale = UIScreen.mainScreen.scale;
-  return {static_cast<float>(keyboardFrame.origin.x * scale),
-          static_cast<float>(keyboardFrame.origin.y * scale),
-          static_cast<float>(keyboardFrame.size.width * scale),
-          static_cast<float>(keyboardFrame.size.height * scale)};
-}
-
-- (void)showOnScreenKeyboardWithText:(NSString*)text ticket:(NSInteger)ticket {
-  if (_keyboardShowing) {
-    // For some languages such as Hebrew, setting the search bar text to the
-    // same value may result in the text being cleared. Work around this bug.
-    if (![_searchController.searchBar.text isEqualToString:text]) {
-      _searchController.searchBar.text = text;
-    }
-    auto eventData = new int;
-    *eventData = ticket;
-    ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardShown,
-                                   eventData);
-    return;
-  }
-  if (_searchController.isBeingPresented ||
-      _searchController.isBeingDismissed) {
-    __weak SBDApplicationWindowViewController* weakself = self;
-    dispatch_after(
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-        dispatch_get_main_queue(), ^{
-          SBDApplicationWindowViewController* strongself = weakself;
-          if (!strongself) {
-            return;
-          }
-          [strongself showOnScreenKeyboardWithText:text ticket:ticket];
-        });
-    return;
-  }
-
-  _keyboardShowing = YES;
-  _lastShowTicket = ticket;
-
-  _searchResultsViewController = [[SBDSearchResultsViewController alloc] init];
-  _searchResultsViewController.focusDelegate = self;
-  _searchController = [[UISearchController alloc]
-      initWithSearchResultsController:_searchResultsViewController];
-  _searchController.searchBar.text = text;
-  _searchController.obscuresBackgroundDuringPresentation = NO;
-  _searchController.hidesNavigationBarDuringPresentation = NO;
-  _searchController.delegate = self;
-  _searchController.searchResultsUpdater = self;
-
-  _searchContainerViewController = [[SBDSearchContainerViewController alloc]
-      initWithSearchController:_searchController];
-  _searchContainerViewController.delegate = self;
-
-  [self addChildViewController:_searchContainerViewController];
-  [_searchContainerViewController didMoveToParentViewController:self];
-  [_applicationView.searchContainer
-      addSubview:_searchContainerViewController.view];
-  _searchController.active = YES;
-
-  // Set background colors as requested in info.plist.
-  // Search controls should use YTOSKBackgroundColor if it exists.
-  NSString* colorFromPList = [[NSBundle mainBundle]
-      objectForInfoDictionaryKey:@"YTOSKBackgroundColor"];
-  if (!colorFromPList) {
-    colorFromPList = [[NSBundle mainBundle]
-        objectForInfoDictionaryKey:@"YTApplicationBackgroundColor"];
-  }
-  NSArray<NSString*>* colorComponents =
-      [colorFromPList componentsSeparatedByString:@", "];
-  if (colorComponents.count == 4) {
-    _searchController.view.backgroundColor =
-        [UIColor colorWithRed:[colorComponents[0] floatValue] / 255.0
-                        green:[colorComponents[1] floatValue] / 255.0
-                         blue:[colorComponents[2] floatValue] / 255.0
-                        alpha:[colorComponents[3] floatValue]];
-  } else {
-    _searchController.view.backgroundColor = [UIColor colorWithRed:30 / 255.0
-                                                             green:30 / 255.0
-                                                              blue:30 / 255.0
-                                                             alpha:1];
-  }
-  // Search results should use the application window color.
-  _searchResultsViewController.view.backgroundColor =
-      [SBDApplicationWindow defaultWindowColor];
-}
-
-- (void)setOnScreenKeyboardBackgroundColorWithRed:(CGFloat)red
-                                            green:(CGFloat)green
-                                             blue:(CGFloat)blue
-                                            alpha:(CGFloat)alpha {
-  _searchController.view.backgroundColor = [UIColor colorWithRed:red
-                                                           green:green
-                                                            blue:blue
-                                                           alpha:alpha];
-}
-
-- (void)setOnScreenKeyboardLightTheme:(BOOL)lightTheme {
-  if (lightTheme) {
-    _searchController.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
-  } else {
-    _searchController.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-  }
-}
-
-- (void)hideOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  if (!_keyboardShowing) {
-    auto eventData = new int;
-    *eventData = ticket;
-    ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardHidden,
-                                   eventData);
-    return;
-  }
-  if (_searchController.isBeingPresented ||
-      _searchController.isBeingDismissed) {
-    __weak SBDApplicationWindowViewController* weakself = self;
-    dispatch_after(
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-        dispatch_get_main_queue(), ^{
-          SBDApplicationWindowViewController* strongself = weakself;
-          if (!strongself) {
-            return;
-          }
-          [strongself hideOnScreenKeyboardWithTicket:ticket];
-        });
-    return;
-  }
-  _keyboardShowing = NO;
-  [_searchContainerViewController.view removeFromSuperview];
-  _searchController.active = NO;
-  [_searchContainerViewController willMoveToParentViewController:nil];
-  [_searchContainerViewController removeFromParentViewController];
-
-  auto eventData = new int;
-  *eventData = ticket;
-  ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardHidden, eventData);
-}
-
-- (void)onScreenKeyboardKeepFocus:(BOOL)keepFocus {
-  _keyboardKeepFocus = keepFocus;
-  if (!_keyboardShowing) {
-    return;
-  }
-  _searchResultsViewController.view.userInteractionEnabled = !keepFocus;
-}
-
-- (void)focusOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  if (!_keyboardVisible) {
-    _focusWhenVisible = YES;
-    _delayedFocusTicket = ticket;
-    return;
-  }
-  _keyboardFocused = YES;
-
-  auto eventData = new int;
-  *eventData = ticket;
-  ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardFocused,
-                                 eventData);
-}
-
-- (void)blurOnScreenKeyboardWithTicket:(NSInteger)ticket {
-  _keyboardFocused = NO;
-
-  auto eventData = new int;
-  *eventData = ticket;
-  ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardBlurred,
-                                 eventData);
-}
-
-#pragma mark - SBDSearchResultsFocusDelegate
-
-- (void)resultsDidLoseFocus {
-  _keyboardFocused = YES;
-  auto eventData = new int(kSbEventOnScreenKeyboardInvalidTicket);
-  ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardFocused,
-                                 eventData);
-}
-
-- (void)resultsDidReceiveFocus {
-  _keyboardFocused = NO;
-  auto eventData = new int(kSbEventOnScreenKeyboardInvalidTicket);
-  ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardBlurred,
-                                 eventData);
-}
-
-#pragma mark - SBDSearchViewDisplayDelegate
-
-- (void)searchDidDisappear {
-  // Move the interface container back into the application view.
-  // NOTE: addSubview will remove the target from its superview, so don't
-  //   removeFromSuperview explicitly as that may result in a focus change.
-  [_applicationView addSubview:_applicationView.interfaceContainer];
-
-  _searchResultsViewController = nil;
-  _keyboardFocused = NO;
-  _keyboardVisible = NO;
-  _focusWhenVisible = NO;
-}
-
-- (void)searchDidAppear {
-  UIView* resultsView = _searchResultsViewController.view;
-  _resultsFrameOnShow =
-      [resultsView convertRect:resultsView.frame
-             toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];
-
-  // Move the interface container into the search results controller to allow
-  // seamless transitions between the search interface and our application's
-  // interface.
-  [_searchResultsViewController.view
-      addSubview:_applicationView.interfaceContainer];
-  _searchResultsViewController.view.userInteractionEnabled =
-      !_keyboardKeepFocus;
-  _keyboardVisible = YES;
-
-  auto eventData = new int;
-  *eventData = _lastShowTicket;
-  ApplicationDarwin::InjectEvent(kSbEventTypeOnScreenKeyboardShown, eventData);
-
-  if (_focusWhenVisible) {
-    _focusWhenVisible = NO;
-    [self focusOnScreenKeyboardWithTicket:_delayedFocusTicket];
-  }
 }
 
 @end

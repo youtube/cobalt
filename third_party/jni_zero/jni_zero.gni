@@ -4,6 +4,9 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/compiler/compiler.gni")
+if (is_cobalt) {
+  import("//cobalt/build/configs/cobalt_for_google.gni")
+}
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
@@ -47,6 +50,16 @@ _cronet_renaming_extra_args = [
   "--package-prefix-filter",
   "org.jni_zero",
 ]
+
+if (is_cobalt && is_cobalt_on_google3) {
+  _cobalt_renaming_extra_args = [
+    "--package-prefix",
+    "cobalt",
+
+    "--package-prefix-filter",
+    "org.chromium",
+  ]
+}
 
 _jni_zero_dir = "//third_party/jni_zero"
 
@@ -268,6 +281,10 @@ template("generate_jni_registration") {
     if (defined(is_cronet_build) && is_cronet_build) {
       args += _cronet_renaming_extra_args
     }
+
+    if (is_cobalt && is_cobalt_on_google3) {
+      args += _cobalt_renaming_extra_args
+    }
   }
 }
 
@@ -383,6 +400,10 @@ template("generate_jni_impl") {
         # Cronet needs to rename jni_zero classes
         if (defined(is_cronet_build) && is_cronet_build) {
           args += _cronet_renaming_extra_args
+        }
+
+        if (is_cobalt && is_cobalt_on_google3) {
+          args += _cobalt_renaming_extra_args
         }
       } else {
         if (is_robolectric) {

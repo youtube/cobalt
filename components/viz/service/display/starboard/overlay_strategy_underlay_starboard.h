@@ -9,10 +9,7 @@
 #include <vector>
 
 #include "components/viz/service/display/overlay_strategy_underlay.h"
-
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "components/viz/service/viz_service_export.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace viz {
 // The underlay strategy looks for a video hole quad, where the underlay
@@ -64,15 +61,6 @@ class VIZ_SERVICE_EXPORT OverlayStrategyUnderlayStarboard
           output_surface_plane) override;
 
   OverlayStrategy GetUMAEnum() const override;
-
-  // For SbPlayer, OverlayStrategyUnderlayStarboard needs a valid mojo
-  // interface to VideoGeometrySetter Service (shared by all instances of
-  // OverlayStrategyUnderlayStarboard). This must be called before compositor
-  // starts. Ideally, it can be called after compositor thread is created. Must
-  // be called on compositor thread.
-  static void ConnectVideoGeometrySetter(
-      mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
-          video_geometry_setter);
 
  private:
   // Keep track if an overlay is being used on the previous frame.

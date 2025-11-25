@@ -23,7 +23,7 @@
 
 # TODO(cobalt, b/393465183): Remove the cobalt prefix if we can avoid symbol relocation.
 -keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.jni_zero.AccessedByNative <fields>;
+  @cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
@@ -32,10 +32,6 @@
 
 -keepclasseswithmembernames,includedescriptorclasses,allowaccessmodification class ** {
   native <methods>;
-}
-
--keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {

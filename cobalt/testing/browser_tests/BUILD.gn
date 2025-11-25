@@ -49,9 +49,9 @@ if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
-# browsertest_support can be used by targets that run cobalt_shell based
+# cobalt_browsertests_test_runner can be used by targets that run cobalt_shell based
 # browser tests.
-static_library("browsertest_support") {
+static_library("cobalt_browsertests_test_runner") {
   testonly = true
 
   # See comment at the top of //content/BUILD.gn for why this is disabled in
@@ -97,7 +97,6 @@ static_library("browsertest_support") {
     ":cobalt_shell_test_lib",
     "//base:i18n",
     "//base/test:test_config",
-    "//base/test:test_support",
     "//build:chromeos_buildflags",
     "//cobalt/shell:cobalt_shell_app",
     "//components/network_session_configurator/common:common",
@@ -216,13 +215,11 @@ test("cobalt_browsertests") {
   ]
 
   deps = [
-    ":browsertest_support",
-    ":cobalt_shell_test_lib",
+    ":cobalt_browsertests_test_runner",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
-    "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
@@ -235,7 +232,6 @@ test("cobalt_browsertests") {
     "//components/services/quarantine:test_support",
     "//components/services/storage",
     "//components/services/storage/public/cpp",
-    "//components/services/storage/public/mojom:test_api",
     "//components/ukm:test_support",
     "//components/url_formatter:url_formatter",
     "//components/viz/host",
@@ -250,16 +246,10 @@ test("cobalt_browsertests") {
     "//content/child:for_content_tests",
     "//content/gpu",
     "//content/public/browser",
-    "//content/public/child",
-    "//content/public/common",
     "//content/public/gpu",
-    "//content/public/renderer",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
-
-    # This may need to be modified for cobalt-specific testing
-    "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
@@ -298,7 +288,6 @@ test("cobalt_browsertests") {
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
     "//services/service_manager/public/cpp",
-    "//services/test/echo/public/mojom",
     "//services/tracing:privacy_check",
     "//services/video_capture/public/cpp",
     "//services/video_capture/public/cpp:mocks",
@@ -307,8 +296,6 @@ test("cobalt_browsertests") {
     "//services/viz/public/cpp/gpu",
     "//storage/browser",
     "//storage/browser:test_support",
-    "//testing/gmock",
-    "//testing/gtest",
     "//third_party/blink/public:blink",
     "//third_party/leveldatabase",
     "//third_party/mesa_headers",
@@ -351,11 +338,6 @@ test("cobalt_browsertests") {
     "//third_party/mesa_headers",
   ]
 
-  # official builds do not include this in content_shell_lib
-  if (is_official_build) {
-    deps += [ "//cobalt/shell:browsertests_sources" ]
-  }
-
   if (is_android) {
     deps += [
       ":content_browsertests_java",
@@ -393,7 +375,6 @@ test("cobalt_browsertests") {
 
   if (is_linux && !is_tsan) {
     deps += [
-      "//cobalt/shell:shell_controller_mojom",
       "//components/variations:variations",
       "//components/variations/field_trial_config:field_trial_config",
       "//mojo/public/cpp/platform",
@@ -416,28 +397,31 @@ static_library("cobalt_shell_test_lib") {
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "renderer/shell_content_renderer_test_client.cc",
+    "renderer/shell_content_renderer_test_client.h",
     "utility/shell_content_utility_client.cc",
     "utility/shell_content_utility_client.h",
   ]
 
   deps = [
+    ":cobalt_browsertests_support",
     "//cc/base",
-    "//cobalt/shell:browsertests_mojom",
-    "//cobalt/shell:browsertests_sources",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
-    "//cobalt/shell:shell_controller_mojom",
-    "//cobalt/shell:shell_test_switches_lib",
-    "//components/custom_handlers:test_support",
-    "//components/metrics:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
-    "//content/public/utility",
-    "//content/test:test_support",
     "//services/network/public/cpp",
   ]
+
+  if (use_aura) {
+    sources += [
+      "browser/shell_platform_test_data_aura.cc",
+      "browser/shell_platform_test_data_aura.h",
+    ]
+    deps += [ "//ui/aura" ]
+  }
 
   if (shell_use_toolkit_views) {
     if (use_aura) {
@@ -455,4 +439,66 @@ action("copy_test_data") {
   script = "data/update_build_gn.py"
   outputs = [ "$target_gen_dir/copy_test_data.stamp" ]
   args = [ rebase_path(root_out_dir, root_build_dir) ]
+}
+
+source_set("cobalt_browsertests_support") {
+  testonly = true
+  sources = [
+    "common/main_frame_counter_test_impl.cc",
+    "common/main_frame_counter_test_impl.h",
+    "common/power_monitor_test_impl.cc",
+    "common/power_monitor_test_impl.h",
+    "renderer/render_frame_test_helper.cc",
+    "renderer/render_frame_test_helper.h",
+    "renderer/shell_render_frame_observer.cc",
+    "renderer/shell_render_frame_observer.h",
+  ]
+
+  public_deps = [
+    ":cobalt_browsertests_support_mojom",
+    ":shell_controller_mojom",
+    "//cobalt/shell:shell_test_switches_lib",
+    "//components/custom_handlers:test_support",
+    "//components/metrics:test_support",
+    "//components/services/storage/test_api",
+    "//content/common:main_frame_counter",
+    "//content/public/child",
+    "//content/public/common",
+    "//content/public/renderer",
+    "//content/public/utility",
+    "//content/test:content_test_mojo_bindings",
+    "//content/test:test_support",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
+  ]
+
+  if (use_aura) {
+    public_deps += [ "//ui/aura:test_support" ]
+
+    if (shell_use_toolkit_views) {
+      public_deps += [
+        "//ui/views:test_support",
+        "//ui/wm:test_support",
+      ]
+    }
+  }
+}
+
+mojom("cobalt_browsertests_support_mojom") {
+  sources = [
+    "common/main_frame_counter_test.mojom",
+    "common/power_monitor_test.mojom",
+    "common/render_frame_test_helper.mojom",
+  ]
+
+  public_deps = [
+    "//sandbox/policy/mojom",
+    "//third_party/blink/public/mojom/tokens",
+  ]
+}
+
+mojom("shell_controller_mojom") {
+  testonly = true
+  sources = [ "common/shell_controller.test-mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
 }

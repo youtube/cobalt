@@ -3,6 +3,7 @@
   "platforms": [
     "evergreen-arm64"
   ],
+  "test_package": true,
   "targets": [
     "cobalt"
   ],
@@ -15,8 +16,7 @@
   "includes": [
     {
       "name": "arm64",
-      "platform": "evergreen-arm64",
-      "sb_api_version": 17
+      "platform": "evergreen-arm64"
     }
   ]
 }
