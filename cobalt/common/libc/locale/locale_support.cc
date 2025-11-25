@@ -327,7 +327,7 @@ void RefreshCompositeString(LocaleImpl* loc) {
 }
 
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base) {
-  if (mask & LC_ALL_MASK) {
+  if ((mask & LC_ALL_MASK) == LC_ALL_MASK) {
     base->categories.fill(locale);
     return;
   }
