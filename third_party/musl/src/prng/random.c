@@ -2,6 +2,10 @@
 #include <stdint.h>
 #include "lock.h"
 
+#if defined(STARBOARD)
+#include "pthread_impl.h"
+#endif
+
 /*
 this code uses the same lagged fibonacci generator as the
 original bsd random implementation except for the seeding
@@ -24,13 +28,12 @@ static int j = 0;
 static uint32_t *x = init+1;
 
 #if defined(STARBOARD)
-#include <pthread.h>
-static pthread_mutex_t __random_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t* const lock = &__random_mutex;
+static StarboardPthreadCondMutex __random_cond_mutex;
+StarboardPthreadCondMutex *const lock = &__random_cond_mutex;
 #else
 static volatile int lock[1];
 volatile int *const __random_lockptr = lock;
-#endif
+#endif  // defined(STARBOARD)
 
 static uint32_t lcg31(uint32_t x) {
 	return (1103515245*x + 12345) & 0x7fffffff;

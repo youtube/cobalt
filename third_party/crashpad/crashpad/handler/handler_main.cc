@@ -194,6 +194,9 @@ void Usage(const base::FilePath& me) {
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 "      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
 "                              the address of a EvegreenInfo struct.\n"
+"      --ca-certificates-path=CA_CERTIFICATES_PATH\n"
+"                              the path to a directory containing root CA\n"
+"                              certs to use for report uploads\n"
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
       // clang-format off
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
@@ -244,6 +247,7 @@ struct Options {
   bool shared_client_connection;
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
   VMAddress evergreen_information_address;
+  base::FilePath ca_certificates_path;
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 #if BUILDFLAG(IS_ANDROID)
   bool write_minidump_to_log;
@@ -633,6 +637,7 @@ int HandlerMain(int argc,
 #endif
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     kOptionEvergreenInformaton,
+    kOptionCACertificatesPath,
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     kOptionURL,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -723,6 +728,10 @@ int HandlerMain(int argc,
      required_argument,
      nullptr,
      kOptionEvergreenInformaton},
+    {"ca-certificates-path",
+     required_argument,
+     nullptr,
+     kOptionCACertificatesPath},
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
     {"url", required_argument, nullptr, kOptionURL},
 #if BUILDFLAG(IS_CHROMEOS)
@@ -904,6 +913,11 @@ int HandlerMain(int argc,
         }
         break;
       }
+      case kOptionCACertificatesPath: {
+        options.ca_certificates_path = base::FilePath(
+            ToolSupport::CommandLineArgumentToFilePathStringType(optarg));
+        break;
+      }
 #endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
       case kOptionURL: {
         options.url = optarg;
@@ -1083,6 +1097,9 @@ int HandlerMain(int argc,
     upload_thread.Reset(new CrashReportUploadThread(
         database.get(),
         options.url,
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+        options.ca_certificates_path,
+#endif
         upload_thread_options,
 #if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
         prune_now_cb));

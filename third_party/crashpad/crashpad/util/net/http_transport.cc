@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "build/build_config.h"
 #include "util/net/http_body.h"
 
 namespace crashpad {
@@ -52,8 +53,16 @@ void HTTPTransport::SetTimeout(double timeout) {
   timeout_ = timeout;
 }
 
+#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+void HTTPTransport::SetRootCACertificatesDirectoryPath(
+    const base::FilePath& path) {
+  root_ca_certificates_directory_path_ = path;
+}
+#else  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+
 void HTTPTransport::SetRootCACertificatePath(const base::FilePath& cert) {
   root_ca_certificate_path_ = cert;
 }
+#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
 
 }  // namespace crashpad

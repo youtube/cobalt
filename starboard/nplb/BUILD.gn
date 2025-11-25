@@ -142,6 +142,7 @@ test("nplb") {
       "posix_compliance/posix_epoll_wait_test.cc",
       "posix_compliance/posix_eventfd_test.cc",
       "posix_compliance/posix_fcntl_test.cc",
+      "posix_compliance/posix_fdopendir_test.cc",
       "posix_compliance/posix_file_can_open_test.cc",
       "posix_compliance/posix_file_close_test.cc",
       "posix_compliance/posix_file_delete_test.cc",
@@ -161,6 +162,12 @@ test("nplb") {
       "posix_compliance/posix_getcwd_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
+      "posix_compliance/posix_locale_helpers.cc",
+      "posix_compliance/posix_locale_helpers.h",
+      "posix_compliance/posix_locale_langinfo_test.cc",
+      "posix_compliance/posix_locale_langinfo_test_data.cc.inc",
+      "posix_compliance/posix_locale_set_test.cc",
+      "posix_compliance/posix_locale_thread_test.cc",
       "posix_compliance/posix_lstat_test.cc",
       "posix_compliance/posix_memory_allocate_test.cc",
       "posix_compliance/posix_memory_deallocate_aligned_test.cc",
@@ -178,6 +185,7 @@ test("nplb") {
       "posix_compliance/posix_pipe_test.cc",
       "posix_compliance/posix_poll_test.cc",
       "posix_compliance/posix_posix_memory_allocate_aligned_test.cc",
+      "posix_compliance/posix_prctl_test.cc",
       "posix_compliance/posix_priority_test.cc",
       "posix_compliance/posix_process_test.cc",
       "posix_compliance/posix_rand_r_test.cc",
@@ -211,6 +219,7 @@ test("nplb") {
       "posix_compliance/posix_socket_shutdown_test.cc",
       "posix_compliance/posix_socketpair_test.cc",
       "posix_compliance/posix_stat_test.cc",
+      "posix_compliance/posix_stdio_test.cc",
       "posix_compliance/posix_string_compare_no_case_n_test.cc",
       "posix_compliance/posix_string_compare_no_case_test.cc",
       "posix_compliance/posix_string_format_test.cc",
@@ -354,7 +363,6 @@ test("nplb") {
   if (sb_is_evergreen_compatible) {
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
-      "nplb_evergreen_compat_tests/crashpad_config_test.cc",
       "nplb_evergreen_compat_tests/executable_memory_test.cc",
       "nplb_evergreen_compat_tests/fonts_test.cc",
       "nplb_evergreen_compat_tests/loader_app_metrics_test.cc",
@@ -362,6 +370,11 @@ test("nplb") {
       "nplb_evergreen_compat_tests/sabi_test.cc",
       "nplb_evergreen_compat_tests/storage_test.cc",
     ]
+
+    if (use_evergreen) {
+      sources += [ "nplb_evergreen_compat_tests/crashpad_config_test.cc" ]
+    }
+
     data_deps += [
       "//starboard/content/fonts:copy_font_data",
       "//starboard/content/ssl:copy_ssl_certificates_evergreen",

@@ -9,7 +9,7 @@ build = common.build {
   env_vars = super.env_vars + [
     {
       key = 'PLATFORM'
-      value = 'evergreen-x64-sbversion-17'
+      value = 'evergreen-x64-sbversion-18'
     },
     {
       key = 'GN_TARGET'

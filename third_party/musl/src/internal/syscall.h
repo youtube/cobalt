@@ -27,6 +27,54 @@ hidden long __syscall_ret(unsigned long),
 	__syscall_cp(syscall_arg_t, syscall_arg_t, syscall_arg_t, syscall_arg_t,
 	             syscall_arg_t, syscall_arg_t, syscall_arg_t);
 
+#if defined(STARBOARD)
+// Map __syscall/syscall_cp/__syscall_cp calls to `libc_wrapper_SYS_foo`.
+//
+// libc functions typically return -1 in case of an error and set errno to a
+// positive value that specifies the error that has occurred.
+//
+// Linux syscalls do not set errno for the calling program. Instead, they return
+// the error value as a negative value in the range -4095...-1.
+//
+// Function calls from musl to syscall() expect the libc return value and errno
+// value conventions while function calls to __syscall() expect the kernel
+// return value convention.
+//
+// On Starboard, we call the libc functions instead of directly calling the
+// syscall. As a result, we can directly use the wrapper for musl calls to
+// syscall() but have to do a return value mapping and to errno conversion
+// for musl calls to __syscall().
+//
+// The sycall_cp() and  __syscall_cp() functions are equivalent to the syscall()
+// and __syscall() functions, with the difference being for cancelable system
+// calls in combination with musl's pthread_cancel() implementation. Since
+// Starboard does not use the latter, we can imply map them onto the regular
+// syscall implementations.
+//
+// Unimplemented syscall functions can be detected from their undefined
+// symbol references for names starting with the prefix "libc_wrapper_".
+//
+// A similar mapping is implemented for syscall() calls for both musl internal
+// and external use in starboard/internal/bits/syscall_impl.h.
+//
+// The  libc_wrapper_() functions available in Starboard are declared in
+// starboard/include/syscall_arch.h
+//
+// Note: This does not currently provide support for calls to
+// socketcall() or socketcall_cp(). They appear to only used by musl to
+// implement certain socket functions that are included as library symbols in
+// Starboard.
+
+// Convert libc return value and errno to kernel return value.
+hidden long __libc_to_syscall_ret(unsigned long r);
+
+#define __SYSCALL_CONCAT_X(a, b) a##b
+#define __SYSCALL_CONCAT(a, b) __SYSCALL_CONCAT_X(a, b)
+#define syscall_cp(name, ...) __SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__)
+#define __syscall(name, ...) __libc_to_syscall_ret(__SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__))
+#define __syscall_cp(name, ...) __libc_to_syscall_ret(__SYSCALL_CONCAT(libc_wrapper_, name)(__VA_ARGS__))
+#else  // defined(STARBOARD)
+
 #define __syscall1(n,a) __syscall1(n,__scc(a))
 #define __syscall2(n,a,b) __syscall2(n,__scc(a),__scc(b))
 #define __syscall3(n,a,b,c) __syscall3(n,__scc(a),__scc(b),__scc(c))
@@ -74,6 +122,7 @@ static inline long __alt_socketcall(int sys, int sock, int cp, syscall_arg_t a, 
 	__scc(a), __scc(b), __scc(c), __scc(d), __scc(e), __scc(f))
 #define __socketcall_cp(nm, a, b, c, d, e, f) __alt_socketcall(SYS_##nm, __SC_##nm, 1, \
 	__scc(a), __scc(b), __scc(c), __scc(d), __scc(e), __scc(f))
+#endif  // defined(STARBOARD)
 
 /* fixup legacy 16-bit junk */
 
@@ -373,6 +422,16 @@ static inline long __alt_socketcall(int sys, int sock, int cp, syscall_arg_t a, 
 #define SIOCGSTAMPNS_OLD 0x8907
 #endif
 
+#if defined(STARBOARD)
+// While musl's default implementation below has handling of platforms where
+// SYS_open is not available and SYS_openat has to be used instead, for
+// Starboard we can rely on always having access to open.
+#define __sys_open(...) __libc_to_syscall_ret(libc_wrapper_SYS_open(__VA_ARGS__))
+#define sys_open(...) libc_wrapper_SYS_open(__VA_ARGS__)
+
+#define __sys_open_cp(...) __libc_to_syscall_ret(libc_wrapper_SYS_open(__VA_ARGS__))
+#define sys_open_cp(...) libc_wrapper_SYS_open(__VA_ARGS__)
+#else  // defined(STARBOARD)
 #ifdef SYS_open
 #define __sys_open2(x,pn,fl) __syscall2(SYS_open, pn, (fl)|O_LARGEFILE)
 #define __sys_open3(x,pn,fl,mo) __syscall3(SYS_open, pn, (fl)|O_LARGEFILE, mo)
@@ -390,6 +449,7 @@ static inline long __alt_socketcall(int sys, int sock, int cp, syscall_arg_t a, 
 
 #define __sys_open_cp(...) __SYSCALL_DISP(__sys_open_cp,,__VA_ARGS__)
 #define sys_open_cp(...) __syscall_ret(__sys_open_cp(__VA_ARGS__))
+#endif  // defined(STARBOARD)
 
 hidden void __procfdname(char __buf[static 15+3*sizeof(int)], unsigned);
 

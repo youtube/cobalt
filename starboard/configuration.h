@@ -41,7 +41,7 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive. The API version is not stable and is open for changes.
-#define SB_MAXIMUM_API_VERSION 17
+#define SB_MAXIMUM_API_VERSION 18
 
 // --- Common Detected Features ----------------------------------------------
 

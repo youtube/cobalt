@@ -14,31 +14,26 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
+#include <optional>
+
+#include "base/test/task_environment.h"
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace content {
 
 ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
-    : ShellMainDelegate(/*is_content_browsertests=*/true) {}
+    : ShellMainTestDelegate() {}
 
 ContentBrowserTestShellMainDelegate::~ContentBrowserTestShellMainDelegate() =
     default;
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-absl::optional<int>
-ContentBrowserTestShellMainDelegate::PostEarlyInitialization(
-    InvokedIn invoked_in) {
-  if (absl::holds_alternative<InvokedInBrowserProcess>(invoked_in)) {
-    // Browser tests on Lacros requires a non-null LacrosService.
-    lacros_service_ = std::make_unique<chromeos::LacrosService>();
-  }
-  ShellMainDelegate::PostEarlyInitialization(invoked_in);
-  return absl::nullopt;
+void ContentBrowserTestShellMainDelegate::CreateThreadPool(
+    std::string_view name) {
+  // Injects a test TaskTracker to watch for long-running tasks and produce a
+  // useful timeout message in order to find the cause of flaky timeout tests.
+  base::test::TaskEnvironment::CreateThreadPool();
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 ContentBrowserClient*
 ContentBrowserTestShellMainDelegate::CreateContentBrowserClient() {

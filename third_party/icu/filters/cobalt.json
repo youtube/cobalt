@@ -9,6 +9,7 @@
 // Includes only below locales.
   "localeFilter": {
     "filterType": "language",
+    "includeChildren": false,
     "includelist": [
       "af",
       "am",
@@ -159,6 +160,7 @@
 // "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "curr_tree": {
       "filterType": "language",
+      "includeChildren": false,
       "includelist": [
         "am",
         "ar",
@@ -219,6 +221,7 @@
         },
         {
           "filterType": "language",
+          "includeChildren": false,
           "includelist": [
             "am",
             "ar",
@@ -278,6 +281,7 @@
 // Includes only below locales.
     "region_tree": {
       "filterType": "language",
+      "includeChildren": false,
       "includelist": [
 //        "am",
         "ar",
@@ -338,6 +342,7 @@
 // "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "unit_tree": {
       "filterType": "language",
+      "includeChildren": false,
       "includelist": [
         "am",
         "ar",
@@ -389,6 +394,7 @@
 // "bn", "et", "gu", "kn", "ml", "mr", "ms", "ta", "te"
     "zone_tree": {
       "filterType": "language",
+      "includeChildren": false,
       "includelist": [
         "am",
         "ar",
@@ -506,7 +512,6 @@
         "-/Currencies",
         "-/Currencies%narrow",
         "-/CurrencyPlurals",
-        "+/*/AED",
 // Baesd on
 // https://cs.chromium.org/chromium/src/third_party/icu/android/currencies.list?rcl=797b7c
         "+/*/AED",
@@ -745,9 +750,6 @@
         "+/*/*/meter",
         "-/*/*/meter/case",
         "-/*/*/meter/gender",
-        "+/*/*/microsecond",
-        "-/*/*/microsecond/case",
-        "-/*/*/microsecond/gender",
         "+/*/*/mile",
         "-/*/*/mile/case",
         "-/*/*/mile/gender",
@@ -769,9 +771,6 @@
         "+/*/*/month",
         "-/*/*/month/case",
         "-/*/*/month/gender",
-        "+/*/*/nanosecond",
-        "-/*/*/nanosecond/case",
-        "-/*/*/nanosecond/gender",
         "+/*/*/ounce",
         "-/*/*/ounce/case",
         "-/*/*/ounce/gender",
@@ -1631,7 +1630,6 @@
       "rules": [
         "-/*",
         "+/%%ALIAS",
-        "+/%%Parent",
         "+/LocaleScript",
         "+/layout",
         "+/Version"

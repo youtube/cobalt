@@ -26,19 +26,16 @@
 namespace content {
 class ShellContentClient;
 class ShellContentBrowserClient;
-class ShellContentGpuClient;
 class ShellContentRendererClient;
-#if defined(RUN_BROWSER_TESTS)
-class ShellContentUtilityClient;
-#endif  // defined(RUN_BROWSER_TESTS)
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
 class WebTestBrowserMainRunner;
 #endif
 
 class ShellMainDelegate : public ContentMainDelegate {
  public:
-  explicit ShellMainDelegate(bool is_content_browsertests = false);
+  explicit ShellMainDelegate();
 
   ShellMainDelegate(const ShellMainDelegate&) = delete;
   ShellMainDelegate& operator=(const ShellMainDelegate&) = delete;
@@ -60,11 +57,7 @@ class ShellMainDelegate : public ContentMainDelegate {
   std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
   ContentClient* CreateContentClient() override;
   ContentBrowserClient* CreateContentBrowserClient() override;
-  ContentGpuClient* CreateContentGpuClient() override;
   ContentRendererClient* CreateContentRendererClient() override;
-#if defined(RUN_BROWSER_TESTS)
-  ContentUtilityClient* CreateContentUtilityClient() override;
-#endif  // defined(RUN_BROWSER_TESTS)
 
   static void InitializeResourceBundle();
 
@@ -75,7 +68,8 @@ class ShellMainDelegate : public ContentMainDelegate {
   // content_browsertests should not set the kRunWebTests command line flag, so
   // |is_content_browsertests_| and |web_test_runner_| are mututally exclusive.
   bool is_content_browsertests_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
+    !BUILDFLAG(IS_STARBOARD)
   // Only present when running web tests, which run inside Content Shell.
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and
@@ -84,11 +78,7 @@ class ShellMainDelegate : public ContentMainDelegate {
 #endif
 
   std::unique_ptr<ShellContentBrowserClient> browser_client_;
-  std::unique_ptr<ShellContentGpuClient> gpu_client_;
   std::unique_ptr<ShellContentRendererClient> renderer_client_;
-#if defined(RUN_BROWSER_TESTS)
-  std::unique_ptr<ShellContentUtilityClient> utility_client_;
-#endif  // defined(RUN_BROWSER_TESTS)
   std::unique_ptr<ShellContentClient> content_client_;
 
   memory_system::MemorySystem memory_system_;

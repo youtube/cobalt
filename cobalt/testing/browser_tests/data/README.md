@@ -12,4 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-This provides a blank data directory that the `cobalt_browsertests` target depends on to run successfully.
+This directory provides scripts to copy essentially all of the contents of
+as a data_dep in cobalt's browser test target, excluding some symlink files.
+
+## Updating Test Data contents
+
+To ensure all necessary test data from `//content/test/data` is included in the `cobalt_browsertests`, the `update_build_gn.py` script located here is used in
+a build action. This essentially copies all of `//content/test/data`, with the
+exception of files with *symlink* in its name. Modifying this script, and its
+associated test, is the recommended way to filter out resource files from the
+`cobalt_browsertests` set of `data_deps`.

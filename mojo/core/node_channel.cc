@@ -921,9 +921,11 @@ void NodeChannel::InitializeLocalCapabilities() {
     return;
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   if (core::Channel::SupportsChannelUpgrade()) {
     SetLocalCapabilities(kNodeCapabilitySupportsUpgrade);
   }
+#endif
 }
 
 }  // namespace core

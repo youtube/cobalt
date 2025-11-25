@@ -58,7 +58,7 @@ OpusAudioDecoder::~OpusAudioDecoder() {
 
 void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -70,7 +70,7 @@ void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(pending_audio_buffers_.empty());
   SB_DCHECK(output_cb_);
@@ -95,7 +95,7 @@ void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void OpusAudioDecoder::DecodePendingBuffers() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!pending_audio_buffers_.empty());
   SB_DCHECK(consumed_cb_);
 
@@ -121,7 +121,7 @@ void OpusAudioDecoder::DecodePendingBuffers() {
 
 bool OpusAudioDecoder::DecodeInternal(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
@@ -172,7 +172,7 @@ bool OpusAudioDecoder::DecodeInternal(
 }
 
 void OpusAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   // Opus has no dependent frames so we needn't flush the decoder.  Set the
@@ -218,7 +218,7 @@ void OpusAudioDecoder::TeardownCodec() {
 }
 
 scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
@@ -232,7 +232,7 @@ scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
 }
 
 void OpusAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (is_valid()) {
     int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
@@ -262,7 +262,7 @@ bool OpusAudioDecoder::is_valid() const {
 }
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   return kSbMediaAudioSampleTypeFloat32;
 }
 

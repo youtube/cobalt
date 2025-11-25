@@ -3,6 +3,8 @@
 # found in the LICENSE file.
 
 import("//third_party/jni_zero/jni_zero.gni")
+import("//build/buildflag_header.gni")
+import("//cobalt/build/configs/cobalt_for_google.gni")
 
 config("jni_include_dir") {
   include_dirs = [ jni_headers_dir ]
@@ -30,6 +32,14 @@ generate_jar_jni("system_jni") {
     "java/lang/Boolean.class",
   ]
   visibility = [ ":*" ]
+}
+
+buildflag_header("cobalt_for_google3_buildflags") {
+  header = "cobalt_for_google3_buildflags.h"
+  header_dir = "third_party/jni_zero"
+  flags = [
+    "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
+  ]
 }
 
 # This is the public target that we intend others to use.
@@ -77,7 +87,14 @@ component("jni_zero") {
   deps = [
     ":generate_jni($default_toolchain)",
     ":system_jni($default_toolchain)",
+    ":cobalt_for_google3_buildflags",
   ]
+  
+  if (is_cobalt) {
+    deps += [ 
+      ":cobalt_for_google3_buildflags",
+    ]
+  }
 }
 
 if (enable_java_templates && is_android) {

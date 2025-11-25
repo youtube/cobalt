@@ -34,6 +34,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
@@ -54,6 +55,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -134,8 +136,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
-  content::NavigationHandle& navigation_handle =
-      registry.GetNavigationHandle();
+  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
@@ -162,6 +163,12 @@ std::string CobaltContentBrowserClient::GetApplicationLocale() {
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if !defined(OFFICIAL_BUILD)
+  const auto custom_ua = embedder_support::GetUserAgentFromCommandLine();
+  if (custom_ua.has_value()) {
+    return custom_ua.value();
+  }
+#endif  // !defined(OFFICIAL_BUILD)
   return GetCobaltUserAgent();
 }
 
@@ -171,9 +178,9 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
 }
 
 void CobaltContentBrowserClient::OverrideWebPreferences(
-                            content::WebContents* web_contents,
-                            content::SiteInstance& main_frame_site,
-                            blink::web_pref::WebPreferences* prefs) {
+    content::WebContents* web_contents,
+    content::SiteInstance& main_frame_site,
+    blink::web_pref::WebPreferences* prefs) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
@@ -181,7 +188,7 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
-                            web_contents, main_frame_site, prefs);
+      web_contents, main_frame_site, prefs);
 }
 
 content::StoragePartitionConfig
@@ -239,7 +246,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths->trust_token_database_name =
         base::FilePath(kTrustTokenFilename);
 
-    network_context_params->restore_old_session_cookies = false;
+    // Always try to restore old session cookies.
+    network_context_params->restore_old_session_cookies = true;
     network_context_params->persist_session_cookies = true;
 
     network_context_params->file_paths->transport_security_persister_file_name =
@@ -253,8 +261,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->sct_auditing_mode =
       network::mojom::SCTAuditingMode::kDisabled;
 
-  // All consumers of the main NetworkContext must provide NetworkAnonymizationKey
-  // / IsolationInfos, so storage can be isolated on a per-site basis.
+  // All consumers of the main NetworkContext must provide
+  // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
+  // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 }
 
@@ -330,11 +339,9 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
   if (header_client) {
-    auto receiver = header_client->InitWithNewPipeAndPassReceiver();
-    auto cobalt_header_client =
-        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(
-            std::move(receiver));
-    cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+    mojo::MakeSelfOwnedReceiver(
+        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
+        header_client->InitWithNewPipeAndPassReceiver());
   }
 }
 
@@ -353,7 +360,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
-
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
@@ -398,9 +404,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  GlobalFeatures::GetInstance()
-      ->metrics_services_manager()
-      ->InstantiateFieldTrialList();
+  auto* global_features = GlobalFeatures::GetInstance();
+  global_features->metrics_services_manager()->InstantiateFieldTrialList();
+  // Mark the session as unclean at startup. If the session exits cleanly, it
+  // will be marked as clean in CobaltMetricsServiceClient's destructor.
+  global_features->metrics_services_manager_client()
+      ->GetMetricsStateManager()
+      ->LogHasSessionShutdownCleanly(false, false);
 
   auto feature_list = std::make_unique<base::FeatureList>();
 

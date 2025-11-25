@@ -24,7 +24,7 @@ import("//tools/grit/repack.gni")
 shell_use_toolkit_views = toolkit_views && !is_castos
 
 # Web test support only built for the linux-x64x11-no-starboard target.
-support_web_tests = !is_android && !is_starboard
+support_web_tests = !is_android && !is_ios && !is_starboard
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("cobalt_shell_lib_warnings") {
@@ -161,51 +161,6 @@ group("cobalt_shell_lib_deps") {
   }
 }
 
-source_set("browsertests_sources") {
-  testonly = true
-  sources = [
-    "common/main_frame_counter_test_impl.cc",
-    "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
-    "renderer/render_frame_test_helper.cc",
-    "renderer/render_frame_test_helper.h",
-    "renderer/shell_render_frame_observer.cc",
-    "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
-  ]
-
-  public_deps = [
-    ":browsertests_mojom",
-    ":shell_controller_mojom",
-    ":shell_test_switches_lib",
-    "//components/custom_handlers:test_support",
-    "//components/metrics:test_support",
-    "//components/services/storage/test_api",
-    "//content/common:main_frame_counter",
-    "//content/public/child",
-    "//content/public/common",
-    "//content/public/renderer",
-    "//content/public/utility",
-    "//content/test:content_test_mojo_bindings",
-    "//content/test:test_support",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
-  ]
-
-  if (use_aura) {
-    public_deps += [ "//ui/aura:test_support" ]
-
-    if (shell_use_toolkit_views) {
-      public_deps += [
-        "//ui/views:test_support",
-        "//ui/wm:test_support",
-      ]
-    }
-  }
-}
-
 static_library("cobalt_shell_switches") {
   sources = [
     "common/shell_switches.cc",
@@ -239,8 +194,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
-    "browser/shell_platform_data_aura.cc",
-    "browser/shell_platform_data_aura.h",
     "browser/shell_platform_delegate.cc",
     "browser/shell_platform_delegate.h",
     "browser/shell_speech_recognition_manager_delegate.cc",
@@ -251,8 +204,6 @@ static_library("cobalt_shell_lib") {
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
-    "gpu/shell_content_gpu_client.cc",
-    "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
@@ -270,8 +221,6 @@ static_library("cobalt_shell_lib") {
 
   if (is_ios) {
     sources += [
-      "browser/shell_file_select_helper.cc",
-      "browser/shell_file_select_helper.h",
       "browser/shell_platform_delegate_ios.mm",
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
@@ -291,7 +240,11 @@ static_library("cobalt_shell_lib") {
   # an official build, including not only browser tests but also web tests or render tests.
   if (run_browser_tests) {
     defines += [ "RUN_BROWSER_TESTS=1" ]
-    public_deps += [ ":browsertests_sources" ]
+
+    public_deps += [
+      ":shell_test_switches_lib",
+      "//content/test:test_support",
+    ]
   }
 
   if (shell_use_toolkit_views) {
@@ -310,6 +263,11 @@ static_library("cobalt_shell_lib") {
   }
 
   if (use_aura) {
+    sources += [
+      "browser/shell_platform_data_aura.cc",
+      "browser/shell_platform_data_aura.h",
+    ]
+
     if (shell_use_toolkit_views) {
       sources += [
         "browser/cobalt_views_delegate.cc",
@@ -323,11 +281,6 @@ static_library("cobalt_shell_lib") {
         "browser/shell_web_contents_view_delegate_aura.cc",
       ]
     }
-  } else {
-    sources -= [
-      "browser/shell_platform_data_aura.cc",
-      "browser/shell_platform_data_aura.h",
-    ]
   }
 
   if (is_starboard) {
@@ -368,6 +321,13 @@ static_library("cobalt_shell_app") {
     "app/shell_main_delegate.h",
   ]
   public_deps = [ ":cobalt_shell_app_deps" ]
+
+  if (is_apple) {
+    sources += [
+      "app/paths_mac.h",
+      "app/paths_mac.mm",
+    ]
+  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
@@ -495,22 +455,4 @@ copy("copy_shell_resources") {
 
 group("resources") {
   public_deps = [ ":copy_shell_resources" ]
-}
-
-mojom("browsertests_mojom") {
-  sources = [
-    "common/main_frame_counter_test.mojom",
-    "common/power_monitor_test.mojom",
-    "common/render_frame_test_helper.mojom",
-  ]
-  public_deps = [
-    "//sandbox/policy/mojom",
-    "//third_party/blink/public/mojom/tokens",
-  ]
-}
-
-mojom("shell_controller_mojom") {
-  testonly = true
-  sources = [ "common/shell_controller.test-mojom" ]
-  public_deps = [ "//mojo/public/mojom/base" ]
 }

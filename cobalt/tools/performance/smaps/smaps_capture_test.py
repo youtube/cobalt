@@ -43,6 +43,7 @@ class SmapsCaptureTest(unittest.TestCase):
     """Creates an instance of SmapsCapturer with mocked dependencies."""
     config = MagicMock()
     config.process_name = 'test.process'
+    config.platform = 'android'  # Default to android for existing tests
     config.device_serial = 'test-serial'
     config.adb_path = 'adb'
     config.interval_minutes = 1
@@ -66,9 +67,10 @@ class SmapsCaptureTest(unittest.TestCase):
     """Tests that command-line arguments are correctly parsed and passed."""
     # Simulate command-line arguments
     test_argv = [
-        '--process_name', 'custom.process', '--interval_minutes', '5',
-        '--capture_duration_seconds', '300', '--output_dir', 'custom_logs',
-        '--device_serial', 'custom-serial', '--adb_path', '/custom/adb'
+        '--platform', 'linux', '--process_name', 'custom.process',
+        '--interval_minutes', '5', '--capture_duration_seconds', '300',
+        '--output_dir', 'custom_logs', '--device_serial', 'custom-serial',
+        '--adb_path', '/custom/adb'
     ]
 
     run_smaps_capture_tool(test_argv)
@@ -77,6 +79,7 @@ class SmapsCaptureTest(unittest.TestCase):
     # attributes
     mock_capturer.assert_called_once()
     args, _ = mock_capturer.call_args
+    self.assertEqual(args[0].platform, 'linux')
     self.assertEqual(args[0].process_name, 'custom.process')
     self.assertEqual(args[0].interval_minutes, 5)
     self.assertEqual(args[0].capture_duration_seconds, 300)
@@ -97,20 +100,87 @@ class SmapsCaptureTest(unittest.TestCase):
     command = capturer.build_adb_command('shell', 'ls')
     self.assertEqual(command, ['adb', 'shell', 'ls'])
 
-  def test_get_pid_success(self):
-    """Tests successful PID retrieval."""
+  def test_get_pids_android_success(self):
+    """Tests successful PID retrieval on Android."""
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = '12345\r\n'
     self.mock_subprocess.run.return_value = mock_process
 
-    capturer = self.create_capturer()
-    pid = capturer.get_pid()
+    capturer = self.create_capturer(platform='android')
+    pids = capturer.get_pids()
 
-    self.assertEqual(pid, '12345')
-    self.mock_subprocess.run.assert_called_once()
+    self.assertEqual(pids, ['12345'])
 
-  def test_get_pid_not_found(self):
+  def test_get_pids_linux_success(self):
+    """Tests successful PID retrieval on Linux."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0
+    mock_process.stdout = '54321'
+    self.mock_subprocess.run.return_value = mock_process
+
+    capturer = self.create_capturer(platform='linux')
+    pids = capturer.get_pids()
+
+    self.assertEqual(pids, ['54321'])
+
+  def test_get_pids_linux_multiple_pids(self):
+    """Tests that the main PID is selected from multiple PIDs."""
+    # Mock the pidof command to return multiple PIDs
+    mock_pidof_process = MagicMock()
+    mock_pidof_process.returncode = 0
+    mock_pidof_process.stdout = '12345 54321 67890'
+
+    # Mock the ps command to return different elapsed times
+    mock_ps_process = MagicMock()
+    mock_ps_process.returncode = 0
+    mock_ps_process.stdout = '  PID  ELAPSED\n12345      ' \
+            + '100\n54321      500\n67890      200'
+
+    self.mock_subprocess.run.side_effect = [mock_pidof_process, mock_ps_process]
+
+    capturer = self.create_capturer(platform='linux')
+    pids = capturer.get_pids()
+
+    self.assertEqual(pids, ['54321'])
+    self.mock_subprocess.run.assert_has_calls([
+        call(['pidof', 'test.process'],
+             capture_output=True,
+             text=True,
+             check=False,
+             timeout=10),
+        call(['ps', '-o', 'pid,etimes', '-p', '12345,54321,67890'],
+             capture_output=True,
+             text=True,
+             check=False,
+             timeout=10)
+    ])
+
+  def test_get_pids_linux_empty_pidof_output(self):
+    """Tests that an empty stdout from pidof is handled correctly."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0
+    mock_process.stdout = '   '  # Whitespace only
+    self.mock_subprocess.run.return_value = mock_process
+
+    capturer = self.create_capturer(platform='linux')
+    pids = capturer.get_pids()
+
+    self.assertEqual(pids, [])
+
+  def test_get_pids_dispatches_correctly(self):
+    """Tests that get_pids calls the correct platform-specific method."""
+    capturer_android = self.create_capturer(platform='android')
+    capturer_android.get_pids_android = MagicMock(return_value=['android-pid'])
+    self.assertEqual(capturer_android.get_pids(), ['android-pid'])
+    capturer_android.get_pids_android.assert_called_once()
+
+    capturer_linux = self.create_capturer(platform='linux')
+    capturer_linux.get_pids_linux = MagicMock(return_value=['linux-pid'])
+    self.assertEqual(capturer_linux.get_pids(), ['linux-pid'])
+    capturer_linux.get_pids_linux.assert_called_once()
+
+  def test_get_pids_not_found(self):
     """Tests when the process is not found."""
     mock_process = MagicMock()
     mock_process.returncode = 1
@@ -118,35 +188,87 @@ class SmapsCaptureTest(unittest.TestCase):
     self.mock_subprocess.run.return_value = mock_process
 
     capturer = self.create_capturer()
-    pid = capturer.get_pid()
+    pids = capturer.get_pids()
 
-    self.assertIsNone(pid)
+    self.assertEqual(pids, [])
 
-  def test_get_pid_exception(self):
+  def test_get_pids_exception(self):
     """Tests exception handling during PID retrieval."""
-    self.mock_subprocess.run.side_effect = Exception('ADB error')
+    self.mock_subprocess.run.side_effect = Exception('Error')
     capturer = self.create_capturer()
-    pid = capturer.get_pid()
-    self.assertIsNone(pid)
+    pids = capturer.get_pids()
+    self.assertEqual(pids, [])
 
-  def test_capture_smaps_success(self):
-    """Tests a successful smaps capture."""
+  def test_capture_smaps_android_success(self):
+    """Tests a successful smaps capture on Android."""
     mock_process = MagicMock()
     mock_process.returncode = 0
-    mock_process.stdout = 'smaps content'
+    mock_process.stdout = 'android smaps content'
     self.mock_subprocess.run.return_value = mock_process
     self.mock_os.path.join.return_value = (
         'test_logs/smaps_20250101_120000_12345.txt')
     self.mock_os.path.getsize.return_value = 1024
 
-    capturer = self.create_capturer()
+    capturer = self.create_capturer(platform='android')
     capturer.capture_smaps('12345')
 
     self.mock_open.assert_called_with(
         'test_logs/smaps_20250101_120000_12345.txt', 'w', encoding='utf-8')
-    self.mock_file_handle.write.assert_called_with('smaps content')
+    self.mock_file_handle.write.assert_called_with('android smaps content')
     self.mock_os.path.getsize.assert_called()
     self.mock_os.remove.assert_not_called()
+
+  def test_capture_smaps_linux_success(self):
+    """Tests a successful smaps capture on Linux."""
+    self.mock_os.path.join.return_value = (
+        'test_logs/smaps_20250101_120000_54321.txt')
+    self.mock_os.path.getsize.return_value = 1024
+
+    smaps_content_lines = ['line1\n', 'line2\n', 'line3\n']
+
+    # Create a mock for the input file (smaps_file)
+    mock_smaps_file_read = MagicMock()
+    mock_smaps_file_read.__enter__.return_value = mock_smaps_file_read
+    mock_smaps_file_read.__iter__.return_value = iter(smaps_content_lines)
+
+    # Create a mock for the output file (output_file)
+    mock_output_file_write = MagicMock()
+    mock_output_file_write.__enter__.return_value = mock_output_file_write
+
+    # Configure self.mock_open to return these two mocks sequentially
+    self.mock_open.side_effect = [
+        mock_smaps_file_read,  # First call to open (for smaps_path)
+        mock_output_file_write  # Second call to open (for output_filename)
+    ]
+
+    capturer = self.create_capturer(platform='linux')
+    capturer.capture_smaps('54321')
+
+    # Assert that open was called for both files
+    self.mock_open.assert_has_calls([
+        call('/proc/54321/smaps', 'r', encoding='utf-8'),
+        call(
+            'test_logs/smaps_20250101_120000_54321.txt', 'w', encoding='utf-8')
+    ])
+
+    # Assert that each line was written to the output file
+    mock_output_file_write.write.assert_has_calls(
+        [call(line) for line in smaps_content_lines])
+    self.mock_os.path.getsize.assert_called_with(
+        'test_logs/smaps_20250101_120000_54321.txt')
+
+  def test_capture_smaps_dispatches_correctly(self):
+    """Tests that capture_smaps calls the correct platform-specific method."""
+    capturer_android = self.create_capturer(platform='android')
+    capturer_android.capture_smaps_android = MagicMock()
+    capturer_android.capture_smaps('android-pid')
+    capturer_android.capture_smaps_android.assert_called_once_with(
+        'android-pid')
+
+    capturer_linux = self.create_capturer(platform='linux')
+    capturer_linux.capture_smaps_linux = MagicMock()
+    capturer_linux.capture_smaps('linux-pid')
+    capturer_linux.capture_smaps_linux.assert_called_once_with('linux-pid')
 
   def test_capture_smaps_failure(self):
     """Tests a failed smaps capture."""
@@ -158,7 +280,7 @@ class SmapsCaptureTest(unittest.TestCase):
         'test_logs/smaps_20250101_120000_12345.txt')
     self.mock_os.path.exists.return_value = True
 
-    capturer = self.create_capturer()
+    capturer = self.create_capturer(platform='android')
     capturer.capture_smaps('1234f')
 
     self.mock_os.remove.assert_called_with(
@@ -168,7 +290,7 @@ class SmapsCaptureTest(unittest.TestCase):
     """Tests the main capture loop."""
     capturer = self.create_capturer(
         capture_duration_seconds=120, interval_minutes=1)
-    capturer.get_pid = MagicMock(side_effect=['12345', '54321', None])
+    capturer.get_pids = MagicMock(side_effect=[['12345'], ['54321'], []])
     capturer.capture_smaps = MagicMock()
 
     # Simulate time passing
@@ -180,7 +302,7 @@ class SmapsCaptureTest(unittest.TestCase):
     # Assert that the loop ran the expected number of times and then exited.
     # For capture_duration_seconds=120 and interval_seconds=60, this means 2
     # iterations.
-    self.assertEqual(capturer.get_pid.call_count, 2)
+    self.assertEqual(capturer.get_pids.call_count, 2)
     self.assertEqual(capturer.capture_smaps.call_count, 2)
     capturer.capture_smaps.assert_has_calls([call('12345'), call('54321')])
     self.mock_time.sleep.assert_has_calls([call(60), call(60)])
@@ -189,7 +311,7 @@ class SmapsCaptureTest(unittest.TestCase):
     """Tests the main capture loop with a different duration and interval."""
     capturer = self.create_capturer(
         capture_duration_seconds=180, interval_minutes=1)
-    capturer.get_pid = MagicMock(side_effect=['111', '222', '333', None])
+    capturer.get_pids = MagicMock(side_effect=[['111'], ['222'], ['444'], []])
     capturer.capture_smaps = MagicMock()
 
     # Simulate time passing for 3 iterations (180s duration / 60s interval)
@@ -200,10 +322,10 @@ class SmapsCaptureTest(unittest.TestCase):
     self.mock_os.makedirs.assert_called_with('test_logs', exist_ok=True)
     # For capture_duration_seconds=180 and interval_seconds=60, this means 3
     # iterations.
-    self.assertEqual(capturer.get_pid.call_count, 3)
+    self.assertEqual(capturer.get_pids.call_count, 3)
     self.assertEqual(capturer.capture_smaps.call_count, 3)
     capturer.capture_smaps.assert_has_calls(
-        [call('111'), call('222'), call('333')])
+        [call('111'), call('222'), call('444')])
     self.mock_time.sleep.assert_has_calls([call(60), call(60), call(60)])
 
 
