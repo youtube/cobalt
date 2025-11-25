@@ -754,8 +754,10 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
   }
 
   const auto& stream_info = input_buffer->video_stream_info();
-  const unsigned int stream_info_width = std::max(0, stream_info.frame_size.width);
-  const unsigned int stream_info_height = std::max(0, stream_info.frame_size.height);
+  const unsigned int stream_info_width =
+      std::max(0, stream_info.frame_size.width);
+  const unsigned int stream_info_height =
+      std::max(0, stream_info.frame_size.height);
   if (!context_ || stream_info_width != current_frame_width_ ||
       stream_info_height != current_frame_height_) {
     if (context_) {
