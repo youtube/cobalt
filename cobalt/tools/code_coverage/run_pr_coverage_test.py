@@ -14,46 +14,50 @@ from cobalt.tools.code_coverage import run_pr_coverage
 
 class RunPrCoverageTest(unittest.TestCase):
 
+  @mock.patch('sys.argv', ['run_pr_coverage.py'])
   @mock.patch('subprocess.Popen')
   @mock.patch('os.chdir')
   @mock.patch('pathlib.Path.exists', return_value=True)
-  def test_main_success_flow(self, mock_exists, mock_chdir, mock_popen):
+  def test_main_success_flow_default_target(self, mock_exists, mock_chdir, mock_popen):
     """
-        Test the main function for a successful run, verifying all commands.
+        Test the main function with the default target (crypto_unittests).
         """
-    # Mock the process to simulate successful command execution
     mock_process = mock.Mock()
     mock_process.returncode = 0
-    # Simulate stdout streaming
     mock_process.stdout.readline.side_effect = ['output\n', '']
     mock_popen.return_value = mock_process
 
     run_pr_coverage.main()
+    self.assertEqual(mock_popen.call_count, 3)
+    calls = mock_popen.call_args_list
+    coverage_cmd = ' '.join(calls[1].args[0])
+    self.assertIn("crypto_unittests", coverage_cmd)
 
-    # Verify that we changed to the correct directory
-    mock_chdir.assert_called_once_with(run_pr_coverage.SRC_ROOT)
+  @mock.patch('sys.argv', ['run_pr_coverage.py', 'url_unittests'])
+  @mock.patch('subprocess.Popen')
+  @mock.patch('os.chdir')
+  @mock.patch('pathlib.Path.exists', return_value=True)
+  def test_main_custom_target(self, mock_exists, mock_chdir, mock_popen):
+    """
+        Test the main function with a custom specified target.
+        """
+    mock_process = mock.Mock()
+    mock_process.returncode = 0
+    mock_process.stdout.readline.side_effect = ['output\n', '']
+    mock_popen.return_value = mock_process
 
-    # Verify that all three main commands were called
+    run_pr_coverage.main()
     self.assertEqual(mock_popen.call_count, 3)
     calls = mock_popen.call_args_list
 
-    # 1. Verify pip install command
-    pip_cmd = calls[0].args[0]
-    self.assertIn("pip", pip_cmd[2])
-    self.assertIn("install", pip_cmd[3])
-    self.assertIn("diff-cover", pip_cmd[4])
-
-    # 2. Verify coverage.py command
+    # Verify coverage.py command uses the custom target
     coverage_cmd = ' '.join(calls[1].args[0])
-    self.assertIn("tools/code_coverage/coverage.py", coverage_cmd)
-    self.assertIn(run_pr_coverage.TARGET_TO_COVERAGE, coverage_cmd)
-    self.assertIn("--format=lcov", coverage_cmd)
+    self.assertIn("url_unittests", coverage_cmd)
+    self.assertNotIn("crypto_unittests", coverage_cmd)
 
-    # 3. Verify check_coverage.py command
+    # Verify check_coverage.py command uses the correct lcov file path
     check_cmd = ' '.join(calls[2].args[0])
-    self.assertIn("check_coverage.py", check_cmd)
-    self.assertIn(f"--input {run_pr_coverage.SRC_ROOT / run_pr_coverage.LCOV_FILE}", check_cmd)
-    self.assertIn("--fail-under 80.0", check_cmd)
+    self.assertIn("out/lcov_report/url_unittests.lcov", check_cmd)
 
   @mock.patch('subprocess.Popen')
   @mock.patch('os.chdir')

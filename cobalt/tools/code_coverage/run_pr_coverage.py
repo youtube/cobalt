@@ -1,28 +1,17 @@
-#!/usr/bin/env python3
-"""
-Orchestrates a CI code coverage check by generating coverage data and enforcing
-quality gates.
-"""
-
 import subprocess
 import sys
 import os
 import pathlib
+import argparse
 
 # --- Configuration ---
-# The target to build and run for coverage analysis.
-TARGET_TO_COVERAGE = "crypto_unittests"
-
-# The final location of the LCOV file, relative to the checkout root.
-LCOV_FILE = f"out/lcov_report/{TARGET_TO_COVERAGE}.lcov"
-
-# The name of the final Markdown report file.
-REPORT_FILE = "coverage_summary.md"
-
 # The script's location is cobalt/tools/code_coverage
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 # The checkout root is three levels up from this script.
 SRC_ROOT = (SCRIPT_DIR / ".." / ".." / "..").resolve()
+
+# The name of the final Markdown report file.
+REPORT_FILE = "coverage_summary.md"
 
 
 def run_command(cmd, check=True):
@@ -55,6 +44,18 @@ def run_command(cmd, check=True):
 
 def main():
   """Main entry point for the script."""
+  parser = argparse.ArgumentParser(
+      description="Orchestrates a CI code coverage check.")
+  parser.add_argument(
+      'target',
+      nargs='?',
+      default='crypto_unittests',
+      help='The test target to build and run for coverage analysis.')
+  args = parser.parse_args()
+
+  target_to_coverage = args.target
+  lcov_file = f"out/lcov_report/{target_to_coverage}.lcov"
+
   # Ensure all commands are run from the root of the checkout.
   os.chdir(SRC_ROOT)
 
@@ -63,7 +64,7 @@ def main():
   run_command([sys.executable, "-m", "pip", "install", "diff-cover"])
 
   # 2. Run the Chromium coverage tool to generate the LCOV file
-  print(f"\n--- Generating LCOV report for '{TARGET_TO_COVERAGE}' ---")
+  print(f"\n--- Generating LCOV report for '{target_to_coverage}' ---")
   coverage_py_path = SRC_ROOT / "tools" / "code_coverage" / "coverage.py"
   build_dir = SRC_ROOT / "out" / "coverage"
   lcov_output_dir = SRC_ROOT / "out" / "lcov_report"
@@ -72,13 +73,13 @@ def main():
   coverage_cmd = [
       "python3",
       str(coverage_py_path),
-      TARGET_TO_COVERAGE,
+      target_to_coverage,
       "-b",
       str(build_dir),
       "-o",
       str(lcov_output_dir),
       "-c",
-      str(build_dir / TARGET_TO_COVERAGE),
+      str(build_dir / target_to_coverage),
       "--coverage-tools-dir",
       str(llvm_dir),
       "--format=lcov",
@@ -88,7 +89,7 @@ def main():
   # 3. Run the check_coverage.py script
   print("\n--- Analyzing coverage and generating report ---")
   check_coverage_py_path = SCRIPT_DIR / "check_coverage.py"
-  final_lcov_path = SRC_ROOT / LCOV_FILE
+  final_lcov_path = SRC_ROOT / lcov_file
 
   if not final_lcov_path.exists():
     print(
@@ -111,7 +112,6 @@ def main():
 
   # 4. Echo the location of the generated markdown report
   print(f"\n✅ Success! Code coverage report generated at: {REPORT_FILE}")
-
 
 if __name__ == "__main__":
   main()
