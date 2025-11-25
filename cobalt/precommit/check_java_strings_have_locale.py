@@ -9,9 +9,10 @@ def main():
   args = parser.parse_args()
 
   errors = []
-  # This regex looks for String.format( where the rest of the line does not
-  # contain "Locale.US". This is a heuristic for single-line calls.
-  pattern = re.compile(r'\bString\.format\s*\((?!.*Locale\.US)')
+  # This regex looks for String.format(...) with a "%d" in the format string,
+  # where the rest of the line does not contain "Locale.US". This is a
+  # heuristic for single-line calls.
+  pattern = re.compile(r'\bString\.format\((?!.*Locale\.US)(?=.*".*?\%d.*").*?\)')
 
   for file_path in args.files:
     try:
