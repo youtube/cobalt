@@ -218,7 +218,8 @@ def _get_cobalt_files(args: argparse.Namespace) -> List[str]:
   elif args.device_family in ['rdk', 'raspi']:
     return [f'cobalt_build={args.cobalt_build}']
   else:
-    raise ValueError(f'Unsupported device family for E2E cobalt files: {args.device_family}')
+    raise ValueError(
+      f'Unsupported device family for E2E cobalt files: {args.device_family}')
 
 
 def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
@@ -435,7 +436,8 @@ def main() -> int:
         raise ValueError('--cobalt_build is required for e2e_test on RDK/Raspi')
     else:
       # This case should be caught by _get_cobalt_files, but as a safeguard:
-      raise ValueError(f'Unsupported device_family {args.device_family} for e2e_test')
+      raise ValueError(
+        f'Unsupported device_family {args.device_family} for e2e_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
       raise ValueError('--device_family is required for unit_test')
