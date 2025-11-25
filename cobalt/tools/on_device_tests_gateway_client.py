@@ -172,6 +172,13 @@ def _get_gtest_filter(filter_json_dir: str, target_name: str) -> str:
 
 def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   """Builds the list of files for a unit test request."""
+<<<<<<< HEAD
+=======
+  is_modular_raspi = 'builder-raspi-2-modular' in args.label
+
+  # TODO: b/432536319 - Use flag to determine file ending.
+
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
   if args.device_family == 'android':
     return [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',

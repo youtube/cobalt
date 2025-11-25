@@ -31,10 +31,23 @@ _EXCLUDE_DIRS = [
 ]
 
 
-def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
+def _make_tar(archive_path: str, compression: str, compression_level: int,
+              file_lists: List[Tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
+<<<<<<< HEAD
   tar_cmd = ['tar', '-I gzip -1', '-cvf', archive_path]
+=======
+  if compression == 'gz':
+    compression_flag = f'gzip -{compression_level}'
+  elif compression == 'xz':
+    compression_flag = f'xz -T0 -{compression_level}'
+  elif compression == 'zstd':
+    compression_flag = f'zstd -T0 -{compression_level}'
+  else:
+    raise ValueError(f'Unsupported compression: {compression}')
+  tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
   tmp_files = []
   for file_list, base_dir in file_lists:
     # Create temporary file to hold file list to not blow out the commandline.
@@ -57,7 +70,15 @@ def create_archive(
     source_dir: str,
     out_dir: str,
     destination_dir: str,
+<<<<<<< HEAD
     platform: str,
+=======
+    archive_per_target: bool,
+    use_android_deps_path: bool,
+    compression: str,
+    compression_level: int,
+    flatten_deps: bool,
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
 ):
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
@@ -112,6 +133,7 @@ def create_archive(
       # Android tests and deps are bundled into one tar file per target.
       if is_android:
         output_path = os.path.join(destination_dir,
+<<<<<<< HEAD
                                    f'{target_name}_deps.tar.gz')
         _make_tar(output_path, [(combined_deps, out_dir),
                                 (target_src_root_deps, source_dir)])
@@ -125,6 +147,28 @@ def create_archive(
   if is_linux:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
     _make_tar(output_path, [(combined_deps, source_dir)])
+=======
+                                   f'{target_name}_deps.tar.{compression}')
+        if flatten_deps:
+          _make_tar(
+              output_path,
+              compression,
+              compression_level,
+              [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+          )
+        else:
+          raise ValueError('Unsupported configuration.')
+  # Linux tests and deps are all bundled into a single tar file.
+  if not archive_per_target:
+    output_path = os.path.join(destination_dir,
+                               f'test_artifacts.tar.{compression}')
+    _make_tar(
+        output_path,
+        compression,
+        compression_level,
+        [(combined_deps, source_dir)],
+    )
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
 
 
 def copy_apks(targets: List[str], out_dir: str, destination_dir: str):
@@ -162,6 +206,32 @@ def main():
       type=lambda arg: arg.split(','),
       help='The targets to package, comma-separated. Must be fully qualified, '
       'e.g. path/to:target_name,other/path/to:target_name.')
+<<<<<<< HEAD
+=======
+  parser.add_argument(
+      '--archive-per-target',
+      action='store_true',
+      help='Create a separate .tar.gz archive for each build target.')
+  parser.add_argument(
+      '--use-android-deps-path',
+      action='store_true',
+      help='Look for .runtime_deps files in the Android-specific path.')
+  parser.add_argument(
+      '--compression',
+      choices=['xz', 'gz', 'zstd'],
+      default='zstd',
+      help='The compression algorithm to use.')
+  parser.add_argument(
+      '--compression-level',
+      type=int,
+      default=1,
+      help='The compression level to use.')
+  parser.add_argument(
+      '--flatten-deps',
+      action='store_true',
+      help='Pass this argument to archive files from the source and out '
+      'directories both at the root of the deps archive.')
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
   args = parser.parse_args()
 
   create_archive(
@@ -169,10 +239,18 @@ def main():
       source_dir=args.source_dir,
       out_dir=args.out_dir,
       destination_dir=args.destination_dir,
+<<<<<<< HEAD
       platform=args.platform)
 
   if args.platform.startswith('android'):
     copy_apks(args.targets, args.out_dir, args.destination_dir)
+=======
+      archive_per_target=args.archive_per_target,
+      use_android_deps_path=args.use_android_deps_path,
+      compression=args.compression,
+      compression_level=args.compression_level,
+      flatten_deps=args.flatten_deps)
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
 
 
 if __name__ == '__main__':

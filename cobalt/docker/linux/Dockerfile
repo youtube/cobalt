@@ -9,6 +9,7 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 RUN apt-get update && apt-get install -y \
     curl python3-dev git \
     xz-utils \
+    zstd \
     pkgconf \
     libglib2.0-0 \
     libnss3 \

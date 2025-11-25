@@ -22,6 +22,19 @@ runs:
         mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
 
+<<<<<<< HEAD
+=======
+        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
+        FLAGS=""
+        if [[ "${{ matrix.platform }}" == *android* ]]; then
+          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+        elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
+          FLAGS="--compression gz --archive-per-target --flatten-deps"
+        else
+          FLAGS="--compression zstd --compression-level=9"
+        fi
+
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
@@ -50,8 +63,11 @@ runs:
         # Upload gtest target artifacts.
         gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+<<<<<<< HEAD
 
         # Upload cobalt.apk for smoke tests.
         gsutil -m cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+=======
+>>>>>>> d2f225c4cb4 (ci: Use zstd compression for test artifacts (#7841))
       shell: bash
