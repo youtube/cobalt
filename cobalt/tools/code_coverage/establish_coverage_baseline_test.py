@@ -292,3 +292,88 @@ class TestCoverageBaselineRunner(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
+
+
+class TestTestFiltering(unittest.TestCase):
+  """Test cases for the test filtering functionality."""
+
+  def setUp(self):
+    """Set up the test environment for filtering tests."""
+    self.platform = 'test-platform'
+    self.build_type = 'qa'
+    self.mock_cobalt_root = pathlib.Path('/mock/cobalt')
+    self.test_dir = pathlib.Path('test_tmp')
+    self.test_dir.mkdir(exist_ok=True)
+    self.original_cwd = os.getcwd()
+    os.chdir(self.test_dir)
+    self.filters_dir = self.test_dir / 'filters'
+    self.filters_dir.mkdir(parents=True, exist_ok=True)
+
+    with mock.patch('pathlib.Path.resolve', return_value=self.mock_cobalt_root):
+      with mock.patch('os.chdir'):
+        self.runner = CoverageBaselineRunner(
+            self.platform,
+            self.build_type,
+            cobalt_src_root=str(self.mock_cobalt_root),
+            test_filters_dir=str(self.filters_dir))
+
+    self.runner.coverage_build_dir = self.test_dir / 'out'
+    self.runner.raw_lcov_dir = self.test_dir / 'lcov'
+
+  def tearDown(self):
+    """Clean up the test environment."""
+    os.chdir(self.original_cwd)
+    if self.test_dir.exists():
+      shutil.rmtree(self.test_dir)
+
+  @mock.patch('subprocess.run', return_value=mock.Mock(returncode=0))
+  @mock.patch('pathlib.Path.exists', return_value=True)
+  def test_applies_gtest_filter_from_json(self, mock_exists, mock_run):
+    """Test that a gtest filter is correctly applied from a JSON file."""
+    test_name = 'my_cool_test'
+    filter_file = self.filters_dir / f'{test_name}_filter.json'
+    filter_content = {'failing_tests': ['Test.Case1', 'Test.Case2']}
+    with open(filter_file, 'w') as f:
+      json.dump(filter_content, f)
+
+    self.runner.run_coverage_for_target(test_name)
+    
+    # Check that coverage.py was called with the correct gtest_filter.
+    mock_run.assert_called_once()
+    args, _ = mock_run.call_args
+    self.assertIn('--gtest_filter=-Test.Case1:Test.Case2', args[0])
+
+  @mock.patch('subprocess.run')
+  @mock.patch('pathlib.Path.exists', return_value=True)
+  def test_skips_target_for_wildcard_filter(self, mock_exists, mock_run):
+    """Test that a target is skipped if the filter is a wildcard '*'."""
+    test_name = 'my_skippable_test'
+    filter_file = self.filters_dir / f'{test_name}_filter.json'
+    filter_content = {'failing_tests': ['*']}
+    with open(filter_file, 'w') as f:
+      json.dump(filter_content, f)
+
+    result = self.runner.run_coverage_for_target(test_name)
+
+    # The run should be successful (as skipping isn't a failure)
+    self.assertTrue(result)
+    # But no command should have been executed.
+    mock_run.assert_not_called()
+
+  @mock.patch('subprocess.run', return_value=mock.Mock(returncode=0))
+  @mock.patch('pathlib.Path.exists', return_value=True)
+  def test_ignores_filter_when_include_skipped_is_true(self, mock_exists, mock_run):
+    """Test that filters are ignored when include_skipped_tests is True."""
+    self.runner.include_skipped_tests = True
+    test_name = 'my_cool_test'
+    filter_file = self.filters_dir / f'{test_name}_filter.json'
+    filter_content = {'failing_tests': ['Test.Case1', 'Test.Case2']}
+    with open(filter_file, 'w') as f:
+      json.dump(filter_content, f)
+
+    self.runner.run_coverage_for_target(test_name)
+    
+    # Check that coverage.py was called WITHOUT the gtest_filter.
+    mock_run.assert_called_once()
+    args, _ = mock_run.call_args
+    self.assertNotIn('--gtest_filter=-Test.Case1:Test.Case2', ' '.join(args[0]))

@@ -21,7 +21,9 @@ class CoverageBaselineRunner:
                verbose: bool = False,
                skip_gn_gen: bool = False,
                test_target: str = None,
-               post_process_only: bool = False):
+               post_process_only: bool = False,
+               test_filters_dir: str = None,
+               include_skipped_tests: bool = False):
     """Initializes the CoverageBaselineRunner.
 
     Args:
@@ -32,6 +34,8 @@ class CoverageBaselineRunner:
       skip_gn_gen: Whether to skip the 'gn gen' step.
       test_target: The single test target to run.
       post_process_only: Whether to only run the post-processing steps.
+      test_filters_dir: Directory containing test filter JSON files.
+      include_skipped_tests: Whether to include tests skipped by filters.
     """
     self.platform = platform
     self.build_type = build_type
@@ -40,6 +44,8 @@ class CoverageBaselineRunner:
     self.skip_gn_gen = skip_gn_gen
     self.test_target = test_target
     self.post_process_only = post_process_only
+    self.test_filters_dir = test_filters_dir
+    self.include_skipped_tests = include_skipped_tests
 
     self.gn_gen_dir = (
         self.cobalt_src_root / f'out/{self.platform}_{self.build_type}')
@@ -177,6 +183,24 @@ class CoverageBaselineRunner:
     test_lcov_out_dir.mkdir(parents=True, exist_ok=True)
 
     test_binary_path = self.coverage_build_dir / test_name
+    gtest_filter_arg = None
+
+    # Apply test filters unless explicitly told to include skipped tests.
+    if not self.include_skipped_tests and self.test_filters_dir:
+      filter_path = (pathlib.Path(self.test_filters_dir) /
+                     f'{test_name}_filter.json')
+      if filter_path.exists():
+        print(f'Applying test filter: {filter_path}')
+        with open(filter_path, 'r', encoding='utf-8') as f:
+          filter_data = json.load(f)
+        
+        failing_tests = filter_data.get('failing_tests', [])
+        if failing_tests == ['*']:
+          print(f'Skipping target {test_name} as per filter configuration.')
+          return True  # Skipped is not a failure.
+        
+        if failing_tests:
+          gtest_filter_arg = '--gtest_filter=-' + ':'.join(failing_tests)
 
     cmd = [
         'time',
@@ -194,6 +218,9 @@ class CoverageBaselineRunner:
         str(self.llvm_bin_dir),
         '--format=lcov',
     ]
+    if gtest_filter_arg:
+      cmd.append(gtest_filter_arg)
+      
     print(f'Coverage.py command: {" ".join(cmd)}', flush=True)
     try:
       self._run_command(cmd)
@@ -363,11 +390,22 @@ def main() -> None:
       '--lcov-filter',
       nargs='+',
       help='A list of directory patterns to include in the report.')
+  parser.add_argument(
+      '--test-filters-dir',
+      type=str,
+      help='Directory containing test filter JSON files.')
+  parser.add_argument(
+      '--include-skipped-tests',
+      action='store_true',
+      help='Include tests that are normally skipped by the filters.')
   args = parser.parse_args()
 
   runner = CoverageBaselineRunner(args.platform, args.build_type,
                                   args.cobalt_src_root, args.verbose,
-                                  args.skip_gn_gen, args.test_target)
+                                  args.skip_gn_gen, args.test_target,
+                                  args.post_process_only,
+                                  args.test_filters_dir,
+                                  args.include_skipped_tests)
   runner.run_baseline(args.skip_gn_gen, args.generate_html_report,
                       args.lcov_filter)
 
