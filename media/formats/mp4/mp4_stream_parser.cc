@@ -71,6 +71,30 @@ class ExternalMemoryAdapter : public DecoderBuffer::ExternalMemory {
   std::vector<uint8_t> memory_;
 };
 
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+base::HeapArray<uint8_t> PrependIADescriptors(
+    const IamfSpecificBox& iacb,
+    base::span<const uint8_t> frame_buf,
+    std::vector<SubsampleEntry>* subsamples) {
+  // Prepend the IA Descriptors to every IA Sample.
+  const size_t descriptors_size = iacb.ia_descriptors.size();
+  const size_t total_size = frame_buf.size() + descriptors_size;
+  auto output_buffer = base::HeapArray<uint8_t>::Uninit(total_size);
+  auto [output_ia_descriptors, output_frame_buf] =
+      base::span(output_buffer).split_at(descriptors_size);
+  output_ia_descriptors.copy_from_nonoverlapping(iacb.ia_descriptors);
+  output_frame_buf.copy_from_nonoverlapping(frame_buf);
+
+  if (subsamples->empty()) {
+    subsamples->emplace_back(descriptors_size, frame_buf.size());
+  } else {
+    (*subsamples)[0].clear_bytes += descriptors_size;
+  }
+
+  return output_buffer;
+}
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+
 }  // namespace
 
 MP4StreamParser::MP4StreamParser(const std::set<int>& audio_object_types,
@@ -860,26 +884,6 @@ bool MP4StreamParser::PrepareAACBuffer(
   return true;
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-bool MP4StreamParser::PrependIADescriptors(
-    const IamfSpecificBox& iacb,
-    std::vector<uint8_t>* frame_buf,
-    std::vector<SubsampleEntry>* subsamples) const {
-  // Prepend the IA Descriptors to every IA Sample.
-  frame_buf->insert(frame_buf->begin(), iacb.ia_descriptors.begin(),
-                    iacb.ia_descriptors.end());
-  size_t descriptors_size = iacb.ia_descriptors.size();
-  if (subsamples->empty()) {
-    subsamples->push_back(
-        SubsampleEntry(descriptors_size, frame_buf->size() - descriptors_size));
-  } else {
-    (*subsamples)[0].clear_bytes += descriptors_size;
-  }
-
-  return true;
-}
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
 ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   DCHECK_EQ(state_, kEmittingSamples);
