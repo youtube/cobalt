@@ -72,7 +72,7 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3 "${EXTRA_GN_ARGUMENTS:-}"
+    --script-executable=/usr/bin/python3 --args="${EXTRA_GN_ARGUMENTS:-}"
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Build targets used for testing.
