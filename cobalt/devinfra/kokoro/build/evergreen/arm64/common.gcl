@@ -13,7 +13,7 @@ build = common.build {
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt'
+      value = 'cobalt copy_cobalt_lib'
     },
     {
       key = 'TARGET_CPU'

@@ -4,7 +4,8 @@
     "evergreen-arm64"
   ],
   "targets": [
-    "cobalt"
+    "cobalt",
+    "copy_cobalt_lib"
   ],
   "build_configs": [
     "debug",
