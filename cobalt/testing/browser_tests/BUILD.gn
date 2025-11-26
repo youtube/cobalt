@@ -328,7 +328,7 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "$root_build_dir/cobalt/testing/browser_tests/data",
+    "//cobalt/testing/browser_tests/data/",
     "//media/test/data/",
   ]
 
