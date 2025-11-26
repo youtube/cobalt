@@ -7,6 +7,7 @@
 /starboard/shared/starboard/drm             @youtube/cobalt-media
 /starboard/shared/starboard/media           @youtube/cobalt-media
 /starboard/shared/starboard/player          @youtube/cobalt-media
+/starboard/tvos/shared/media                @youtube/cobalt-media
 /third_party/blink/renderer/platform/media/ @youtube/cobalt-media
 
 /.github/ # no owners
@@ -26,6 +27,8 @@
 /starboard/common                          @youtube/cobalt-starboard-owners
 /components/viz/service/display/starboard/ @youtube/cobalt-starboard-owners
 /ui/ozone/platform/starboard/              @youtube/cobalt-starboard-owners
+
+/starboard/tvos @youtube/cobalt-tvos
 
 /cobalt/build/gn.py @youtube/cobalt-build
 
