@@ -23,6 +23,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
 namespace starboard {
@@ -47,34 +48,23 @@ std::string to_ms_string(std::optional<int64_t> us_opt) {
   return std::to_string(*us_opt / 1'000);
 }
 
-template <class T>
-std::string to_string(const T& val) {
-  std::stringstream ss;
-  ss << val;
-  return ss.str();
-}
-
 }  // namespace
 
-DecoderStateTracker::DecoderStateTracker(
-    StateChangedCB state_changed_cb,
-    shared::starboard::player::JobQueue* job_queue)
+DecoderStateTracker::DecoderStateTracker(StateChangedCB state_changed_cb)
     : DecoderStateTracker(kInitialMaxFramesInDecoder,
                           std::move(state_changed_cb),
-                          job_queue,
                           /*frame_log_internval_us=*/std::nullopt) {}
 
-DecoderStateTracker::DecoderStateTracker(
-    int max_frames,
-    StateChangedCB state_changed_cb,
-    shared::starboard::player::JobQueue* job_queue,
-    std::optional<int> log_interval_us)
-    : JobOwner(job_queue),
-      max_frames_(max_frames),
-      state_changed_cb_(std::move(state_changed_cb)) {
+DecoderStateTracker::DecoderStateTracker(int max_frames,
+                                         StateChangedCB state_changed_cb,
+                                         std::optional<int> log_interval_us)
+    : max_frames_(max_frames),
+      state_changed_cb_(std::move(state_changed_cb)),
+      job_thread_(std::make_unique<shared::starboard::player::JobThread>(
+          "DecStateTrack")) {
   SB_CHECK(state_changed_cb_);
   if (log_interval_us) {
-    Schedule(
+    job_thread_->Schedule(
         [this, log_interval_us] { LogStateAndReschedule(*log_interval_us); },
         *log_interval_us);
   }
@@ -92,7 +82,7 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (frames_in_flight_.size() >
       std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
     EngageKillSwitch_Locked("Too many frames in flight: state=" +
-                                to_string(GetCurrentState_Locked()),
+                                ToString(GetCurrentState_Locked()),
                             presentation_time_us);
     return;
   }
@@ -105,6 +95,18 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (frames_in_flight_.size() >= max_frames_) {
     reached_max_ = true;
   }
+}
+
+void DecoderStateTracker::SetEosFrameAdded() {
+  std::lock_guard lock(mutex_);
+  SB_LOG(INFO) << __func__;
+
+  if (disabled_) {
+    return;
+  }
+  SB_LOG(INFO) << "EOS frame is added and we disable this tracker, since we no "
+                  "longer needs it";
+  disabled_ = true;
 }
 
 void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
@@ -135,9 +137,8 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
   }
 
   int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
-  Schedule(
+  job_thread_->Schedule(
       [this, presentation_time_us] {
-        bool should_signal = false;
         State new_state;
         {
           std::lock_guard lock(mutex_);
@@ -149,6 +150,8 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
           new_state = GetCurrentState_Locked();
+          SB_LOG(INFO) << "SetFrameReleasedAt: callback fired: state="
+                       << new_state;
           if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
             // For testing, I want this to work as break point.
             SB_LOG(FATAL) << "Frames drops under the low water mark. state="
@@ -159,12 +162,8 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
             SB_LOG(WARNING) << "Bump up max frames from " << old_max << " to "
                             << max_frames_ << ": state=" << new_state;
           }
-
-          if (was_full && !IsFull_Locked(new_state)) {
-            should_signal = true;
-          }
         }
-        if (should_signal) {
+        if (!IsFull_Locked(new_state)) {
           SB_LOG(INFO) << "Calling state changed: " << new_state;
           state_changed_cb_();
         }
@@ -234,7 +233,9 @@ void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
 }
 
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
-  SB_CHECK(BelongsToCurrentThread());
+  // This is running on the thread managed by job_owner_.
+  // But we don't have BelongsToCurrentThread() method in DecoderStateTracker
+  // anymore. SB_CHECK(BelongsToCurrentThread()); // Removed
 
   {
     std::lock_guard lock(mutex_);
@@ -245,7 +246,7 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
     }
   }
 
-  Schedule(
+  job_thread_->Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
       log_interval_us);
 }

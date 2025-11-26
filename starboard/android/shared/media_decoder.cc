@@ -140,12 +140,10 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      decoder_state_tracker_(
-          enable_decoder_throttling
-              ? std::make_unique<DecoderStateTracker>(
-                    [this] { condition_variable_.Signal(); },
-                    ::starboard::shared::starboard::player::JobQueue::current())
-              : nullptr),
+      decoder_state_tracker_(enable_decoder_throttling
+                                 ? std::make_unique<DecoderStateTracker>(
+                                       [this] { condition_variable_.Signal(); })
+                                 : nullptr),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
@@ -215,7 +213,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
                    &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK_NE(decoder_thread_, 0);
   }
-
+  SB_LOG(INFO) << __func__ << " > input.size=" << input_buffers.size();
   ScopedLock scoped_lock(mutex_);
   bool need_signal = pending_inputs_.empty();
   for (const auto& input_buffer : input_buffers) {
@@ -230,6 +228,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 void MediaDecoder::WriteEndOfStream() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
+  SB_LOG(INFO) << __func__;
   stream_ended_.store(true);
   ScopedLock scoped_lock(mutex_);
   pending_inputs_.emplace_back(PendingInput::kWriteEndOfStream);
@@ -335,14 +334,16 @@ void MediaDecoder::DecoderThreadFunc() {
       static int64_t last_log_time = 0;
       int64_t now = CurrentMonotonicTime();
       if (now - last_log_time > 1'000) {
-        SB_LOG(INFO) << "can_process_input: ret=" << (ret ? "true" : "false")
-                     << ", pending_input_to_retry="
-                     << (pending_input_to_retry_ ? "true" : "false")
-                     << ", pending_inputs.size()=" << pending_inputs.size()
-                     << ", input_buffer_indices.size()="
-                     << input_buffer_indices.size()
-                     << ", decoder_state_tracker.state="
-                     << decoder_state_tracker_->GetCurrentStateForTest();
+        SB_LOG(INFO)
+            << "can_process_input: ret=" << (ret ? "true" : "false")
+            << ", pending_input_to_retry="
+            << (pending_input_to_retry_ ? "true" : "false")
+            << ", pending_inputs.size()=" << pending_inputs.size()
+            << ", input_buffer_indices.size()=" << input_buffer_indices.size()
+            << ", decoder_state_tracker.state="
+            << (decoder_state_tracker_
+                    ? ToString(decoder_state_tracker_->GetCurrentStateForTest())
+                    : "(null)");
         last_log_time = now;
       }
       return ret;
@@ -554,8 +555,12 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  if (!input_buffer_already_written && size > 0 && decoder_state_tracker_) {
-    decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
+  if (!input_buffer_already_written && decoder_state_tracker_) {
+    if (pending_input.type != PendingInput::kWriteEndOfStream) {
+      decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
+    } else {
+      decoder_state_tracker_->SetEosFrameAdded();
+    }
   }
 
   jint status;

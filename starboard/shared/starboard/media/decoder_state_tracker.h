@@ -18,10 +18,11 @@
 #include <functional>
 #include <iosfwd>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string_view>
 
-#include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 
@@ -33,8 +34,7 @@ namespace starboard {
 //
 // This class is thread-safe and can be used from multiple threads or
 // SequencedTaskRunners.
-class DecoderStateTracker
-    : private shared::starboard::player::JobQueue::JobOwner {
+class DecoderStateTracker {
  public:
   using StateChangedCB = std::function<void()>;
 
@@ -45,15 +45,14 @@ class DecoderStateTracker
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(StateChangedCB state_changed_cb,
-                      shared::starboard::player::JobQueue* job_queue);
+  explicit DecoderStateTracker(StateChangedCB state_changed_cb);
   DecoderStateTracker(int max_frames,
                       StateChangedCB state_changed_cb,
-                      shared::starboard::player::JobQueue* job_queue,
                       std::optional<int> log_interval_us);
   ~DecoderStateTracker() = default;
 
   void SetFrameAdded(int64_t presentation_time_us);
+  void SetEosFrameAdded();
   void SetFrameDecoded(int64_t presentation_time_us);
   void SetFrameReleasedAt(int64_t presentation_time_us, int64_t release_us);
   void Reset();
@@ -74,6 +73,7 @@ class DecoderStateTracker
   void LogStateAndReschedule(int64_t log_interval_us);
 
   const StateChangedCB state_changed_cb_;
+  const std::unique_ptr<shared::starboard::player::JobThread> job_thread_;
 
   mutable std::mutex mutex_;
   std::map<int64_t, FrameStatus> frames_in_flight_;  // Guarded by |mutex_|.
