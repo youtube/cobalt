@@ -328,7 +328,7 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "$root_build_dir/cobalt/testing/browser_tests/data",
+    rebase_path("//cobalt/testing/browser_tests/data", root_build_dir),
     "//media/test/data/",
   ]
 
