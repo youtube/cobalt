@@ -71,6 +71,7 @@ using shared::starboard::NetLogFlushThenClose;
 using shared::starboard::NetLogWaitForClientConnected;
 using shared::uwp::ApplicationUwp;
 using shared::uwp::RunInMainThreadAsync;
+using shared::uwp::WaitForComplete;
 using shared::uwp::WaitForResult;
 using shared::win32::platformStringToString;
 using shared::win32::stringToPlatformString;
@@ -520,33 +521,68 @@ ref class App sealed : public IFrameworkView {
             this, &App::ExtendedExecutionSessionRevoked);
     Concurrency::create_task(session->RequestExtensionAsync())
         .then([this, is_safe_to_suspend,
-               extended_resources_manager](ExtendedExecutionResult result) {
+               extended_resources_manager, session, revoked_token](ExtendedExecutionResult result) {
           // Suspend the app and release extended resources during the extended
           // session.
 
-          // Note if we dispatch "suspend" here before pause, application.cc
-          // will inject the "pause" which will cause us to go async which
-          // will cause us to not have completed the suspend operation before
-          // returning, which UWP requires.
-          ApplicationUwp::Get()->DispatchAndDelete(
-              new ApplicationUwp::Event(kSbEventTypeBlur, NULL, NULL));
-          ApplicationUwp::Get()->DispatchAndDelete(
-              new ApplicationUwp::Event(kSbEventTypeConceal, NULL, NULL));
-          ApplicationUwp::Get()->DispatchAndDelete(
-              new ApplicationUwp::Event(kSbEventTypeFreeze, NULL, NULL));
+          // Run on background thread to avoid blocking CoreApplication thread
+          // (which causes MOAPPLICATION_HANG). Events are dispatched
+          // synchronously to CoreApplication thread via RunAsync + WaitForComplete.
+          DWORD background_thread_id = GetCurrentThreadId();
+          SB_LOG(INFO) << "[THREADING] OnSuspending continuation running on thread ID: "
+                       << background_thread_id;
+
+          auto dispatcher = starboard::shared::uwp::GetDispatcher();
+
+          WaitForComplete(dispatcher->RunAsync(
+              Windows::UI::Core::CoreDispatcherPriority::Normal,
+              ref new Windows::UI::Core::DispatchedHandler([this, background_thread_id]() {
+                DWORD event_thread_id = GetCurrentThreadId();
+                SB_LOG(INFO) << "[THREADING] Blur event running on thread ID: "
+                             << event_thread_id
+                             << " (background thread was: " << background_thread_id << ")";
+                ApplicationUwp::Get()->DispatchAndDelete(
+                    new ApplicationUwp::Event(kSbEventTypeBlur, NULL, NULL));
+              })));
+          SB_LOG(INFO) << "[THREADING] Background thread continuing after Blur completed";
+
+          WaitForComplete(dispatcher->RunAsync(
+              Windows::UI::Core::CoreDispatcherPriority::Normal,
+              ref new Windows::UI::Core::DispatchedHandler([this, background_thread_id]() {
+                DWORD event_thread_id = GetCurrentThreadId();
+                SB_LOG(INFO) << "[THREADING] Conceal event running on thread ID: "
+                             << event_thread_id
+                             << " (background thread was: " << background_thread_id << ")";
+                ApplicationUwp::Get()->DispatchAndDelete(
+                    new ApplicationUwp::Event(kSbEventTypeConceal, NULL, NULL));
+              })));
+          SB_LOG(INFO) << "[THREADING] Background thread continuing after Conceal completed";
+
+          WaitForComplete(dispatcher->RunAsync(
+              Windows::UI::Core::CoreDispatcherPriority::Normal,
+              ref new Windows::UI::Core::DispatchedHandler([this, background_thread_id]() {
+                DWORD event_thread_id = GetCurrentThreadId();
+                SB_LOG(INFO) << "[THREADING] Freeze event running on thread ID: "
+                             << event_thread_id
+                             << " (background thread was: " << background_thread_id << ")";
+                ApplicationUwp::Get()->DispatchAndDelete(
+                    new ApplicationUwp::Event(kSbEventTypeFreeze, NULL, NULL));
+              })));
+          SB_LOG(INFO) << "[THREADING] Background thread continuing after Freeze completed";
+
+          SB_LOG(INFO) << "[THREADING] Calling ReleaseExtendedResources on thread ID: "
+                       << background_thread_id;
           extended_resources_manager->ReleaseExtendedResources();
           if (!extended_resources_manager->IsSafeToSuspend()) {
             ForceQuit();
           }
-        })
-        .then([this, is_safe_to_suspend, session, revoked_token]() {
-          // The extended session has completed, we are ready to be suspended
-          // now.
+
+          // The extended session has completed, we are ready to be suspended now.
           session->Revoked -= revoked_token;
           delete session;
 
           CompleteSuspendDeferral();
-        });
+        }, Concurrency::task_continuation_context::use_arbitrary());
     if (!is_safe_to_suspend) {
       ForceQuit();
     }
