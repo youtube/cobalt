@@ -32,7 +32,7 @@ runs:
       shell: bash
     - name: Link Runner Cache
       run: |
-        ln -sf /runner-cache/cobalt ${GITHUB_WORKSPACE}/
+        ln -sfn /runner-cache/cobalt ${GITHUB_WORKSPACE}/
       shell: bash
     - name: Set Safe Directory
       run: git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"
