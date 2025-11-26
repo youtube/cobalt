@@ -19,10 +19,8 @@
 namespace cobalt {
 namespace browser {
 
-CobaltTrustedURLLoaderHeaderClient::CobaltTrustedURLLoaderHeaderClient(
-    mojo::PendingReceiver<network::mojom::TrustedURLLoaderHeaderClient>
-        receiver)
-    : receiver_(this, std::move(receiver)) {}
+CobaltTrustedURLLoaderHeaderClient::CobaltTrustedURLLoaderHeaderClient() =
+    default;
 
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderCreated(
     int32_t request_id,

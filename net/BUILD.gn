@@ -84,6 +84,12 @@ use_remote_test_server =
 #              https://www.chromium.org/developers/design-documents/http-authentication/writing-a-spnego-authenticator-for-chrome-on-android
 use_external_gssapi = use_kerberos && !is_android && !is_win
 
+# The multi-packet per call QUIC optimizations rely on system calls like
+# recvmsg(), which are specific to the Linux kernel. Restrict the feature to
+# Starboard (assuming it corresponds to something running a Linux kernel
+# underneath) and Android (which does have a Linux kernel running underndeath).
+enable_multi_packets_per_call_quic_optimizations = is_cobalt && (is_starboard || is_android)
+
 config("net_test_config") {
   if (use_remote_test_server) {
     defines = [ "USE_REMOTE_TEST_SERVER" ]
@@ -108,6 +114,7 @@ buildflag_header("buildflags") {
     "ENABLE_DEVICE_BOUND_SESSIONS=$enable_device_bound_sessions",
     "ENABLE_BRACKETED_PROXY_URIS=$enable_bracketed_proxy_uris",
     "ENABLE_QUIC_PROXY_SUPPORT=$enable_quic_proxy_support",
+    "ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS=$enable_multi_packets_per_call_quic_optimizations",
   ]
 }
 
