@@ -127,7 +127,7 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.mShouldReloadOnResume = true;
+            cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
@@ -141,7 +141,7 @@ public class PlatformError
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
           }
-          cobaltActivity.activeNetworkCheck();
+          cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           mDialog.dismiss();
           break;
         default: // fall out
@@ -154,7 +154,7 @@ public class PlatformError
     mDialog = null;
       CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.mShouldReloadOnResume = true;
+        cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }

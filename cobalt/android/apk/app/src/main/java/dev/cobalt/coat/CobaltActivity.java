@@ -24,8 +24,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -48,9 +46,6 @@ import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -77,7 +72,6 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
-  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000;
 
   private static final String SPLASH_URL_ARG = "--splash-url=";
   private static final String META_DATA_APP_SPLASH_URL = "cobalt.APP_SPLASH_URL";
@@ -111,13 +105,9 @@ public abstract class CobaltActivity extends Activity {
   private int mSplashTimeoutMs;
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
-  protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
-  private PlatformError mPlatformError;
-  private Handler timeoutHandler;
-  private Runnable timeoutRunnable;
+  private CobaltConnectivityDetector cobaltConnectivityDetector;
 
   private Boolean isMainFrameLoaded = false;
   private final Object lock = new Object();
@@ -478,7 +468,7 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    timeoutHandler = new Handler(Looper.getMainLooper());
+    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -538,6 +528,10 @@ public abstract class CobaltActivity extends Activity {
   @UsedByNative
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+  }
+
+  public CobaltConnectivityDetector getCobaltConnectivityDetector() {
+    return cobaltConnectivityDetector;
   }
 
   @Override
@@ -612,7 +606,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    activeNetworkCheck();
+    cobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -623,8 +617,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (timeoutRunnable != null) {
-      timeoutHandler.removeCallbacks(timeoutRunnable);
+    if (cobaltConnectivityDetector != null) {
+      cobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -834,95 +828,6 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
-  }
-
-  // Try to generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
-  // error dialog on an unsuccessful network check
-  protected void activeNetworkCheck() {
-    // Keep a separate timeout for edge cases in case a DNS error occurs
-    if (timeoutRunnable != null) {
-      timeoutHandler.removeCallbacks(timeoutRunnable);
-    }
-    timeoutRunnable =
-        () -> {
-          Log.w(TAG, "Active Network check timed out after 10 seconds.");
-          if (mPlatformError == null || !mPlatformError.isShowing()) {
-            mPlatformError =
-                new PlatformError(
-                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-            mPlatformError.raise();
-          }
-          mShouldReloadOnResume = true;
-          timeoutRunnable = null;
-        };
-    timeoutHandler.postDelayed(timeoutRunnable, NETWORK_CHECK_TIMEOUT_MS);
-
-    new Thread(
-            () -> {
-              HttpURLConnection urlConnection = null;
-              try {
-                URL url = new URL("https://www.google.com/generate_204");
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
-                urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
-                urlConnection.connect();
-                if (urlConnection.getResponseCode() != 204) {
-                  throw new IOException("Bad response code: " + urlConnection.getResponseCode());
-                }
-
-                if (timeoutRunnable != null) {
-                  timeoutHandler.removeCallbacks(timeoutRunnable);
-                  timeoutRunnable = null;
-                }
-
-                Log.i(TAG, "Active Network check successful." + mPlatformError);
-                if (mPlatformError != null) {
-                  mPlatformError.setResponse(PlatformError.POSITIVE);
-                  mPlatformError.dismiss();
-                  mPlatformError = null;
-                }
-                if (mShouldReloadOnResume) {
-                  runOnUiThread(
-                      () -> {
-                        if (mPlatformError == null || !mPlatformError.isShowing()) {
-                          mPlatformError =
-                              new PlatformError(
-                                  getStarboardBridge().getActivityHolder(),
-                                  PlatformError.CONNECTION_ERROR,
-                                  0);
-                          mPlatformError.raise();
-                        }
-                      });
-                  mShouldReloadOnResume = true;
-                }
-              } catch (IOException e) {
-                if (timeoutRunnable != null) {
-                  timeoutHandler.removeCallbacks(timeoutRunnable);
-                  timeoutRunnable = null;
-                }
-                Log.w(
-                    TAG,
-                    "Active Network check failed with IOException: " + e.getClass().getName(),
-                    e);
-                runOnUiThread(
-                    () -> {
-                      if (mPlatformError == null || !mPlatformError.isShowing()) {
-                        mPlatformError =
-                            new PlatformError(
-                                getStarboardBridge().getActivityHolder(),
-                                PlatformError.CONNECTION_ERROR,
-                                0);
-                        mPlatformError.raise();
-                      }
-                    });
-                mShouldReloadOnResume = true;
-              } finally {
-                if (urlConnection != null) {
-                  urlConnection.disconnect();
-                }
-              }
-            })
-        .start();
   }
 
   public long getAppStartTimestamp() {
