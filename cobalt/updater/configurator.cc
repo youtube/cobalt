@@ -17,6 +17,7 @@
 #include <regex>
 #include <set>
 #include <utility>
+
 #include "base/command_line.h"
 #include "base/version.h"
 #include "cobalt/browser/switches.h"
@@ -48,9 +49,10 @@ const char kUpdaterJSONDefaultUrl[] =
     "https://tools.google.com/service/update2/json";
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
-  char value[kSystemPropertyMaxLength];
-  if (SbSystemGetProperty(id, value, kSystemPropertyMaxLength)) {
-    return std::string(value);
+  std::string value(kSystemPropertyMaxLength, 0);
+  if (SbSystemGetProperty(id, &value[0], kSystemPropertyMaxLength)) {
+    value.resize(strlen(value.c_str()));
+    return value;
   }
   return std::string();
 }
