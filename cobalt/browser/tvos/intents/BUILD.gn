@@ -1,0 +1,28 @@
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/apple/swift_source_set.gni")
+
+swift_source_set("yt_intents") {
+  sources = [ "intents.swift" ]
+  generate_intents = true
+  bridge_header = "//cobalt/browser/tvos/intents/intents-bridging-header.h"
+
+  deps = [ "//cobalt/browser/tvos:deep_link_support_tvos" ]
+
+  frameworks = [
+    "AppIntents.framework",
+    "Foundation.framework",
+  ]
+}
