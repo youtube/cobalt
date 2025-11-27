@@ -75,18 +75,8 @@ pipeline () {
     --script-executable=/usr/bin/python3 --args="${EXTRA_GN_ARGUMENTS:-}"
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
-  # Build targets used for testing.
-  if [[ "${TARGET_PLATFORM}" =~ "android-arm" && "${CONFIG}" == "qa" ]]; then
-    # Build Cobalt.apk without `${EXTRA_GN_ARGUMENTS}` for e2e testing.
-    cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-      --script-executable=/usr/bin/python3
-    autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}_tmp" "android:cobalt_apk"
-
-    # Replace the APK from the original build.
-    mv "out/${TARGET_PLATFORM}_${CONFIG}_tmp/apks/Cobalt.apk" \
-      "out/${TARGET_PLATFORM}_${CONFIG}/apks/"
-  fi
-
+  # Build chromedriver used for testing.
+  # TODO: Move this to separate build config.
   if [[ "${TARGET_PLATFORM}" =~ "linux-x64x11" ]]; then
     # Build the linux-x64x11-no-starboard configuration for chromedriver.
     LINUX_NO_SB_PLATFORM="linux-x64x11-no-starboard"
@@ -95,7 +85,7 @@ pipeline () {
     autoninja -C "out/${LINUX_NO_SB_PLATFORM}_${CONFIG}" "chromedriver"
   fi
 
-  # Build bootloader config if set.
+  # Build evergreen loader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
     echo "Evergreen Loader (or Bootloader) is configured."
 
