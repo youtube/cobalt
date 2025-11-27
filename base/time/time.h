@@ -792,7 +792,8 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 #if defined(__OBJC__)
   static Time FromNSDate(NSDate* date);
   NSDate* ToNSDate() const;
-#endif
+#endif // defined(__OBJC__)
+#endif // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_WIN)
   static Time FromFileTime(FILETIME ft);
@@ -832,7 +833,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static void ResetHighResolutionTimerUsage();
   static double GetHighResolutionTimerUsage();
 #endif  // BUILDFLAG(IS_WIN)
-#endif
 
   // Converts an exploded structure representing either the local time or UTC
   // into a Time class. Returns false on a failure when, for example, a day of
