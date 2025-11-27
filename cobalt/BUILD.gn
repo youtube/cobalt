@@ -33,8 +33,11 @@ if (is_ios) {
 declare_args() {
   build_updater_sandbox = false
 
-  # Cobalt app bundle identifier for tvOS.
+  # tvOS: Default app bundle identifier.
   cobalt_bundle_identifier = "dev.cobalt.tvos"
+
+  # tvOS: Default Info.plist path for the bundle.
+  cobalt_info_plist = "shell/app/ios-Info.plist"
 }
 
 group("gn_all") {
@@ -80,7 +83,6 @@ group("cobalt_browsertests") {
 
 if (is_ios && target_platform == "tvos") {
   ios_app_bundle("cobalt") {
-    info_plist = "shell/app/ios-Info.plist"
     testonly = true
 
     sources = [ "app/main.mm" ]
@@ -99,8 +101,9 @@ if (is_ios && target_platform == "tvos") {
 
     data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
 
-    entitlements_path = "//build/config/ios/entitlements.plist"
     bundle_identifier = cobalt_bundle_identifier
+    entitlements_path = "//build/config/ios/entitlements.plist"
+    info_plist = cobalt_info_plist
   }
 
   bundle_data("cobalt_shell_framework_resources") {
