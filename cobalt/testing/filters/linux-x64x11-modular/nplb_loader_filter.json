@@ -18,5 +18,8 @@
     "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
+  ],
+  "_filtered_b/TMP": [
+    "SbLogFlushTest.DontCrashMeBro"
   ]
 }

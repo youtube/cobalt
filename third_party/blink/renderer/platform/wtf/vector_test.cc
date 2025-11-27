@@ -345,7 +345,7 @@ TEST(VectorTest, SwapWithInlineCapacity) {
   vector_b.swap(vector_a);
 }
 
-#if defined(ANNOTATE_CONTIGUOUS_CONTAINER)
+#if defined(ANNOTATE_CONTIGUOUS_CONTAINER) && defined(GTEST_HAS_DEATH_TEST)
 TEST(VectorTest, ContainerAnnotations) {
   Vector<int> vector_a;
   vector_a.push_back(10);
