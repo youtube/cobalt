@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_H_
-#define COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_H_
+#ifndef COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_BASE_H_
+#define COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_BASE_H_
 
 #include <string>
 
@@ -64,4 +64,4 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
 
 }  // namespace h5vcc_system
 
-#endif  // COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_H_
+#endif  // COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_BASE_H_
