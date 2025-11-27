@@ -9,11 +9,15 @@ build = common.build {
   env_vars = super.env_vars + [
     {
       key = 'EXTRA_GN_ARGUMENTS'
-      value = 'is_cobalt_on_google3=true'
+      value = ''
     },
     {
       key = 'PLATFORM'
-      value = 'android-arm'
+      value = 'android-arm64'
+    },
+    {
+      key = 'REGISTRY_IMAGE_NAME'
+      value = 'cobalt-build-android-arm64'
     },
     {
       key = 'GN_TARGET'
@@ -21,7 +25,7 @@ build = common.build {
     },
     {
       key = 'TARGET_CPU'
-      value = 'target_cpu=\"arm\"'
+      value = 'target_cpu=\"arm64\"'
     },
     {
       key = 'TARGET_OS'
@@ -29,11 +33,7 @@ build = common.build {
     },
     {
       key = 'TARGET_PLATFORM'
-      value = 'android-arm'
-    },
-    {
-      key = 'REGISTRY_IMAGE_NAME'
-      value = 'cobalt-build-android-arm'
+      value = 'android-arm64'
     },
   ]
 }
