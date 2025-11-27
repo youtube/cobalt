@@ -52,6 +52,7 @@ group("cobalt_shell_lib_deps") {
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
     "//cc/base",
+    "//cobalt/updater",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
     "//components/crash/core/app",
