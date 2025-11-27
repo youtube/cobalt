@@ -34,7 +34,7 @@ declare_args() {
   build_updater_sandbox = false
 
   # Cobalt app bundle identifier for tvOS.
-  cobalt_bundle_identifier = "foo.cobalt.cobalt"
+  cobalt_bundle_identifier = "dev.cobalt.tvos"
 }
 
 group("gn_all") {
