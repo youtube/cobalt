@@ -85,10 +85,8 @@ test("nplb") {
     "player_write_sample_test.cc",
   ]
 
-  sources = [ "//starboard/common/test_main.cc" ]
-
   # All platforms use the Starboard Media functionality.
-  sources += media_sources
+  sources = media_sources
 
   if (is_starboard) {
     # TODO(b/432821616): Move |starboard_platform_sources| to a source_set.
@@ -332,6 +330,7 @@ test("nplb") {
 
   deps = [
     "//starboard:starboard_group",
+    "//starboard:starboard_test_main",
     "//starboard/common",
     "//starboard/common:file_wrapper",
     "//starboard/egl_and_gles:buildflags",
