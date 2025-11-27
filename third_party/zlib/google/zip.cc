@@ -171,6 +171,17 @@ bool Zip(const ZipParams& params) {
   return zip_writer->Close();
 }
 
+#if defined(IN_MEMORY_UPDATES)
+bool Unzip(const std::string& zip_str,
+           const base::FilePath& dest_dir,
+           UnzipOptions options) {
+  return Unzip(zip_str,
+               base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
+               base::BindRepeating(&CreateDirectory, dest_dir),
+               std::move(options));
+}
+#endif
+
 bool Unzip(const base::FilePath& src_file,
            const base::FilePath& dest_dir,
            UnzipOptions options) {
@@ -181,14 +192,74 @@ bool Unzip(const base::FilePath& src_file,
     return false;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+// |dest_dir| contains a newly created drain file to prevent race conditions,
+// so it is expected to be non-empty.
+#else
   DLOG_IF(WARNING, !base::IsDirectoryEmpty(dest_dir))
       << "ZIP extraction directory is not empty: " << dest_dir;
+#endif
 
   return Unzip(file.GetPlatformFile(),
                base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
                base::BindRepeating(&CreateDirectory, dest_dir),
                std::move(options));
 }
+
+#if defined(IN_MEMORY_UPDATES)
+bool Unzip(const std::string& zip_str,
+           WriterFactory writer_factory,
+           DirectoryCreator directory_creator,
+           UnzipOptions options) {
+  ZipReader reader;
+  reader.SetEncoding(std::move(options.encoding));
+  reader.SetPassword(std::move(options.password));
+
+  if (!reader.OpenFromString(zip_str)) {
+    LOG(ERROR) << "Failed to open zip_str";
+    return false;
+  }
+
+  while (const ZipReader::Entry* const entry = reader.Next()) {
+    if (entry->is_unsafe) {
+      LOG(ERROR) << "Found unsafe entry " << Redact(entry->path) << " in ZIP";
+      if (!options.continue_on_error)
+        return false;
+      continue;
+    }
+
+    if (options.filter && !options.filter.Run(entry->path)) {
+      VLOG(1) << "Skipped ZIP entry " << Redact(entry->path);
+      continue;
+    }
+
+    if (entry->is_directory) {
+      // It's a directory.
+      if (!directory_creator.Run(entry->path)) {
+        LOG(ERROR) << "Cannot create directory " << Redact(entry->path);
+        if (!options.continue_on_error)
+          return false;
+      }
+
+      continue;
+    }
+
+    // It's a file.
+    std::unique_ptr<WriterDelegate> writer = writer_factory.Run(entry->path);
+    if (!writer ||
+        (options.progress ? !reader.ExtractCurrentEntryWithListener(
+                                writer.get(), options.progress)
+                          : !reader.ExtractCurrentEntry(writer.get()))) {
+      LOG(ERROR) << "Cannot extract file " << Redact(entry->path)
+                 << " from ZIP";
+      if (!options.continue_on_error)
+        return false;
+    }
+  }
+
+  return reader.ok();
+}
+#endif //  defined(IN_MEMORY_UPDATES)
 
 bool Unzip(const base::PlatformFile& src_file,
            WriterFactory writer_factory,

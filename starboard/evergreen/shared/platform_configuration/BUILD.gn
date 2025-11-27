@@ -48,7 +48,7 @@ config("platform_configuration") {
     # this macro.
     # TODO(b/444006168): Uncomment this once in-memory updates is fully
     # supported.
-    # "IN_MEMORY_UPDATES",
+    "IN_MEMORY_UPDATES",
   ]
 
   if (use_asan) {
