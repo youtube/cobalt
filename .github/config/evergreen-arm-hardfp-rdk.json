@@ -6,6 +6,7 @@
   "test_package": true,
   "test_on_device": true,
   "test_device_family": "rdk",
+  "test_e2e": true,
   "test_root_target": "//cobalt:gn_all",
   "test_attempts": "3",
   "test_dimensions": {
@@ -15,6 +16,12 @@
   "targets": [
     "cobalt:gn_all",
     "loader_app"
+  ],
+  "e2e_test_targets": [
+    {
+      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_rdk",
+      "test_attempts": "6"
+    }
   ],
   "includes": [
     {
