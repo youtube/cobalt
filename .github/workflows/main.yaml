@@ -322,9 +322,10 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
+          path: pre-run
           name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
-        uses: ./.github/actions/prepare-runner-cache
+        uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
@@ -499,9 +500,10 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
+          path: pre-run
           name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
-        uses: ./.github/actions/prepare-runner-cache
+        uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4
         with:
