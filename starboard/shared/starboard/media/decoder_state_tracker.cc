@@ -50,19 +50,19 @@ std::string to_ms_string(std::optional<int64_t> us_opt) {
 
 }  // namespace
 
-DecoderStateTracker::DecoderStateTracker(StateChangedCB state_changed_cb)
+DecoderStateTracker::DecoderStateTracker(FrameReleaseCB frame_released_cb)
     : DecoderStateTracker(kInitialMaxFramesInDecoder,
-                          std::move(state_changed_cb),
+                          std::move(frame_released_cb),
                           /*frame_log_internval_us=*/std::nullopt) {}
 
 DecoderStateTracker::DecoderStateTracker(int max_frames,
-                                         StateChangedCB state_changed_cb,
+                                         FrameReleaseCB frame_released_cb,
                                          std::optional<int> log_interval_us)
     : max_frames_(max_frames),
-      state_changed_cb_(std::move(state_changed_cb)),
+      frame_released_cb_(std::move(frame_released_cb)),
       job_thread_(std::make_unique<shared::starboard::player::JobThread>(
           "DecStateTrack")) {
-  SB_CHECK(state_changed_cb_);
+  SB_CHECK(frame_released_cb_);
   if (log_interval_us) {
     job_thread_->Schedule(
         [this, log_interval_us] { LogStateAndReschedule(*log_interval_us); },
@@ -141,7 +141,6 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           if (disabled_) {
             return;
           }
-          bool was_full = IsFull_Locked();
           auto it = frames_in_flight_.upper_bound(presentation_time_us);
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
@@ -154,9 +153,7 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
                             << max_frames_ << ": state=" << new_state;
           }
         }
-        if (!IsFull_Locked(new_state)) {
-          state_changed_cb_();
-        }
+        frame_released_cb_();
       },
       delay_us);
 }
@@ -219,7 +216,7 @@ void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
   SB_LOG(ERROR) << "KILL SWITCH ENGAGED: " << reason << ", pts=" << pts;
   disabled_ = true;
   frames_in_flight_.clear();
-  state_changed_cb_();
+  frame_released_cb_();
 }
 
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {

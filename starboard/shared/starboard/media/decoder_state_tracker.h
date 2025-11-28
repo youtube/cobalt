@@ -36,7 +36,7 @@ namespace starboard {
 // SequencedTaskRunners.
 class DecoderStateTracker {
  public:
-  using StateChangedCB = std::function<void()>;
+  using FrameReleaseCB = std::function<void()>;
 
   struct State {
     int decoding_frames = 0;
@@ -45,9 +45,9 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  explicit DecoderStateTracker(StateChangedCB state_changed_cb);
+  explicit DecoderStateTracker(FrameReleaseCB frame_released_cb);
   DecoderStateTracker(int max_frames,
-                      StateChangedCB state_changed_cb,
+                      FrameReleaseCB frame_released_cb,
                       std::optional<int> log_interval_us);
   ~DecoderStateTracker() = default;
 
@@ -72,7 +72,7 @@ class DecoderStateTracker {
   void EngageKillSwitch_Locked(std::string_view reason, int64_t pts);
   void LogStateAndReschedule(int64_t log_interval_us);
 
-  const StateChangedCB state_changed_cb_;
+  const FrameReleaseCB frame_released_cb_;
   const std::unique_ptr<shared::starboard::player::JobThread> job_thread_;
 
   mutable std::mutex mutex_;
