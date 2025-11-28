@@ -34,7 +34,7 @@ namespace {
 // max frames will increase.
 constexpr int kFramesLowWatermark = 2;
 
-constexpr int kInitialMaxFramesInDecoder = 6;
+constexpr int kInitialMaxFramesInDecoder = 4;
 
 // Maximum number of endoding frames to accept when no frame is generated.
 // Some devices need a large number of frames when generating the 1st
@@ -78,6 +78,9 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (disabled_) {
     return;
   }
+  // frames_in_flight_ can exceed max_frames_ initially to accommodate
+  // decoders that require a larger batch of input frames before producing the
+  // first decoded output.
   if (frames_in_flight_.size() >
       std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
     EngageKillSwitch_Locked("Too many frames in flight: state=" +
