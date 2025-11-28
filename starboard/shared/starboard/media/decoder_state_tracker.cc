@@ -74,7 +74,6 @@ DecoderStateTracker::DecoderStateTracker(int max_frames,
 
 void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
-  SB_LOG(INFO) << __func__;
 
   if (disabled_) {
     return;
@@ -99,7 +98,6 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
 
 void DecoderStateTracker::SetEosFrameAdded() {
   std::lock_guard lock(mutex_);
-  SB_LOG(INFO) << __func__;
 
   if (disabled_) {
     return;
@@ -124,11 +122,6 @@ void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
 
 void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
                                              int64_t release_us) {
-  static int64_t last_release_us = 0;
-  SB_LOG(INFO) << __func__ << " > release gap(msec)="
-               << (release_us - last_release_us) / 1'000;
-  last_release_us = release_us;
-
   {
     std::lock_guard lock(mutex_);
     if (disabled_) {
@@ -150,12 +143,7 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
           new_state = GetCurrentState_Locked();
-          SB_LOG(INFO) << "SetFrameReleasedAt: callback fired: state="
-                       << new_state;
           if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
-            // For testing, I want this to work as break point.
-            SB_LOG(FATAL) << "Frames drops under the low water mark. state="
-                          << new_state;
             int old_max = max_frames_;
             max_frames_++;
             reached_max_ = false;
@@ -164,7 +152,6 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           }
         }
         if (!IsFull_Locked(new_state)) {
-          SB_LOG(INFO) << "Calling state changed: " << new_state;
           state_changed_cb_();
         }
       },
