@@ -171,45 +171,43 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
     return;
   }
 
-  if (@available(tvOS 14.5, *)) {
-    const SbDrmSampleInfo* drm_info = input_buffer->drm_info();
-    if (drm_system_ && drm_info) {
-      CFArrayRef attachments =
-          CMSampleBufferGetSampleAttachmentsArray(sample_buffer, YES);
-      // There should be only 1 sample attachment here for non opus audio.
-      SB_DCHECK(CFArrayGetCount(attachments) == 1);
+  const SbDrmSampleInfo* drm_info = input_buffer->drm_info();
+  if (drm_system_ && drm_info) {
+    CFArrayRef attachments =
+        CMSampleBufferGetSampleAttachmentsArray(sample_buffer, YES);
+    // There should be only 1 sample attachment here for non opus audio.
+    SB_DCHECK(CFArrayGetCount(attachments) == 1);
 
-      CFMutableDictionaryRef attachment =
-          (CFMutableDictionaryRef)CFArrayGetValueAtIndex(attachments, 0);
+    CFMutableDictionaryRef attachment =
+        (CFMutableDictionaryRef)CFArrayGetValueAtIndex(attachments, 0);
 
-      // Attach content key and cryptor data to sample buffer.
-      AVContentKey* content_key = drm_system_->GetContentKey(
-          drm_info->identifier, drm_info->identifier_size);
-      SB_DCHECK(content_key);
+    // Attach content key and cryptor data to sample buffer.
+    AVContentKey* content_key = drm_system_->GetContentKey(
+        drm_info->identifier, drm_info->identifier_size);
+    SB_DCHECK(content_key);
 
-      NSError* error;
-      BOOL result =
-          AVSampleBufferAttachContentKey(sample_buffer, content_key, &error);
-      if (!result) {
-        std::stringstream ss;
-        ss << "Failed to attach content key.";
-        avutil::AppendAVErrorDetails(error, &ss);
-        ReportError(ss.str());
-        return;
-      }
-
-      CFDataRef cryptor_info = CFDataCreate(
-          NULL,
-          reinterpret_cast<const unsigned char*>(drm_info->subsample_mapping),
-          drm_info->subsample_count * sizeof(SbDrmSubSampleMapping));
-      static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
-          @"CryptorSubsampleAuxiliaryData";
-      CFDictionarySetValue(
-          attachment,
-          (__bridge CFStringRef)
-              kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData,
-          cryptor_info);
+    NSError* error;
+    BOOL result =
+        AVSampleBufferAttachContentKey(sample_buffer, content_key, &error);
+    if (!result) {
+      std::stringstream ss;
+      ss << "Failed to attach content key.";
+      avutil::AppendAVErrorDetails(error, &ss);
+      ReportError(ss.str());
+      return;
     }
+
+    CFDataRef cryptor_info = CFDataCreate(
+        NULL,
+        reinterpret_cast<const unsigned char*>(drm_info->subsample_mapping),
+        drm_info->subsample_count * sizeof(SbDrmSubSampleMapping));
+    static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
+        @"CryptorSubsampleAuxiliaryData";
+    CFDictionarySetValue(
+        attachment,
+        (__bridge CFStringRef)
+            kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData,
+        cryptor_info);
   }
 
   @autoreleasepool {
