@@ -201,7 +201,7 @@ Use this method for initial deployment or when you want to ensure a clean state:
 cd "$OUT"
 tar czf - -T cobalt_loader.runtime_deps | ssh "$TARGET" "cd $COBALT_CONTENT_DIR && tar xzf -"
 
-# For NPLB (Non-Platform Loader Binary) testing:
+# For No Platform Left Behind (NPLB) testing:
 # tar czf - -T nplb_loader.runtime_deps | ssh "$TARGET" "cd $COBALT_CONTENT_DIR && tar xzf -"
 ```
 
@@ -255,7 +255,7 @@ The `/home/root/setup-cobalt-env.sh` script configures `WAYLAND_DISPLAY=wayland-
 
 Available build targets:
 - `cobalt_loader.runtime_deps` - Main Cobalt application
-- `nplb_loader.runtime_deps` - Non-Platform Loader Binary for testing
+- `nplb_loader.runtime_deps` - No Platform Left Behind (NPLB) for testing
 
 ### Important Notes
 
