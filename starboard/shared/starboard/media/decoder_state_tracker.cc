@@ -72,6 +72,10 @@ DecoderStateTracker::DecoderStateTracker(int max_frames,
                << ", log_interval(msec)=" << to_ms_string(log_interval_us);
 }
 
+DecoderStateTracker::~DecoderStateTracker() {
+  SB_LOG(INFO) << "Destroying DecoderStateTracker.";
+}
+
 void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
@@ -135,7 +139,6 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
   int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
   job_thread_->Schedule(
       [this, presentation_time_us] {
-        State new_state;
         {
           std::lock_guard lock(mutex_);
           if (disabled_) {
@@ -144,13 +147,13 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           auto it = frames_in_flight_.upper_bound(presentation_time_us);
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
-          new_state = GetCurrentState_Locked();
           if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
             int old_max = max_frames_;
             max_frames_++;
             reached_max_ = false;
-            SB_LOG(WARNING) << "Bump up max frames from " << old_max << " to "
-                            << max_frames_ << ": state=" << new_state;
+            SB_LOG(WARNING)
+                << "Bump up max frames from " << old_max << " to "
+                << max_frames_ << ": state=" << GetCurrentState_Locked();
           }
         }
         frame_released_cb_();
@@ -198,10 +201,7 @@ DecoderStateTracker::State DecoderStateTracker::GetCurrentState_Locked() const {
 }
 
 bool DecoderStateTracker::IsFull_Locked() const {
-  return IsFull_Locked(GetCurrentState_Locked());
-}
-
-bool DecoderStateTracker::IsFull_Locked(const State& state) const {
+  const State state = GetCurrentState_Locked();
   // We accept more frames if no decoded frames have been generated yet.
   // Some devices need a large number of frames when generating the 1st
   // decoded frame. See b/405467220#comment36 for details.

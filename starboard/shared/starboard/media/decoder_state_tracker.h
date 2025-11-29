@@ -49,7 +49,7 @@ class DecoderStateTracker {
   DecoderStateTracker(int max_frames,
                       FrameReleaseCB frame_released_cb,
                       std::optional<int> log_interval_us);
-  ~DecoderStateTracker() = default;
+  ~DecoderStateTracker();
 
   void SetFrameAdded(int64_t presentation_time_us);
   void SetEosFrameAdded();
@@ -68,7 +68,6 @@ class DecoderStateTracker {
 
   State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
-  bool IsFull_Locked(const State& state) const;
   void EngageKillSwitch_Locked(std::string_view reason, int64_t pts);
   void LogStateAndReschedule(int64_t log_interval_us);
 
