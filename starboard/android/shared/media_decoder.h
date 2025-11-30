@@ -29,6 +29,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -154,7 +155,8 @@ class MediaDecoder final
     PendingInput pending_input;
   };
 
-  static void* DecoderThreadEntryPoint(void* context);
+  class DecoderThread;
+
   void DecoderThreadFunc();
 
   void TerminateDecoderThread();
@@ -218,7 +220,7 @@ class MediaDecoder final
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  pthread_t decoder_thread_ = 0;
+  std::unique_ptr<Thread> decoder_thread_;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

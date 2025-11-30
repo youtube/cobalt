@@ -15,15 +15,16 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -74,7 +75,8 @@ class MinRequiredFramesTester {
     const int default_required_frames;
   };
 
-  static void* TesterThreadEntryPoint(void* context);
+  class TesterThread;
+
   void TesterThreadFunc();
 
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
@@ -115,7 +117,7 @@ class MinRequiredFramesTester {
 
   Mutex mutex_;
   ConditionVariable condition_variable_;
-  pthread_t tester_thread_ = 0;
+  std::unique_ptr<Thread> tester_thread_;
   std::atomic_bool destroying_;
 };
 

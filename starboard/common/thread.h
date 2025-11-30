@@ -32,9 +32,13 @@ class Semaphore;
 
 class Thread {
  public:
-  explicit Thread(const std::string& name);
+  explicit Thread(const std::string& name) : Thread(name, /*stack_size=*/0) {}
+  explicit Thread(const std::string& name, int64_t stack_size);
   template <size_t N>
-  explicit Thread(char const (&name)[N]) : Thread(std::string(name)) {
+  explicit Thread(char const (&name)[N]) : Thread(name, /*stack_size=*/0) {}
+  template <size_t N>
+  explicit Thread(char const (&name)[N], int64_t stack_size)
+      : Thread(std::string(name), stack_size) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");
   }

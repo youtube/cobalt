@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/player_worker.h"
 
-#include <pthread.h>
+#include <string.h>
 
 #include <memory>
 #include <string>
@@ -58,15 +58,34 @@ const int64_t kWritePendingSampleDelayUsec = 8'000;  // 8ms
 
 DECLARE_INSTANCE_COUNTER(PlayerWorker);
 
-struct ThreadParam {
-  explicit ThreadParam(PlayerWorker* player_worker)
-      : condition_variable(mutex), player_worker(player_worker) {}
-  Mutex mutex;
-  ConditionVariable condition_variable;
-  PlayerWorker* player_worker;
-};
-
 }  // namespace
+
+class PlayerWorker::WorkerThread : public Thread {
+ public:
+  WorkerThread(PlayerWorker* worker,
+               int64_t stack_size,
+               std::mutex* mutex,
+               std::condition_variable* cv)
+      : Thread("player_worker", stack_size),
+        worker_(worker),
+        mutex_(mutex),
+        cv_(cv) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityHigh);
+    {
+      std::lock_guard lock(*mutex_);
+      worker_->job_queue_ = std::make_unique<JobQueue>();
+    }
+    cv_->notify_one();
+    worker_->RunLoop();
+  }
+
+ private:
+  PlayerWorker* worker_;
+  std::mutex* mutex_;
+  std::condition_variable* cv_;
+};
 
 PlayerWorker* PlayerWorker::CreateInstance(
     SbMediaAudioCodec audio_codec,
@@ -95,8 +114,8 @@ PlayerWorker::~PlayerWorker() {
 
   if (thread_ != 0) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
-    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
-    thread_ = 0;
+    thread_->Join();
+    thread_.reset();
 
     // Now the whole pipeline has been torn down and no callback will be called.
     // The caller can ensure that upon the return of SbPlayerDestroy() all side
@@ -113,8 +132,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerErrorFunc player_error_func,
                            SbPlayer player,
                            void* context)
-    : thread_(0),
-      audio_codec_(audio_codec),
+    : audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),
       update_media_info_cb_(update_media_info_cb),
@@ -130,23 +148,14 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
   ON_INSTANCE_CREATED(PlayerWorker);
 
-  ThreadParam thread_param(this);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  thread_ = std::make_unique<WorkerThread>(this, kPlayerStackSize, &mutex,
+                                           &condition_variable);
+  thread_->Start();
 
-  pthread_attr_t attributes;
-  pthread_attr_init(&attributes);
-  pthread_attr_setstacksize(&attributes, kPlayerStackSize);
-  pthread_create(&thread_, &attributes, &PlayerWorker::ThreadEntryPoint,
-                 &thread_param);
-  pthread_attr_destroy(&attributes);
-
-  if (thread_ == 0) {
-    SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
-    return;
-  }
-  ScopedLock scoped_lock(thread_param.mutex);
-  while (!job_queue_) {
-    thread_param.condition_variable.Wait();
-  }
+  std::unique_lock lock(mutex);
+  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
   SB_DCHECK(job_queue_);
 }
 
@@ -191,25 +200,6 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
     return;
   }
   player_error_func_(player_, context_, error, complete_error_message.c_str());
-}
-
-// static
-void* PlayerWorker::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "player_worker");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
-  ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != NULL);
-  PlayerWorker* player_worker = param->player_worker;
-  {
-    ScopedLock scoped_lock(param->mutex);
-    player_worker->job_queue_.reset(new JobQueue);
-    param->condition_variable.Signal();
-  }
-  player_worker->RunLoop();
-#if defined(ANDROID)
-  android::shared::JNIState::GetVM()->DetachCurrentThread();
-#endif
-  return NULL;
 }
 
 void PlayerWorker::RunLoop() {

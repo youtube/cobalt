@@ -80,6 +80,22 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 }  // namespace
 
+class MediaDecoder::DecoderThread : public Thread {
+ public:
+  explicit DecoderThread(MediaDecoder* decoder)
+      : Thread(GetDecoderName(decoder->media_type_)), decoder_(decoder) {}
+
+  void Run() override {
+    SbThreadSetPriority(decoder_->media_type_ == kSbMediaTypeAudio
+                            ? kSbThreadPriorityNormal
+                            : kSbThreadPriorityHigh);
+    decoder_->DecoderThreadFunc();
+  }
+
+ private:
+  MediaDecoder* decoder_;
+};
+
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
@@ -201,10 +217,9 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
-  if (decoder_thread_ == 0) {
-    pthread_create(&decoder_thread_, nullptr,
-                   &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK_NE(decoder_thread_, 0);
+  if (!decoder_thread_) {
+    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_->Start();
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -234,22 +249,6 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
-}
-
-// static
-void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_CHECK(context);
-  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
-  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
-  if (decoder->media_type_ == kSbMediaTypeAudio) {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
-  } else {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
-  }
-
-  decoder->DecoderThreadFunc();
-  JNIState::GetVM()->DetachCurrentThread();
-  return NULL;
 }
 
 void MediaDecoder::DecoderThreadFunc() {
@@ -395,9 +394,9 @@ void MediaDecoder::TerminateDecoderThread() {
     condition_variable_.Signal();
   }
 
-  if (decoder_thread_ != 0) {
-    SB_CHECK_EQ(pthread_join(decoder_thread_, nullptr), 0);
-    decoder_thread_ = 0;
+  if (decoder_thread_) {
+    decoder_thread_->Join();
+    decoder_thread_.reset();
   }
 }
 

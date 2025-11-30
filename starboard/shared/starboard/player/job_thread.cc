@@ -26,45 +26,49 @@
 
 namespace starboard::shared::starboard::player {
 
-namespace {
+class JobThread::WorkerThread : public Thread {
+ public:
+  WorkerThread(JobThread* job_thread,
+               const char* thread_name,
+               int64_t stack_size,
+               SbThreadPriority priority,
+               std::mutex* mutex,
+               std::condition_variable* cv)
+      : Thread(thread_name, stack_size),
+        job_thread_(job_thread),
+        priority_(priority),
+        mutex_(mutex),
+        cv_(cv) {}
 
-struct ThreadParam {
-  explicit ThreadParam(JobThread* job_thread,
-                       const char* name,
-                       SbThreadPriority priority)
-      : condition_variable(mutex),
-        job_thread(job_thread),
-        thread_name(name),
-        thread_priority(priority) {}
-  Mutex mutex;
-  ConditionVariable condition_variable;
-  JobThread* job_thread;
-  std::string thread_name;
-  SbThreadPriority thread_priority;
+  void Run() override {
+    SbThreadSetPriority(priority_);
+    {
+      std::lock_guard lock(*mutex_);
+      job_thread_->job_queue_ = std::make_unique<JobQueue>();
+    }
+    cv_->notify_one();
+    job_thread_->RunLoop();
+  }
+
+ private:
+  JobThread* job_thread_;
+  SbThreadPriority priority_;
+  std::mutex* mutex_;
+  std::condition_variable* cv_;
 };
-
-}  // namespace
 
 JobThread::JobThread(const char* thread_name,
                      int64_t stack_size,
                      SbThreadPriority priority) {
-  ThreadParam thread_param(this, thread_name, priority);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
 
-  pthread_attr_t attributes;
-  pthread_attr_init(&attributes);
-  if (stack_size > 0) {
-    pthread_attr_setstacksize(&attributes, stack_size);
-  }
+  thread_ = std::make_unique<WorkerThread>(
+      this, thread_name, stack_size, priority, &mutex, &condition_variable);
+  thread_->Start();
 
-  pthread_create(&thread_, &attributes, &JobThread::ThreadEntryPoint,
-                 &thread_param);
-  pthread_attr_destroy(&attributes);
-
-  SB_DCHECK_NE(thread_, 0);
-  ScopedLock scoped_lock(thread_param.mutex);
-  while (!job_queue_) {
-    thread_param.condition_variable.Wait();
-  }
+  std::unique_lock lock(mutex);
+  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
   SB_DCHECK(job_queue_);
 }
 
@@ -75,29 +79,7 @@ JobThread::~JobThread() {
   if (job_queue_) {
     job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
   }
-  pthread_join(thread_, nullptr);
-}
-
-// static
-void* JobThread::ThreadEntryPoint(void* context) {
-  ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != nullptr);
-
-  pthread_setname_np(pthread_self(), param->thread_name.c_str());
-  shared::pthread::ThreadSetPriority(param->thread_priority);
-
-  JobThread* job_thread = param->job_thread;
-  {
-    ScopedLock scoped_lock(param->mutex);
-    job_thread->job_queue_.reset(new JobQueue);
-    param->condition_variable.Signal();
-  }
-  job_thread->RunLoop();
-
-#if defined(ANDROID)
-  android::shared::JNIState::GetVM()->DetachCurrentThread();
-#endif
-  return nullptr;
+  thread_->Join();
 }
 
 void JobThread::RunLoop() {
