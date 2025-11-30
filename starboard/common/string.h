@@ -21,7 +21,9 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -48,6 +50,13 @@ inline std::string FormatString(const char* format, ...) {
   vsnprintf(buffer.data(), buffer.size(), format, arguments);
   va_end(arguments);
   return std::string(buffer.data(), expected_size);
+}
+
+template <typename T>
+std::string ToString(const T& val) {
+  std::stringstream ss;
+  ss << val;
+  return ss.str();
 }
 
 std::string HexEncode(const void* data,
