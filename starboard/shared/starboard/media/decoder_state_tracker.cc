@@ -34,8 +34,6 @@ namespace {
 // max frames will increase.
 constexpr int kFramesLowWatermark = 2;
 
-constexpr int kInitialMaxFramesInDecoder = 4;
-
 // Maximum number of endoding frames to accept when no frame is generated.
 // Some devices need a large number of frames when generating the 1st
 // decoded frame. See b/405467220#comment36 for details.
@@ -50,15 +48,16 @@ std::string to_ms_string(std::optional<int64_t> us_opt) {
 
 }  // namespace
 
-DecoderStateTracker::DecoderStateTracker(FrameReleaseCB frame_released_cb)
-    : DecoderStateTracker(kInitialMaxFramesInDecoder,
+DecoderStateTracker::DecoderStateTracker(int initial_max_frames,
+                                         FrameReleaseCB frame_released_cb)
+    : DecoderStateTracker(initial_max_frames,
                           std::move(frame_released_cb),
-                          /*frame_log_internval_us=*/std::nullopt) {}
+                          /*frame_log_interval_us=*/std::nullopt) {}
 
-DecoderStateTracker::DecoderStateTracker(int max_frames,
+DecoderStateTracker::DecoderStateTracker(int initial_max_frames,
                                          FrameReleaseCB frame_released_cb,
                                          std::optional<int> log_interval_us)
-    : max_frames_(max_frames),
+    : max_frames_(initial_max_frames),
       frame_released_cb_(std::move(frame_released_cb)),
       job_thread_(std::make_unique<shared::starboard::player::JobThread>(
           "DecStateTrack")) {
@@ -220,9 +219,7 @@ void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
 }
 
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
-  // This is running on the thread managed by job_owner_.
-  // But we don't have BelongsToCurrentThread() method in DecoderStateTracker
-  // anymore. SB_CHECK(BelongsToCurrentThread()); // Removed
+  // This function runs on the thread managed by `job_thread_`.
 
   {
     std::lock_guard lock(mutex_);

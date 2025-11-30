@@ -45,8 +45,8 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  explicit DecoderStateTracker(FrameReleaseCB frame_released_cb);
-  DecoderStateTracker(int max_frames,
+  DecoderStateTracker(int initial_max_frames, FrameReleaseCB frame_released_cb);
+  DecoderStateTracker(int initial_max_frames,
                       FrameReleaseCB frame_released_cb,
                       std::optional<int> log_interval_us);
   ~DecoderStateTracker();

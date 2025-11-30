@@ -131,7 +131,7 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    bool enable_decoder_throttling,
+    std::optional<int> initial_max_frames,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -140,8 +140,9 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      decoder_state_tracker_(enable_decoder_throttling
+      decoder_state_tracker_(initial_max_frames
                                  ? std::make_unique<DecoderStateTracker>(
+                                       *initial_max_frames,
                                        [this] { condition_variable_.Signal(); })
                                  : nullptr),
       condition_variable_(mutex_) {

@@ -58,7 +58,8 @@ class VideoDecoder
 
   class Sink;
   struct FlowControlOptions {
-    int max_pending_input_frames;
+    std::optional<int> max_pending_input_frames;
+    std::optional<int> initial_max_frames_in_decoder;
   };
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
@@ -75,7 +76,7 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
-               std::optional<FlowControlOptions> flow_control_options,
+               const FlowControlOptions& flow_control_options,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -144,7 +145,7 @@ class VideoDecoder
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
-  const bool enable_decoder_throttling_;
+  const std::optional<int> initial_max_frames_in_decoder_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
