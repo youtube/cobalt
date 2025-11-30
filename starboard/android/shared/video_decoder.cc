@@ -374,7 +374,7 @@ VideoDecoder::VideoDecoder(
     bool force_reset_surface_under_tunnel_mode,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
-                           void* surface_view,
+    void* surface_view,
     bool enable_flush_during_seek,
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
@@ -386,10 +386,11 @@ VideoDecoder::VideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      enable_decoder_throttling_(flow_control_options.has_value()),
+      initial_max_frames_in_decoder_(
+          flow_control_options.initial_max_frames_in_decoder),
       max_pending_inputs_size_(
-          flow_control_options ? flow_control_options->max_pending_input_frames
-                               : kDefaultMaxPendingInputsSize),
+          flow_control_options.max_pending_input_frames.value_or(
+              kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -771,7 +772,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, enable_decoder_throttling_,
+      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
       error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {

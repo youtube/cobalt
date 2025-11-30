@@ -19,35 +19,22 @@
 #include <sstream>
 
 #include "starboard/common/time.h"
-#include "starboard/shared/starboard/player/job_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace {
 
-using shared::starboard::player::JobThread;
-
 constexpr int kMaxFrames = 2;
 
 class DecoderStateTrackerTest : public ::testing::Test {
  protected:
-  DecoderStateTrackerTest() : job_thread_("DecoderStateTrackerTest") {}
-
-  ~DecoderStateTrackerTest() override {
-    job_thread_.ScheduleAndWait([this] { decoder_state_tracker_.reset(); });
-  }
-
   void CreateTracker(int max_frames,
-                     DecoderStateTracker::StateChangedCB state_changed_cb) {
-    job_thread_.ScheduleAndWait(
-        [this, &max_frames, state_changed_cb = std::move(state_changed_cb)] {
-          decoder_state_tracker_ = std::make_unique<DecoderStateTracker>(
-              max_frames, state_changed_cb, job_thread_.job_queue(),
-              /*log_interval_us=*/std::nullopt);
-        });
+                     DecoderStateTracker::FrameReleaseCB frame_released_cb) {
+    decoder_state_tracker_ = std::make_unique<DecoderStateTracker>(
+        max_frames, std::move(frame_released_cb),
+        /*log_interval_us=*/std::nullopt);
   }
 
-  JobThread job_thread_;
   std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 };
 
@@ -156,10 +143,10 @@ TEST_F(DecoderStateTrackerTest, FrameReleasedCallback) {
   ASSERT_EQ(counter.load(), 0);
 
   usleep(100'000);  // at 150 msec
-  EXPECT_EQ(counter.load(), 1);
+  EXPECT_GE(counter.load(), 1);
 
   usleep(100'000);  // at 250 msec
-  EXPECT_EQ(counter.load(), 1);
+  EXPECT_GE(counter.load(), 2);
 }
 
 TEST_F(DecoderStateTrackerTest, Reset) {
@@ -200,7 +187,7 @@ TEST_F(DecoderStateTrackerTest,
 
   usleep(100'000);
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
-  EXPECT_EQ(counter.load(), 0);
+  EXPECT_EQ(counter.load(), 1);
   EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 0);
 }
 

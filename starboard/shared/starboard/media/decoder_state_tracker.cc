@@ -23,6 +23,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
 namespace starboard {
@@ -32,8 +33,6 @@ namespace {
 // If the total number of in-flight frames goes lower than this value,
 // max frames will increase.
 constexpr int kFramesLowWatermark = 2;
-
-constexpr int kInitialMaxFramesInDecoder = 6;
 
 // Maximum number of endoding frames to accept when no frame is generated.
 // Some devices need a large number of frames when generating the 1st
@@ -47,39 +46,33 @@ std::string to_ms_string(std::optional<int64_t> us_opt) {
   return std::to_string(*us_opt / 1'000);
 }
 
-template <class T>
-std::string to_string(const T& val) {
-  std::stringstream ss;
-  ss << val;
-  return ss.str();
-}
-
 }  // namespace
 
-DecoderStateTracker::DecoderStateTracker(
-    StateChangedCB state_changed_cb,
-    shared::starboard::player::JobQueue* job_queue)
-    : DecoderStateTracker(kInitialMaxFramesInDecoder,
-                          std::move(state_changed_cb),
-                          job_queue,
-                          /*frame_log_internval_us=*/std::nullopt) {}
+DecoderStateTracker::DecoderStateTracker(int initial_max_frames,
+                                         FrameReleaseCB frame_released_cb)
+    : DecoderStateTracker(initial_max_frames,
+                          std::move(frame_released_cb),
+                          /*frame_log_interval_us=*/std::nullopt) {}
 
-DecoderStateTracker::DecoderStateTracker(
-    int max_frames,
-    StateChangedCB state_changed_cb,
-    shared::starboard::player::JobQueue* job_queue,
-    std::optional<int> log_interval_us)
-    : JobOwner(job_queue),
-      max_frames_(max_frames),
-      state_changed_cb_(std::move(state_changed_cb)) {
-  SB_CHECK(state_changed_cb_);
+DecoderStateTracker::DecoderStateTracker(int initial_max_frames,
+                                         FrameReleaseCB frame_released_cb,
+                                         std::optional<int> log_interval_us)
+    : max_frames_(initial_max_frames),
+      frame_released_cb_(std::move(frame_released_cb)),
+      job_thread_(std::make_unique<shared::starboard::player::JobThread>(
+          "DecStateTrack")) {
+  SB_CHECK(frame_released_cb_);
   if (log_interval_us) {
-    Schedule(
+    job_thread_->Schedule(
         [this, log_interval_us] { LogStateAndReschedule(*log_interval_us); },
         *log_interval_us);
   }
   SB_LOG(INFO) << "DecoderStateTracker is created: max_frames=" << max_frames_
                << ", log_interval(msec)=" << to_ms_string(log_interval_us);
+}
+
+DecoderStateTracker::~DecoderStateTracker() {
+  SB_LOG(INFO) << "Destroying DecoderStateTracker.";
 }
 
 void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
@@ -88,10 +81,13 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (disabled_) {
     return;
   }
+  // frames_in_flight_ can exceed max_frames_ initially to accommodate
+  // decoders that require a larger batch of input frames before producing the
+  // first decoded output.
   if (frames_in_flight_.size() >
       std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
     EngageKillSwitch_Locked("Too many frames in flight: state=" +
-                                to_string(GetCurrentState_Locked()),
+                                ToString(GetCurrentState_Locked()),
                             presentation_time_us);
     return;
   }
@@ -104,6 +100,17 @@ void DecoderStateTracker::SetFrameAdded(int64_t presentation_time_us) {
   if (frames_in_flight_.size() >= max_frames_) {
     reached_max_ = true;
   }
+}
+
+void DecoderStateTracker::SetEosFrameAdded() {
+  std::lock_guard lock(mutex_);
+
+  if (disabled_) {
+    return;
+  }
+  SB_LOG(INFO) << "EOS frame is added and we disable this tracker, since we no "
+                  "longer needs it";
+  disabled_ = true;
 }
 
 void DecoderStateTracker::SetFrameDecoded(int64_t presentation_time_us) {
@@ -129,34 +136,26 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
   }
 
   int64_t delay_us = std::max(release_us - CurrentMonotonicTime(), int64_t{0});
-  Schedule(
+  job_thread_->Schedule(
       [this, presentation_time_us] {
-        bool should_signal = false;
         {
           std::lock_guard lock(mutex_);
           if (disabled_) {
             return;
           }
-          bool was_full = IsFull_Locked();
           auto it = frames_in_flight_.upper_bound(presentation_time_us);
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
-          State new_state = GetCurrentState_Locked();
           if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
             int old_max = max_frames_;
             max_frames_++;
             reached_max_ = false;
-            SB_LOG(WARNING) << "Bump up max frames from " << old_max << " to "
-                            << max_frames_ << ": state=" << new_state;
-          }
-
-          if (was_full && !IsFull_Locked(new_state)) {
-            should_signal = true;
+            SB_LOG(WARNING)
+                << "Bump up max frames from " << old_max << " to "
+                << max_frames_ << ": state=" << GetCurrentState_Locked();
           }
         }
-        if (should_signal) {
-          state_changed_cb_();
-        }
+        frame_released_cb_();
       },
       delay_us);
 }
@@ -201,10 +200,7 @@ DecoderStateTracker::State DecoderStateTracker::GetCurrentState_Locked() const {
 }
 
 bool DecoderStateTracker::IsFull_Locked() const {
-  return IsFull_Locked(GetCurrentState_Locked());
-}
-
-bool DecoderStateTracker::IsFull_Locked(const State& state) const {
+  const State state = GetCurrentState_Locked();
   // We accept more frames if no decoded frames have been generated yet.
   // Some devices need a large number of frames when generating the 1st
   // decoded frame. See b/405467220#comment36 for details.
@@ -219,11 +215,11 @@ void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
   SB_LOG(ERROR) << "KILL SWITCH ENGAGED: " << reason << ", pts=" << pts;
   disabled_ = true;
   frames_in_flight_.clear();
-  state_changed_cb_();
+  frame_released_cb_();
 }
 
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
-  SB_CHECK(BelongsToCurrentThread());
+  // This function runs on the thread managed by `job_thread_`.
 
   {
     std::lock_guard lock(mutex_);
@@ -234,7 +230,7 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
     }
   }
 
-  Schedule(
+  job_thread_->Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
       log_interval_us);
 }
