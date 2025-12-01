@@ -127,6 +127,13 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
+      - name: Set test package
+        id: set-test-package
+        shell: bash
+        run: |
+          set -x
+          test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
+          echo "test_package=${test_package}" >> $GITHUB_OUTPUT
       - name: Set e2e tests
         id: set-test-e2e
         shell: bash
@@ -212,6 +219,7 @@ jobs:
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
+      test_package: ${{ steps.set-test-package.outputs.test_package }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
@@ -311,22 +319,12 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
-      - name: Prepare gclient cache directory
-        run: |
-          mkdir -p /runner-cache/cobalt/src
-          ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
-        run: |
-          CHECKOUT_PATH="${GITHUB_WORKSPACE}/cobalt/src"
-          # Check src already exists by earlier runners:
-          if [ -d "${CHECKOUT_PATH}/.git" ]; then
-            cd "${CHECKOUT_PATH}"
-            git reset --hard
-            # Remove unmerged/conflict markers if any merge was aborted
-            git merge --abort || true
-          fi
-      - name: Add safe directory for git
-        run: git config --global --add safe.directory /runner-cache/cobalt/src
+        uses: ./.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
@@ -338,8 +336,10 @@ jobs:
           # to properly calculate build id.
           fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
           clean: false
+
       - name: Set Up Depot Tools
         uses: ./cobalt/src/.github/actions/depot_tools
+
       - name: Build Cobalt
         id: build
         uses: ./cobalt/src/.github/actions/build
@@ -347,12 +347,24 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && ( needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_e2e == 'true' ) }}
-          upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
+
+      - name: Release Package
+        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true')
+        uses: ./cobalt/src/.github/actions/package
+        with:
+          package_dir: out/test-package
+
+      - name: Upload Test Artifacts
+        uses: ./cobalt/src/.github/actions/upload_test_artifacts
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
+          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
+          upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && needs.initialize.outputs.test_e2e == 'true' }}
+          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+
       - name: Run API Leak Detector
         uses: ./cobalt/src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
@@ -484,20 +496,12 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
-      - name: Prepare gclient cache directory
-        run: |
-          mkdir -p /runner-cache/cobalt/src
-          ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
-        run: |
-          CHECKOUT_PATH="${GITHUB_WORKSPACE}/cobalt/src"
-          # Check src already exists by earlier runners:
-          if [ -d "${CHECKOUT_PATH}/.git" ]; then
-            cd "${CHECKOUT_PATH}"
-            git reset --hard
-            # Remove unmerged/conflict markers if any merge was aborted
-            git merge --abort || true
-          fi
+        uses: ./.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4
         with:

@@ -21,12 +21,16 @@ build = common.build {
   //      value = 'target_os=\"android\" sb_is_evergreen_compatible=true is_internal_build=true'
   //    },
     {
+      key = 'PLATFORM'
+      value = 'evergreen-arm-softfp-sbversion-18'
+    },
+    {
       key = 'EXTRA_GN_ARGUMENTS'
       value = 'use_asan=false is_internal_build=true'
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt'
+      value = 'cobalt copy_cobalt_lib'
     },
     {
       key = 'TARGET_CPU'

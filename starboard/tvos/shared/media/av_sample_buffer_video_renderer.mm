@@ -211,17 +211,6 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
     SBDGetApplication()
         .windowManager.currentApplicationWindow.avDisplayManager
         .preferredDisplayCriteria = nil;
-
-    // One stability bug was fixed in tvOS 13.1. For prior version, Apple
-    // engineer suggested us to release AVSampleBufferDisplayLayer 100 ms later
-    // after set rate to zero.
-    if (@available(tvOS 13.1, *)) {
-    } else {
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100.0 * NSEC_PER_MSEC),
-                     dispatch_get_main_queue(), ^{
-                       display_layer.delegate = nil;
-                     });
-    }
   });
 }
 
@@ -489,37 +478,35 @@ void AVSBVideoRenderer::OnSampleBufferBuilderOutput(
     }
   }
 
-  if (@available(tvOS 14.5, *)) {
-    const SbDrmSampleInfo* drm_info = sample_buffer->input_buffer()->drm_info();
-    if (drm_system_ && drm_info) {
-      // Attach content key and cryptor data to sample buffer.
-      AVContentKey* content_key = drm_system_->GetContentKey(
-          drm_info->identifier, drm_info->identifier_size);
-      SB_DCHECK(content_key);
+  const SbDrmSampleInfo* drm_info = sample_buffer->input_buffer()->drm_info();
+  if (drm_system_ && drm_info) {
+    // Attach content key and cryptor data to sample buffer.
+    AVContentKey* content_key = drm_system_->GetContentKey(
+        drm_info->identifier, drm_info->identifier_size);
+    SB_DCHECK(content_key);
 
-      NSError* error;
-      BOOL result = AVSampleBufferAttachContentKey(
-          sample_buffer->cm_sample_buffer(), content_key, &error);
-      if (!result) {
-        std::stringstream ss;
-        ss << "Failed to attach content key.";
-        avutil::AppendAVErrorDetails(error, &ss);
-        ReportError(ss.str());
-        return;
-      }
-
-      static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
-          @"CryptorSubsampleAuxiliaryData";
-      CFDataRef cryptor_info = CFDataCreate(
-          NULL,
-          reinterpret_cast<const unsigned char*>(drm_info->subsample_mapping),
-          drm_info->subsample_count * sizeof(SbDrmSubSampleMapping));
-      CFDictionarySetValue(
-          attachment,
-          (__bridge CFStringRef)
-              kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData,
-          cryptor_info);
+    NSError* error;
+    BOOL result = AVSampleBufferAttachContentKey(
+        sample_buffer->cm_sample_buffer(), content_key, &error);
+    if (!result) {
+      std::stringstream ss;
+      ss << "Failed to attach content key.";
+      avutil::AppendAVErrorDetails(error, &ss);
+      ReportError(ss.str());
+      return;
     }
+
+    static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
+        @"CryptorSubsampleAuxiliaryData";
+    CFDataRef cryptor_info = CFDataCreate(
+        NULL,
+        reinterpret_cast<const unsigned char*>(drm_info->subsample_mapping),
+        drm_info->subsample_count * sizeof(SbDrmSubSampleMapping));
+    CFDictionarySetValue(
+        attachment,
+        (__bridge CFStringRef)
+            kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData,
+        cryptor_info);
   }
 
   // If the output of sample builder is already decoded, we can skip the frames
@@ -728,12 +715,9 @@ void AVSBVideoRenderer::OnStatusChanged(NSString* key_path) {
     avutil::AppendAVErrorDetails(display_layer_.error, &ss);
     Schedule(std::bind(&AVSBVideoRenderer::ReportError, this, ss.str()));
   }
-  if (@available(tvOS 14.5, *)) {
-    if (drm_system_ &&
-        [key_path isEqualToString:kAVSBDLOutputObscuredKeyPath]) {
-      drm_system_->OnOutputObscuredChanged(
-          display_layer_.outputObscuredDueToInsufficientExternalProtection);
-    }
+  if (drm_system_ && [key_path isEqualToString:kAVSBDLOutputObscuredKeyPath]) {
+    drm_system_->OnOutputObscuredChanged(
+        display_layer_.outputObscuredDueToInsufficientExternalProtection);
   }
   ObserverRegistry::UnlockObserver(lock_slot);
 }

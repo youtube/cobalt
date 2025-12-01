@@ -48,6 +48,8 @@
             android:icon="@mipmap/ic_app"
             android:banner="@drawable/app_banner"
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
+            {# Cobalt/CoAT app is for the development only #}
+            android:debuggable="true"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
         {% if build_type in ['debug'] %}
         <profileable android:shell="true" android:enabled="true" />

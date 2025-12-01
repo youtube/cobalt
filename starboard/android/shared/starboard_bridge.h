@@ -100,6 +100,7 @@ class StarboardBridge {
       const char* service_name);
   void CloseCobaltService(JNIEnv* env, const char* service_name);
   bool HasCobaltService(JNIEnv* env, const char* service_name);
+  void CloseAllCobaltService(JNIEnv* env) const;
 
  private:
   StarboardBridge() = default;

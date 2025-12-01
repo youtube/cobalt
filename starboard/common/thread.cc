@@ -18,12 +18,14 @@
 
 #include <pthread.h>
 #include <unistd.h>
+
 #include <atomic>
 #include <optional>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread_platform.h"
 
 namespace starboard {
 
@@ -33,11 +35,13 @@ struct Thread::Data {
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
+  int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name) {
+Thread::Thread(const std::string& name, int64_t stack_size) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
+  d_->stack_size_ = stack_size;
 }
 
 Thread::~Thread() {
@@ -48,8 +52,15 @@ void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  if (d_->stack_size_ > 0) {
+    pthread_attr_setstacksize(&attributes, d_->stack_size_);
+  }
+
   const int result =
-      pthread_create(&d_->thread_, nullptr, ThreadEntryPoint, this);
+      pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
+  pthread_attr_destroy(&attributes);
   SB_CHECK_EQ(result, 0);
 }
 
@@ -85,6 +96,8 @@ void* Thread::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
 #endif
   this_ptr->Run();
+
+  TerminateOnThread();
   return NULL;
 }
 

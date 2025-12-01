@@ -113,6 +113,20 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
+class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
+ public:
+  explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
+      : Thread("audio_track_out"), sink_(sink) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityRealTime);
+    sink_->AudioThreadFunc();
+  }
+
+ private:
+  AudioTrackAudioSink* sink_;
+};
+
 AudioTrackAudioSink::AudioTrackAudioSink(
     Type* type,
     int channels,
@@ -167,18 +181,15 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  audio_out_thread_ = thread;
+  audio_out_thread_ = std::make_unique<AudioTrackOutThread>(this);
+  audio_out_thread_->Start();
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
+    audio_out_thread_->Join();
   }
 }
 
@@ -191,18 +202,6 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   }
   std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
-}
-
-// static
-void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "audio_track_out");
-  SB_DCHECK(context);
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
 }
 
 // TODO: Break down the function into manageable pieces.

@@ -529,11 +529,6 @@ base::FilePath ShellContentBrowserClient::GetFirstPartySetsDirectory() {
 }
 
 std::string ShellContentBrowserClient::GetUserAgent() {
-  const auto custom_ua = embedder_support::GetUserAgentFromCommandLine();
-  if (custom_ua.has_value()) {
-    return custom_ua.value();
-  }
-
   std::string product =
       base::StringPrintf("Chrome/%s.0.0.0", CONTENT_SHELL_MAJOR_VERSION);
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
@@ -596,16 +591,6 @@ std::vector<base::FilePath>
 ShellContentBrowserClient::GetNetworkContextsParentDirectory() {
   return {browser_context()->GetPath()};
 }
-
-#if BUILDFLAG(IS_IOS)
-BluetoothDelegate* ShellContentBrowserClient::GetBluetoothDelegate() {
-  if (!bluetooth_delegate_) {
-    bluetooth_delegate_ = std::make_unique<permissions::BluetoothDelegateImpl>(
-        std::make_unique<ShellBluetoothDelegateImplClient>());
-  }
-  return bluetooth_delegate_.get();
-}
-#endif
 
 void ShellContentBrowserClient::set_browser_main_parts(
     ShellBrowserMainParts* parts) {

@@ -69,7 +69,7 @@ JobQueue::JobQueue() {
 }
 
 JobQueue::~JobQueue() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   StopSoon();
   ResetCurrentThreadJobQueue();
 }
@@ -89,7 +89,7 @@ void JobQueue::ScheduleAndWait(const Job& job) {
 
 void JobQueue::ScheduleAndWait(Job&& job) {
   // TODO: Allow calling from the JobQueue thread.
-  SB_DCHECK(!BelongsToCurrentThread());
+  SB_CHECK(!BelongsToCurrentThread());
 
   Schedule(std::move(job));
 
@@ -108,7 +108,7 @@ void JobQueue::ScheduleAndWait(Job&& job) {
 }
 
 void JobQueue::RemoveJobByToken(JobToken job_token) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!job_token.is_valid()) {
     return;
@@ -134,7 +134,7 @@ void JobQueue::StopSoon() {
 }
 
 void JobQueue::RunUntilStopped() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   for (;;) {
     {
@@ -148,7 +148,7 @@ void JobQueue::RunUntilStopped() {
 }
 
 void JobQueue::RunUntilIdle() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   while (TryToRunOneJob(/*wait_for_next_job =*/false)) {
   }
@@ -206,7 +206,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 }
 
 void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
   std::lock_guard lock(mutex_);
@@ -221,7 +221,7 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
 }
 
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   JobRecord job_record;
 

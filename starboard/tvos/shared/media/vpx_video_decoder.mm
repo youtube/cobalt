@@ -20,7 +20,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #import "starboard/tvos/shared/media/egl_adapter.h"
 #include "starboard/tvos/shared/starboard_application.h"

@@ -3479,6 +3479,11 @@ source_set("browser") {
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan/init" ]
     }
+    if (is_cobalt) {
+      deps += [ 
+        "//third_party/jni_zero:cobalt_for_google3_buildflags",
+      ]
+    }
     libs += [ "jnigraphics" ]
   } else {
     # Not Android.

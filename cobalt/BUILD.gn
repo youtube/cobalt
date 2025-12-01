@@ -20,7 +20,7 @@ import("//ui/base/ui_features.gni")
 
 if (!toolchain_for_rust_host_build_tools) {
   assert(!cobalt_is_release_build || is_official_build,
-        "Release builds are only available in official builds.")
+         "Release builds are only available in official builds.")
 }
 
 # This arg temporarily enables or disables the updater_sandbox target.
@@ -121,13 +121,14 @@ source_set("common") {
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
+    "app/cobalt_switch_defaults.cc",
+    "app/cobalt_switch_defaults.h",
   ]
 
   if (is_starboard) {
-    sources += [
-      "app/cobalt_switch_defaults_starboard.cc",
-      "app/cobalt_switch_defaults_starboard.h",
-    ]
+    sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
+  } else if (is_ios && target_platform == "tvos") {
+    sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
   }
 
   if (use_evergreen) {
