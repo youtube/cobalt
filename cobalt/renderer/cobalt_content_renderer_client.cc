@@ -8,13 +8,14 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-#include "media/base/media_log.h"
 #include "media/base/key_systems_support_registration.h"
+#include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
@@ -41,7 +42,11 @@ std::string GetMimeFromVideoType(const ::media::VideoType& type) {
     case ::media::VideoCodec::kVP9:
       return "video/webm; codecs=\"vp9\"";
     case ::media::VideoCodec::kAV1:
+#if !BUILDFLAG(IS_IOS_TVOS)
       return "video/mp4; codecs=\"av01.0.08M.08\"";
+#else
+      return "";
+#endif
     default:
       return "";
   }
@@ -73,8 +78,12 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
       ::media::EME_CODEC_VP8 | ::media::EME_CODEC_OPUS |
       ::media::EME_CODEC_VORBIS | ::media::EME_CODEC_MPEG_H_AUDIO |
       ::media::EME_CODEC_FLAC | ::media::EME_CODEC_HEVC_PROFILE_MAIN |
-      ::media::EME_CODEC_HEVC_PROFILE_MAIN10 | ::media::EME_CODEC_AV1 |
-      ::media::EME_CODEC_AC3 | ::media::EME_CODEC_EAC3;
+      ::media::EME_CODEC_HEVC_PROFILE_MAIN10 | ::media::EME_CODEC_AC3 |
+      ::media::EME_CODEC_EAC3;
+
+#if !BUILDFLAG(IS_IOS_TVOS)
+  codecs |= ::media::EME_CODEC_AV1;
+#endif
   // TODO(b/375232937) Add IAMF
   return codecs;
 }
