@@ -38,6 +38,7 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
@@ -591,6 +592,7 @@ public class StarboardBridge {
     if (service != null) {
       service.receiveStarboardBridge(this);
       mCobaltServices.put(serviceName, service);
+      Log.i(TAG, String.format("Opened platform service %s.", serviceName));
 
       if (activity instanceof CobaltActivity) {
         service.setCobaltActivity((CobaltActivity) activity);
@@ -606,6 +608,14 @@ public class StarboardBridge {
   @CalledByNative
   public void closeCobaltService(String serviceName) {
     mCobaltServices.remove(serviceName);
+    Log.i(TAG, String.format("Closed platform service %s.", serviceName));
+  }
+
+  @CalledByNative
+  public void closeAllCobaltService() {
+    for (String serviceName : new ArrayList<>(mCobaltServices.keySet())) {
+      closeCobaltService(serviceName);
+    }
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {

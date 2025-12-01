@@ -174,11 +174,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                           limitAdTracking ? "1" : "0");
       }
 
-#if SB_API_VERSION >= 15
       case kSbSystemPropertyDeviceType:
         return CopyStringAndTestIfSuccess(
             out_value, value_length, starboard::kSystemDeviceTypeOverTheTopBox);
-#endif
     }
   }
 

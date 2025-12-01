@@ -3,6 +3,7 @@
   "platforms": [
     "evergreen-x64"
   ],
+  "test_package": true,
   "test_on_host": true,
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 10,
@@ -20,8 +21,7 @@
   "includes": [
     {
       "name": "x64",
-      "platform": "evergreen-x64",
-      "sb_api_version": 17
+      "platform": "evergreen-x64"
     }
   ]
 }

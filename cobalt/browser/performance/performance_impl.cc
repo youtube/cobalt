@@ -64,6 +64,10 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
   NOTIMPLEMENTED();
   int64_t startup_duration = 0;
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement app startup time measurement for tvOS.
+  NOTIMPLEMENTED();
+  int64_t startup_duration = 0;
 #else
 #error Unsupported platform.
 #endif

@@ -126,12 +126,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeShape) {
 // TODO(ajwong): Talk with nasko and merge this functionality with
 // FrameTreeShape.
 // TODO(b/437413685): Investigate test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_FrameTreeShape2 FrameTreeShape2
-#else
-#define MAYBE_FrameTreeShape2 DISABLED_FrameTreeShape2
-#endif
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeShape2) {
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameTreeShape2) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -164,12 +159,8 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeShape2) {
 
 // Frame attributes of iframe elements are correctly tracked in FrameTree.
 // TODO(b/437413685): Investigate test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_FrameTreeAttributesUpdate FrameTreeAttributesUpdate
-#else
-#define MAYBE_FrameTreeAttributesUpdate DISABLED_FrameTreeAttributesUpdate
-#endif
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeAttributesUpdate) {
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest,
+                       DISABLED_FrameTreeAttributesUpdate) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -199,12 +190,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameTreeAttributesUpdate) {
 // Ensures that frames' name attributes and their updates are tracked in
 // |html_name()| and window.name and its updates are tracked in |frame_name()|.
 // TODO(b/437413685): Investigate test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_FrameNameVSWindowName FrameNameVSWindowName
-#else
-#define MAYBE_FrameNameVSWindowName DISABLED_FrameNameVSWindowName
-#endif
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_FrameNameVSWindowName) {
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_FrameNameVSWindowName) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 
@@ -276,12 +262,7 @@ IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_LongAttributesCutDown) {
 // Insert a frame into the frame tree and ensure that the inserted frame's
 // attributes are correctly captured.
 // TODO(b/437413685): Investigate test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_InsertFrameInTree InsertFrameInTree
-#else
-#define MAYBE_InsertFrameInTree DISABLED_InsertFrameInTree
-#endif
-IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, MAYBE_InsertFrameInTree) {
+IN_PROC_BROWSER_TEST_F(FrameTreeBrowserTest, DISABLED_InsertFrameInTree) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("/frame_tree/top.html")));
 

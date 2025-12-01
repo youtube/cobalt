@@ -383,4 +383,9 @@ bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
       env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
 }
 
+void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
+  SB_DCHECK(env);
+  Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
+}
+
 }  // namespace starboard

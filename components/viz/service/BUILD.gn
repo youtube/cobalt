@@ -427,9 +427,18 @@ viz_component("service") {
   if (is_cobalt) {
     if (use_starboard_media) {
       sources += [
-        "display/starboard/overlay_strategy_underlay_starboard.cc",
-        "display/starboard/overlay_strategy_underlay_starboard.h",
+        "display/starboard/video_geometry_setter.cc",
+        "display/starboard/video_geometry_setter.h",
       ]
+
+      # tvOS does not use overlay strategies, so the files below are not
+      # needed.
+      if (!is_ios) {
+        sources += [
+          "display/starboard/overlay_strategy_underlay_starboard.cc",
+          "display/starboard/overlay_strategy_underlay_starboard.h",
+        ]
+      }
 
       deps += [ "//cobalt/media/service/mojom" ]
     }

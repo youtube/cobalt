@@ -45,9 +45,6 @@ import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -63,9 +60,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -95,11 +92,9 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
-  protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
-  private PlatformError mPlatformError;
+  private CobaltConnectivityDetector cobaltConnectivityDetector;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -155,6 +150,8 @@ public abstract class CobaltActivity extends Activity {
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
+        mShellManager.getContentViewRenderView().getSurfaceView());
+    mA11yHelper = new CobaltA11yHelper(this,
         mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
@@ -326,13 +323,13 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
+    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     mVideoSurfaceView = new VideoSurfaceView(this);
-    mA11yHelper = new CobaltA11yHelper(this, mVideoSurfaceView);
     addContentView(
         mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
@@ -382,6 +379,10 @@ public abstract class CobaltActivity extends Activity {
 
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+  }
+
+  public CobaltConnectivityDetector getCobaltConnectivityDetector() {
+    return cobaltConnectivityDetector;
   }
 
   @Override
@@ -438,7 +439,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    activeNetworkCheck();
+    cobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -448,6 +449,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+    if (cobaltConnectivityDetector != null) {
+      cobaltConnectivityDetector.destroy();
+    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -623,7 +627,6 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
 
       mVideoSurfaceView = new VideoSurfaceView(this);
-      mA11yHelper = new CobaltA11yHelper(this, mVideoSurfaceView);
       frameLayout.addView(
           mVideoSurfaceView,
           index,
@@ -632,58 +635,6 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
-  }
-
-  // Try generate_204 with a timeout of 5 seconds to check for connectivity and raise a network
-  // error dialog on an unsuccessful network check
-  protected void activeNetworkCheck() {
-    new Thread(
-      () -> {
-        HttpURLConnection urlConnection = null;
-        try {
-          URL url = new URL("https://www.google.com/generate_204");
-          urlConnection = (HttpURLConnection) url.openConnection();
-          urlConnection.setConnectTimeout(5000);
-          urlConnection.setReadTimeout(5000);
-          urlConnection.connect();
-          if (urlConnection.getResponseCode() != 204) {
-            throw new IOException("Bad response code: " + urlConnection.getResponseCode());
-          }
-          Log.i(TAG, "Active Network check successful." + mPlatformError);
-          if (mPlatformError != null) {
-            mPlatformError.setResponse(PlatformError.POSITIVE);
-            mPlatformError.dismiss();
-            mPlatformError = null;
-          }
-          if (mShouldReloadOnResume) {
-            runOnUiThread(
-              () -> {
-                WebContents webContents = getActiveWebContents();
-                if (webContents != null) {
-                  webContents.getNavigationController().reload(true);
-                }
-                mShouldReloadOnResume = false;
-              });
-          }
-        } catch (IOException e) {
-          Log.w(TAG, "Active Network check failed.", e);
-          runOnUiThread(
-            () -> {
-              if (mPlatformError == null || !mPlatformError.isShowing()) {
-                mPlatformError =
-                  new PlatformError(
-                    getStarboardBridge().getActivityHolder(), PlatformError.CONNECTION_ERROR, 0);
-                mPlatformError.raise();
-              }
-            });
-          mShouldReloadOnResume = true;
-        } finally {
-          if (urlConnection != null) {
-            urlConnection.disconnect();
-          }
-        }
-      })
-    .start();
   }
 
   public long getAppStartTimestamp() {

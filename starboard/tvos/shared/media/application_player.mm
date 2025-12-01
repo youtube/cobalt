@@ -20,7 +20,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #import "starboard/tvos/shared/defines.h"
 #import "starboard/tvos/shared/media/application_drm_system.h"
 #import "starboard/tvos/shared/media/player_manager.h"
@@ -212,8 +211,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   bool _insufficientExternalProtection;
 }
 
-@synthesize duration = _duration;
-@synthesize playbackRate = _playbackRate;
 @synthesize totalDroppedFrames = _totalDroppedFrames;
 @synthesize totalFrames = _totalFrames;
 @synthesize frameWidth = _frameWidth;
@@ -290,10 +287,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   dispatch_async(dispatch_get_main_queue(), ^{
     // It's possible that the player has not been instantiated yet, so set a
     // flag to tell the player to pause as soon as possible.
-    _playerShouldPause = true;
+    self->_playerShouldPause = true;
     // Only pause while presenting to keep things simple.
-    if (_playerState == kSbPlayerStatePresenting) {
-      [_player pause];
+    if (self->_playerState == kSbPlayerStatePresenting) {
+      [self->_player pause];
     }
   });
 }
@@ -386,9 +383,9 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   switch (_player.currentItem.status) {
     case AVPlayerItemStatusReadyToPlay: {
       dispatch_async(dispatch_get_main_queue(), ^{
-        if (_playbackStartTime) {
-          self.currentMediaTime = _playbackStartTime;
-          _playbackStartTime = 0;
+        if (self->_playbackStartTime) {
+          self.currentMediaTime = self->_playbackStartTime;
+          self->_playbackStartTime = 0;
         } else {
           [self updatePlayerState:kSbPlayerStatePresenting];
         }
@@ -498,7 +495,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
     CGFloat scale = [UIScreen mainScreen].scale;
     CGRect frame =
         CGRectMake(x / scale, y / scale, width / scale, height / scale);
-    [_playerView setFrame:frame];
+    [self->_playerView setFrame:frame];
   });
 }
 
@@ -523,11 +520,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 }
 
 - (void)setPlaybackRate:(double)playbackRate {
-  if (_playbackRate == playbackRate) {
+  if (_player.rate == playbackRate) {
     return;
   }
   _player.rate = playbackRate;
-  _playbackRate = playbackRate;
 }
 
 - (NSInteger)totalDroppedFrames {
@@ -587,7 +583,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
     return;
   }
   [self updatePlayerState:kSbPlayerStatePrerolling];
-  __weak typeof(self) weakSelf = self;
+  __weak SBDApplicationPlayer* weakSelf = self;
   [_player seekToTime:CMTimeMake(currentMediaTime, 1000000)
         toleranceBefore:kCMTimeZero
          toleranceAfter:kCMTimeZero
@@ -602,7 +598,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 
 - (void)seekTo:(NSInteger)time ticket:(int)ticket {
   dispatch_async(dispatch_get_main_queue(), ^{
-    _ticket = ticket;
+    self->_ticket = ticket;
     self.currentMediaTime = time;
   });
 }
@@ -800,7 +796,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   float frameRate = 0;
   NSArray<AVAssetTrack*>* videoTracks =
       [_player.currentItem.asset tracksWithMediaType:AVMediaTypeVideo];
-  AVAssetTrack* activeTrack;
   for (AVAssetTrack* track in videoTracks) {
     if (track.nominalFrameRate > 0) {
       frameRate = track.nominalFrameRate;
@@ -822,8 +817,8 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   for (NSUInteger i = _currentAccessLogIndex; i < events.count; i++) {
     AVPlayerItemAccessLogEvent* event = events[i];
 
-    NSInteger durationWatched = MAX(event.durationWatched, 0);
-    NSInteger droppedFrames = MAX(event.numberOfDroppedVideoFrames, 0);
+    NSUInteger durationWatched = MAX(event.durationWatched, 0);
+    NSUInteger droppedFrames = MAX(event.numberOfDroppedVideoFrames, 0);
 
     if (i == _currentAccessLogIndex) {
       // We must account for stats accumulated on the previous observation.

@@ -35,19 +35,10 @@
 @class SBDAVSampleBufferDisplayView;
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-class AVSBVideoRenderer : public starboard::player::filter::VideoRenderer,
-                          private starboard::player::JobQueue::JobOwner {
+class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
  public:
   typedef AVVideoSampleBufferBuilder::AVSampleBuffer AVSampleBuffer;
-  typedef starboard::media::VideoStreamInfo VideoStreamInfo;
-  typedef starboard::player::InputBuffer InputBuffer;
-  typedef starboard::player::InputBuffers InputBuffers;
-  typedef starboard::player::filter::ErrorCB ErrorCB;
-  typedef starboard::player::filter::PrerolledCB PrerolledCB;
-  typedef starboard::player::filter::EndedCB EndedCB;
 
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
@@ -120,8 +111,8 @@ class AVSBVideoRenderer : public starboard::player::filter::VideoRenderer,
 
   DrmSystemPlatform* drm_system_ = nullptr;
   std::unique_ptr<AVVideoSampleBufferBuilder> sample_buffer_builder_;
-  std::queue<const scoped_refptr<AVSampleBuffer>> video_sample_buffers_;
-  starboard::player::JobQueue::JobToken enqueue_sample_buffers_job_token_;
+  std::queue<scoped_refptr<AVSampleBuffer>> video_sample_buffers_;
+  JobQueue::JobToken enqueue_sample_buffers_job_token_;
 
   int64_t seek_to_time_ = 0;
   int64_t media_time_offset_ = 0;
@@ -141,8 +132,6 @@ class AVSBVideoRenderer : public starboard::player::filter::VideoRenderer,
   std::atomic_bool is_display_layer_flushing_ = {false};
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_AV_SAMPLE_BUFFER_VIDEO_RENDERER_H_

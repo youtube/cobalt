@@ -15,6 +15,8 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 
 #include <iostream>
+#include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -37,7 +39,6 @@
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/gpu/shell_content_gpu_client.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
@@ -91,11 +92,6 @@
 #include "cobalt/shell/app/ios/shell_application_ios.h"
 #endif
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
-#include "cobalt/shell/utility/shell_content_utility_client.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 namespace {
 
 enum class LoggingDest {
@@ -108,7 +104,7 @@ enum class LoggingDest {
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
+    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;  // NOLINT
 #endif
 
 void InitLogging(const base::CommandLine& command_line) {
@@ -188,23 +184,12 @@ void InitLogging(const base::CommandLine& command_line) {
 
 namespace content {
 
-ShellMainDelegate::ShellMainDelegate(bool is_content_browsertests)
-    : is_content_browsertests_(is_content_browsertests) {}
+ShellMainDelegate::ShellMainDelegate() {}
 
 ShellMainDelegate::~ShellMainDelegate() {}
 
 std::optional<int> ShellMainDelegate::BasicStartupComplete() {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
-
-#if defined(RUN_BROWSER_TESTS)
-  if (command_line.HasSwitch("run-layout-test")) {
-    std::cerr << std::string(79, '*') << "\n"
-              << "* The flag --run-layout-test is obsolete. Please use --"
-              << switches::kRunWebTests << " instead. *\n"
-              << std::string(79, '*') << "\n";
-    command_line.AppendSwitch(switches::kRunWebTests);
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(IS_ANDROID)
   Compositor::Initialize();
@@ -221,6 +206,17 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
       web_test_runner_ = std::make_unique<WebTestBrowserMainRunner>();
       web_test_runner_->Initialize();
     }
+  }
+#endif
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // On tvOS, local storage is limited and data cannot be written anywhere
+  // other than the cache directory, so `base::DIR_CACHE` is used for
+  // the user data directory.
+  base::FilePath path;
+  if (base::PathService::Get(base::DIR_CACHE, &path) && !path.empty()) {
+    command_line.AppendSwitchASCII(switches::kContentShellUserDataDir,
+                                   path.MaybeAsASCII());
   }
 #endif
 
@@ -437,11 +433,6 @@ ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
   return browser_client_.get();
 }
 
-ContentGpuClient* ShellMainDelegate::CreateContentGpuClient() {
-  gpu_client_ = std::make_unique<ShellContentGpuClient>();
-  return gpu_client_.get();
-}
-
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
     !BUILDFLAG(IS_STARBOARD)
@@ -453,12 +444,5 @@ ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
   renderer_client_ = std::make_unique<ShellContentRendererClient>();
   return renderer_client_.get();
 }
-#if defined(RUN_BROWSER_TESTS)
-ContentUtilityClient* ShellMainDelegate::CreateContentUtilityClient() {
-  utility_client_ =
-      std::make_unique<ShellContentUtilityClient>(is_content_browsertests_);
-  return utility_client_.get();
-}
-#endif  // defined(RUN_BROWSER_TESTS)
 
 }  // namespace content

@@ -3,8 +3,10 @@
   "platforms": [
     "evergreen-arm64"
   ],
+  "test_package": true,
   "targets": [
-    "cobalt"
+    "cobalt",
+    "copy_cobalt_lib"
   ],
   "build_configs": [
     "debug",
@@ -15,8 +17,7 @@
   "includes": [
     {
       "name": "arm64",
-      "platform": "evergreen-arm64",
-      "sb_api_version": 17
+      "platform": "evergreen-arm64"
     }
   ]
 }

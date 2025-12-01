@@ -23,7 +23,7 @@
 namespace content {
 
 ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
-    : ShellMainDelegate(/*is_content_browsertests=*/true) {}
+    : ShellMainTestDelegate() {}
 
 ContentBrowserTestShellMainDelegate::~ContentBrowserTestShellMainDelegate() =
     default;

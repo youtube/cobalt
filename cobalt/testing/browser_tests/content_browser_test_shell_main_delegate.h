@@ -18,12 +18,12 @@
 #include <memory>
 #include <optional>
 
-#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
 
 namespace content {
 
 // Acts like normal ShellMainDelegate but inserts behaviour for browser tests.
-class ContentBrowserTestShellMainDelegate : public ShellMainDelegate {
+class ContentBrowserTestShellMainDelegate : public ShellMainTestDelegate {
  public:
   ContentBrowserTestShellMainDelegate();
   ~ContentBrowserTestShellMainDelegate() override;

@@ -14,19 +14,16 @@
 
 #import "starboard/tvos/shared/media/vp9_sw_av_video_sample_buffer_builder.h"
 
+#include <algorithm>
+#include <limits>
+
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/string.h"
 #include "starboard/tvos/shared/media/vp9_av_sample_buffer_helper.h"
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 namespace {
-
-using starboard::media::VideoStreamInfo;
-using starboard::player::JobThread;
 
 const int kMaxNumberOfHoldingDecodedImages = 4;
 const size_t kMaxMemoryBudget = 1.4 * 1024 * 1024 * 1024;
@@ -525,7 +522,9 @@ Vp9SwAVVideoSampleBufferBuilder::Vp9SwAVVideoSampleBufferBuilder(
     const VideoStreamInfo& video_stream_info)
     : is_hdr_(IsHdrVideo(video_stream_info)),
       preroll_frame_count_(kDefaultPrerollFrameCount),
-      max_number_of_cached_buffers_(kInitialMaxNumberOfCachedFrames) {
+      max_number_of_cached_buffers_(kInitialMaxNumberOfCachedFrames),
+      decoder_thread_(new JobThread("vp9_decoder")),
+      builder_thread_(new JobThread("vp9_builder")) {
   if (is_hdr_) {
     const SbMediaColorMetadata& color_metadata =
         video_stream_info.color_metadata;
@@ -551,7 +550,7 @@ void Vp9SwAVVideoSampleBufferBuilder::Reset() {
   AVVideoSampleBufferBuilder::Reset();
   // Clear pending buffers to avoid unnecessary decoding.
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     while (!pending_input_buffers_.empty()) {
       pending_input_buffers_.pop();
     }
@@ -559,7 +558,7 @@ void Vp9SwAVVideoSampleBufferBuilder::Reset() {
   // Clear holding decoded images. As we don't need it anymore, no need to build
   // sample buffers for pending decoded images.
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     while (!decoded_images_.empty()) {
       decoded_images_.pop();
     }
@@ -619,7 +618,7 @@ void Vp9SwAVVideoSampleBufferBuilder::WriteInputBuffer(
   SB_DCHECK(media_time_offset_ == media_time_offset);
 
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     pending_input_buffers_.push(input_buffer);
   }
   decoder_thread_->job_queue()->Schedule(
@@ -645,8 +644,13 @@ size_t Vp9SwAVVideoSampleBufferBuilder::GetPrerollFrameCount() const {
 }
 
 size_t Vp9SwAVVideoSampleBufferBuilder::GetMaxNumberOfCachedFrames() const {
+#if defined(INTERNAL_BUILD)
   return max_number_of_cached_buffers_ -
          decoder_get_number_of_allocated_frame_buffers();
+#else
+  // TODO: b/448550237 - Add implementation to get number of allocated frame.
+  return max_number_of_cached_buffers_;
+#endif
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::OnCachedFramesWatermarkLow() {
@@ -725,7 +729,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
     return;
   }
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     // We don't want to hold too many decoded images. It would increase the
     // memory usage of vpx decoder and would be released only after vpx decoder
     // is destroyed.
@@ -739,7 +743,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
 
   scoped_refptr<InputBuffer> input_buffer;
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     if (pending_input_buffers_.empty()) {
       // |pending_input_buffers_| may be empty when and only when the decoder is
       // resetting.
@@ -750,14 +754,18 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
   }
 
   const auto& stream_info = input_buffer->video_stream_info();
-  if (!context_ || stream_info.frame_width != current_frame_width_ ||
-      stream_info.frame_height != current_frame_height_) {
+  const unsigned int stream_info_width =
+      std::max(0, stream_info.frame_size.width);
+  const unsigned int stream_info_height =
+      std::max(0, stream_info.frame_size.height);
+  if (!context_ || stream_info_width != current_frame_width_ ||
+      stream_info_height != current_frame_height_) {
     if (context_) {
       FlushPendingBuffers();
       TeardownCodec();
     }
-    current_frame_width_ = stream_info.frame_width;
-    current_frame_height_ = stream_info.frame_height;
+    current_frame_width_ = stream_info_width;
+    current_frame_height_ = stream_info_height;
     // Update |max_number_of_cached_buffers_| and |preroll_frame_count_|. The
     // following simple calculation doesn't consider the frame size of cached
     // frames, which may be larger. So, we make |max_number_of_cached_buffers_|
@@ -783,8 +791,8 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
   }
 
   SB_DCHECK(context_);
-  SB_DCHECK(current_frame_width_ == stream_info.frame_width);
-  SB_DCHECK(current_frame_height_ == stream_info.frame_height);
+  SB_DCHECK_EQ(current_frame_width_, stream_info_width);
+  SB_DCHECK_EQ(current_frame_height_, stream_info_height);
 
   bool skip_loop_filter = skip_loop_filter_;
   if (skip_loop_filter != skip_loop_filter_on_decoder_thread_) {
@@ -857,7 +865,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream() {
     return;
   }
   {
-    ScopedLock lock(pending_input_buffers_mutex_);
+    std::lock_guard lock(pending_input_buffers_mutex_);
     if (!pending_input_buffers_.empty()) {
       decoder_thread_->job_queue()->Schedule(
           std::bind(&Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream, this),
@@ -877,7 +885,7 @@ void Vp9SwAVVideoSampleBufferBuilder::FlushPendingBuffers() {
   while (total_output_frames_ < total_input_frames_) {
     // Pass |kSbInt64Max| as timestamp for the end of stream frame. It shouldn't
     // be used but just in case.
-    const int64_t kEndOfStreamTimestamp = kSbInt64Max;
+    const int64_t kEndOfStreamTimestamp = std::numeric_limits<int64_t>::max();
     vpx_codec_err_t status =
         vpx_codec_decode(context_.get(), 0, 0,
                          reinterpret_cast<void*>(kEndOfStreamTimestamp), 0);
@@ -939,7 +947,7 @@ bool Vp9SwAVVideoSampleBufferBuilder::TryGetOneFrame() {
   SB_DCHECK(decoding_input_buffers_.find(timestamp) !=
             decoding_input_buffers_.end());
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     decoded_images_.emplace(
         new VpxImageWrapper(decoding_input_buffers_[timestamp], *vpx_image));
   }
@@ -985,7 +993,7 @@ void Vp9SwAVVideoSampleBufferBuilder::BuildSampleBuffer() {
 
   std::unique_ptr<VpxImageWrapper> image_wrapper;
   {
-    ScopedLock lock(decoded_images_mutex_);
+    std::lock_guard lock(decoded_images_mutex_);
     // |decoded_images_| may be empty when and only when the decoder is
     // resetting.
     if (decoded_images_.empty()) {
@@ -1074,13 +1082,17 @@ Vp9SwAVVideoSampleBufferBuilder::VpxImageWrapper::VpxImageWrapper(
     const scoped_refptr<InputBuffer>& input_buffer,
     const vpx_image_t& vpx_image)
     : input_buffer_(input_buffer), vpx_image_(vpx_image) {
+#if defined(INTERNAL_BUILD)
+  // TODO: b/448550237 - Check if we need to acquire the hw image.
   decoder_acquire_hw_image(vpx_image_.fb_priv);
+#endif
 }
 
 Vp9SwAVVideoSampleBufferBuilder::VpxImageWrapper::~VpxImageWrapper() {
+#if defined(INTERNAL_BUILD)
+  // TODO: b/448550237 - Check if we need to release the hw image.
   decoder_release_hw_image(vpx_image_.fb_priv);
+#endif
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

@@ -17,11 +17,11 @@
 #import <Foundation/Foundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 
+#include <limits>
 #include <memory>
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -158,9 +158,10 @@ NS_ASSUME_NONNULL_END
     return;
   }
 
-  bool playbackIsSeekable = sessionState.has_position_state &&
-                            sessionState.duration != kSbInt64Max &&
-                            sessionState.duration > 0;
+  bool playbackIsSeekable =
+      sessionState.has_position_state &&
+      sessionState.duration != std::numeric_limits<int64_t>::max() &&
+      sessionState.duration > 0;
 
   // Show / Hide controls based on the playback state.
   MPRemoteCommandCenter* remote = [MPRemoteCommandCenter sharedCommandCenter];
@@ -280,8 +281,6 @@ NS_ASSUME_NONNULL_END
 @end
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 namespace {
 
 void OnMediaSessionStateChanged(CobaltExtensionMediaSessionState sessionState) {
@@ -326,6 +325,4 @@ const void* GetMediaSessionApi() {
   return &kMediaSessionApi;
 }
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard

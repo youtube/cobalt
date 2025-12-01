@@ -20,9 +20,7 @@
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/media/player_configuration.h"
 #include "starboard/extension/media_session.h"
-#include "starboard/extension/on_screen_keyboard.h"
 #include "starboard/extension/platform_service.h"
-#include "starboard/extension/ui_navigation.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
 #include "starboard/tvos/shared/configuration.h"
@@ -30,9 +28,7 @@
 #include "starboard/tvos/shared/graphics.h"
 #include "starboard/tvos/shared/ifa.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
-#include "starboard/tvos/shared/on_screen_keyboard.h"
 #include "starboard/tvos/shared/platform_service.h"
-#include "starboard/tvos/shared/ui_nav_get_interface.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -45,14 +41,8 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
     return starboard::shared::uikit::GetMediaSessionApi();
   }
-  if (strcmp(name, kCobaltExtensionOnScreenKeyboardName) == 0) {
-    return starboard::shared::uikit::GetOnScreenKeyboardApi();
-  }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::shared::uikit::GetCrashHandlerApi();
-  }
-  if (strcmp(name, kCobaltExtensionUiNavigationName) == 0) {
-    return starboard::shared::uikit::GetUINavigationApi();
   }
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::shared::uikit::GetPlatformServiceApi();

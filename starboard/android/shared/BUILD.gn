@@ -273,6 +273,7 @@ static_library("starboard_platform") {
     "text_to_speech_helper.h",
     "text_to_speech_observer.h",
     "thread_create_priority.cc",
+    "thread_platform_android.cc",
     "time_zone_get_name.cc",
     "video_decoder.cc",
     "video_decoder.h",

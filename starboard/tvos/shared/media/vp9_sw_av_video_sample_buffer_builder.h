@@ -20,10 +20,10 @@
 
 #include <atomic>
 #include <map>
+#include <mutex>
 #include <queue>
 #include <utility>
 
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -32,8 +32,6 @@
 // #define VP9_SW_DECODER_PRINT_OUT_DECODING_TIME 1
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
  public:
@@ -84,8 +82,8 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
   const bool is_hdr_;
 
   std::unique_ptr<vpx_codec_ctx> context_;
-  int current_frame_width_ = 0;
-  int current_frame_height_ = 0;
+  unsigned int current_frame_width_ = 0;
+  unsigned int current_frame_height_ = 0;
   int total_input_frames_ = 0;
   int total_output_frames_ = 0;
   std::atomic_uint64_t preroll_frame_count_ = {0};
@@ -96,18 +94,20 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
   size_t frames_with_skip_loop_filter_ = 0;
   bool skip_loop_filter_on_decoder_thread_ = false;
 
-  starboard::player::ScopedJobThreadPtr decoder_thread_;
-  starboard::player::ScopedJobThreadPtr builder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> builder_thread_;
 
-  Mutex pending_input_buffers_mutex_;
-  std::queue<const scoped_refptr<InputBuffer>> pending_input_buffers_;
+  std::mutex pending_input_buffers_mutex_;
+  std::queue<scoped_refptr<InputBuffer>>
+      pending_input_buffers_;  // Guarded by |pending_input_buffers_mutex_|.
   int64_t media_time_offset_ = 0;
 
   // |decoding_input_buffers_| is only used on decoder thread.
   std::map<int64_t, const scoped_refptr<InputBuffer>> decoding_input_buffers_;
 
-  Mutex decoded_images_mutex_;
-  std::queue<std::unique_ptr<VpxImageWrapper>> decoded_images_;
+  std::mutex decoded_images_mutex_;
+  std::queue<std::unique_ptr<VpxImageWrapper>>
+      decoded_images_;  // Guarded by |decoded_images_mutex_|.
 
   CVPixelBufferPoolRef pixel_buffer_pool_ = nullptr;
   CFDictionaryRef pixel_buffer_attachments_ = nullptr;
@@ -119,8 +119,6 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
 #endif  // VP9_SW_DECODER_PRINT_OUT_DECODING_TIME
 };
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_MEDIA_VP9_SW_AV_VIDEO_SAMPLE_BUFFER_BUILDER_H_
