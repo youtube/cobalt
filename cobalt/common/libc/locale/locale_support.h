@@ -23,25 +23,30 @@
 
 namespace cobalt {
 
-// Enums values that represent the corresponding LC type inside
-// LocaleImpl::categories. For example categories[kCobaltLcCtype] stores the
-// locale string for LC_CTYPE.
-enum CobaltLocaleCategoryIndex {
-  kCobaltLcCtype = 0,
-  kCobaltLcNumeric = 1,
-  kCobaltLcTime = 2,
-  kCobaltLcCollate = 3,
-  kCobaltLcMonetary = 4,
-  kCobaltLcMessages = 5,
-  kCobaltLcCount = 6  // Total size of LocaleImpl's internal array
-};
+static_assert(LC_CTYPE == 0, "Cobalt expects this value from musl.");
+static_assert(LC_NUMERIC == 1, "Cobalt expects this value from musl.");
+static_assert(LC_TIME == 2, "Cobalt expects this value from musl.");
+static_assert(LC_COLLATE == 3, "Cobalt expects this value from musl.");
+static_assert(LC_MONETARY == 4, "Cobalt expects this value from musl.");
+static_assert(LC_MESSAGES == 5, "Cobalt expects this value from musl.");
+static_assert(LC_ALL == 6, "Cobalt expects this value from musl.");
+
+// Convenient constexpr string for the C locale. All conforming systems must
+// support the "C" locale.
+constexpr char kCLocale[] = "C";
+
+// |kAllValidCategoriesMask| combines all bit masks together. It is used in
+// newlocale() and UpdateLocaleSettings() as an alias for LC_ALL.
+constexpr int kAllValidCategoriesMask = LC_CTYPE_MASK | LC_NUMERIC_MASK |
+                                        LC_TIME_MASK | LC_COLLATE_MASK |
+                                        LC_MONETARY_MASK | LC_MESSAGES_MASK;
 
 // LocaleImpl is the struct that will store the state of any given locale.
 // It stores the set locales for all LC categories, along with a composite
 // string that represents the state of LC_ALL. Upon initialization, all values
 // are set to the default "C" locale.
 struct LocaleImpl {
-  std::array<std::string, kCobaltLcCount> categories;
+  std::array<std::string, LC_ALL> categories;
 
   // From the PUBS open group documentation on setlocale:
   //
@@ -62,32 +67,35 @@ struct LocaleImpl {
   // are not all the same value, then |composite_lc_all| will store all the
   // categories and their values, following the pattern of
   // category1=value1;category2=value2 etc. Our locale functions are then able
-  // to parse and construct this string, ensuring that the representaition of
+  // to parse and construct this string, ensuring that the representation of
   // LC_ALL is accurate at all times.
   std::string composite_lc_all;
 
   // On initialization, all LocaleImpl objects are set to the "C" locale (all
   // conforming systems must support this locale).
   LocaleImpl() {
-    categories.fill("C");
-    composite_lc_all = "C";
+    categories.fill(kCLocale);
+    composite_lc_all = kCLocale;
   }
 };
 
-// Returns the mapping of an LC category to the index storing the category
-// inside LocaleImpl.
-int SystemToCobaltIndex(int system_category);
+// Returns whether the specified category is a category that Cobalt
+// supports.
+bool IsValidLcCategory(int category);
 
-// Validates, Canonicalizes, and Reconstructs a  given locale string to POSIX
+// Validates, canonicalizes, and reconstructs a given locale string to POSIX
 // format. Returns empty string on failure.
 std::string GetCanonicalLocale(const char* input_locale);
 
+// Syncs ICU's default locale to our locale's current setting.
+// ICU only accepts one locale ID, and does not support a "mixed state" locale.
+void SyncIcuDefault(const std::string& posix_locale_id);
+
 // Parses a composite string like "LC_CTYPE=en_US;LC_TIME=fr_FR..."
 // Returns true on success, updating out_categories.
-bool ParseCompositeLocale(
-    const char* input,
-    const LocaleImpl& current_state,
-    std::array<std::string, kCobaltLcCount>& out_categories);
+bool ParseCompositeLocale(const char* input,
+                          const LocaleImpl& current_state,
+                          std::array<std::string, LC_ALL>& out_categories);
 
 // Updates a LocaleImpl's composite string value to the values stored inside the
 // categories.

@@ -27,6 +27,7 @@
 #include "cobalt/common/libc/locale/locale_support.h"
 
 namespace {
+constexpr char kLangEnv[] = "LANG";
 
 cobalt::LocaleImpl* GetGlobalLocale() {
   static cobalt::LocaleImpl g_current_locale;
@@ -67,34 +68,27 @@ const lconv* GetCLocaleConv() {
   return &c_locale_conv;
 }
 
-// |kAllValidCategoriesMask| combines all bit masks together. It is used in
-// newlocale to ensure that no extra bits inside the |category_mask| are set.
-constexpr int kAllValidCategoriesMask =
-    LC_CTYPE_MASK | LC_NUMERIC_MASK | LC_TIME_MASK | LC_COLLATE_MASK |
-    LC_MONETARY_MASK | LC_MESSAGES_MASK | LC_ALL_MASK;
-
 }  // namespace
 
 char* setlocale(int category, const char* locale) {
-  cobalt::LocaleImpl* global_locale = GetGlobalLocale();
-  int category_index = cobalt::SystemToCobaltIndex(category);
-  if (category_index == -1) {
+  if (!cobalt::IsValidLcCategory(category)) {
     return nullptr;
   }
 
+  cobalt::LocaleImpl* global_locale = GetGlobalLocale();
   if (locale == nullptr) {
     if (category == LC_ALL) {
       return const_cast<char*>(global_locale->composite_lc_all.c_str());
     }
-    return const_cast<char*>(global_locale->categories[category_index].c_str());
+    return const_cast<char*>(global_locale->categories[category].c_str());
   }
 
   if (category != LC_ALL) {
     std::string source_locale;
     if (strcmp(locale, "") == 0) {
-      const char* env_locale = getenv("LANG");
+      const char* env_locale = getenv(kLangEnv);
       if (env_locale == nullptr || env_locale[0] == '\0') {
-        env_locale = "C";
+        env_locale = cobalt::kCLocale;
       }
       source_locale = cobalt::GetCanonicalLocale(env_locale);
     } else {
@@ -105,16 +99,21 @@ char* setlocale(int category, const char* locale) {
       return nullptr;
     }
 
-    global_locale->categories[category_index] = source_locale;
+    global_locale->categories[category] = source_locale;
 
     // We still need to check uniformity to keep LC_ALL return value correct.
     RefreshCompositeString(global_locale);
 
-    return const_cast<char*>(global_locale->categories[category_index].c_str());
+    // We sync ICU's default locale to the value of |LC_MESSAGES|, as
+    // LC_MESSAGES corresponds to how text is displayed.
+    if (category == LC_MESSAGES) {
+      cobalt::SyncIcuDefault(source_locale);
+    }
+
+    return const_cast<char*>(global_locale->categories[category].c_str());
   }
 
-  std::array<std::string, cobalt::kCobaltLcCount> new_categories =
-      global_locale->categories;
+  std::array<std::string, LC_ALL> new_categories = global_locale->categories;
   bool success = false;
   // Special case where the locale string is the composite locale created from
   // setlocale(LC_ALL, NULL);
@@ -123,9 +122,9 @@ char* setlocale(int category, const char* locale) {
   } else {
     std::string canonical_locale;
     if (strcmp(locale, "") == 0) {
-      const char* env_locale = getenv("LANG");
+      const char* env_locale = getenv(kLangEnv);
       if (env_locale == nullptr || env_locale[0] == '\0') {
-        env_locale = "C";
+        env_locale = cobalt::kCLocale;
       }
       canonical_locale = cobalt::GetCanonicalLocale(env_locale);
     } else {
@@ -141,27 +140,32 @@ char* setlocale(int category, const char* locale) {
     return nullptr;
   }
 
-  // Update global locale to resolved new locales.
   global_locale->categories = new_categories;
 
   // With the locales updated, we must update our composite string so that
   // setlocale(LC_ALL, NULL) is accurate.
-  RefreshCompositeString(global_locale);
+  cobalt::RefreshCompositeString(global_locale);
+  cobalt::SyncIcuDefault(global_locale->categories[LC_MESSAGES]);
 
   return const_cast<char*>(global_locale->composite_lc_all.c_str());
 }
 
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
-  if ((category_mask & ~kAllValidCategoriesMask) != 0 || locale == nullptr) {
+  int effective_mask = (category_mask == LC_ALL_MASK)
+                           ? cobalt::kAllValidCategoriesMask
+                           : category_mask;
+
+  if (locale == nullptr ||
+      (effective_mask & ~cobalt::kAllValidCategoriesMask) != 0) {
     errno = EINVAL;
     return (locale_t)0;
   }
 
   std::string canonical_locale;
   if (strcmp(locale, "") == 0) {
-    const char* env_locale = getenv("LANG");
+    const char* env_locale = getenv(kLangEnv);
     if (env_locale == nullptr || env_locale[0] == '\0') {
-      env_locale = "C";
+      env_locale = cobalt::kCLocale;
     }
     canonical_locale = cobalt::GetCanonicalLocale(env_locale);
   } else {
@@ -180,7 +184,7 @@ locale_t newlocale(int category_mask, const char* locale, locale_t base) {
     cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(base);
   }
 
-  UpdateLocaleSettings(category_mask, canonical_locale.c_str(), cur_locale);
+  UpdateLocaleSettings(effective_mask, canonical_locale.c_str(), cur_locale);
   RefreshCompositeString(cur_locale);
 
   return reinterpret_cast<locale_t>(cur_locale);

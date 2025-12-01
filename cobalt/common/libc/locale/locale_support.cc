@@ -23,27 +23,40 @@
 #include <string>
 #include <unordered_set>
 
+#include "starboard/common/log.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 
 namespace cobalt {
 
 namespace {
+constexpr char kLcCtypeStr[] = "LC_CTYPE";
+constexpr char kLcNumericStr[] = "LC_NUMERIC";
+constexpr char kLcTimeStr[] = "LC_TIME";
+constexpr char kLcCollateStr[] = "LC_COLLATE";
+constexpr char kLcMonetaryStr[] = "LC_MONETARY";
+constexpr char kLcMessagesStr[] = "LC_MESSAGES";
+
+constexpr char kUTF8EncodingStr[] = ".UTF-8";
+
+constexpr char kCompositeSeparator = ';';
+constexpr char kCompositeAssign = '=';
+
 // Returns the string name of a category (e.g., "LC_TIME").
 const char* GetCategoryName(int category) {
   switch (category) {
     case LC_CTYPE:
-      return "LC_CTYPE";
+      return kLcCtypeStr;
     case LC_NUMERIC:
-      return "LC_NUMERIC";
+      return kLcNumericStr;
     case LC_TIME:
-      return "LC_TIME";
+      return kLcTimeStr;
     case LC_COLLATE:
-      return "LC_COLLATE";
+      return kLcCollateStr;
     case LC_MONETARY:
-      return "LC_MONETARY";
+      return kLcMonetaryStr;
     case LC_MESSAGES:
-      return "LC_MESSAGES";
+      return kLcMessagesStr;
     default:
       return "";
   }
@@ -51,22 +64,22 @@ const char* GetCategoryName(int category) {
 
 // Returns the index of a category from its name.
 int GetCategoryIndexFromName(const std::string& name) {
-  if (name == "LC_CTYPE") {
+  if (name == kLcCtypeStr) {
     return LC_CTYPE;
   }
-  if (name == "LC_NUMERIC") {
+  if (name == kLcNumericStr) {
     return LC_NUMERIC;
   }
-  if (name == "LC_TIME") {
+  if (name == kLcTimeStr) {
     return LC_TIME;
   }
-  if (name == "LC_COLLATE") {
+  if (name == kLcCollateStr) {
     return LC_COLLATE;
   }
-  if (name == "LC_MONETARY") {
+  if (name == kLcMonetaryStr) {
     return LC_MONETARY;
   }
-  if (name == "LC_MESSAGES") {
+  if (name == kLcMessagesStr) {
     return LC_MESSAGES;
   }
   return -1;
@@ -75,7 +88,9 @@ int GetCategoryIndexFromName(const std::string& name) {
 // Extracts the locale string's encoding (ex. UTF-8) from the locale. This
 // encoding value string is returned, if it exists. We do this because when
 // giving a POSIX formatted locale to ICU, ICU always drops the encoding. This
-// function ensures that the encoding isn't loss upon conversion.
+// function ensures that the encoding isn't loss upon conversion. This function
+// supports locale strings of the format
+// language[_territory][.codeset][@modifier].
 std::string ExtractEncoding(std::string& io_locale_str) {
   std::string encoding = "";
   size_t dot_pos = io_locale_str.find('.');
@@ -114,17 +129,19 @@ std::string MapScriptToModifier(const char* script) {
   if (!script || script[0] == '\0') {
     return "";
   }
-
   // The values inside kScriptMap are the only ones we need to support.
-  static const std::map<std::string, std::string> kScriptMap = {
-      {"Latn", "@latin"},
-      {"Cyrl", "@cyrillic"},
-      {"Hant", "@hant"},
-      {"Hans", "@hans"}};
+  constexpr std::array<std::pair<std::string_view, std::string_view>, 4>
+      kScriptMap = {{{"Latn", "@latin"},
+                     {"Cyrl", "@cyrillic"},
+                     {"Hant", "@hant"},
+                     {"Hans", "@hans"}}};
 
-  auto it = kScriptMap.find(script);
+  auto it = std::find_if(
+      kScriptMap.begin(), kScriptMap.end(),
+      [script](const auto& entry) { return entry.first == script; });
+
   if (it != kScriptMap.end()) {
-    return it->second;
+    return std::string(it->second);
   }
   return "";
 }
@@ -169,24 +186,18 @@ bool IsSupportedThroughFallback(const char* canonical_name) {
 
 }  // namespace
 
-int SystemToCobaltIndex(int system_category) {
-  switch (system_category) {
+bool IsValidLcCategory(int category) {
+  switch (category) {
     case LC_CTYPE:
-      return kCobaltLcCtype;
     case LC_NUMERIC:
-      return kCobaltLcNumeric;
     case LC_TIME:
-      return kCobaltLcTime;
     case LC_COLLATE:
-      return kCobaltLcCollate;
     case LC_MONETARY:
-      return kCobaltLcMonetary;
     case LC_MESSAGES:
-      return kCobaltLcMessages;
     case LC_ALL:
-      return kCobaltLcCount;
+      return true;
     default:
-      return -1;
+      return false;
   }
 }
 
@@ -201,6 +212,13 @@ std::string GetCanonicalLocale(const char* inputLocale) {
 
   std::string work_str = inputLocale;
   std::string encoding = ExtractEncoding(work_str);
+
+  if (encoding != "" && encoding != kUTF8EncodingStr) {
+    SB_LOG(WARNING) << "Encoding " << encoding
+                    << " was requested, but Cobalt only supports the "
+                       "\".UTF-8\" encoding. Setting the encoding to UTF-8.";
+    encoding = kUTF8EncodingStr;
+  }
 
   icu::Locale loc = icu::Locale::createCanonical(work_str.c_str());
   if (loc.isBogus()) {
@@ -219,7 +237,6 @@ std::string GetCanonicalLocale(const char* inputLocale) {
   // follow the form:
   //
   // language[_territory][.codeset][@modifier]
-
   std::string posix_id = loc.getLanguage();
   const char* country = loc.getCountry();
 
@@ -251,16 +268,21 @@ std::string GetCanonicalLocale(const char* inputLocale) {
   return posix_id;
 }
 
-bool ParseCompositeLocale(
-    const char* input,
-    const LocaleImpl& current_state,
-    std::array<std::string, kCobaltLcCount>& out_categories) {
+void SyncIcuDefault(const std::string& posix_locale_id) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale icu_loc = icu::Locale::createCanonical(posix_locale_id.c_str());
+  icu::Locale::setDefault(icu_loc, status);
+}
+
+bool ParseCompositeLocale(const char* input,
+                          const LocaleImpl& current_state,
+                          std::array<std::string, LC_ALL>& out_categories) {
   std::string str = input;
 
   // Our pattern for the composite locale is LC_CTYPE=C;LC_TIME=POSIX...
   // If it doesn't contain '=', it is likely a simple locale name (e.g. "C" or
   // "en_US").
-  if (str.find('=') == std::string::npos) {
+  if (str.find(kCompositeAssign) == std::string::npos) {
     return false;
   }
 
@@ -269,12 +291,12 @@ bool ParseCompositeLocale(
   std::stringstream ss(str);
   std::string segment;
 
-  while (std::getline(ss, segment, ';')) {
+  while (std::getline(ss, segment, kCompositeSeparator)) {
     if (segment.empty()) {
       continue;
     }
 
-    size_t eq_pos = segment.find('=');
+    size_t eq_pos = segment.find(kCompositeAssign);
     if (eq_pos == std::string::npos) {
       return false;
     }
@@ -302,7 +324,7 @@ void RefreshCompositeString(LocaleImpl* loc) {
   bool is_uniform = true;
   const std::string& first = loc->categories[0];
 
-  for (int i = 1; i < kCobaltLcCount; ++i) {
+  for (int i = 1; i < LC_ALL; ++i) {
     if (loc->categories[i] != first) {
       is_uniform = false;
       break;
@@ -316,38 +338,38 @@ void RefreshCompositeString(LocaleImpl* loc) {
     loc->composite_lc_all = first;
   } else {
     std::stringstream ss;
-    for (int i = 0; i < kCobaltLcCount; ++i) {
+    for (int i = 0; i < LC_ALL; ++i) {
       if (i > 0) {
-        ss << ";";
+        ss << kCompositeSeparator;
       }
-      ss << GetCategoryName(i) << "=" << loc->categories[i];
+      ss << GetCategoryName(i) << kCompositeAssign << loc->categories[i];
     }
     loc->composite_lc_all = ss.str();
   }
 }
 
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base) {
-  if ((mask & LC_ALL_MASK) == LC_ALL_MASK) {
+  if (mask == kAllValidCategoriesMask) {
     base->categories.fill(locale);
     return;
   }
   if (mask & LC_CTYPE_MASK) {
-    base->categories[kCobaltLcCtype] = locale;
+    base->categories[LC_CTYPE] = locale;
   }
   if (mask & LC_COLLATE_MASK) {
-    base->categories[kCobaltLcCollate] = locale;
+    base->categories[LC_COLLATE] = locale;
   }
   if (mask & LC_MESSAGES_MASK) {
-    base->categories[kCobaltLcMessages] = locale;
+    base->categories[LC_MESSAGES] = locale;
   }
   if (mask & LC_MONETARY_MASK) {
-    base->categories[kCobaltLcMonetary] = locale;
+    base->categories[LC_MONETARY] = locale;
   }
   if (mask & LC_NUMERIC_MASK) {
-    base->categories[kCobaltLcNumeric] = locale;
+    base->categories[LC_NUMERIC] = locale;
   }
   if (mask & LC_TIME_MASK) {
-    base->categories[kCobaltLcTime] = locale;
+    base->categories[LC_TIME] = locale;
   }
 }
 
