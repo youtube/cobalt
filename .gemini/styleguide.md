@@ -13,3 +13,12 @@ Skip Backports/Cherry-Picks: Do not perform a detailed code style review on pull
 Rationale: These changes have already received mandatory review in the original source repository. A review of these CLs should focus only on ensuring the successful and correct application of the patch to the target branch.
 
 Identification: Look for common keywords in the CL title, branch name, or description (e.g., backport, cherry-pick, (cr/123456), or reference to the upstream commit hash).
+
+# Mojo Changes
+
+To ensure high-quality Mojo changes, refer to these resources for best practices and common patterns:
+
+*   **Mojo Style Guide**: /docs/mojo_and_services.md#Mojo-Style-Guide
+*   **Mojo Common Patterns**: /docs/mojo_best_practices.md
+*   **Mojo Testing**: /docs/mojo_testing.md
+*   **Mojo Security**: /docs/security/mojo.md
