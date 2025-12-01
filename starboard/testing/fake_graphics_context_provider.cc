@@ -70,6 +70,8 @@
 
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
+
+#define EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE 0x3489
 #endif  // BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 
 #define EGL_CALL(x)                                           \
@@ -186,10 +188,16 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // attributes and a valid platform value to the function.
 #if BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
   static constexpr SbEglAttrib kAngleAttributes[] = {
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
-      EGL_NONE  // Terminate the attribute list.
+#if BUILDFLAG(IS_APPLE)
+    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
+#else
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+#endif        // BUILDFLAG(IS_APPLE)
+    EGL_NONE  // Terminate the attribute list.
   };
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
