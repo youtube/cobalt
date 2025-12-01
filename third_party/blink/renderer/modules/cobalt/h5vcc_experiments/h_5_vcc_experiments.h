@@ -46,7 +46,7 @@ class MODULES_EXPORT H5vccExperiments final
                                    const ExperimentConfiguration*,
                                    ExceptionState&);
   ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
-  ScriptPromise<V8OverrideState> getFeature(ScriptState*, const String&, ExceptionState&);
+  ScriptPromise getFeature(ScriptState*, const String&, ExceptionState&);
   const String& getFeatureParam(const String&);
   ScriptPromise getActiveExperimentConfigData(ScriptState*, ExceptionState&);
   ScriptPromise getLatestExperimentConfigHashData(ScriptState*,

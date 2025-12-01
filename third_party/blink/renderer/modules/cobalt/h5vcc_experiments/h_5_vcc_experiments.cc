@@ -78,11 +78,11 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-ScriptPromise<V8OverrideState> getFeature(
+ScriptPromise getFeature(
     ScriptState* script_state,
     const String& feature_name,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<V8OverrideState>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
   EnsureReceiverIsBound();
