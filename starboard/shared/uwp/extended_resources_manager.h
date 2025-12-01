@@ -63,6 +63,10 @@ class ExtendedResourcesManager {
   void OnNonrecoverableFailure() { is_nonrecoverable_failure_ = true; }
   bool HasNonrecoverableFailure() { return is_nonrecoverable_failure_; }
 
+  // Resets the nonrecoverable failure state, allowing retry of extended
+  // resource acquisition. Should be called when resuming from suspend.
+  void ResetNonrecoverableFailure();
+
   // Returns false if the application should exit instead of suspend.
   bool IsSafeToSuspend() { return !is_nonrecoverable_failure_; }
 
@@ -91,6 +95,12 @@ class ExtendedResourcesManager {
   std::atomic_bool is_vp9_shader_compiled_ = {false};
 
   bool is_nonrecoverable_failure_ = false;
+
+  // Track consecutive acquisition failures to distinguish between temporary
+  // and permanent failures. Reset on successful acquisition or on resume.
+  int consecutive_acquire_failures_ = 0;
+  static constexpr int kMaxConsecutiveAcquireFailures = 5;
+
   Queue<Event> event_queue_;
   Microsoft::WRL::ComPtr<ID3D12Device> d3d12device_;
   Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12queue_;
