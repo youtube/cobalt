@@ -26,7 +26,15 @@ runs:
         run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
-        run: cd cobalt && gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
+        env:
+          RBE_INSTANCE: projects/cobalt-actions-prod/instances/default_instance
+        run: |
+          cd cobalt
+          gclient config \
+            --name=src \
+            --custom-var=download_remoteexec_cfg=True \
+            --custom-var=rbe_instance="${RBE_INSTANCE}" \
+            https://github.com/${{ github.repository }}
         shell: bash
       - name: Set target OS for Android
         if: ${{ contains(matrix.platform, 'android') }}
@@ -37,7 +45,16 @@ runs:
         shell: bash
       - name: gclient sync
         if: inputs.run_sync == 'true'
-        run: cd cobalt && gclient sync -v --shallow --no-history --nohooks --force -r ${{ github.sha }}
+        run: |
+          cd cobalt
+          gclient sync \
+            --verbose \
+            --shallow \
+            --no-history \
+            --nohooks \
+            --force \
+            --reset \
+            --revision ${{ github.sha }}
         shell: bash
       - name: gclient runhook
         if: inputs.run_sync == 'true'
