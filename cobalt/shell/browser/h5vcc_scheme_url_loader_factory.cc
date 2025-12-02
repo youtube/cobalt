@@ -83,7 +83,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     //                        weak_factory_.GetWeakPtr()),
     //         base::BindOnce(&H5vccSchemeURLLoader::OnSplashVideoFileRead,
     //                        weak_factory_.GetWeakPtr()));
-    SendResponse(content, mime_type);
+    //SendResponse(content, mime_type);
+    ReadSplashCache();
     return;
 
   }
@@ -103,26 +104,25 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void ReadSplashCache() {
     LOG(INFO) << "lxn:::open partition";
     auto spc = content::StoragePartitionConfig::Create(
-      browser_context_, "https://lxn-test.uc.r.appspot.com",
-      "splash-cache", false);
+      browser_context_, "https://lxn-test.uc.r.appspot.com/",
+      "splash-cache-v1", false);
     content::StoragePartition* storage_partition =
       browser_context_->GetStoragePartition(spc);
     ::storage::mojom::CacheStorageControl* cache_storage_control =
       storage_partition->GetCacheStorageControl();
-    url::Origin origin = url::Origin::Create(GURL("https://lxn-test.uc.r.appspot.com"));
+    url::Origin origin = url::Origin::Create(GURL("https://lxn-test.uc.r.appspot.com/"));
   blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
   ::storage::BucketLocator bucket_locator =
       ::storage::BucketLocator::ForDefaultBucket(storage_key);
 
-    mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote;
-      cache_storage_control->AddReceiver(
-          ::network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-          bucket_locator,
-          ::storage::mojom::CacheStorageOwner::kCacheAPI,
-          cache_storage_remote.BindNewPipeAndPassReceiver());
-    const char16_t kSplashCacheName[] = u"splash-cache";
+    cache_storage_control->AddReceiver(
+        ::network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+        bucket_locator,
+        ::storage::mojom::CacheStorageOwner::kCacheAPI,
+        cache_storage_remote_.BindNewPipeAndPassReceiver());
+    const char16_t kSplashCacheName[] = u"splash-cache-v1";
     LOG(INFO) << "lxn:::ready to open cache";
-    cache_storage_remote->Has(
+    cache_storage_remote_->Has(
           kSplashCacheName,
           0, // trace-id
           base::BindOnce(&H5vccSchemeURLLoader::OnCacheOpened, weak_factory_.GetWeakPtr()));
@@ -130,12 +130,15 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void OnCacheOpened(
     blink::mojom::CacheStorageError result) {
-    // CHECK(false);
-    // if (result->is_status()) {
-    //   LOG(ERROR) << "lxn:::Failed to open cache: " << result->get_status();
-    //   return;
-    // }
-    LOG(INFO) << "lxn:::Cache opened for h5vcc://splash";
+    if (result == blink::mojom::CacheStorageError::kSuccess) {
+      LOG(INFO) << "lxn:::Cache opened for h5vcc://splash";
+      // TODO: Add logic to read from the cache and send its content.
+      SendResponse("Splash screen from cache!", "text/plain");
+    } else {
+      LOG(ERROR) << "lxn:::Failed to open cache: " << result;
+      SendResponse("Error opening splash cache", "text/plain",
+                   net::HTTP_INTERNAL_SERVER_ERROR);
+    }
   }
 
 
@@ -199,9 +202,17 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     client_->OnComplete(status);
   }
 
+
+  void OnClientDisconnected() {
+    // The client is gone, so the loader is about to be destroyed. Reset the
+    // remote to cancel any pending cache operations.
+    cache_storage_remote_.reset();
+  }
+
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
   ShellBrowserContext* browser_context_;
+  mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 
 };
