@@ -26,6 +26,13 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
 
+#include "content/public/browser/storage_partition.h"
+#include "content/public/browser/storage_partition_config.h"
+#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
+#include "components/services/storage/public/cpp/buckets/bucket_locator.h"
+#include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
+
 namespace content {
 
 // TODO - b/456482732: remove unsafe-inline.
@@ -41,8 +48,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
   H5vccSchemeURLLoader(
       const network::ResourceRequest& request,
-      mojo::PendingRemote<network::mojom::URLLoaderClient> client)
-      : client_(std::move(client)), url_(request.url) {
+      mojo::PendingRemote<network::mojom::URLLoaderClient> client,
+      ShellBrowserContext* browser_context)
+      : client_(std::move(client)),
+        url_(request.url),
+        browser_context_(browser_context) {
     std::string key = url_.host();
 
     // Get the embedded header resource
@@ -66,7 +76,16 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
     std::string content(reinterpret_cast<const char*>(file_contents.data),
                         file_contents.size);
+    
+    // base::ThreadPool::PostTaskAndReplyWithResult(
+    //         FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+    //         base::BindOnce(&H5vccSchemeURLLoader::ReadSplashCache,
+    //                        weak_factory_.GetWeakPtr()),
+    //         base::BindOnce(&H5vccSchemeURLLoader::OnSplashVideoFileRead,
+    //                        weak_factory_.GetWeakPtr()));
     SendResponse(content, mime_type);
+    return;
+
   }
   ~H5vccSchemeURLLoader() override = default;
 
@@ -80,6 +99,47 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                    int32_t intra_priority_value) override {}
   void PauseReadingBodyFromNet() override {}
   void ResumeReadingBodyFromNet() override {}
+
+  void ReadSplashCache() {
+    LOG(INFO) << "lxn:::open partition";
+    auto spc = content::StoragePartitionConfig::Create(
+      browser_context_, "https://lxn-test.uc.r.appspot.com",
+      "splash-cache", false);
+    content::StoragePartition* storage_partition =
+      browser_context_->GetStoragePartition(spc);
+    ::storage::mojom::CacheStorageControl* cache_storage_control =
+      storage_partition->GetCacheStorageControl();
+    url::Origin origin = url::Origin::Create(GURL("https://lxn-test.uc.r.appspot.com"));
+  blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
+  ::storage::BucketLocator bucket_locator =
+      ::storage::BucketLocator::ForDefaultBucket(storage_key);
+
+    mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote;
+      cache_storage_control->AddReceiver(
+          ::network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+          bucket_locator,
+          ::storage::mojom::CacheStorageOwner::kCacheAPI,
+          cache_storage_remote.BindNewPipeAndPassReceiver());
+    const char16_t kSplashCacheName[] = u"splash-cache";
+    LOG(INFO) << "lxn:::ready to open cache";
+    cache_storage_remote->Has(
+          kSplashCacheName,
+          0, // trace-id
+          base::BindOnce(&H5vccSchemeURLLoader::OnCacheOpened, weak_factory_.GetWeakPtr()));
+  }
+
+  void OnCacheOpened(
+    blink::mojom::CacheStorageError result) {
+    // CHECK(false);
+    // if (result->is_status()) {
+    //   LOG(ERROR) << "lxn:::Failed to open cache: " << result->get_status();
+    //   return;
+    // }
+    LOG(INFO) << "lxn:::Cache opened for h5vcc://splash";
+  }
+
+
+
 
  private:
   void SendResponse(const std::string& data_content,
@@ -141,9 +201,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
+  ShellBrowserContext* browser_context_;
+  base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
+
 };
 
-H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory() = default;
+H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
+    ShellBrowserContext* browser_context)
+    : browser_context_(browser_context) {}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
 
@@ -155,14 +220,16 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   mojo::MakeSelfOwnedReceiver(
-      std::make_unique<H5vccSchemeURLLoader>(url_request, std::move(client)),
+      std::make_unique<H5vccSchemeURLLoader>(url_request, std::move(client),
+                                             browser_context_),
       std::move(receiver));
 }
 
 void H5vccSchemeURLLoaderFactory::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver) {
-  mojo::MakeSelfOwnedReceiver(std::make_unique<H5vccSchemeURLLoaderFactory>(),
-                              std::move(receiver));
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<H5vccSchemeURLLoaderFactory>(browser_context_),
+      std::move(receiver));
 }
 
 }  // namespace content

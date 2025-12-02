@@ -18,6 +18,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 
 namespace content {
 
@@ -36,7 +37,7 @@ namespace content {
 class H5vccSchemeURLLoaderFactory final
     : public network::mojom::URLLoaderFactory {
  public:
-  H5vccSchemeURLLoaderFactory();
+  explicit H5vccSchemeURLLoaderFactory(ShellBrowserContext* browser_context);
 
   H5vccSchemeURLLoaderFactory(const H5vccSchemeURLLoaderFactory&) = delete;
   H5vccSchemeURLLoaderFactory& operator=(const H5vccSchemeURLLoaderFactory&) =
@@ -56,6 +57,9 @@ class H5vccSchemeURLLoaderFactory final
 
   void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
       override;
+
+ private:
+  ShellBrowserContext* browser_context_;
 };
 
 }  // namespace content
