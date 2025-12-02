@@ -31,4 +31,6 @@ runs:
           --json_path=cobalt/build/${BUILD_PLATFORM}/package.json \
           --out_dir=out/${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
           --package_dir=${PACKAGE_DIR}
+
+        (cd ${PACKAGE_DIR}/ && find .)
       shell: bash
