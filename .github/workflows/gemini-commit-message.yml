@@ -1,7 +1,7 @@
 name: 'Gemini Commit Message Generator'
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, reopened]
   issue_comment:
     types: [created]
@@ -10,7 +10,7 @@ jobs:
   generate_commit_message:
     # Run condition: PR open/reopen OR comment '/generate-commit-message' on a PR
     if: >
-      github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.body == '/generate-commit-message')
 
     runs-on: ubuntu-latest
