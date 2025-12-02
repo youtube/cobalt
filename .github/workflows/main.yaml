@@ -327,7 +327,7 @@ jobs:
       - name: Prepare Workspace for Checkout
         uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
-        if: ${{ steps.setup_depot_tools.outcome == 'failure' && ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
+        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         uses: actions/checkout@v4
         with:
           path: cobalt/src
@@ -341,7 +341,7 @@ jobs:
         uses: ./cobalt/src/.github/actions/depot_tools
         continue-on-error: true
 
-      - name: Retry gclient sync
+      - name: Remove Runner Cache
         if: steps.setup_depot_tools.outcome == 'failure'
         run: |
           echo "gclient sync failed, removing src/ and retrying."
@@ -540,7 +540,7 @@ jobs:
           run_sync: false
         continue-on-error: true
 
-      - name: Retry gclient sync for web tests
+      - name: Remove Runner Cache
         if: steps.setup_depot_tools_web.outcome == 'failure'
         run: |
           echo "gclient sync failed for web tests, removing src/ and retrying."
