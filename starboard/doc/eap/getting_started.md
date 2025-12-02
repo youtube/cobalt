@@ -1,7 +1,5 @@
 # Open Source Setup
 
-<<<<<<< HEAD
-=======
 The following steps show how to get set up with the new Cobalt repository
 format. Note that this was tested with git version 2.51, and some older
 versions of git are known not to work with gclient. We expected versions 2.25
@@ -11,40 +9,70 @@ and greater to succeed, but recommend you use version 2.51 or later.
 
 Install necessary packages.
 
->>>>>>> 791376a3e02 (Add git version requirement to EAP getting_started (#7704))
 ```
-# Install necessary packages
 sudo apt update && sudo apt install -qqy --no-install-recommends \
   git curl python3-dev xz-utils lsb-release file
+```
 
-# Install depot_tools
+Clone `depot_tools` and add the directory to `PATH` for this session.
+
+```
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-
-# Consider adding the following to your ~/.bashrc or equivalent as well:
 export PATH="/path/to/depot_tools:$PATH"
+```
 
-# Download the repository. Use whichever protocol you prefer.
+Consider adding the `depot_tools` directory to `PATH` in `.bashrc`, `.profile`, or equivalent, to make it permanent.
+
+## Get source code ##
+
+Download the repository. Use whichever protocol you prefer.
+
+```
 git clone --single-branch git@github.com:youtube/cobalt.git chromium/src
 git -C chromium/src remote add _gclient git@github.com:youtube/cobalt.git
+```
 
-# Configure gclient and download subrepos
+Configure gclient and download subrepos
+
+```
 cd chromium
 gclient config --name=src git@github.com:youtube/cobalt.git
 cd src
 gclient sync --no-history -r $(git rev-parse @)
+```
 
-# Install build dependencies.
+
+## Building Evergreen for x64 ##
+
+Install build dependencies:
+
+```
 ./build/install-build-deps.sh
 
-# Build Evergreen for linux
+```
+
+Build Evergreen for linux:
+
+```
 cobalt/build/gn.py -p evergreen-x64 -c devel --no-rbe
 autoninja -C out/evergreen-x64_devel/ cobalt_loader nplb_loader
+```
 
-# Run Cobalt
+## Running Cobalt ##
+
+After build complete, you can run Cobalt with:
+
+```
 out/evergreen-x64_devel/loader_app
-# Run NPLB
+```
+
+To run `nplb`:
+
+```
 out/evergreen-x64_devel/elf_loader_sandbox --evergreen_content=. --evergreen_libary=libnplb.so
 ```
+
+## Additional Tips: ##
 
 Before building, you can optionally set cc_wrapper to a build accelerator of your choice. For example, setting it to ccache:
 
