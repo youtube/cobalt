@@ -25,6 +25,7 @@
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
@@ -103,29 +104,26 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void ReadSplashCache() {
     LOG(INFO) << "lxn:::open partition";
-    auto spc = content::StoragePartitionConfig::Create(
-      browser_context_, "https://lxn-test.uc.r.appspot.com/",
-      "splash-cache-v1", false);
-    content::StoragePartition* storage_partition =
-      browser_context_->GetStoragePartition(spc);
+    content::StoragePartition* storage_partition = browser_context_->GetStoragePartitionForUrl(
+        GURL("https://lxn-test.uc.r.appspot.com/"));
     ::storage::mojom::CacheStorageControl* cache_storage_control =
-      storage_partition->GetCacheStorageControl();
-    url::Origin origin = url::Origin::Create(GURL("https://lxn-test.uc.r.appspot.com/"));
-  blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
-  ::storage::BucketLocator bucket_locator =
-      ::storage::BucketLocator::ForDefaultBucket(storage_key);
+        storage_partition->GetCacheStorageControl();
+    url::Origin origin =
+        url::Origin::Create(GURL("https://lxn-test.uc.r.appspot.com/"));
+    blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
+    ::storage::BucketLocator bucket_locator =
+        ::storage::BucketLocator::ForDefaultBucket(storage_key);
 
     cache_storage_control->AddReceiver(
         ::network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-        bucket_locator,
-        ::storage::mojom::CacheStorageOwner::kCacheAPI,
+        bucket_locator, ::storage::mojom::CacheStorageOwner::kCacheAPI,
         cache_storage_remote_.BindNewPipeAndPassReceiver());
     const char16_t kSplashCacheName[] = u"splash-cache-v1";
-    LOG(INFO) << "lxn:::ready to open cache";
+    LOG(INFO) << "lxn:::ready to open cache with origin: " << origin;
     cache_storage_remote_->Has(
-          kSplashCacheName,
-          0, // trace-id
-          base::BindOnce(&H5vccSchemeURLLoader::OnCacheOpened, weak_factory_.GetWeakPtr()));
+        kSplashCacheName, 0,  // trace-id
+        base::BindOnce(&H5vccSchemeURLLoader::OnCacheOpened,
+                       weak_factory_.GetWeakPtr()));
   }
 
   void OnCacheOpened(
