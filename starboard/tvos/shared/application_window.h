@@ -52,11 +52,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) BOOL windowed;
 
 /**
- *  @brief Specify whether UIPress events should generate SbInputEvents.
- */
-@property(nonatomic) BOOL processUIPresses;
-
-/**
  *  @brief Attach an EGL surface so it is displayed with this window.
  *  @param surface The EGL surface to be displayed.
  */

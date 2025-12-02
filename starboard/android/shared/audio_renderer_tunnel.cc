@@ -103,7 +103,7 @@ AudioRendererPcm::~AudioRendererPcm() {
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 }
 
 void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
@@ -125,7 +125,7 @@ void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
 }
 
 void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_);
 
@@ -143,7 +143,7 @@ void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
 }
 
 void AudioRendererPcm::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   // TODO: Check |can_accept_more_data_| and make WriteEndOfStream() depend on
   // CanAcceptMoreData() or callback.
   // SB_DCHECK(can_accept_more_data_);
@@ -162,12 +162,12 @@ void AudioRendererPcm::WriteEndOfStream() {
 }
 
 void AudioRendererPcm::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   audio_renderer_sink_->SetVolume(volume);
 }
 
 bool AudioRendererPcm::IsEndOfStreamWritten() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   return eos_state_ >= kEOSWrittenToDecoder;
 }
 
@@ -177,13 +177,13 @@ bool AudioRendererPcm::IsEndOfStreamPlayed() const {
 }
 
 bool AudioRendererPcm::CanAcceptMoreData() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   return eos_state_ == kEOSNotReceived && can_accept_more_data_ &&
          (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
 }
 
 void AudioRendererPcm::Play() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard lock(mutex_);
   paused_ = false;
@@ -191,14 +191,14 @@ void AudioRendererPcm::Play() {
 }
 
 void AudioRendererPcm::Pause() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard lock(mutex_);
   paused_ = true;
 }
 
 void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard lock(mutex_);
 
@@ -223,7 +223,7 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
 }
 
 void AudioRendererPcm::Seek(int64_t seek_to_time) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
   audio_renderer_sink_->Stop();
@@ -500,7 +500,7 @@ void AudioRendererPcm::OnFirstOutput(
     const SbMediaAudioSampleType decoded_sample_type,
     const SbMediaAudioFrameStorageType decoded_storage_type,
     const int decoded_sample_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoder_sample_rate_);
   decoder_sample_rate_ = decoded_sample_rate;
   int destination_sample_rate =
@@ -542,7 +542,7 @@ bool AudioRendererPcm::IsEndOfStreamPlayed_Locked() const {
 }
 
 void AudioRendererPcm::OnDecoderConsumed() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   // TODO: Unify EOS and non EOS request once WriteEndOfStream() depends on
   // CanAcceptMoreData().
@@ -554,7 +554,7 @@ void AudioRendererPcm::OnDecoderConsumed() {
 }
 
 void AudioRendererPcm::OnDecoderOutput() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   ++pending_decoder_outputs_;
 
@@ -567,7 +567,7 @@ void AudioRendererPcm::OnDecoderOutput() {
 }
 
 void AudioRendererPcm::ProcessAudioData() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   process_audio_data_job_token_.ResetToInvalid();
 
@@ -669,7 +669,7 @@ void AudioRendererPcm::ProcessAudioData() {
 }
 
 bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(is_frame_buffer_full);
 
   *is_frame_buffer_full = false;
@@ -739,7 +739,7 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 void AudioRendererPcm::CheckAudioSinkStatus() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   // Check if sink callbacks are called too frequently.
   if (sink_callbacks_since_last_check_.load() > kMaxSinkCallbacksBetweenCheck) {
