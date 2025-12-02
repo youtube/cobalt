@@ -22,6 +22,7 @@ import android.util.Pair;
 import android.util.Size;
 import androidx.annotation.CheckResult;
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.DisplayUtil;
 import java.util.List;
 import org.chromium.services.media_session.MediaImage;
@@ -34,7 +35,7 @@ public class ArtworkLoader {
     void onArtworkLoaded(Bitmap bitmap);
   }
 
-  @NonNull private volatile String mRequestedArtworkUrl = "";
+  @VisibleForTesting @NonNull volatile String mRequestedArtworkUrl = "";
   @NonNull private volatile String mCurrentArtworkUrl = "";
   private volatile Bitmap mCurrentArtwork = null;
 
@@ -138,7 +139,7 @@ public class ArtworkLoader {
   public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
-    if (url.equals(mRequestedArtworkUrl)) {
+    if (mRequestedArtworkUrl.equals(url)) {
       mRequestedArtworkUrl = "";
       if (bitmap != null) {
         final Bitmap oldArtwork = mCurrentArtwork;

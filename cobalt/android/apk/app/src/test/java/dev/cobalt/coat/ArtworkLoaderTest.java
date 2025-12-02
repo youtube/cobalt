@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 
 import android.graphics.Bitmap;
 import android.util.Pair;
-import java.lang.reflect.Field;
 import java.util.Collections;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -72,74 +71,68 @@ public class ArtworkLoaderTest {
     // ...
   }
 
-  @Test
-  public void testOnDownloadFinished_Success() throws Exception {
-    String url = "http://example.com/image.png";
-    // Pre-set the requested URL using reflection
-    setRequestedArtworkUrl(url);
+    @Test
+    public void testOnDownloadFinished_Success() {
+      String url = "http://example.com/image.png";
+      // Pre-set the requested URL
+      artworkLoader.mRequestedArtworkUrl = url;
 
-    Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-    artworkLoader.onDownloadFinished(Pair.create(url, bitmap));
+      Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+      artworkLoader.onDownloadFinished(Pair.create(url, bitmap));
 
-    ShadowLooper.runUiThreadTasks();
-    verify(mockCallback).onArtworkLoaded(eq(bitmap));
+      ShadowLooper.runUiThreadTasks();
+      verify(mockCallback).onArtworkLoaded(eq(bitmap));
 
-    // Check that it's now cached
-    // We can't use getOrLoadArtwork to verify cache because of GURL,
-    // but we can verify internal state via reflection if needed, or trust that onArtworkLoaded was called.
-    // Also we can check if it calls download again if we could call getOrLoadArtwork...
+      // Check that it's now cached
+      // We can't use getOrLoadArtwork to verify cache because of GURL,
+      // but we can verify internal state via reflection if needed, or trust that onArtworkLoaded was called.
+      // Also we can check if it calls download again if we could call getOrLoadArtwork...
+    }
+
+    @Test
+    public void testOnDownloadFinished_WrongUrl() {
+      String requestedUrl = "http://example.com/image.png";
+      artworkLoader.mRequestedArtworkUrl = requestedUrl;
+
+      String wrongUrl = "http://example.com/other.png";
+      Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+      artworkLoader.onDownloadFinished(Pair.create(wrongUrl, bitmap));
+
+      ShadowLooper.runUiThreadTasks();
+      verify(mockCallback, never()).onArtworkLoaded(any());
+      assertThat(bitmap.isRecycled()).isTrue();
+    }
+
+    @Test
+    public void testConsumeBitmapAndCropTo16x9_Exact16x9() {
+      Bitmap bitmap = Bitmap.createBitmap(160, 90, Bitmap.Config.ARGB_8888);
+      Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+      assertThat(result).isEqualTo(bitmap);
+      assertThat(result.getWidth()).isEqualTo(160);
+      assertThat(result.getHeight()).isEqualTo(90);
+      assertThat(result.isRecycled()).isFalse();
+    }
+
+    @Test
+    public void testConsumeBitmapAndCropTo16x9_WiderThan16x9() {
+      Bitmap bitmap = Bitmap.createBitmap(200, 90, Bitmap.Config.ARGB_8888);
+      Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+      assertThat(result).isEqualTo(bitmap);
+    }
+
+    @Test
+    public void testConsumeBitmapAndCropTo16x9_TallerThan16x9() {
+      Bitmap bitmap = Bitmap.createBitmap(160, 200, Bitmap.Config.ARGB_8888);
+      Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+
+      assertThat(result).isNotEqualTo(bitmap);
+      assertThat(result.getWidth()).isEqualTo(160);
+      assertThat(result.getHeight()).isEqualTo(90);
+      assertThat(bitmap.isRecycled()).isTrue();
+    }
+
+    @Test
+    public void testConsumeBitmapAndCropTo16x9_Null() {
+        assertThat(artworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
+    }
   }
-
-  @Test
-  public void testOnDownloadFinished_WrongUrl() throws Exception {
-    String requestedUrl = "http://example.com/image.png";
-    setRequestedArtworkUrl(requestedUrl);
-
-    String wrongUrl = "http://example.com/other.png";
-    Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-    artworkLoader.onDownloadFinished(Pair.create(wrongUrl, bitmap));
-
-    ShadowLooper.runUiThreadTasks();
-    verify(mockCallback, never()).onArtworkLoaded(any());
-    assertThat(bitmap.isRecycled()).isTrue();
-  }
-
-  @Test
-  public void testConsumeBitmapAndCropTo16x9_Exact16x9() {
-    Bitmap bitmap = Bitmap.createBitmap(160, 90, Bitmap.Config.ARGB_8888);
-    Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
-    assertThat(result).isEqualTo(bitmap);
-    assertThat(result.getWidth()).isEqualTo(160);
-    assertThat(result.getHeight()).isEqualTo(90);
-    assertThat(result.isRecycled()).isFalse();
-  }
-
-  @Test
-  public void testConsumeBitmapAndCropTo16x9_WiderThan16x9() {
-    Bitmap bitmap = Bitmap.createBitmap(200, 90, Bitmap.Config.ARGB_8888);
-    Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
-    assertThat(result).isEqualTo(bitmap);
-  }
-
-  @Test
-  public void testConsumeBitmapAndCropTo16x9_TallerThan16x9() {
-    Bitmap bitmap = Bitmap.createBitmap(160, 200, Bitmap.Config.ARGB_8888);
-    Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
-
-    assertThat(result).isNotEqualTo(bitmap);
-    assertThat(result.getWidth()).isEqualTo(160);
-    assertThat(result.getHeight()).isEqualTo(90);
-    assertThat(bitmap.isRecycled()).isTrue();
-  }
-
-  @Test
-  public void testConsumeBitmapAndCropTo16x9_Null() {
-      assertThat(artworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
-  }
-
-  private void setRequestedArtworkUrl(String url) throws Exception {
-    Field field = ArtworkLoader.class.getDeclaredField("mRequestedArtworkUrl");
-    field.setAccessible(true);
-    field.set(artworkLoader, url);
-  }
-}
