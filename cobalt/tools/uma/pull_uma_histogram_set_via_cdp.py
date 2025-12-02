@@ -41,6 +41,8 @@ TARGET_URL = 'https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g'
 DEFAULT_COBALT_PACKAGE_NAME = 'dev.cobalt.coat'
 DEFAULT_COBALT_ACTIVITY_NAME = 'dev.cobalt.app.MainActivity'
 DEFAULT_POLL_INTERVAL_S = 30.0
+MAX_WEBSOCKET_RETRIES = 10
+WEBSOCKET_RETRY_DELAY_S = 2
 
 
 def _print_q(message: str, quiet: bool):
@@ -100,50 +102,57 @@ def get_websocket_url(platform: str, port: int, quiet: bool):
     Connects to the Cobalt DevTools Protocol endpoint to get the WebSocket URL.
     """
   if platform == 'android':
-    try:
-      devs = list(device_utils.DeviceUtils.HealthyDevices())
-      if not devs:
-        _print_q('Error: No healthy Android devices found.', quiet)
-        return None
-      dev = devs[0]
-      dev.adb.Forward(
-          f'tcp:{port}',
-          'localabstract:content_shell_devtools_remote',
-          allow_rebind=True)
-      response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
-      response.raise_for_status()
-      targets = response.json()
+    for i in range(MAX_WEBSOCKET_RETRIES):
+      try:
+        devs = list(device_utils.DeviceUtils.HealthyDevices())
+        if not devs:
+          _print_q('Error: No healthy Android devices found.', quiet)
+          return None
+        dev = devs[0]
+        dev.adb.Forward(
+            f'tcp:{port}',
+            'localabstract:content_shell_devtools_remote',
+            allow_rebind=True)
+        response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
+        response.raise_for_status()
+        targets = response.json()
 
-      for target in targets:
-        if target.get('type') == 'page' and target.get('webSocketDebuggerUrl'):
-          _print_q(
-              'Found existing tab: ' + target['title'] + ' - ' +
-              target['webSocketDebuggerUrl'], quiet)
-          return target['webSocketDebuggerUrl']
+        for target in targets:
+          if target.get('type') == 'page' and target.get(
+              'webSocketDebuggerUrl'):
+            _print_q(
+                'Found existing tab: ' + target['title'] + ' - ' +
+                target['webSocketDebuggerUrl'], quiet)
+            return target['webSocketDebuggerUrl']
 
-      _print_q('No suitable existing page found, creating a new tab...', quiet)
-      new_tab_url = f'http://{CDP_HOST}:{port}/json/new'
-      new_tab_response = requests.get(new_tab_url, timeout=5)
-      new_tab_response.raise_for_status()
-      new_tab_data = new_tab_response.json()
-      if new_tab_data.get('webSocketDebuggerUrl'):
         _print_q(
-            'Created new tab: ' + new_tab_data['title'] + ' - ' +
-            new_tab_data['webSocketDebuggerUrl'], quiet)
-        return new_tab_data['webSocketDebuggerUrl']
+            'No suitable existing page found, trying to create a new tab...',
+            quiet)
+        new_tab_url = f'http://{CDP_HOST}:{port}/json/new'
+        new_tab_response = requests.get(new_tab_url, timeout=5)
+        new_tab_response.raise_for_status()
+        new_tab_data = new_tab_response.json()
+        if new_tab_data.get('webSocketDebuggerUrl'):
+          _print_q(
+              'Created new tab: ' + new_tab_data['title'] + ' - ' +
+              new_tab_data['webSocketDebuggerUrl'], quiet)
+          return new_tab_data['webSocketDebuggerUrl']
 
-      raise RuntimeError(
-          'Could not find or create a suitable WebSocket debugger URL.')
+        raise RuntimeError(
+            'Could not find or create a suitable WebSocket debugger URL.')
 
-    except requests.exceptions.ConnectionError:
-      _print_q(f'Error: Could not connect to Cobalt on {CDP_HOST}:{port}.',
-               quiet)
-      _print_q('Please ensure Cobalt is running with remote debugging enabled.',
-               quiet)
-      return None
-    except RuntimeError as e:
-      _print_q(f'An error occurred while getting WebSocket URL: {e}', quiet)
-      return None
+      except requests.exceptions.ConnectionError:
+        _print_q(
+            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: ' +
+            f'Connection error to Cobalt on {CDP_HOST}:{port}. Retrying...',
+            quiet)
+      except RuntimeError as e:
+        _print_q(
+            f'Attempt {i + 1}/{MAX_WEBSOCKET_RETRIES}: An error occurred ' +
+            f'while getting WebSocket URL: {e}. Retrying...', quiet)
+      time.sleep(WEBSOCKET_RETRY_DELAY_S)
+    _print_q('Failed to get WebSocket URL after multiple retries.', quiet)
+    return None
   elif platform == 'linux':
     try:
       response = requests.get(f'http://127.0.0.1:{port}/json', timeout=5)
