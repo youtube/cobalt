@@ -149,9 +149,12 @@ public class ArtworkLoader {
             new Runnable() {
               @Override
               public void run() {
-                mCallback.onArtworkLoaded(bitmap);
-                if (oldArtwork != null) {
-                  oldArtwork.recycle();
+                try {
+                  mCallback.onArtworkLoaded(bitmap);
+                } finally {
+                  if (oldArtwork != null) {
+                    oldArtwork.recycle();
+                  }
                 }
               }
             });
