@@ -37,6 +37,16 @@ SKIPPED_PRESUBMIT_CHECKS = [
     "CheckOwnersFormat",
     "CheckOwnersOnCommit",
     "CheckOwnersOnUpload",
+    "CheckForCommitObjects",
+    "CheckForTooLargeFiles",
+    "CheckChangeHasBugFieldFromChange",
+    "CheckSecurityOwners",
+    "CheckPatchFormatted",
+    # Currently ignores "NOLINT(build/header_guard)"
+    "CheckForIncludeGuards",
+    # This should be re-enabled when we have a good way to run chromium
+    # precommits with local chromium PRESUBMIT.py files considered
+    "CheckLongLines",
 ]
 
 # --- Monkey-patching to remove Gerrit dependencies ---
