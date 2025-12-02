@@ -21,6 +21,7 @@
 #include <tuple>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
