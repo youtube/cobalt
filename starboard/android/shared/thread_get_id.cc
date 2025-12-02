@@ -16,8 +16,10 @@
 
 #include "starboard/thread.h"
 
-// static
 SbThreadId SbThreadGetId() {
+  // Copied from
+  // https://source.chromium.org/chromium/chromium/src/+/main:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_posix.cc;l=115-120;drc=c1a1260ef7c870242f30982e59a5d98a7f6cdfb9
+  //
   // Note: do not cache the return value inside a thread_local variable on
   // Android (as above). The reasons are:
   // - thread_local is slow on Android (goes through emutls)
