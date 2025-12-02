@@ -42,10 +42,12 @@ void H5vccUpdater::SetUpdaterChannel(const std::string& channel) {
   }
 
   // Force an update if SetUpdaterChannel is called, even if
-  // the channel doesn't change, as long as it's not "prod" channel
+  // the channel doesn't change, as long as it's not
+  // "prod"/"experiment"/"control" channel
   if (updater_module_->GetUpdaterChannel().compare(channel) != 0) {
     updater_module_->SetUpdaterChannel(channel);
-  } else if (channel == "prod") {
+  } else if (channel == "prod" || channel == "experiment" ||
+             channel == "control") {
     return;
   }
   updater_module_->CompareAndSwapForcedUpdate(0, 1);

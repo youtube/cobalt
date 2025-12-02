@@ -29,9 +29,6 @@ _MODULAR_BUILD_FILTERED_TESTS = {
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_381_ac3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_329_ec3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_381_ac3_dmp_*',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
     ],
     'player_filter_tests': [test_filter.FILTER_ALL],
 }
