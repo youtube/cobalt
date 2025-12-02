@@ -1704,6 +1704,12 @@ BASE_FEATURE(kLibaomUseChromeThreads,
              "LibaomUseChromeThreads",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// When enabled, Cobalt will notify memory pressure listeners before
+// video playback.
+BASE_FEATURE(kNotifyMemoryPressureBeforePlayback,
+             "NotifyMemoryPressureBeforePlayback",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN)
 // Controls whether to use D3D12 video decoder instead of D3D11 when supported.
 BASE_FEATURE(kD3D12VideoDecoder,
