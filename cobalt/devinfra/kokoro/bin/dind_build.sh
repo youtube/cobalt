@@ -71,12 +71,11 @@ pipeline () {
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
-  local gn_extra_args=""
-  if [[ -n "${EXTRA_GN_ARGUMENTS:-}" ]]; then
-    gn_extra_args="--args=\"${EXTRA_GN_ARGUMENTS}\""
-  fi
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3 ${gn_extra_args}
+    --script-executable=/usr/bin/python3
+  for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
+    echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
+  done
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Build chromedriver used for testing.
