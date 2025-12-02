@@ -42,6 +42,12 @@ public class ArtworkLoader {
   private final ArtworkDownloader mArtworkDownloader;
   private final Callback mCallback;
 
+  /**
+   * Constructs a new ArtworkLoader.
+   *
+   * @param callback The callback to receive the loaded image.
+   * @param artworkDownloader The downloader to use for fetching the image.
+   */
   public ArtworkLoader(Callback callback, ArtworkDownloader artworkDownloader) {
     this.mCallback = callback;
     this.mArtworkDownloader = artworkDownloader;
@@ -96,6 +102,17 @@ public class ArtworkLoader {
     return bestImage;
   }
 
+  /**
+   * Crops the bitmap to 16:9 aspect ratio if necessary.
+   *
+   * If the bitmap is taller than 16:9, it is cropped from the center. If it is already 16:9 or
+   * wider, it is returned as is.
+   *
+   * The input bitmap is recycled if a new cropped bitmap is created.
+   *
+   * @param bitmap The source bitmap.
+   * @return The 16:9 cropped bitmap, or the original bitmap.
+   */
   @CheckResult
   public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
     // Crop to 16:9 as needed
@@ -113,6 +130,11 @@ public class ArtworkLoader {
     return cropped;
   }
 
+  /**
+   * Called when an artwork download has finished.
+   *
+   * @param urlBitmapPair A pair containing the URL and the downloaded Bitmap.
+   */
   public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
