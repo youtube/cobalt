@@ -1,5 +1,17 @@
 # Open Source Setup
 
+<<<<<<< HEAD
+=======
+The following steps show how to get set up with the new Cobalt repository
+format. Note that this was tested with git version 2.51, and some older
+versions of git are known not to work with gclient. We expected versions 2.25
+and greater to succeed, but recommend you use version 2.51 or later.
+
+## Setup workstation ##
+
+Install necessary packages.
+
+>>>>>>> 791376a3e02 (Add git version requirement to EAP getting_started (#7704))
 ```
 # Install necessary packages
 sudo apt update && sudo apt install -qqy --no-install-recommends \
