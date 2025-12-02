@@ -327,6 +327,29 @@ jobs:
       - name: Prepare Workspace for Checkout
         uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
+        if: ${{ steps.setup_depot_tools.outcome == 'failure' && ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
+        uses: actions/checkout@v4
+        with:
+          path: cobalt/src
+          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
+          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
+          # to properly calculate build id.
+          fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          clean: false
+      - name: Set Up Depot Tools
+        id: setup_depot_tools
+        uses: ./cobalt/src/.github/actions/depot_tools
+        continue-on-error: true
+
+      - name: Retry gclient sync
+        if: steps.setup_depot_tools.outcome == 'failure'
+        run: |
+          echo "gclient sync failed, removing src/ and retrying."
+          rm -rf cobalt/src
+        shell: bash
+
+      - name: Checkout on Failure
+        if: ${{ steps.setup_depot_tools.outcome == 'failure' && ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
@@ -338,7 +361,8 @@ jobs:
           fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
           clean: false
 
-      - name: Set Up Depot Tools
+      - name: Set Up Depot Tools on Failure
+        if: steps.setup_depot_tools.outcome == 'failure'
         uses: ./cobalt/src/.github/actions/depot_tools
 
       - name: Build Cobalt
@@ -510,6 +534,28 @@ jobs:
           path: cobalt/src
           clean: false
       - name: Set Up Depot Tools
+        id: setup_depot_tools_web
+        uses: ./cobalt/src/.github/actions/depot_tools
+        with:
+          run_sync: false
+        continue-on-error: true
+
+      - name: Retry gclient sync for web tests
+        if: steps.setup_depot_tools_web.outcome == 'failure'
+        run: |
+          echo "gclient sync failed for web tests, removing src/ and retrying."
+          rm -rf cobalt/src
+        shell: bash
+
+      - name: Checkout on Failure for web tests
+        if: steps.setup_depot_tools_web.outcome == 'failure'
+        uses: actions/checkout@v4
+        with:
+          path: cobalt/src
+          clean: false
+
+      - name: Set Up Depot Tools on Failure for web tests
+        if: steps.setup_depot_tools_web.outcome == 'failure'
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
           run_sync: false
