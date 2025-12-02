@@ -88,8 +88,14 @@ source_set("browser") {
 
   if (!cobalt_is_release_build) {
     deps += [
+<<<<<<< HEAD
       "//cobalt/browser/h5vcc_storage/testing",
       "//cobalt/browser/h5vcc_storage/testing/public/mojom",
+=======
+      "//cobalt/android:browser_jni_headers",
+      "//cobalt/android:jni_headers",
+      "//cobalt/android/oom_intervention",
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
     ]
   }
 

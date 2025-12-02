@@ -21,9 +21,15 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/path_service.h"
+<<<<<<< HEAD
+=======
+#include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -51,6 +57,11 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+<<<<<<< HEAD
+=======
+#include "content/public/browser/render_view_host.h"
+#include "content/public/browser/render_widget_host.h"
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
@@ -64,7 +75,11 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+<<<<<<< HEAD
 #include "cobalt/android/jni_headers/CobaltActivity_jni.h"
+=======
+#include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if defined(RUN_BROWSER_TESTS)
@@ -92,14 +107,39 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 }  // namespace
 
 #if BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD
 static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
   // Possible if application is paused during startup.
+=======
+static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
+    JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
   if (!client) {
     return;
   }
   client->FlushCookiesAndLocalStorage(base::DoNothing());
 }
+<<<<<<< HEAD
+=======
+
+static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchBlur();
+}
+
+static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchFocus();
+}
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 #endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {
@@ -409,6 +449,44 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
       base::BindOnce(&network::mojom::CookieManager::FlushCookieStore,
                      base::Unretained(cookie_manager), std::move(callback));
   storage_partition->GetLocalStorageControl()->Flush(std::move(flush_cookies));
+}
+
+void CobaltContentBrowserClient::DispatchBlur() {
+  if (web_contents_observer_) {
+    auto* web_contents = web_contents_observer_->web_contents();
+    if (web_contents) {
+      web_contents->GetRenderViewHost()->GetWidget()->Blur();
+    }
+  }
+  FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+void CobaltContentBrowserClient::DispatchFocus() {
+  if (web_contents_observer_) {
+    auto* web_contents = web_contents_observer_->web_contents();
+    if (web_contents) {
+      web_contents->GetRenderViewHost()->GetWidget()->Focus();
+    }
+  }
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  if (!web_contents_observer_) {
+    std::move(callback).Run();
+    return;
+  }
+  auto* web_contents = web_contents_observer_->web_contents();
+  CHECK(web_contents);
+  content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
+  CHECK(rfh);
+  auto* storage_partition = rfh->GetStoragePartition();
+  CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
+  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
+  CHECK(cookie_manager);
+  cookie_manager->FlushCookieStore(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

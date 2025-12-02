@@ -34,6 +34,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -63,9 +64,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 @JNINamespace("cobalt")
@@ -216,6 +217,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().initializePlatformAudioSink();
 
     // Load an empty page to let shell create WebContents. Override Shell.java's
+<<<<<<< HEAD
     // onWebContentsReady() to only continue with initializeJavaBridge() and setting the
     // webContents once it's confirmed that the webContents are correctly created and not null.
     // Two shells workflow:
@@ -231,6 +233,11 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "NativeSplash: create splash shell");
       mShellManager.launchShell("");
     }
+=======
+    // onWebContentsReady()
+    // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
+    // that the webContents are correctly created not null.
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
     mShellManager.launchShell(
         "",
         new Shell.OnWebContentsReadyListener() {
@@ -581,6 +588,12 @@ public abstract class CobaltActivity extends Activity {
   }
 
   @Override
+  protected void onPause() {
+    CobaltContentBrowserClient.dispatchBlur();
+    super.onPause();
+  }
+
+  @Override
   protected void onStop() {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
@@ -612,7 +625,11 @@ public abstract class CobaltActivity extends Activity {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
+<<<<<<< HEAD
     evaluateJavaScript("window.dispatchEvent(new Event('focus'));");
+=======
+    CobaltContentBrowserClient.dispatchFocus();
+>>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
   }
 
   @Override
