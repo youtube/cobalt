@@ -12,12 +12,16 @@ build = common.build {
       value = ''
     },
     {
+      key = 'GN_TARGET'
+      value = 'cobalt/android:cobalt_apk'
+    },
+    {
       key = 'PLATFORM'
       value = 'android-arm'
     },
     {
-      key = 'GN_TARGET'
-      value = 'cobalt:gn_all'
+      key = 'REGISTRY_IMAGE_NAME'
+      value = 'cobalt-build-android-arm'
     },
     {
       key = 'TARGET_CPU'
@@ -30,10 +34,6 @@ build = common.build {
     {
       key = 'TARGET_PLATFORM'
       value = 'android-arm'
-    },
-    {
-      key = 'REGISTRY_IMAGE_NAME'
-      value = 'cobalt-build-android-arm'
     },
   ]
 }
