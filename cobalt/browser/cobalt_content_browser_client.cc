@@ -93,6 +93,7 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
   static const std::string user_agent_str = platform_info.ToString();
+  DCHECK(!user_agent_str.empty());
   return user_agent_str;
 }
 
