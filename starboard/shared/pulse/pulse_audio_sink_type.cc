@@ -14,13 +14,12 @@
 
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 
-#include <pulse/pulseaudio.h>
-
 #include <pthread.h>
+#include <pulse/pulseaudio.h>
 #include <unistd.h>
-#include <atomic>
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -46,6 +45,7 @@
 
 #if HAS_LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
+
 #include "starboard/common/check_op.h"
 #endif  // HAS_LEAK_SANITIZER
 

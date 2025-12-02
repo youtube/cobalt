@@ -17,7 +17,6 @@
 
 #include "EGL/egl.h"
 #include "GLES2/gl2.h"
-
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 

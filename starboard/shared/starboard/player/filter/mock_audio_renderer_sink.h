@@ -15,10 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_RENDERER_SINK_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_RENDERER_SINK_H_
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
-
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace starboard {

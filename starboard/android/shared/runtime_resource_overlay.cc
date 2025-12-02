@@ -16,12 +16,11 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "cobalt/android/jni_headers/ResourceOverlay_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
-
-#include "cobalt/android/jni_headers/ResourceOverlay_jni.h"
 
 namespace starboard {
 

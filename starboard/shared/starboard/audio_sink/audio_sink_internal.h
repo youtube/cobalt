@@ -15,11 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 
-#include "starboard/audio_sink.h"
-
 #include <functional>
 #include <string>
 
+#include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 

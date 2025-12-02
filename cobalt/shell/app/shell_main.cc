@@ -17,11 +17,11 @@
 #include "content/public/app/content_main.h"
 
 #if BUILDFLAG(IS_IOS)
-#include "base/at_exit.h"                                 // nogncheck
-#include "base/command_line.h"                            // nogncheck
-#include "build/ios_buildflags.h"                         // nogncheck
+#include "base/at_exit.h"          // nogncheck
+#include "base/command_line.h"     // nogncheck
+#include "build/ios_buildflags.h"  // nogncheck
 #include "cobalt/shell/app/ios/shell_application_ios.h"
-#include "content/public/common/content_switches.h"       // nogncheck
+#include "content/public/common/content_switches.h"  // nogncheck
 #include "content/shell/app/ios/web_tests_support_ios.h"
 #include "content/shell/common/shell_switches.h"
 #endif

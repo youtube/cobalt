@@ -15,10 +15,9 @@
 #include <string>
 #include <vector>
 
-#include "starboard/drm.h"
-
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
+#include "starboard/drm.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
