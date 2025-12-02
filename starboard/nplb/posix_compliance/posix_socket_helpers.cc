@@ -257,7 +257,7 @@ int PosixGetPortNumberForTests() {
   return port_number_for_tests;
 }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 namespace {
 const char* PosixAddressFamilyName(int family) {
   const char* name = "unknown";
@@ -316,6 +316,6 @@ std::string GetPosixSocketHintsName(
       PosixSocketTypeName(std::get<1>(info.param).first),
       PosixProtocolName(std::get<1>(info.param).second));
 }
-#endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 }  // namespace nplb
