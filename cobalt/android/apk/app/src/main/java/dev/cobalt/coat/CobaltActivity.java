@@ -330,6 +330,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
+    cobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     mVideoSurfaceView = new VideoSurfaceView(this);
