@@ -25,6 +25,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.ConnectionType;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Detects network connectivity with a guaranteed timeout. */
 public class CobaltConnectivityDetector {
@@ -41,9 +43,28 @@ public class CobaltConnectivityDetector {
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
+  private final NetworkChangeNotifier.ConnectionTypeObserver mConnectionTypeObserver;
 
   public CobaltConnectivityDetector(CobaltActivity activity) {
     this.activity = activity;
+    mConnectionTypeObserver =
+        new NetworkChangeNotifier.ConnectionTypeObserver() {
+          @Override
+          public void onConnectionTypeChanged(@ConnectionType int connectionType) {
+            Log.i(TAG, "onConnectionTypeChanged: " + connectionType);
+            if (connectionType != ConnectionType.CONNECTION_NONE) {
+              // Only run the check if we have a network connection.
+              // This will handle the case where the user reconnects to Wi-Fi/cellular
+              // while the error dialog is showing.
+              mShouldReloadOnResume = false;
+              activeNetworkCheck();
+            }
+          }
+        };
+  }
+
+  public void registerObserver() {
+    NetworkChangeNotifier.addConnectionTypeObserver(mConnectionTypeObserver);
   }
 
   public void activeNetworkCheck() {
@@ -157,6 +178,7 @@ public class CobaltConnectivityDetector {
   }
 
   public void destroy() {
+    NetworkChangeNotifier.removeConnectionTypeObserver(mConnectionTypeObserver);
     managementExecutor.shutdownNow();
   }
 }
