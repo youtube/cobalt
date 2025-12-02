@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
+
 #include "base/no_destructor.h"
 #include "content/common/main_frame_counter.h"
 #include "mojo/public/cpp/bindings/receiver.h"

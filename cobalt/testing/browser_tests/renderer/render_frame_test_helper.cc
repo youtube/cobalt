@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/renderer/render_frame_test_helper.h"
+#include "cobalt/testing/browser_tests/renderer/render_frame_test_helper.h"
 
 #include <utility>
 
@@ -29,7 +29,7 @@ void RenderFrameTestHelper::Create(
   new RenderFrameTestHelper(render_frame, std::move(receiver));
 }
 
-RenderFrameTestHelper::~RenderFrameTestHelper() {}
+RenderFrameTestHelper::~RenderFrameTestHelper() = default;
 
 void RenderFrameTestHelper::GetDocumentToken(
     GetDocumentTokenCallback callback) {

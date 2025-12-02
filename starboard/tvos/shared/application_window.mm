@@ -25,7 +25,6 @@
 #import "starboard/tvos/shared/keyboard_input_device.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/media/egl_surface.h"
-#import "starboard/tvos/shared/search_results_view_controller.h"
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/window_manager.h"
 
@@ -38,43 +37,10 @@ using starboard::ApplicationDarwin;
 static const NSTimeInterval kSearchResultDebounceTime = 0.5;
 
 /**
- *  @brief A view's delegate is made aware of view lifecycle changes.
- */
-@protocol SBDSearchViewDisplayDelegate
-
-/**
- *  @brief Called when the search viewDidAppear.
- */
-- (void)searchDidAppear;
-
-/**
- *  @brief Called when the search viewDidDisappear.
- */
-- (void)searchDidDisappear;
-
-@end
-
-/**
- *  @brief The @c UISearchContainerViewController that should be used for
- *      displaying a @c UISearchController.
- */
-@interface SBDSearchContainerViewController : UISearchContainerViewController
-
-/**
- *  @brief The delegate to notify of display changes to the search view.
- */
-@property(weak, nonatomic) id<SBDSearchViewDisplayDelegate> delegate;
-
-@end
-
-/**
  *  @brief The @c UIViewController for the EGL surface and player views.
  */
 @interface SBDApplicationWindowViewController
-    : UIViewController <UISearchResultsUpdating,
-                        UISearchControllerDelegate,
-                        SBDSearchResultsFocusDelegate,
-                        SBDSearchViewDisplayDelegate>
+    : UIViewController <UISearchResultsUpdating, UISearchControllerDelegate>
 
 /**
  *  @brief The Starboard application's viewport.
@@ -134,8 +100,6 @@ static const NSTimeInterval kSearchResultDebounceTime = 0.5;
     _windowSize.width = static_cast<int>(size.width * scale);
     _windowSize.height = static_cast<int>(size.height * scale);
     _windowSize.video_pixel_ratio = 1.0f;
-
-    _processUIPresses = YES;
 
     self.rootViewController = _viewController;
     self.accessibilityIdentifier = name;
@@ -346,12 +310,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
       // presses and UIKeyInput navigation presses.
       continue;
     }
-
-    // TODO: Is _processUIPresses still needed?
-    // Only initiate a keydown if UIPresses should be processed.
-    if (_processUIPresses) {
-      [_keyboardInputDevice keyPressed:sbkey modifiers:modifiers];
-    }
   }
   [super pressesBegan:presses withEvent:event];
 }
@@ -429,20 +387,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   if (!focus) {
     [_viewController.applicationView forceDefaultFocus:NO];
   }
-}
-
-@end
-
-@implementation SBDSearchContainerViewController
-
-- (void)viewDidAppear:(BOOL)animated {
-  [super viewDidAppear:animated];
-  [_delegate searchDidAppear];
-}
-
-- (void)viewDidDisappear:(BOOL)animated {
-  [super viewDidDisappear:animated];
-  [_delegate searchDidDisappear];
 }
 
 @end
