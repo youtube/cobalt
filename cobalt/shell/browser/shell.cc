@@ -143,14 +143,14 @@ void Shell::FinishShellInitialization(Shell* shell) {
     GetPlatform()->MainFrameCreated(shell);
   }
 #if BUILDFLAG(USE_EVERGREEN)
-  // Create the updater module
+  // Create the updater module singleton.
   auto* storage_partition =
       raw_web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition) {
-    LOG(INFO) << "Creating updater_module_ for Shell";
-    shell->updater_module_.reset(new cobalt::updater::UpdaterModule(
+    LOG(INFO) << "Creating UpdaterModule singleton for Shell.";
+    cobalt::updater::UpdaterModule::CreateInstance(
         storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        cobalt::updater::kDefaultUpdateCheckDelay));
+        cobalt::updater::kDefaultUpdateCheckDelay);
   }
 #endif
 
@@ -461,10 +461,10 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
   target->GetController().LoadURLWithParams(
       NavigationController::LoadURLParams(params));
 #if BUILDFLAG(USE_EVERGREEN)
-  if (updater_module_) {
+  if (cobalt::updater::UpdaterModule::GetInstance()) {
     // Mark the current installation as successful.
     // TODO(b/458770751): investigate moving this to after load is finished
-    updater_module_->MarkSuccessful();
+    cobalt::updater::UpdaterModule::GetInstance()->MarkSuccessful();
   }
 #endif
   return target;
