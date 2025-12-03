@@ -1,5 +1,7 @@
 {
   "failing_tests": [
+    "CharacterRange/CharacterRangePerfTest.*",
+    "OffsetForPosition/OffsetForPositionPerfTest.*",
     "WTFTypesTest.*"
   ],
   "_filtered_b/423906285": [

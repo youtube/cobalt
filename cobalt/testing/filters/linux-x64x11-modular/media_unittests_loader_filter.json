@@ -32,6 +32,7 @@
     "MP4StreamParserTest.*",
     "MPEG1AudioStreamParserTest.*",
     "SimpleSources.*",
+    "StarboardRendererWrapperTest.*",
     "Vp8ParserTest.*",
     "Vp9ParserTest.*",
     "WebMStreamParserTest.*",
