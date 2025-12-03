@@ -119,7 +119,7 @@ init_gcloud () {
 
 
 is_release_build () {
-  [[ "${KOKORO_ROOT_JOB_TYPE}" == "RELEASE" ]]
+  [[ "${KOKORO_ROOT_JOB_TYPE:-}" == "RELEASE" ]]
 }
 
 
