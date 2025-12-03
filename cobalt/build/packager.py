@@ -49,37 +49,31 @@ def remove_empty_directories(directory):
 
 
 def layout(archive_data, out_dir, base_dir):
-  files = archive_data.get('files')
-  if files:
-    for f in files:
-      copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
+  files = archive_data.get('files', [])
+  for f in files:
+    copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
 
-  rename_files = archive_data.get('rename_files')
-  if rename_files:
-    for f in rename_files:
-      move(
-          os.path.join(base_dir, f['from_file']),
-          os.path.join(base_dir, f['to_file']))
+  rename_files = archive_data.get('rename_files', [])
+  for f in rename_files:
+    move(
+        os.path.join(base_dir, f['from_file']),
+        os.path.join(base_dir, f['to_file']))
 
-  dirs = archive_data.get('dirs')
-  if dirs:
-    for d in dirs:
-      shutil.copytree(
-          os.path.join(out_dir, d),
-          os.path.join(base_dir, d),
-          dirs_exist_ok=True)
+  dirs = archive_data.get('dirs', [])
+  for d in dirs:
+    shutil.copytree(
+        os.path.join(out_dir, d), os.path.join(base_dir, d), dirs_exist_ok=True)
 
-  rename_dirs = archive_data.get('rename_dirs')
-  if rename_dirs:
-    for d in rename_dirs:
-      shutil.move(
-          os.path.join(base_dir, d['from_dir']),
-          os.path.join(base_dir, d['to_dir']))
+  rename_dirs = archive_data.get('rename_dirs', [])
+  for d in rename_dirs:
+    shutil.move(
+        os.path.join(base_dir, d['from_dir']),
+        os.path.join(base_dir, d['to_dir']))
 
   remove_empty_directories(base_dir)
 
 
-def package(name, json_path, out_dir, package_dir):
+def package(name, json_path, out_dir, package_dir, print_contents):
   with open(json_path, encoding='utf-8') as j:
     package_json = json.load(j)
 
@@ -87,6 +81,10 @@ def package(name, json_path, out_dir, package_dir):
       with tempfile.TemporaryDirectory() as tmp_dir:
         base_dir = os.path.join(tmp_dir, name)
         layout(archive_data, out_dir, base_dir)
+        if print_contents:
+          for _, _, paths in os.walk(base_dir):
+            for path in paths:
+              print(path)
 
         archive_type = archive_data['archive_type']
         if archive_type == 'ARCHIVE_TYPE_ZIP':
@@ -103,6 +101,12 @@ if __name__ == '__main__':
       '--out_dir', required=True, help='Source of package content')
   parser.add_argument(
       '--package_dir', required=True, help='Destination of package')
+  parser.add_argument(
+      '--print_contents',
+      action='store_true',
+      default=False,
+      help='Print package contents')
   args = parser.parse_args()
 
-  package(args.name, args.json_path, args.out_dir, args.package_dir)
+  package(args.name, args.json_path, args.out_dir, args.package_dir,
+          args.print_contents)

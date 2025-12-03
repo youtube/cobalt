@@ -202,6 +202,7 @@ run_package_release_pipeline () {
     # specific. GCS upload is also done separately because the Json recipe is
     # not branch, date, and build number specific though this can be added.
     python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
+      --print_contents \
       --name="${PLATFORM}_${CONFIG}" \
       --json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package.json" \
       --out_dir="${out_dir}" \
