@@ -32,11 +32,16 @@ import java.io.IOException;
 /** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
 public class ExoPlayerSampleStream implements SampleStream {
+    // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
     private final SampleQueue sampleQueue;
-    private boolean endOfStream = false;
+    private volatile boolean endOfStream = false;
     private final ParsableByteArray sampleData = new ParsableByteArray();
-    private static final long MAX_BUFFER_DURATION_US = 30 * 1000 * 1000; // 30 seconds.
-    private static final long MEMORY_PRESSURE_THRESHOLD_US = 3 * 1000 * 1000; // 3 seconds.
+    // The memory here is managed by Java rather than the native allocator, which may increase
+    // memory pressure.
+    // TODO: Have the SampleQueue read directly from native memory, rather than manage its own
+    // memory.
+    private static final long MAX_BUFFER_DURATION_US = 5 * 1000 * 1000; // 5 seconds.
+    private static final long MEMORY_PRESSURE_THRESHOLD_US = 250 * 1000; //  250 milliseconds.
 
     ExoPlayerSampleStream(Allocator allocator, Format format) {
         sampleQueue = SampleQueue.createWithoutDrm(allocator);
@@ -47,18 +52,19 @@ public class ExoPlayerSampleStream implements SampleStream {
         sampleQueue.discardTo(positionUs, toKeyframe, false);
     }
 
-    void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
         sampleData.reset(samples, size);
         int flags = 0;
         if (isKeyFrame) {
             flags |= C.BUFFER_FLAG_KEY_FRAME;
         }
 
+        // TODO: Optimize by avoiding an extra sample copy here.
         sampleQueue.sampleData(sampleData, size);
         sampleQueue.sampleMetadata(timestamp, flags, size, 0, null);
     }
 
-    void writeEndOfStream() {
+    public void writeEndOfStream() {
         sampleQueue.sampleMetadata(
                 sampleQueue.getLargestQueuedTimestampUs(), C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
         endOfStream = true;
