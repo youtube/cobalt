@@ -25,7 +25,10 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-#include "cobalt/android/jni_headers/ExoPlayerCodecUtil_jni.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
+#pragma GCC diagnostic pop
 
 namespace starboard {
 namespace {
@@ -104,7 +107,7 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   }
 }
 
-ScopedJavaLocalRef<jobject> CreateHdrColorInfo(
+ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
     const SbMediaColorMetadata& metadata) {
   if (IsIdentity(metadata)) {
     return ScopedJavaLocalRef<jobject>();
@@ -121,7 +124,7 @@ ScopedJavaLocalRef<jobject> CreateHdrColorInfo(
   }
 
   const auto& mastering_metadata = metadata.mastering_metadata;
-  return Java_ExoPlayerCodecUtil_createHdrColorInfo(
+  return Java_ExoPlayerManager_createExoPlayerColorInfo(
       AttachCurrentThread(), color_range, color_standard, color_transfer,
       mastering_metadata.primary_r_chromaticity_x,
       mastering_metadata.primary_r_chromaticity_y,
@@ -197,7 +200,7 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
   ScopedJavaLocalRef<jstring> j_audio_mime =
       ConvertUTF8ToJavaString(env, j_audio_mime_str.c_str());
 
-  return Java_ExoPlayerCodecUtil_createAudioMediaSource(
+  return Java_ExoPlayerManager_createAudioMediaSource(
       env, j_audio_mime, configuration_data, samplerate, channels);
 }
 
@@ -232,9 +235,9 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
   }
 
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
-      CreateHdrColorInfo(stream_info.color_metadata);
+      CreateExoPlayerColorInfo(stream_info.color_metadata);
 
-  return Java_ExoPlayerCodecUtil_createVideoMediaSource(
+  return Java_ExoPlayerManager_createVideoMediaSource(
       env, j_mime, width, height, framerate, bitrate, j_hdr_color_info);
 }
 

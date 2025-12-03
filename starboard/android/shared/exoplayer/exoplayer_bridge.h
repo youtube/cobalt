@@ -88,7 +88,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
 
-  std::atomic_bool player_is_destroying_;
+  std::atomic_bool player_is_releasing_;
   std::atomic_bool playback_error_occurred_;
   std::atomic_bool initialized_;
   std::atomic_bool seeking_;

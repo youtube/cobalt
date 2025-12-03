@@ -36,7 +36,11 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
+#pragma GCC diagnostic pop
 
 namespace starboard {
 namespace {
@@ -66,7 +70,7 @@ int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
     const SbMediaVideoStreamInfo& video_stream_info)
-    : player_is_destroying_(false),
+    : player_is_releasing_(false),
       playback_error_occurred_(false),
       initialized_(false),
       seeking_(false),
@@ -135,11 +139,10 @@ ExoPlayerBridge::ExoPlayerBridge(
 
 ExoPlayerBridge::~ExoPlayerBridge() {
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
-  player_is_destroying_.store(true);
+  player_is_releasing_.store(true);
 
   if (is_valid()) {
-    Java_ExoPlayerManager_destroyExoPlayerBridge(
-        AttachCurrentThread(), j_exoplayer_manager_, j_exoplayer_bridge_);
+    Java_ExoPlayerBridge_release(AttachCurrentThread(), j_exoplayer_bridge_);
   }
 
   if (owns_surface_) {
@@ -149,7 +152,7 @@ ExoPlayerBridge::~ExoPlayerBridge() {
 }
 
 void ExoPlayerBridge::OnSurfaceDestroyed() {
-  if (!player_is_destroying_.load()) {
+  if (!player_is_releasing_.load()) {
     std::string msg = "ExoPlayer surface is destroyed before playback ended";
     SB_LOG(ERROR) << msg;
     playback_error_occurred_.store(true);
