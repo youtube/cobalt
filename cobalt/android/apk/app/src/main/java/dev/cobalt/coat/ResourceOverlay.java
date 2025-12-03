@@ -24,6 +24,7 @@ import dev.cobalt.util.UsedByNative;
 public class ResourceOverlay {
   // To facilitate maintenance, these member names should match what is in the
   // resource XML file.
+<<<<<<< HEAD
   @SuppressWarnings("MemberName")
   @UsedByNative
   public final boolean supports_spherical_videos;
@@ -35,14 +36,39 @@ public class ResourceOverlay {
   @SuppressWarnings("MemberName")
   @UsedByNative
   public final int min_audio_sink_buffer_size_in_frames;
+=======
+  private final boolean mSupportsSphericalVideos;
+
+  private final int mMaxVideoBufferBudget;
+
+  private final int mMinAudioSinkBufferSizeInFrames;
+>>>>>>> e6bb4c927f7 (This is a fix for fixing all easy Java naming issues with pre-commits. (#8256))
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
-    this.supports_spherical_videos =
+    mSupportsSphericalVideos =
         context.getResources().getBoolean(R.bool.supports_spherical_videos);
-    this.max_video_buffer_budget =
+    mMaxVideoBufferBudget =
         context.getResources().getInteger(R.integer.max_video_buffer_budget);
-    this.min_audio_sink_buffer_size_in_frames =
+    mMinAudioSinkBufferSizeInFrames =
         context.getResources().getInteger(R.integer.min_audio_sink_buffer_size_in_frames);
   }
+<<<<<<< HEAD
+=======
+
+  @CalledByNative
+  public boolean getSupportsSphericalVideos() {
+    return mSupportsSphericalVideos;
+  }
+
+  @CalledByNative
+  public int getMaxVideoBufferBudget() {
+    return mMaxVideoBufferBudget;
+  }
+
+  @CalledByNative
+  public int getMinAudioSinkBufferSizeInFrames() {
+    return mMinAudioSinkBufferSizeInFrames;
+  }
+>>>>>>> e6bb4c927f7 (This is a fix for fixing all easy Java naming issues with pre-commits. (#8256))
 }

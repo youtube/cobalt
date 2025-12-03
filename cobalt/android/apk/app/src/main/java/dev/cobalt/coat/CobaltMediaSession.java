@@ -296,10 +296,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
     int state = PlaybackStateCompat.STATE_NONE;
     if (mMetadata != null) {
-      state =
-          (mIsPaused == true
-              ? PlaybackStateCompat.STATE_PAUSED
-              : PlaybackStateCompat.STATE_PLAYING);
+      state = mIsPaused ? PlaybackStateCompat.STATE_PAUSED : PlaybackStateCompat.STATE_PLAYING;
     }
 
     toggleKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);

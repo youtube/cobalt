@@ -392,21 +392,34 @@ public class AudioTrackBridge {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
+<<<<<<< HEAD
         audioTimestamp.framePosition &= 0x7FFFFFFF;
       } else {
         // Time stamps haven't been updated yet, assume playback hasn't started.
         audioTimestamp.framePosition = 0;
         audioTimestamp.nanoTime = System.nanoTime();
+=======
+        mAudioTimestamp.mFramePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
+        mAudioTimestamp.mNanoTime = mRawAudioTimestamp.nanoTime;
+      } else {
+        // Time stamps haven't been updated yet, assume playback hasn't started.
+        mAudioTimestamp.mFramePosition = 0;
+        mAudioTimestamp.mNanoTime = System.nanoTime();
+>>>>>>> e6bb4c927f7 (This is a fix for fixing all easy Java naming issues with pre-commits. (#8256))
       }
 
       if (audioTimestamp.framePosition > maxFramePositionSoFar) {
         maxFramePositionSoFar = audioTimestamp.framePosition;
       } else {
-        // The returned |audioTimestamp.framePosition| is not monotonically
+        // The returned |audioTimestamp.mFramePosition| is not monotonically
         // increasing, and a monotonically increastion frame position is
         // required to calculate the playback time correctly, because otherwise
         // we would be going back in time.
+<<<<<<< HEAD
         audioTimestamp.framePosition = maxFramePositionSoFar;
+=======
+        mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
+>>>>>>> e6bb4c927f7 (This is a fix for fixing all easy Java naming issues with pre-commits. (#8256))
       }
     }
 
@@ -432,6 +445,32 @@ public class AudioTrackBridge {
     return 0;
   }
 
+<<<<<<< HEAD
+=======
+  /** A wrapper of the android AudioTimestamp class to be used by JNI. */
+  private static class AudioTimestamp {
+    private long mFramePosition;
+    private long mNanoTime;
+
+    public AudioTimestamp(long framePosition, long nanoTime) {
+      mFramePosition = framePosition;
+      mNanoTime = nanoTime;
+    }
+
+
+
+    @CalledByNative("AudioTimestamp")
+    public long getFramePosition() {
+      return mFramePosition;
+    }
+
+    @CalledByNative("AudioTimestamp")
+    public long getNanoTime() {
+      return mNanoTime;
+    }
+  }
+
+>>>>>>> e6bb4c927f7 (This is a fix for fixing all easy Java naming issues with pre-commits. (#8256))
   @RequiresApi(31)
   private int getStartThresholdInFramesV31() {
     if (audioTrack == null) {

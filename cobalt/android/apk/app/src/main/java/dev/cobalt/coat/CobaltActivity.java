@@ -106,8 +106,13 @@ public abstract class CobaltActivity extends Activity {
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
+<<<<<<< HEAD
   private Boolean isKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector cobaltConnectivityDetector;
+=======
+  private Boolean mIsKeepScreenOnEnabled = false;
+  private CobaltConnectivityDetector mCobaltConnectivityDetector;
+>>>>>>> e6bb4c927f7 (This is a fix for fixing all easy Java naming issues with pre-commits. (#8256))
 
   private Boolean isMainFrameLoaded = false;
   private final Object lock = new Object();
@@ -468,7 +473,7 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -531,7 +536,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return cobaltConnectivityDetector;
+    return mCobaltConnectivityDetector;
   }
 
   @Override
@@ -606,7 +611,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    cobaltConnectivityDetector.activeNetworkCheck();
+    mCobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -617,8 +622,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (cobaltConnectivityDetector != null) {
-      cobaltConnectivityDetector.destroy();
+    if (mCobaltConnectivityDetector != null) {
+      mCobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
