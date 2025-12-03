@@ -148,19 +148,16 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
     case kSbMediaVideoCodecTheora:
       return false;  // No associated container in YT.
     case kSbMediaVideoCodecVc1:
-      if (mime_type.subtype() != "mp4") {
-        return false;
-      }
-      break;
     case kSbMediaVideoCodecAv1:
-#if !BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_IOS_TVOS)
+      if (mime_info.video_codec == kSbMediaVideoCodecAv1) {
+        return false;
+      }
+#endif
       if (mime_type.subtype() != "mp4") {
         return false;
       }
       break;
-#else
-      return false;
-#endif
     case kSbMediaVideoCodecVp8:
       if (mime_type.subtype() != "webm") {
         return false;
