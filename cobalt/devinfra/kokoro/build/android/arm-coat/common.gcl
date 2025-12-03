@@ -12,6 +12,10 @@ build = common.build {
       value = 'android-coat'
     },
     {
+      key = 'PACKAGE_PLATFORM_GCS_SUFFIX'
+      value = '-coat'
+    },
+    {
       key = 'GN_TARGET'
       value = 'cobalt/android:cobalt_apk'
     },
