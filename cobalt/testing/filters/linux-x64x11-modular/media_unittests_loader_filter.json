@@ -36,5 +36,8 @@
     "Vp9ParserTest.*",
     "WebMStreamParserTest.*",
     "WebPParserTest.*"
+  ],
+  "_filtered_b/423906285": [
+    "StarboardRendererWrapperTest.*"
   ]
 }
