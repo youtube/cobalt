@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
@@ -221,15 +222,15 @@ void H5vccExperiments::OnGetFeature(
   ongoing_requests_.erase(resolver);
   switch (feature_state) {
     case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      resolver->Resolve("DEFAULT");
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDEFAULT));
       return;
     case h5vcc_experiments::mojom::blink::OverrideState::
         OVERRIDE_ENABLE_FEATURE:
-      resolver->Resolve("ENABLED");
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kENABLED));
       return;
     case h5vcc_experiments::mojom::blink::OverrideState::
         OVERRIDE_DISABLE_FEATURE:
-      resolver->Resolve("DISABLED");
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDISABLED));
       return;
   }
   NOTREACHED() << "Invalid feature OverrideState for feature";
