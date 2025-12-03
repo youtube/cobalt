@@ -1,4 +1,4 @@
-'Automates the process of generating a code coverage baseline for Cobalt.'
+"Automates the process of generating a code coverage baseline for Cobalt."
 
 import argparse
 import glob
@@ -11,7 +11,7 @@ import sys
 from typing import Sequence
 
 
-class CoverageBaselineRunner:  # pylint: disable=R0917  # pylint: disable=R0917
+class CoverageBaselineRunner:
   """Automates generating a code coverage baseline for Cobalt."""
 
   def __init__(self,
@@ -81,8 +81,7 @@ class CoverageBaselineRunner:  # pylint: disable=R0917  # pylint: disable=R0917
         self.cobalt_src_root / 'third_party/llvm-build/Release+Asserts/bin')
     self.raw_lcov_dir = self.cobalt_src_root / f'out/lcov_raw_{self.platform}'
     self.merged_lcov_file = self.raw_lcov_dir / 'merged.lcov'
-    self.html_report_dir = (
-        self.cobalt_src_root / f'out/lcov_html_report_{self.platform}')
+    self.html_report_dir = self.cobalt_src_root / f'out/lcov_html_report_{self.platform}'
     base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
     platform_target_dir = self.platform
     if self.platform == 'android-x86':
@@ -193,7 +192,7 @@ class CoverageBaselineRunner:  # pylint: disable=R0917  # pylint: disable=R0917
       print(f'No test targets of type \'test\' found in '
             f'{self.test_targets_json}')  # pylint: disable=W1405
     else:
-      print(f'Found test targets: {', '.join(targets)}')
+      print(f'Found test targets: {", ".join(targets)}')
     return targets
 
   def run_coverage_for_target(self, test_name: str) -> bool:
@@ -225,8 +224,7 @@ class CoverageBaselineRunner:  # pylint: disable=R0917  # pylint: disable=R0917
         # Ensure failing_tests is a list
         if not isinstance(failing_tests, list):
           print(
-              f'WARNING: Failing tests filter for {test_name} is not a list. '
-              f'Skipping filter.',
+              f'WARNING: Failing tests filter for {test_name} is not a list. Skipping filter.',
               file=sys.stderr)
           failing_tests = []  # Reset to empty list to avoid errors
 
@@ -264,7 +262,7 @@ class CoverageBaselineRunner:  # pylint: disable=R0917  # pylint: disable=R0917
       if not lcov_file.exists():
         print(
             f'WARNING: coverage.lcov not found for {test_name} in '
-            f'{str(test_lcov_out_dir / "linux")}',
+            f'{test_lcov_out_dir / "linux"}',
             file=sys.stderr)
         return False
       return True
