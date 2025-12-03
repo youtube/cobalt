@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
@@ -112,11 +113,22 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     std::string_view initialization_data)
     : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
 
-int DrmSystem::SessionUpdateRequest::ReleaseTicket() {
-  SB_CHECK_NE(ticket_, kSbDrmTicketInvalid);
-  int ticket = ticket_;
-  ticket_ = kSbDrmTicketInvalid;
-  return ticket;
+int DrmSystem::SessionUpdateRequest::TakeTicket() {
+  // NOTE: The same SessionUpdateRequest can be used multiple times if the
+  // device requires multiple rounds of provisioning (See
+  // http://b/419320804#comment1).
+  //
+  // When TakeTicket() is called for the first time, it returns a valid
+  // ticket and sets 'ticket_' to `kSbDrmTicketInvalid`.
+  //
+  // Subsequent calls to TakeTicket() for the same request will return
+  // `kSbDrmTicketInvalid`. This is expected behavior and means that
+  // this is a "spontaneous" message for an existing session (i.e., a retry or
+  // deferred license request) rather than an initial request.
+  //
+  // See StarboardCdm's logic for "spontaneous" message:
+  // https://source.corp.google.com/h/github/youtube/cobalt/+/main:media/starboard/starboard_cdm.cc;l=336-345;drc=274beb9dd42dc6c7d7dd3ff9415a41e1393f0133
+  return std::exchange(ticket_, kSbDrmTicketInvalid);
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
@@ -358,7 +370,7 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
            "session update request.";
     eme_session_id = session_id_mapper_->CreateOrGetBridgeEmeSessionId();
     SB_CHECK(!eme_session_id.empty());
-    ticket = deferred_session_update_requests_.front()->ReleaseTicket();
+    ticket = deferred_session_update_requests_.front()->TakeTicket();
   }
 
   SB_LOG(INFO) << "Return provision request using pending ticket=" << ticket;
