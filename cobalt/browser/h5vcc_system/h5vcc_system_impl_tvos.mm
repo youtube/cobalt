@@ -12,9 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#import <AdSupport/AdSupport.h>
+#import <AppTrackingTransparency/ATTrackingManager.h>
+#import <AppTrackingTransparency/AppTrackingTransparency.h>
+#import <UIKit/UIKit.h>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notimplemented.h"
+#include "base/notreached.h"
+#include "base/strings/sys_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "starboard/system.h"
 
@@ -22,34 +31,45 @@ namespace h5vcc_system {
 
 namespace {
 
-std::string GetAdvertisingIdShared() {
-  std::string advertising_id;
-  NOTIMPLEMENTED();
-  return advertising_id;
+void GetAdvertisingIdShared(
+    H5vccSystemImpl::GetAdvertisingIdCallback callback) {
+  NSString* advertising_id =
+      [[ASIdentifierManager sharedManager].advertisingIdentifier UUIDString];
+  std::move(callback).Run(base::SysNSStringToUTF8(advertising_id));
 }
 
 bool GetLimitAdTrackingShared() {
-  bool limit_ad_tracking = false;
-  NOTIMPLEMENTED();
-  return limit_ad_tracking;
+  return [ATTrackingManager trackingAuthorizationStatus] !=
+         ATTrackingManagerAuthorizationStatusAuthorized;
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  NOTIMPLEMENTED();
-  return "NOT_SUPPORTED";
+  ATTrackingManagerAuthorizationStatus status =
+      [ATTrackingManager trackingAuthorizationStatus];
+  switch (status) {
+    case ATTrackingManagerAuthorizationStatusAuthorized:
+      return std::string("AUTHORIZED");
+    case ATTrackingManagerAuthorizationStatusDenied:
+      return std::string("DENIED");
+    case ATTrackingManagerAuthorizationStatusRestricted:
+      return std::string("RESTRICTED");
+    case ATTrackingManagerAuthorizationStatusNotDetermined:
+      return std::string("NOT_DETERMINED");
+  }
+  NOTREACHED();
 }
 
 }  // namespace
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run(GetAdvertisingIdShared());
+  GetAdvertisingIdShared(std::move(callback));
 }
 
 void H5vccSystemImpl::GetAdvertisingIdSync(
     GetAdvertisingIdSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run(GetAdvertisingIdShared());
+  GetAdvertisingIdShared(std::move(callback));
 }
 
 void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
@@ -78,9 +98,15 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO: b/458160672 - Need to implement on tvOS.
-  NOTIMPLEMENTED();
-  std::move(callback).Run();
+  auto completion = base::CallbackToBlock(base::BindPostTask(
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      base::IgnoreArgs<ATTrackingManagerAuthorizationStatus>(base::BindOnce(
+          [](RequestTrackingAuthorizationCallback callback) {
+            std::move(callback).Run();
+          },
+          std::move(callback)))));
+  [ATTrackingManager
+      requestTrackingAuthorizationWithCompletionHandler:completion];
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
@@ -89,9 +115,7 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
 }
 
 void H5vccSystemImpl::PerformExitStrategy() {
-  // TODO: b/447135715 - Implement application exit/suspend functionality for
-  // tvOS.
-  NOTIMPLEMENTED();
+  SbSystemRequestConceal();
 }
 
 }  // namespace h5vcc_system
