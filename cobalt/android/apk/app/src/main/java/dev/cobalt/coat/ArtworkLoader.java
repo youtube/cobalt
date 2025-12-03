@@ -36,8 +36,8 @@ public class ArtworkLoader {
   }
 
   @VisibleForTesting @NonNull volatile String mRequestedArtworkUrl = "";
-  @NonNull private volatile String mCurrentArtworkUrl = "";
-  private volatile Bitmap mCurrentArtwork = null;
+  @VisibleForTesting @NonNull volatile String mCurrentArtworkUrl = "";
+  @VisibleForTesting volatile Bitmap mCurrentArtwork = null;
 
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private final ArtworkDownloader mArtworkDownloader;

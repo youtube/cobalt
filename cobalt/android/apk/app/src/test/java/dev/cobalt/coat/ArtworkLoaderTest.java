@@ -116,4 +116,24 @@ public class ArtworkLoaderTest {
   public void testConsumeBitmapAndCropTo16x9_Null() {
       assertThat(mArtworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
   }
+
+  @Test
+  public void testOnDownloadFinished_replacesExistingArtworkAndRecyclesOld() {
+    String url = "http://example.com/image.png";
+    Bitmap oldBitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888);
+    Bitmap newBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+
+    // Simulate that an old bitmap is already loaded
+    mArtworkLoader.mCurrentArtwork = oldBitmap;
+    mArtworkLoader.mRequestedArtworkUrl = url;
+
+    mArtworkLoader.onDownloadFinished(Pair.create(url, newBitmap));
+
+    // Run the UI thread task that calls the callback
+    ShadowLooper.runUiThreadTasks();
+
+    verify(mMockCallback).onArtworkLoaded(eq(newBitmap));
+    assertThat(newBitmap.isRecycled()).isFalse();
+    assertThat(oldBitmap.isRecycled()).isTrue();
+  }
 }
