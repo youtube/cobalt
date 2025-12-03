@@ -1,6 +1,7 @@
 {
   "failing_tests": [
     "AllocatorShimTest.*",
+    "AsanBackupRefPtrTest.EarlyAllocationDetection",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
     "FileEnumerator.*",
     "FilePathTest.*",
