@@ -1562,28 +1562,6 @@ bool AC3SpecificBox::Parse(BoxReader* reader) {
 }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 
-#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
-AC4SpecificBox::AC4SpecificBox() {}
-
-AC4SpecificBox::AC4SpecificBox(const AC4SpecificBox& other) = default;
-
-AC4SpecificBox::~AC4SpecificBox() = default;
-
-FourCC AC4SpecificBox::BoxType() const {
-  return FOURCC_DAC4;
-}
-
-bool AC4SpecificBox::Parse(BoxReader* reader) {
-  // Read dac4 into buffer.
-  std::vector<uint8_t> ac4_data;
-
-  RCHECK(reader->ReadVec(&ac4_data, reader->box_size() - reader->pos()));
-  RCHECK(dac4.Parse(ac4_data, reader->media_log()));
-
-  return true;
-}
-#endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
-
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 enum IamfConfigObuType {
   // The following enum values are mapped to their respective Config OBU
@@ -1613,8 +1591,7 @@ bool IamfSpecificBox::Parse(BoxReader* reader) {
   uint32_t config_obus_size;
   RCHECK(ReadLeb128Value(reader, &config_obus_size));
 
-  base::span<const uint8_t> buffer =
-      reader->buffer().subspan(reader->pos(), config_obus_size);
+  base::span<const uint8_t> buffer(reader->buffer(), config_obus_size);
   ia_descriptors.assign(buffer.begin(), buffer.end());
 
   RCHECK(reader->SkipBytes(config_obus_size));
@@ -1779,14 +1756,6 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
                         "Failure parsing EC3SpecificBox (dec3)");
   }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
-
-#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
-  if (format == FOURCC_AC4 ||
-      (format == FOURCC_ENCA && sinf.format.format == FOURCC_AC4)) {
-    RCHECK_MEDIA_LOGGED(reader->ReadChild(&ac4), reader->media_log(),
-                        "Failure parsing AC4SpecificBox (dac4)");
-  }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
   if (format == FOURCC_IAMF ||

@@ -70,7 +70,6 @@ struct CodecInfo {
     HISTOGRAM_DTS,
     HISTOGRAM_DTSXP2,
     HISTOGRAM_DTSE,
-    HISTOGRAM_AC4,
     HISTOGRAM_IAMF,
     HISTOGRAM_MAX = HISTOGRAM_IAMF  // Must be equal to largest logged entry.
   };

@@ -202,8 +202,6 @@ AudioCodec MimeUtilToAudioCodec(MimeUtil::Codec codec) {
       return AudioCodec::kDTSXP2;
     case MimeUtil::DTSE:
       return AudioCodec::kDTSE;
-    case MimeUtil::AC4:
-      return AudioCodec::kAC4;
     case MimeUtil::IAMF:
       return AudioCodec::kIAMF;
     default:
@@ -719,7 +717,6 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
       return false;
 #endif
 
-    case AC4:
     case IAMF:
       return false;
   }
@@ -916,7 +913,7 @@ bool MimeUtil::ParseCodecHelper(base::StringPiece mime_type_lower_case,
 #endif
 
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  if (ParseIamfCodecId(codec_id.data(), nullptr, nullptr)) {
+  if (ParseIamfCodecId(std::string_view(codec_id.data()), nullptr, nullptr)) {
     out_result->codec = MimeUtil::IAMF;
     return true;
   }

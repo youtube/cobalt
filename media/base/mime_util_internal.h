@@ -53,7 +53,6 @@ class MEDIA_EXPORT MimeUtil {
     DTS,
     DTSXP2,
     DTSE,
-    AC4,
     IAMF,
     LAST_CODEC = IAMF
   };

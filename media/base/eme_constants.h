@@ -49,7 +49,6 @@ enum EmeCodec : uint32_t {
   EME_CODEC_DTS = 1 << 20,
   EME_CODEC_DTSXP2 = 1 << 21,
   EME_CODEC_DTSE = 1 << 22,
-  EME_CODEC_AC4 = 1 << 22,
   EME_CODEC_IAMF = 1 << 23,
 };
 

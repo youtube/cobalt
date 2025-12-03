@@ -137,10 +137,6 @@ static bool HasEac3Support() {
 #endif
 }
 
-static bool HasAc4Support() {
-  return false;
-}
-
 static bool HasIamfSupport() {
   // TODO (crbug.com/1517114): Enable once IAMF is supported on Android.
   return false;
@@ -606,10 +602,6 @@ TEST(IsCodecSupportedOnAndroidTest, EncryptedCodecBehavior) {
             EXPECT_EQ(BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO), result);
             break;
 
-          case MimeUtil::AC4:
-            EXPECT_EQ(HasAc4Support(), result);
-            break;
-
           case MimeUtil::IAMF:
             EXPECT_EQ(HasIamfSupport(), result);
             break;
@@ -679,10 +671,6 @@ TEST(IsCodecSupportedOnAndroidTest, ClearCodecBehavior) {
           case MimeUtil::DTSXP2:
           case MimeUtil::DTSE:
             EXPECT_EQ(BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO), result);
-            break;
-
-          case MimeUtil::AC4:
-            EXPECT_EQ(HasAc4Support(), result);
             break;
 
           case MimeUtil::IAMF:

@@ -39,7 +39,6 @@ enum class AudioCodec {
   kDTS = 18,
   kDTSXP2 = 19,
   kDTSE = 20,
-  kAC4 = 21,
   kIAMF = 22,
   // DO NOT ADD RANDOM AUDIO CODECS!
   //
@@ -68,12 +67,6 @@ std::string MEDIA_EXPORT GetProfileName(AudioCodecProfile profile);
 MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
                                       const AudioCodec& codec);
 MEDIA_EXPORT AudioCodec StringToAudioCodec(const std::string& codec_id);
-#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
-MEDIA_EXPORT bool ParseDolbyAc4CodecId(const std::string& codec_id,
-                                       uint8_t* bitstream_version,
-                                       uint8_t* presentation_version,
-                                       uint8_t* presentation_level);
-#endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 MEDIA_EXPORT bool ParseIamfCodecId(std::string_view codec_id,
                                    uint8_t* primary_profilec,
