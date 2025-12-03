@@ -218,15 +218,13 @@ void H5vccSystemImpl::Exit() {
   // and in platform-specific lifecycle handlers.
   auto* storage_partition = render_frame_host().GetStoragePartition();
   CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   CHECK(cookie_manager);
-  auto flush_cookies = base::BindOnce(
-      &network::mojom::CookieManager::FlushCookieStore,
-      base::Unretained(cookie_manager), base::BindOnce(&PerformExitStrategy));
   // Sequencing exit strategy after flushing delays performing exit strategy by
   // 20ms when tested on a chromecast.
-  LOG(INFO) << "Flushing Cookie and Local Storage at Exit()";
-  storage_partition->GetLocalStorageControl()->Flush(std::move(flush_cookies));
+  cookie_manager->FlushCookieStore(base::BindOnce(&PerformExitStrategy));
 }
 
 }  // namespace h5vcc_system

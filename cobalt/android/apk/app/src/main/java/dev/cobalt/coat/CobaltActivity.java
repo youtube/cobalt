@@ -60,7 +60,6 @@ import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
-import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
@@ -564,19 +563,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onPause() {
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      // Flush immediately since activity may stop before callback is called.
-      // Still need to flush after the window blur listener(s) are run since
-      // the web app may update local strorage and/or cookies in a blur event
-      // listener.
-      CobaltActivityJni.get().flushCookiesAndLocalStorage();
-      evaluateJavaScript(
-          "window.dispatchEvent(new Event('blur'));",
-          jsonResult -> {
-            CobaltActivityJni.get().flushCookiesAndLocalStorage();
-          });
-    }
+    CobaltActivityJni.get().dispatchBlur();
     super.onPause();
   }
 
@@ -612,7 +599,7 @@ public abstract class CobaltActivity extends Activity {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
-    evaluateJavaScript("window.dispatchEvent(new Event('focus'));");
+    CobaltActivityJni.get().dispatchFocus();
   }
 
   @Override
@@ -834,7 +821,7 @@ public abstract class CobaltActivity extends Activity {
     return timeInNanoseconds;
   }
 
-  public void evaluateJavaScript(String jsCode, @Nullable JavaScriptCallback callback) {
+  public void evaluateJavaScript(String jsCode) {
     // evaluateJavaScript must run on UI thread.
     runOnUiThread(
         new Runnable() {
@@ -842,14 +829,10 @@ public abstract class CobaltActivity extends Activity {
           public void run() {
             WebContents webContents = getAppWebContents();
             if (webContents != null) {
-              webContents.evaluateJavaScript(jsCode, callback);
+              webContents.evaluateJavaScript(jsCode, null);
             }
           }
         });
-  }
-
-  public void evaluateJavaScript(String jsCode) {
-    evaluateJavaScript(jsCode, null);
   }
 
   public void toggleKeepScreenOn(boolean keepOn) {
@@ -878,5 +861,9 @@ public abstract class CobaltActivity extends Activity {
   @NativeMethods
   interface Natives {
     void flushCookiesAndLocalStorage();
+
+    void dispatchBlur();
+
+    void dispatchFocus();
   }
 }
