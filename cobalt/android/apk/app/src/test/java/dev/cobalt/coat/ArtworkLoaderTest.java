@@ -26,7 +26,6 @@ import android.util.Pair;
 import java.util.Collections;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -56,98 +55,65 @@ public class ArtworkLoaderTest {
     verify(mMockDownloader, never()).downloadArtwork(any(), any());
   }
 
-  /*
-   * The following tests are ignored because they require MediaImage and GURL.
-   * GURL requires native library initialization which is difficult to set up in this environment,
-   * and MediaImage is a final class so it cannot be mocked easily.
-   */
-  @Ignore("Requires GURL native initialization")
   @Test
-  public void testGetOrLoadArtwork_RequestsDownload() {
-    // String url = "http://example.com/image.png";
-    // MediaImage mediaImage = createMediaImage(url, 1920, 1080);
-    // List<MediaImage> images = Collections.singletonList(mediaImage);
+  public void testOnDownloadFinished_Success() {
+    String url = "http://example.com/image.png";
+    // Pre-set the requested URL
+    mArtworkLoader.mRequestedArtworkUrl = url;
 
-    // Bitmap result = mArtworkLoader.getOrLoadArtwork(images);
+    Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    mArtworkLoader.onDownloadFinished(Pair.create(url, bitmap));
 
-    // assertThat(result).isNull();
-    // // Allow background thread to start
-    // try {
-    //     Thread.sleep(100);
-    // } catch (InterruptedException e) {
-    //     // ignore
-    // }
-    // verify(mMockDownloader).downloadArtwork(eq(url), eq(mArtworkLoader));
+    ShadowLooper.runUiThreadTasks();
+    verify(mMockCallback).onArtworkLoaded(eq(bitmap));
   }
 
-  @Ignore("Requires GURL native initialization")
   @Test
-  public void testGetOrLoadArtwork_AlreadyRequested() {
-    // ...
+  public void testOnDownloadFinished_WrongUrl() {
+    String requestedUrl = "http://example.com/image.png";
+    mArtworkLoader.mRequestedArtworkUrl = requestedUrl;
+
+    String wrongUrl = "http://example.com/other.png";
+    Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    mArtworkLoader.onDownloadFinished(Pair.create(wrongUrl, bitmap));
+
+    // Expected: The callback should not be invoked as the URL does not match the requested one.
+    // The downloaded bitmap should still be recycled to free up memory.
+    ShadowLooper.runUiThreadTasks();
+    verify(mMockCallback, never()).onArtworkLoaded(any());
+    assertThat(bitmap.isRecycled()).isTrue();
   }
 
-    @Test
-    public void testOnDownloadFinished_Success() {
-      String url = "http://example.com/image.png";
-      // Pre-set the requested URL
-      mArtworkLoader.mRequestedArtworkUrl = url;
-
-      Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-      mArtworkLoader.onDownloadFinished(Pair.create(url, bitmap));
-
-      ShadowLooper.runUiThreadTasks();
-      verify(mMockCallback).onArtworkLoaded(eq(bitmap));
-
-      // Check that it's now cached
-      // We can't use getOrLoadArtwork to verify cache because of GURL,
-      // but we can verify internal state via reflection if needed, or trust that onArtworkLoaded was called.
-      // Also we can check if it calls download again if we could call getOrLoadArtwork...
-    }
-
-    @Test
-    public void testOnDownloadFinished_WrongUrl() {
-      String requestedUrl = "http://example.com/image.png";
-      mArtworkLoader.mRequestedArtworkUrl = requestedUrl;
-
-      String wrongUrl = "http://example.com/other.png";
-      Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-      mArtworkLoader.onDownloadFinished(Pair.create(wrongUrl, bitmap));
-
-      ShadowLooper.runUiThreadTasks();
-      verify(mMockCallback, never()).onArtworkLoaded(any());
-      assertThat(bitmap.isRecycled()).isTrue();
-    }
-
-    @Test
-    public void testConsumeBitmapAndCropTo16x9_Exact16x9() {
-      Bitmap bitmap = Bitmap.createBitmap(160, 90, Bitmap.Config.ARGB_8888);
-      Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
-      assertThat(result).isEqualTo(bitmap);
-      assertThat(result.getWidth()).isEqualTo(160);
-      assertThat(result.getHeight()).isEqualTo(90);
-      assertThat(result.isRecycled()).isFalse();
-    }
-
-    @Test
-    public void testConsumeBitmapAndCropTo16x9_WiderThan16x9() {
-      Bitmap bitmap = Bitmap.createBitmap(200, 90, Bitmap.Config.ARGB_8888);
-      Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
-      assertThat(result).isEqualTo(bitmap);
-    }
-
-    @Test
-    public void testConsumeBitmapAndCropTo16x9_TallerThan16x9() {
-      Bitmap bitmap = Bitmap.createBitmap(160, 200, Bitmap.Config.ARGB_8888);
-      Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
-
-      assertThat(result).isNotEqualTo(bitmap);
-      assertThat(result.getWidth()).isEqualTo(160);
-      assertThat(result.getHeight()).isEqualTo(90);
-      assertThat(bitmap.isRecycled()).isTrue();
-    }
-
-    @Test
-    public void testConsumeBitmapAndCropTo16x9_Null() {
-        assertThat(mArtworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
-    }
+  @Test
+  public void testConsumeBitmapAndCropTo16x9_Exact16x9() {
+    Bitmap bitmap = Bitmap.createBitmap(160, 90, Bitmap.Config.ARGB_8888);
+    Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+    assertThat(result).isEqualTo(bitmap);
+    assertThat(result.getWidth()).isEqualTo(160);
+    assertThat(result.getHeight()).isEqualTo(90);
+    assertThat(result.isRecycled()).isFalse();
   }
+
+  @Test
+  public void testConsumeBitmapAndCropTo16x9_WiderThan16x9() {
+    Bitmap bitmap = Bitmap.createBitmap(200, 90, Bitmap.Config.ARGB_8888);
+    Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+    assertThat(result).isEqualTo(bitmap);
+  }
+
+  @Test
+  public void testConsumeBitmapAndCropTo16x9_TallerThan16x9() {
+    Bitmap bitmap = Bitmap.createBitmap(160, 200, Bitmap.Config.ARGB_8888);
+    Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+
+    assertThat(result).isNotEqualTo(bitmap);
+    assertThat(result.getWidth()).isEqualTo(160);
+    assertThat(result.getHeight()).isEqualTo(90);
+    assertThat(bitmap.isRecycled()).isTrue();
+  }
+
+  @Test
+  public void testConsumeBitmapAndCropTo16x9_Null() {
+      assertThat(mArtworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
+  }
+}
