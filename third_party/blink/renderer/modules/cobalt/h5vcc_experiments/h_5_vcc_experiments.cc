@@ -78,7 +78,7 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-ScriptPromise getFeature(
+ScriptPromise H5vccExperiments::getFeature(
     ScriptState* script_state,
     const String& feature_name,
     ExceptionState& exception_state) {
@@ -216,20 +216,20 @@ void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
 }
 
 void H5vccExperiments::OnGetFeature(
-    ScriptPromiseResolver<V8OverrideState>* resolver,
+    ScriptPromiseResolver* resolver,
     h5vcc_experiments::mojom::blink::OverrideState feature_state) {
   ongoing_requests_.erase(resolver);
   switch (feature_state) {
     case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDEFAULT));
+      resolver->Resolve("DEFAULT");
       return;
     case h5vcc_experiments::mojom::blink::OverrideState::
         OVERRIDE_ENABLE_FEATURE:
-      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kENABLED));
+      resolver->Resolve("ENABLED");
       return;
     case h5vcc_experiments::mojom::blink::OverrideState::
         OVERRIDE_DISABLE_FEATURE:
-      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDISABLED));
+      resolver->Resolve("DISABLED");
       return;
   }
   NOTREACHED() << "Invalid feature OverrideState for feature";

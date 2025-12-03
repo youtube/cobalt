@@ -71,7 +71,7 @@ class MODULES_EXPORT H5vccExperiments final
   void OnSetFinchParameters(ScriptPromiseResolver*);
   void OnSetLatestExperimentConfigHashData(ScriptPromiseResolver*);
   void OnResetExperimentState(ScriptPromiseResolver*);
-  void OnGetFeature(ScriptPromiseResolver<V8OverrideState>*, h5vcc_experiments::mojom::blink::OverrideState);
+  void OnGetFeature(ScriptPromiseResolver*, h5vcc_experiments::mojom::blink::OverrideState);
   void OnConnectionError();
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_experiments::mojom::blink::H5vccExperiments>
