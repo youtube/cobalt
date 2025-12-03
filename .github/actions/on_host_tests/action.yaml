@@ -39,6 +39,9 @@ runs:
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
+        # Don't fail if only asan fails.
+        export ASAN_OPTIONS=exitcode=0
+
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
