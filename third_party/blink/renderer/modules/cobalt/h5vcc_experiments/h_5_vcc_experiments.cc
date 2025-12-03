@@ -79,10 +79,9 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-ScriptPromise H5vccExperiments::getFeature(
-    ScriptState* script_state,
-    const String& feature_name,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccExperiments::getFeature(ScriptState* script_state,
+                                           const String& feature_name,
+                                           ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
