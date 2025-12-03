@@ -14,6 +14,8 @@
 
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 
+#include <memory>
+
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"

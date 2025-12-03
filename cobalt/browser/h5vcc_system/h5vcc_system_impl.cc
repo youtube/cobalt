@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 
+#include <string>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/notreached.h"
