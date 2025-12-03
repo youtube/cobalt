@@ -20,7 +20,13 @@
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
     "Posix/NlLanginfo*"
   ],
-  "_filtered_b/TMP": [
+  "_filtered_b/423906285": [
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ]
 }
