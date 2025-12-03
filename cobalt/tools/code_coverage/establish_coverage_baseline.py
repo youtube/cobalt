@@ -226,6 +226,13 @@ class CoverageBaselineRunner:
     test_lcov_out_dir.mkdir(parents=True, exist_ok=True)
 
     test_binary_path = self.coverage_build_dir / test_name
+    test_binary_path = self.coverage_build_dir / test_name
+    test_command_parts = [
+        str(test_binary_path),
+        '--coverage-tools-dir',
+        str(self.llvm_bin_dir),
+        '--format=lcov',
+    ]
     gtest_filter_arg = None
 
     # Apply test filters unless explicitly told to include skipped tests.
@@ -252,7 +259,10 @@ class CoverageBaselineRunner:
 
         if failing_tests:
           gtest_filter_arg = '--gtest_filter=-' + ':'.join(failing_tests)
+          test_command_parts.append(gtest_filter_arg)
           print(f'Constructed gtest filter: {gtest_filter_arg}')
+
+    full_test_command_arg = ' '.join(test_command_parts)
 
     cmd = [
         'time',
@@ -265,13 +275,8 @@ class CoverageBaselineRunner:
         '-o',
         str(test_lcov_out_dir),
         '-c',
-        str(test_binary_path),
-        '--coverage-tools-dir',
-        str(self.llvm_bin_dir),
-        '--format=lcov',
+        full_test_command_arg,
     ]
-    if gtest_filter_arg:
-      cmd.append(gtest_filter_arg)
 
     print('Coverage.py command: ' + ' '.join(cmd), flush=True)
     try:
@@ -280,7 +285,7 @@ class CoverageBaselineRunner:
       if not lcov_file.exists():
         print(
             f'WARNING: coverage.lcov not found for {test_name} in '
-            'test_lcov_out_dir / ' + 'linux',
+            f'{test_lcov_out_dir / "linux"}',
             file=sys.stderr)
         return False
       return True
