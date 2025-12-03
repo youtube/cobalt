@@ -579,7 +579,12 @@ void TestSuite::Initialize() {
   InitStarboardTestMessageLoop();
 #endif
 
+// Hermetic builds rely on the signal handlers installed by the platform under
+// Starboard. We don't want these overridden by base::debug's signal handlers.
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   CHECK(debug::EnableInProcessStackDumping());
+#endif
+
 #if BUILDFLAG(IS_WIN)
   RouteStdioToConsole(true);
   // Make sure we run with high resolution timer to minimize differences
