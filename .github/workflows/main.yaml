@@ -37,6 +37,9 @@ jobs:
     env:
       # Tell gclient not to automatically update depot tools every time it runs.
       DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
@@ -504,6 +507,10 @@ jobs:
       volumes:
         - /runner-cache:/runner-cache
     env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
