@@ -349,10 +349,9 @@ jobs:
         shell: bash
 
       - name: Checkout on Failure
+        # TODO(bug?): android debug builds are broken.
         if: ${{ steps.setup_depot_tools.outcome == 'failure' && ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         uses: actions/checkout@v4
-        # TODO(bug?): android debug builds are broken.
-        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: cobalt/src
           # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
