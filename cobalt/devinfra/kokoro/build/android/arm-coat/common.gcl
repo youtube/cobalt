@@ -12,10 +12,6 @@ build = common.build {
       value = 'android-coat'
     },
     {
-      key = 'EXTRA_GN_ARGUMENTS'
-      value = ''
-    },
-    {
       key = 'GN_TARGET'
       value = 'cobalt/android:cobalt_apk'
     },

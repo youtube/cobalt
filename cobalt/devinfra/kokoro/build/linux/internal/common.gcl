@@ -8,10 +8,6 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
-      key = 'EXTRA_GN_ARGUMENTS'
-      value = 'is_internal_build=true'
-    },
-    {
       key = 'PACKAGE_PLATFORM'
       value = 'linux'
     },

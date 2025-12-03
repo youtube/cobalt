@@ -28,14 +28,6 @@ build = common.build {
       value = 'cobalt-build-android-arm'
     },
     {
-      key = 'TARGET_CPU'
-      value = 'target_cpu=\"arm\"'
-    },
-    {
-      key = 'TARGET_OS'
-      value = 'target_os=\"android\"'
-    },
-    {
       key = 'TARGET_PLATFORM'
       value = 'android-arm'
     },

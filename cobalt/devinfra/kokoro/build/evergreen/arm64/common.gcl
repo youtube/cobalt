@@ -12,10 +12,6 @@ build = common.build {
       value = 'evergreen-arm64'
     },
     {
-      key = 'EXTRA_GN_ARGUMENTS'
-      value = 'use_asan=false is_internal_build=true'
-    },
-    {
       key = 'GN_TARGET'
       value = 'cobalt copy_cobalt_lib'
     },
