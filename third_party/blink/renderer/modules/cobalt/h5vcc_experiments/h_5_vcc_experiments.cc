@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
