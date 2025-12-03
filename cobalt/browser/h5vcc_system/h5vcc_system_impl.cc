@@ -18,10 +18,7 @@
 #include "base/functional/callback.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
-<<<<<<< HEAD
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
-=======
->>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 
@@ -117,13 +114,6 @@ void PerformExitStrategy() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->RequestSuspend(env);
-<<<<<<< HEAD
-=======
-#elif BUILDFLAG(IS_IOS_TVOS)
-  // TODO: b/447135715 - Implement application exit/suspend functionality for
-  // tvOS.
-  NOTIMPLEMENTED();
->>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 #else
 #error "Unsupported platform."
 #endif
@@ -228,17 +218,6 @@ void H5vccSystemImpl::Exit() {
   // and in platform-specific lifecycle handlers.
   auto* storage_partition = render_frame_host().GetStoragePartition();
   CHECK(storage_partition);
-<<<<<<< HEAD
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
-  auto flush_cookies = base::BindOnce(
-      &network::mojom::CookieManager::FlushCookieStore,
-      base::Unretained(cookie_manager), base::BindOnce(&PerformExitStrategy));
-  // Sequencing exit strategy after flushing delays performing exit strategy by
-  // 20ms when tested on a chromecast.
-  LOG(INFO) << "Flushing Cookie and Local Storage at Exit()";
-  storage_partition->GetLocalStorageControl()->Flush(std::move(flush_cookies));
-=======
   // Flushes localStorage.
   storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
@@ -246,7 +225,6 @@ void H5vccSystemImpl::Exit() {
   // Sequencing exit strategy after flushing delays performing exit strategy by
   // 20ms when tested on a chromecast.
   cookie_manager->FlushCookieStore(base::BindOnce(&PerformExitStrategy));
->>>>>>> 55f38547c56 (Reland: flush on pause (#8130))
 }
 
 }  // namespace h5vcc_system
