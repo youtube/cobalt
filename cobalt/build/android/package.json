@@ -5,6 +5,7 @@
                 "apks/Cobalt.apk",
                 "cobalt_shell.pak",
                 "gen/build_info.json",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/base/natives/GEN_JNI.java",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
@@ -14,7 +15,156 @@
                 "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar",
-                "lib.java/third_party/android_deps/utils/java.jar"
+                "lib.java/base/android/jni_generator/jni_processor.jar",
+                "lib.java/base/base_java.jar",
+                "lib.java/base/jni_java.jar",
+                "lib.java/base/process_launcher_java.jar",
+                "lib.java/build/android/build_java.jar",
+                "lib.java/build/android/gtest_apk/native_test_instrumentation_test_runner_java.jar",
+                "lib.java/cc/mojom/mojom_java.jar",
+                "lib.java/chromium_commands.dex.jar",
+                "lib.java/cobalt/android/cobalt_main_java.jar",
+                "lib.java/cobalt/browser/crash_annotator/public/mojom/mojom_java.jar",
+                "lib.java/cobalt/browser/performance/public/mojom/mojom_java.jar",
+                "lib.java/cobalt/shell/android/cobalt_shell_java.jar",
+                "lib.java/components/aggregation_service/mojom_java.jar",
+                "lib.java/components/attribution_reporting/mojom_java.jar",
+                "lib.java/components/attribution_reporting/registration_mojom_java.jar",
+                "lib.java/components/content_settings/core/common/mojo_bindings_java.jar",
+                "lib.java/components/digital_goods/mojom/mojom_java.jar",
+                "lib.java/components/download/internal/common/internal_java.jar",
+                "lib.java/components/download/public/common/public_java.jar",
+                "lib.java/components/location/android/location_java.jar",
+                "lib.java/components/payments/mojom/mojom_java.jar",
+                "lib.java/components/schema_org/common/mojom_java.jar",
+                "lib.java/components/services/filesystem/public/mojom/mojom_java.jar",
+                "lib.java/components/url_formatter/android/url_formatter_java.jar",
+                "lib.java/components/variations/android/variations_java.jar",
+                "lib.java/components/variations/proto/proto_java.jar",
+                "lib.java/components/variations/variations_java.jar",
+                "lib.java/components/version_info/android/version_constants_java.jar",
+                "lib.java/components/viz/service/service_java.jar",
+                "lib.java/content/public/android/content_full_java.jar",
+                "lib.java/content/public/android/content_main_dex_java.jar",
+                "lib.java/content/public/common/common_java.jar",
+                "lib.java/device/bluetooth/java.jar",
+                "lib.java/device/gamepad/java.jar",
+                "lib.java/gpu/ipc/common/gpu_preferences_interface_java.jar",
+                "lib.java/gpu/ipc/common/interfaces_java.jar",
+                "lib.java/gpu/ipc/common/vulkan_interface_java.jar",
+                "lib.java/media/base/android/display_java.jar",
+                "lib.java/media/base/android/media_java.jar",
+                "lib.java/media/capture/content/android/screen_capture_java.jar",
+                "lib.java/media/capture/mojom/video_capture_buffer_java.jar",
+                "lib.java/media/capture/mojom/video_capture_java.jar",
+                "lib.java/media/capture/mojom/video_capture_types_java.jar",
+                "lib.java/media/capture/video/android/capture_java.jar",
+                "lib.java/media/learning/mojo/public/mojom/mojom_java.jar",
+                "lib.java/media/midi/midi_java.jar",
+                "lib.java/media/mojo/mojom/audio_data_java.jar",
+                "lib.java/media/mojo/mojom/encryption_pattern_java.jar",
+                "lib.java/media/mojo/mojom/mojom_java.jar",
+                "lib.java/media/mojo/mojom/stable/native_pixmap_handle_java.jar",
+                "lib.java/media/mojo/mojom/stable/stable_video_decoder_java.jar",
+                "lib.java/mojo/public/java/base_java.jar",
+                "lib.java/mojo/public/java/bindings_java.jar",
+                "lib.java/mojo/public/java/system_java.jar",
+                "lib.java/mojo/public/java/system/system_impl_java.jar",
+                "lib.java/mojo/public/mojom/base/base_java.jar",
+                "lib.java/net/android/net_java.jar",
+                "lib.java/net/android/net_thread_stats_uid_java.jar",
+                "lib.java/sandbox/policy/mojom/mojom_java.jar",
+                "lib.java/services/device/battery/android/battery_monitor_java.jar",
+                "lib.java/services/device/generic_sensor/java.jar",
+                "lib.java/services/device/java.jar",
+                "lib.java/services/device/nfc/android/java.jar",
+                "lib.java/services/device/public/java/device_feature_list_java.jar",
+                "lib.java/services/device/public/java/geolocation_java.jar",
+                "lib.java/services/device/public/java/nfc_java.jar",
+                "lib.java/services/device/public/mojom/generic_sensor_java.jar",
+                "lib.java/services/device/public/mojom/mojom_java.jar",
+                "lib.java/services/device/public/mojom/usb_java.jar",
+                "lib.java/services/device/screen_orientation/java.jar",
+                "lib.java/services/device/time_zone_monitor/java.jar",
+                "lib.java/services/device/usb/java.jar",
+                "lib.java/services/device/vibration/android/vibration_manager_java.jar",
+                "lib.java/services/device/wake_lock/power_save_blocker/java.jar",
+                "lib.java/services/media_session/public/cpp/android/media_session_java.jar",
+                "lib.java/services/media_session/public/mojom/mojom_java.jar",
+                "lib.java/services/network/public/mojom/cookies_mojom_java.jar",
+                "lib.java/services/network/public/mojom/mojom_attribution_java.jar",
+                "lib.java/services/network/public/mojom/mojom_first_party_sets_java.jar",
+                "lib.java/services/network/public/mojom/mojom_host_resolver_java.jar",
+                "lib.java/services/network/public/mojom/mojom_ip_address_java.jar",
+                "lib.java/services/network/public/mojom/mojom_java.jar",
+                "lib.java/services/network/public/mojom/mojom_network_anonymization_key_java.jar",
+                "lib.java/services/network/public/mojom/mojom_network_isolation_key_java.jar",
+                "lib.java/services/network/public/mojom/mojom_network_param_java.jar",
+                "lib.java/services/network/public/mojom/mojom_proxy_config_java.jar",
+                "lib.java/services/network/public/mojom/mojom_schemeful_site_java.jar",
+                "lib.java/services/network/public/mojom/mojom_structured_headers_java.jar",
+                "lib.java/services/network/public/mojom/url_loader_base_java.jar",
+                "lib.java/services/network/public/mojom/websocket_mojom_java.jar",
+                "lib.java/services/proxy_resolver/public/mojom/mojom_java.jar",
+                "lib.java/services/service_manager/public/java/service_manager_java.jar",
+                "lib.java/services/service_manager/public/mojom/constants_java.jar",
+                "lib.java/services/service_manager/public/mojom/mojom_java.jar",
+                "lib.java/services/shape_detection/public/mojom/mojom_java.jar",
+                "lib.java/services/viz/public/mojom/mojom_java.jar",
+                "lib.java/services/viz/public/mojom/resource_format_java.jar",
+                "lib.java/services/viz/public/mojom/shared_image_format_java.jar",
+                "lib.java/skia/public/mojom/mojom_java.jar",
+                "lib.java/testing/android/reporter/reporter_java.jar",
+                "lib.java/third_party/android_deps/utils/java.jar",
+                "lib.java/third_party/android_provider/android_provider_java.jar",
+                "lib.java/third_party/androidx/androidx_appcompat_appcompat_resources_java.jar",
+                "lib.java/third_party/androidx/androidx_core_core_java.jar",
+                "lib.java/third_party/blink/public/blink_headers_java.jar",
+                "lib.java/third_party/blink/public/common/common_java.jar",
+                "lib.java/third_party/blink/public/mojom/android_mojo_bindings_java.jar",
+                "lib.java/third_party/blink/public/mojom/authenticator_test_mojo_bindings_java.jar",
+                "lib.java/third_party/blink/public/mojom/color_scheme_mojo_bindings_java.jar",
+                "lib.java/third_party/blink/public/mojom/gpu/gpu_java.jar",
+                "lib.java/third_party/blink/public/mojom/mojom_core_java.jar",
+                "lib.java/third_party/blink/public/mojom/mojom_mhtml_load_result_java.jar",
+                "lib.java/third_party/blink/public/mojom/mojom_platform_java.jar",
+                "lib.java/third_party/blink/public/mojom/quota/quota_java.jar",
+                "lib.java/third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state_java.jar",
+                "lib.java/third_party/blink/public/mojom/script_type_mojo_bindings_java.jar",
+                "lib.java/third_party/blink/public/mojom/service_worker/storage_java.jar",
+                "lib.java/third_party/blink/public/mojom/storage_key/storage_key_java.jar",
+                "lib.java/third_party/blink/public/mojom/tokens/tokens_java.jar",
+                "lib.java/third_party/blink/public/mojom/usb/usb_java.jar",
+                "lib.java/third_party/blink/public/mojom/web_feature_mojo_bindings_java.jar",
+                "lib.java/third_party/hamcrest/hamcrest_core_java.jar",
+                "lib.java/third_party/hamcrest/hamcrest_library_java.jar",
+                "lib.java/third_party/kotlin_stdlib/kotlin_stdlib_java.jar",
+                "lib.java/ui/accessibility/ax_base_java.jar",
+                "lib.java/ui/accessibility/ax_constants_mojo_java.jar",
+                "lib.java/ui/accessibility/ax_enums_mojo_java.jar",
+                "lib.java/ui/accessibility/mojom/mojom_java.jar",
+                "lib.java/ui/android/ui_android_features_java.jar",
+                "lib.java/ui/android/ui_no_recycler_view_java.jar",
+                "lib.java/ui/android/ui_utils_java.jar",
+                "lib.java/ui/base/cursor/mojom/cursor_type_java.jar",
+                "lib.java/ui/base/cursor/mojom/mojom_java.jar",
+                "lib.java/ui/base/dragdrop/mojom/mojom_java.jar",
+                "lib.java/ui/base/ime/mojom/mojom_java.jar",
+                "lib.java/ui/base/mojom/mojom_java.jar",
+                "lib.java/ui/display/mojom/mojom_java.jar",
+                "lib.java/ui/events/mojom/event_latency_metadata_mojom_java.jar",
+                "lib.java/ui/events/mojom/mojom_java.jar",
+                "lib.java/ui/gfx/geometry/mojom/mojom_java.jar",
+                "lib.java/ui/gfx/mojom/mojom_java.jar",
+                "lib.java/ui/gfx/mojom/native_handle_types_java.jar",
+                "lib.java/ui/gfx/range/mojom/mojom_java.jar",
+                "lib.java/ui/gl/mojom/mojom_java.jar",
+                "lib.java/ui/latency/mojom/mojom_java.jar",
+                "lib.java/url/gurl_java.jar",
+                "lib.java/url/mojom/url_mojom_gurl_java.jar",
+                "lib.java/url/mojom/url_mojom_origin_java.jar",
+                "lib.java/url/mojom/url_mojom_scheme_host_port_java.jar",
+                "lib.java/url/origin_java.jar"
             ],
             "rename_files": [
                 {
@@ -24,6 +174,10 @@
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/base/natives/GEN_JNI.java",
+                    "to_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/jni_zero/GEN_JNI.java"
                 },
                 {
                     "from_file": "gen/licenses_cobalt.spdx",
@@ -36,6 +190,614 @@
                 {
                     "from_file": "lib.unstripped/libchrobalt.so",
                     "to_file": "symbol/libchrobalt.so"
+                },
+                {
+                    "from_file": "obj/components/metrics/metrics_java.javac.jar",
+                    "to_file": "jar/metrics_java.javac.jar"
+                },
+                {
+                    "from_file": "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar",
+                    "to_file": "jar/chromium_play_services_availability_java.javac.jar"
+                },
+                {
+                    "from_file": "lib.java/base/android/jni_generator/jni_processor.jar",
+                    "to_file": "jar/base_android_jni_generator_jni_processor.jar"
+                },
+                {
+                    "from_file": "lib.java/base/base_java.jar",
+                    "to_file": "jar/base_base_java.jar"
+                },
+                {
+                    "from_file": "lib.java/base/jni_java.jar",
+                    "to_file": "jar/base_jni_java.jar"
+                },
+                {
+                    "from_file": "lib.java/base/process_launcher_java.jar",
+                    "to_file": "jar/base_process_launcher_java.jar"
+                },
+                {
+                    "from_file": "lib.java/build/android/build_java.jar",
+                    "to_file": "jar/build_android_build_java.jar"
+                },
+                {
+                    "from_file": "lib.java/build/android/gtest_apk/native_test_instrumentation_test_runner_java.jar",
+                    "to_file": "jar/build_android_gtest_apk_native_test_instrumentation_test_runner_java.jar"
+                },
+                {
+                    "from_file": "lib.java/cc/mojom/mojom_java.jar",
+                    "to_file": "jar/cc_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/chromium_commands.dex.jar",
+                    "to_file": "jar/chromium_commands.dex.jar"
+                },
+                {
+                    "from_file": "lib.java/cobalt/android/cobalt_main_java.jar",
+                    "to_file": "jar/cobalt_android_cobalt_main_java.jar"
+                },
+                {
+                    "from_file": "lib.java/cobalt/browser/crash_annotator/public/mojom/mojom_java.jar",
+                    "to_file": "jar/cobalt_browser_crash_annotator_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/cobalt/browser/performance/public/mojom/mojom_java.jar",
+                    "to_file": "jar/cobalt_browser_performance_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/cobalt/shell/android/cobalt_shell_java.jar",
+                    "to_file": "jar/cobalt_shell_android_cobalt_shell_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/aggregation_service/mojom_java.jar",
+                    "to_file": "jar/components_aggregation_service_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/attribution_reporting/mojom_java.jar",
+                    "to_file": "jar/components_attribution_reporting_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/attribution_reporting/registration_mojom_java.jar",
+                    "to_file": "jar/components_attribution_reporting_registration_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/content_settings/core/common/mojo_bindings_java.jar",
+                    "to_file": "jar/components_content_settings_core_common_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/digital_goods/mojom/mojom_java.jar",
+                    "to_file": "jar/components_digital_goods_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/download/internal/common/internal_java.jar",
+                    "to_file": "jar/components_download_internal_common_internal_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/download/public/common/public_java.jar",
+                    "to_file": "jar/components_download_public_common_public_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/location/android/location_java.jar",
+                    "to_file": "jar/components_location_android_location_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/payments/mojom/mojom_java.jar",
+                    "to_file": "jar/components_payments_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/schema_org/common/mojom_java.jar",
+                    "to_file": "jar/components_schema_org_common_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/services/filesystem/public/mojom/mojom_java.jar",
+                    "to_file": "jar/components_services_filesystem_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/url_formatter/android/url_formatter_java.jar",
+                    "to_file": "jar/components_url_formatter_android_url_formatter_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/variations/android/variations_java.jar",
+                    "to_file": "jar/components_variations_android_variations_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/variations/proto/proto_java.jar",
+                    "to_file": "jar/components_variations_proto_proto_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/variations/variations_java.jar",
+                    "to_file": "jar/components_variations_variations_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/version_info/android/version_constants_java.jar",
+                    "to_file": "jar/components_version_info_android_version_constants_java.jar"
+                },
+                {
+                    "from_file": "lib.java/components/viz/service/service_java.jar",
+                    "to_file": "jar/components_viz_service_service_java.jar"
+                },
+                {
+                    "from_file": "lib.java/content/public/android/content_full_java.jar",
+                    "to_file": "jar/content_public_android_content_full_java.jar"
+                },
+                {
+                    "from_file": "lib.java/content/public/android/content_main_dex_java.jar",
+                    "to_file": "jar/content_public_android_content_main_dex_java.jar"
+                },
+                {
+                    "from_file": "lib.java/content/public/common/common_java.jar",
+                    "to_file": "jar/content_public_common_common_java.jar"
+                },
+                {
+                    "from_file": "lib.java/device/bluetooth/java.jar",
+                    "to_file": "jar/device_bluetooth_java.jar"
+                },
+                {
+                    "from_file": "lib.java/device/gamepad/java.jar",
+                    "to_file": "jar/device_gamepad_java.jar"
+                },
+                {
+                    "from_file": "lib.java/gpu/ipc/common/gpu_preferences_interface_java.jar",
+                    "to_file": "jar/gpu_ipc_common_gpu_preferences_interface_java.jar"
+                },
+                {
+                    "from_file": "lib.java/gpu/ipc/common/interfaces_java.jar",
+                    "to_file": "jar/gpu_ipc_common_interfaces_java.jar"
+                },
+                {
+                    "from_file": "lib.java/gpu/ipc/common/vulkan_interface_java.jar",
+                    "to_file": "jar/gpu_ipc_common_vulkan_interface_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/base/android/display_java.jar",
+                    "to_file": "jar/media_base_android_display_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/base/android/media_java.jar",
+                    "to_file": "jar/media_base_android_media_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/capture/content/android/screen_capture_java.jar",
+                    "to_file": "jar/media_capture_content_android_screen_capture_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/capture/mojom/video_capture_buffer_java.jar",
+                    "to_file": "jar/media_capture_mojom_video_capture_buffer_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/capture/mojom/video_capture_java.jar",
+                    "to_file": "jar/media_capture_mojom_video_capture_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/capture/mojom/video_capture_types_java.jar",
+                    "to_file": "jar/media_capture_mojom_video_capture_types_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/capture/video/android/capture_java.jar",
+                    "to_file": "jar/media_capture_video_android_capture_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/learning/mojo/public/mojom/mojom_java.jar",
+                    "to_file": "jar/media_learning_mojo_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/midi/midi_java.jar",
+                    "to_file": "jar/media_midi_midi_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/mojo/mojom/audio_data_java.jar",
+                    "to_file": "jar/media_mojo_mojom_audio_data_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/mojo/mojom/encryption_pattern_java.jar",
+                    "to_file": "jar/media_mojo_mojom_encryption_pattern_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/mojo/mojom/mojom_java.jar",
+                    "to_file": "jar/media_mojo_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/mojo/mojom/stable/native_pixmap_handle_java.jar",
+                    "to_file": "jar/media_mojo_mojom_stable_native_pixmap_handle_java.jar"
+                },
+                {
+                    "from_file": "lib.java/media/mojo/mojom/stable/stable_video_decoder_java.jar",
+                    "to_file": "jar/media_mojo_mojom_stable_stable_video_decoder_java.jar"
+                },
+                {
+                    "from_file": "lib.java/mojo/public/java/base_java.jar",
+                    "to_file": "jar/mojo_public_java_base_java.jar"
+                },
+                {
+                    "from_file": "lib.java/mojo/public/java/bindings_java.jar",
+                    "to_file": "jar/mojo_public_java_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/mojo/public/java/system_java.jar",
+                    "to_file": "jar/mojo_public_java_system_java.jar"
+                },
+                {
+                    "from_file": "lib.java/mojo/public/java/system/system_impl_java.jar",
+                    "to_file": "jar/mojo_public_java_system_system_impl_java.jar"
+                },
+                {
+                    "from_file": "lib.java/mojo/public/mojom/base/base_java.jar",
+                    "to_file": "jar/mojo_public_mojom_base_base_java.jar"
+                },
+                {
+                    "from_file": "lib.java/net/android/net_java.jar",
+                    "to_file": "jar/net_android_net_java.jar"
+                },
+                {
+                    "from_file": "lib.java/net/android/net_thread_stats_uid_java.jar",
+                    "to_file": "jar/net_android_net_thread_stats_uid_java.jar"
+                },
+                {
+                    "from_file": "lib.java/sandbox/policy/mojom/mojom_java.jar",
+                    "to_file": "jar/sandbox_policy_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/battery/android/battery_monitor_java.jar",
+                    "to_file": "jar/services_device_battery_android_battery_monitor_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/generic_sensor/java.jar",
+                    "to_file": "jar/services_device_generic_sensor_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/java.jar",
+                    "to_file": "jar/services_device_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/nfc/android/java.jar",
+                    "to_file": "jar/services_device_nfc_android_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/public/java/device_feature_list_java.jar",
+                    "to_file": "jar/services_device_public_java_device_feature_list_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/public/java/geolocation_java.jar",
+                    "to_file": "jar/services_device_public_java_geolocation_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/public/java/nfc_java.jar",
+                    "to_file": "jar/services_device_public_java_nfc_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/public/mojom/generic_sensor_java.jar",
+                    "to_file": "jar/services_device_public_mojom_generic_sensor_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_device_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/public/mojom/usb_java.jar",
+                    "to_file": "jar/services_device_public_mojom_usb_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/screen_orientation/java.jar",
+                    "to_file": "jar/services_device_screen_orientation_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/time_zone_monitor/java.jar",
+                    "to_file": "jar/services_device_time_zone_monitor_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/usb/java.jar",
+                    "to_file": "jar/services_device_usb_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/vibration/android/vibration_manager_java.jar",
+                    "to_file": "jar/services_device_vibration_android_vibration_manager_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/device/wake_lock/power_save_blocker/java.jar",
+                    "to_file": "jar/services_device_wake_lock_power_save_blocker_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/media_session/public/cpp/android/media_session_java.jar",
+                    "to_file": "jar/services_media_session_public_cpp_android_media_session_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/media_session/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_media_session_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/cookies_mojom_java.jar",
+                    "to_file": "jar/services_network_public_mojom_cookies_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_attribution_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_attribution_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_first_party_sets_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_first_party_sets_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_host_resolver_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_host_resolver_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_ip_address_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_ip_address_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_network_anonymization_key_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_network_anonymization_key_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_network_isolation_key_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_network_isolation_key_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_network_param_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_network_param_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_proxy_config_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_proxy_config_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_schemeful_site_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_schemeful_site_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/mojom_structured_headers_java.jar",
+                    "to_file": "jar/services_network_public_mojom_mojom_structured_headers_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/url_loader_base_java.jar",
+                    "to_file": "jar/services_network_public_mojom_url_loader_base_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/network/public/mojom/websocket_mojom_java.jar",
+                    "to_file": "jar/services_network_public_mojom_websocket_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/proxy_resolver/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_proxy_resolver_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/service_manager/public/java/service_manager_java.jar",
+                    "to_file": "jar/services_service_manager_public_java_service_manager_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/service_manager/public/mojom/constants_java.jar",
+                    "to_file": "jar/services_service_manager_public_mojom_constants_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/service_manager/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_service_manager_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/shape_detection/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_shape_detection_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/viz/public/mojom/mojom_java.jar",
+                    "to_file": "jar/services_viz_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/viz/public/mojom/resource_format_java.jar",
+                    "to_file": "jar/services_viz_public_mojom_resource_format_java.jar"
+                },
+                {
+                    "from_file": "lib.java/services/viz/public/mojom/shared_image_format_java.jar",
+                    "to_file": "jar/services_viz_public_mojom_shared_image_format_java.jar"
+                },
+                {
+                    "from_file": "lib.java/skia/public/mojom/mojom_java.jar",
+                    "to_file": "jar/skia_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/testing/android/reporter/reporter_java.jar",
+                    "to_file": "jar/testing_android_reporter_reporter_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/android_deps/utils/java.jar",
+                    "to_file": "jar/android_deps_utils_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/android_provider/android_provider_java.jar",
+                    "to_file": "jar/third_party_android_provider_android_provider_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/androidx/androidx_appcompat_appcompat_resources_java.jar",
+                    "to_file": "jar/androidx_appcompat_appcompat_resources_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/androidx/androidx_core_core_java.jar",
+                    "to_file": "jar/androidx_core_core_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/blink_headers_java.jar",
+                    "to_file": "jar/third_party_blink_public_blink_headers_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/common/common_java.jar",
+                    "to_file": "jar/third_party_blink_public_common_common_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/android_mojo_bindings_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_android_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/authenticator_test_mojo_bindings_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_authenticator_test_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/color_scheme_mojo_bindings_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_color_scheme_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/gpu/gpu_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_gpu_gpu_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/mojom_core_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_mojom_core_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/mojom_mhtml_load_result_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_mojom_mhtml_load_result_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/mojom_platform_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_mojom_platform_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/quota/quota_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_quota_quota_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_runtime_feature_state_runtime_feature_state_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/script_type_mojo_bindings_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_script_type_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/service_worker/storage_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_service_worker_storage_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/storage_key/storage_key_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_storage_key_storage_key_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/tokens/tokens_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_tokens_tokens_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/usb/usb_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_usb_usb_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/blink/public/mojom/web_feature_mojo_bindings_java.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_web_feature_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/hamcrest/hamcrest_core_java.jar",
+                    "to_file": "jar/third_party_hamcrest_hamcrest_core_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/hamcrest/hamcrest_library_java.jar",
+                    "to_file": "jar/third_party_hamcrest_hamcrest_library_java.jar"
+                },
+                {
+                    "from_file": "lib.java/third_party/kotlin_stdlib/kotlin_stdlib_java.jar",
+                    "to_file": "jar/third_party_kotlin_stdlib_kotlin_stdlib_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/accessibility/ax_base_java.jar",
+                    "to_file": "jar/ui_accessibility_ax_base_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/accessibility/ax_constants_mojo_java.jar",
+                    "to_file": "jar/ui_accessibility_ax_constants_mojo_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/accessibility/ax_enums_mojo_java.jar",
+                    "to_file": "jar/ui_accessibility_ax_enums_mojo_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/accessibility/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_accessibility_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/android/ui_android_features_java.jar",
+                    "to_file": "jar/ui_android_ui_android_features_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/android/ui_no_recycler_view_java.jar",
+                    "to_file": "jar/ui_android_ui_no_recycler_view_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/android/ui_utils_java.jar",
+                    "to_file": "jar/ui_android_ui_utils_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/base/cursor/mojom/cursor_type_java.jar",
+                    "to_file": "jar/ui_base_cursor_mojom_cursor_type_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/base/cursor/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_base_cursor_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/base/dragdrop/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_base_dragdrop_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/base/ime/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_base_ime_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/base/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_base_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/display/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_display_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/events/mojom/event_latency_metadata_mojom_java.jar",
+                    "to_file": "jar/ui_events_mojom_event_latency_metadata_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/events/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_events_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/gfx/geometry/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_gfx_geometry_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/gfx/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_gfx_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/gfx/mojom/native_handle_types_java.jar",
+                    "to_file": "jar/ui_gfx_mojom_native_handle_types_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/gfx/range/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_gfx_range_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/gl/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_gl_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/ui/latency/mojom/mojom_java.jar",
+                    "to_file": "jar/ui_latency_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "lib.java/url/gurl_java.jar",
+                    "to_file": "jar/url_gurl_java.jar"
+                },
+                {
+                    "from_file": "lib.java/url/mojom/url_mojom_gurl_java.jar",
+                    "to_file": "jar/url_mojom_url_mojom_gurl_java.jar"
+                },
+                {
+                    "from_file": "lib.java/url/mojom/url_mojom_origin_java.jar",
+                    "to_file": "jar/url_mojom_url_mojom_origin_java.jar"
+                },
+                {
+                    "from_file": "lib.java/url/mojom/url_mojom_scheme_host_port_java.jar",
+                    "to_file": "jar/url_mojom_url_mojom_scheme_host_port_java.jar"
+                },
+                {
+                    "from_file": "lib.java/url/origin_java.jar",
+                    "to_file": "jar/url_origin_java.jar"
                 }
             ],
             "dirs": [
@@ -44,8 +806,7 @@
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/core",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/fragment",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/gen/base_module",
-                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium",
-                "lib.java"
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium"
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"
         },
