@@ -1,0 +1,16 @@
+{
+    "archive_datas": [
+        {
+          "files": [
+              "apks/Cobalt.apk"
+          ],
+          "rename_files": [
+              {
+                  "from_file": "apks/Cobalt.apk",
+                  "to_file": "Cobalt.apk"
+              }
+          ],
+          "archive_type": "ARCHIVE_TYPE_FILES"
+        }
+    ]
+}

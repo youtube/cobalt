@@ -186,16 +186,6 @@ run_package_release_pipeline () {
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
 
-    local package_platform=""
-    if [[ "${PLATFORM}" =~ "android" ]]; then
-      package_platform="android"
-    elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
-      # Evergreen packages differently for each of its subplatforms.
-      package_platform="${TARGET_PLATFORM}"
-    elif [[ "${PLATFORM}" =~ "linux" ]]; then
-      package_platform="linux"
-    fi
-
     # IMPORTANT: chromedriver must be built without starboardizations. We ensure
     # that the biary is built with the linux-x64x11-no-starboard config in a
     # previous build step. Then copy the file into this out directory to
@@ -213,7 +203,7 @@ run_package_release_pipeline () {
     # not branch, date, and build number specific though this can be added.
     python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
       --name="${PLATFORM}_${CONFIG}" \
-      --json_path="${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.json" \
+      --json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package.json" \
       --out_dir="${out_dir}" \
       --package_dir="${package_dir}"
 

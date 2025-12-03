@@ -12,6 +12,10 @@ build = common.build {
       value = 'is_internal_build=true'
     },
     {
+      key = 'PACKAGE_PLATFORM'
+      value = 'linux'
+    },
+    {
       key = 'PLATFORM'
       value = 'linux-x64x11-internal'
     },

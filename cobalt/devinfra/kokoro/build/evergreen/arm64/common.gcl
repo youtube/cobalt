@@ -8,8 +8,8 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
-      key = 'PLATFORM'
-      value = 'evergreen-arm64-sbversion-18'
+      key = 'PACKAGE_PLATFORM'
+      value = 'evergreen-arm64'
     },
     {
       key = 'EXTRA_GN_ARGUMENTS'
@@ -18,6 +18,10 @@ build = common.build {
     {
       key = 'GN_TARGET'
       value = 'cobalt copy_cobalt_lib'
+    },
+    {
+      key = 'PLATFORM'
+      value = 'evergreen-arm64-sbversion-18'
     },
     {
       key = 'TARGET_CPU'

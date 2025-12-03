@@ -7,6 +7,10 @@ import '../../common.gcl' as common
 build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
+    {
+      key = 'PACKAGE_PLATFORM'
+      value = 'evergreen-arm-softfp'
+    },
   // TODO: b/454936903 - Loader targets don't build yet.
   //    {
   //      key = 'BOOTLOADER'
