@@ -1,3 +1,17 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package dev.cobalt.coat;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -10,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import android.graphics.Bitmap;
 import android.util.Pair;
 import java.util.Collections;
+
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -23,22 +38,22 @@ import org.robolectric.shadows.ShadowLooper;
 @Config(manifest = Config.NONE)
 public class ArtworkLoaderTest {
 
-  private ArtworkLoader.Callback mockCallback;
-  private ArtworkDownloader mockDownloader;
-  private ArtworkLoader artworkLoader;
+  private ArtworkLoader.Callback mMockCallback;
+  private ArtworkDownloader mMockDownloader;
+  private ArtworkLoader mArtworkLoader;
 
   @Before
   public void setUp() {
-    mockCallback = mock(ArtworkLoader.Callback.class);
-    mockDownloader = mock(ArtworkDownloader.class);
-    artworkLoader = new ArtworkLoader(mockCallback, mockDownloader);
+    mMockCallback = mock(ArtworkLoader.Callback.class);
+    mMockDownloader = mock(ArtworkDownloader.class);
+    mArtworkLoader = new ArtworkLoader(mMockCallback, mMockDownloader);
   }
 
   @Test
   public void testGetOrLoadArtwork_NullOrEmptyList() {
-    assertThat(artworkLoader.getOrLoadArtwork(null)).isNull();
-    assertThat(artworkLoader.getOrLoadArtwork(Collections.emptyList())).isNull();
-    verify(mockDownloader, never()).downloadArtwork(any(), any());
+    assertThat(mArtworkLoader.getOrLoadArtwork(null)).isNull();
+    assertThat(mArtworkLoader.getOrLoadArtwork(Collections.emptyList())).isNull();
+    verify(mMockDownloader, never()).downloadArtwork(any(), any());
   }
 
   /*
@@ -53,7 +68,7 @@ public class ArtworkLoaderTest {
     // MediaImage mediaImage = createMediaImage(url, 1920, 1080);
     // List<MediaImage> images = Collections.singletonList(mediaImage);
 
-    // Bitmap result = artworkLoader.getOrLoadArtwork(images);
+    // Bitmap result = mArtworkLoader.getOrLoadArtwork(images);
 
     // assertThat(result).isNull();
     // // Allow background thread to start
@@ -62,7 +77,7 @@ public class ArtworkLoaderTest {
     // } catch (InterruptedException e) {
     //     // ignore
     // }
-    // verify(mockDownloader).downloadArtwork(eq(url), eq(artworkLoader));
+    // verify(mMockDownloader).downloadArtwork(eq(url), eq(mArtworkLoader));
   }
 
   @Ignore("Requires GURL native initialization")
@@ -75,13 +90,13 @@ public class ArtworkLoaderTest {
     public void testOnDownloadFinished_Success() {
       String url = "http://example.com/image.png";
       // Pre-set the requested URL
-      artworkLoader.mRequestedArtworkUrl = url;
+      mArtworkLoader.mRequestedArtworkUrl = url;
 
       Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-      artworkLoader.onDownloadFinished(Pair.create(url, bitmap));
+      mArtworkLoader.onDownloadFinished(Pair.create(url, bitmap));
 
       ShadowLooper.runUiThreadTasks();
-      verify(mockCallback).onArtworkLoaded(eq(bitmap));
+      verify(mMockCallback).onArtworkLoaded(eq(bitmap));
 
       // Check that it's now cached
       // We can't use getOrLoadArtwork to verify cache because of GURL,
@@ -92,21 +107,21 @@ public class ArtworkLoaderTest {
     @Test
     public void testOnDownloadFinished_WrongUrl() {
       String requestedUrl = "http://example.com/image.png";
-      artworkLoader.mRequestedArtworkUrl = requestedUrl;
+      mArtworkLoader.mRequestedArtworkUrl = requestedUrl;
 
       String wrongUrl = "http://example.com/other.png";
       Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-      artworkLoader.onDownloadFinished(Pair.create(wrongUrl, bitmap));
+      mArtworkLoader.onDownloadFinished(Pair.create(wrongUrl, bitmap));
 
       ShadowLooper.runUiThreadTasks();
-      verify(mockCallback, never()).onArtworkLoaded(any());
+      verify(mMockCallback, never()).onArtworkLoaded(any());
       assertThat(bitmap.isRecycled()).isTrue();
     }
 
     @Test
     public void testConsumeBitmapAndCropTo16x9_Exact16x9() {
       Bitmap bitmap = Bitmap.createBitmap(160, 90, Bitmap.Config.ARGB_8888);
-      Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+      Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
       assertThat(result).isEqualTo(bitmap);
       assertThat(result.getWidth()).isEqualTo(160);
       assertThat(result.getHeight()).isEqualTo(90);
@@ -116,14 +131,14 @@ public class ArtworkLoaderTest {
     @Test
     public void testConsumeBitmapAndCropTo16x9_WiderThan16x9() {
       Bitmap bitmap = Bitmap.createBitmap(200, 90, Bitmap.Config.ARGB_8888);
-      Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+      Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
       assertThat(result).isEqualTo(bitmap);
     }
 
     @Test
     public void testConsumeBitmapAndCropTo16x9_TallerThan16x9() {
       Bitmap bitmap = Bitmap.createBitmap(160, 200, Bitmap.Config.ARGB_8888);
-      Bitmap result = artworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+      Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
 
       assertThat(result).isNotEqualTo(bitmap);
       assertThat(result.getWidth()).isEqualTo(160);
@@ -133,6 +148,6 @@ public class ArtworkLoaderTest {
 
     @Test
     public void testConsumeBitmapAndCropTo16x9_Null() {
-        assertThat(artworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
+        assertThat(mArtworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
     }
   }
