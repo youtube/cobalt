@@ -50,7 +50,6 @@ static_library("starboard_platform") {
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
     "//starboard/shared/linux/system_is_debugger_attached.cc",
     "//starboard/shared/linux/system_symbolize.cc",
-    "//starboard/shared/linux/thread_get_id.cc",
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/environment.cc",
@@ -284,6 +283,11 @@ static_library("starboard_platform") {
     "text_to_speech_helper.h",
     "text_to_speech_observer.h",
     "thread_create_priority.cc",
+<<<<<<< HEAD
+=======
+    "thread_get_id.cc",
+    "thread_platform_android.cc",
+>>>>>>> 11908ff4bc6 (starboard: Make Android's SbThreadGetId use gettid() (#8258))
     "time_zone_get_name.cc",
     "trace_util.h",
     "video_decoder.cc",
