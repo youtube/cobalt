@@ -1489,6 +1489,97 @@ BASE_FEATURE(kFuchsiaMediacodecVideoEncoder,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
+<<<<<<< HEAD
+=======
+// Controls whether to pre-dispatch more decode tasks when pending decodes is
+// smaller than maximum supported decodes as advertiszed by decoder.
+BASE_FEATURE(kVideoDecodeBatching,
+             "VideoDecodeBatching",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Safety switch to allow us to revert to the previous behavior of using the
+// restored bounds for PiP windows, rather than the window bounds.  If this
+// feature is enabled (the default), then we'll use the window bounds.
+BASE_FEATURE(kUseWindowBoundsForPip,
+             "UseWindowBoundsForPip",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_WIN)
+// Enables audio offload when supported by endpoints.
+BASE_FEATURE(kAudioOffload, "AudioOffload", base::FEATURE_DISABLED_BY_DEFAULT);
+
+// The buffer time in milliseconds for audio offload.
+const base::FeatureParam<double> kAudioOffloadBufferTimeMs{
+    &kAudioOffload, "buffer_time_ms", 50};
+#endif
+
+// Enables sending MediaLog to the log stream, which is useful for easier
+// development by ensuring logs can be seen without a remote desktop session.
+// Only affects builds when DCHECK is on for non-ERROR logs (ERROR logs are
+// always sent to the log stream). Enabled by default on Android and ChromeOS.
+BASE_FEATURE(kMediaLogToConsole,
+             "MediaLogToConsole",
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+BASE_FEATURE(kLibvpxUseChromeThreads,
+             "LibvpxUseChromeThreads",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kLibaomUseChromeThreads,
+             "LibaomUseChromeThreads",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, Cobalt will notify memory pressure listeners before
+// video playback.
+BASE_FEATURE(kNotifyMemoryPressureBeforePlayback,
+             "NotifyMemoryPressureBeforePlayback",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_WIN)
+// Controls whether to use D3D12 video decoder instead of D3D11 when supported.
+BASE_FEATURE(kD3D12VideoDecoder,
+             "D3D12VideoDecoder",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether to enable D3D12 video encode accelerator.
+// Owner: zhibo1.wang@intel.com
+// Expiry: When enabled by default.
+BASE_FEATURE(kD3D12VideoEncodeAccelerator,
+             "D3D12VideoEncodeAccelerator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+// Allow MF-accelerated video encoding.
+BASE_FEATURE(kMediaFoundationAcceleratedEncodeOnArm64,
+             "MediaFoundationAcceleratedEncodeOnArm64",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kMediaFoundationD3DVideoProcessing,
+             "MediaFoundationD3DVideoProcessing",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kMediaFoundationSharedImageEncode,
+             "MediaFoundationSharedImageEncode",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+// Controls whether muted media stream audio should continue to render.
+BASE_FEATURE(kRenderMutedAudio,
+             "RenderMutedAudio",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls headless Live Caption experiment, which is likely unstable.
+BASE_FEATURE(kHeadlessLiveCaption,
+             "HeadlessLiveCaption",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+>>>>>>> 661bee1645e (feat(media): Add critical memory pressure signal before playback (#8240))
 bool IsChromeWideEchoCancellationEnabled() {
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
 #if BUILDFLAG(IS_CHROMEOS_DEVICE)

@@ -16,6 +16,11 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+<<<<<<< HEAD
+=======
+#include "base/memory/memory_pressure_listener.h"
+#include "base/strings/stringprintf.h"
+>>>>>>> 661bee1645e (feat(media): Add critical memory pressure signal before playback (#8240))
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
@@ -635,6 +640,15 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;
+    if (base::FeatureList::IsEnabled(
+            media::kNotifyMemoryPressureBeforePlayback)) {
+      // Send a one-time critical memory pressure signal to ask
+      // other components to release memory.
+      base::MemoryPressureListener::NotifyMemoryPressure(
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
+                   "burden.";
+    }
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }
