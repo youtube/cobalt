@@ -6,6 +6,27 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+<<<<<<< HEAD
+=======
+    "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+    "PosixUtimensatTest.OmitBothTimestamps",
+    "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
+
+    "PosixLocaleSetTest.LocaleConvC",
+    "PosixLocaleSetTest.NewUseFreeLocale",
+    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
+    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
+    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
+    "PosixLocaleThreadTest.DupLocale",
+    "PosixLocaleThreadTest.DupLocaleNonDefault",
+    "Posix/NlLanginfo*",
+
+    "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
+    "PosixUtimensatTest.SetToSpecificTime",
+    "PosixUtimensatTest.SymlinkNoFollow",
+    "SbAudioSinkCreateTest.MultiSink",
+>>>>>>> 793ef631b94 (3p: add locale support to Cobalt (#8027))
     "SbAudioSinkTest.*",
     "SbAudioSinkCreateTest.MultiSink",
     "SbMediaSetAudioWriteDurationTests*",

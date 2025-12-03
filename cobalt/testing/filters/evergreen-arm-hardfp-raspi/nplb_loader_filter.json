@@ -4,6 +4,10 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+<<<<<<< HEAD
+=======
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+>>>>>>> 793ef631b94 (3p: add locale support to Cobalt (#8027))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
@@ -19,6 +23,7 @@
     "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
     "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
     "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
+<<<<<<< HEAD
     "PosixLocaleThreadTest.DupLocaleNonDefault",
     "PosixLocaleThreadTest.DupLocaleGlobal",
     "PosixLocaleThreadTest.UseLocale",
@@ -29,5 +34,10 @@
     "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
+=======
+    "PosixLocaleThreadTest.DupLocale",
+    "PosixLocaleThreadTest.DupLocaleNonDefault",
+    "Posix/NlLanginfo*"
+>>>>>>> 793ef631b94 (3p: add locale support to Cobalt (#8027))
   ]
 }

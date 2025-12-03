@@ -6,6 +6,12 @@
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixFileReadTest/*",
     "PosixFileWriteTest/*",
+<<<<<<< HEAD
+=======
+    "PosixLocale*",
+    "Posix/NlLanginfo*",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+>>>>>>> 793ef631b94 (3p: add locale support to Cobalt (#8027))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
