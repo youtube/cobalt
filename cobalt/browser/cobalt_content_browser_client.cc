@@ -96,6 +96,7 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 #if BUILDFLAG(IS_ANDROID)
 static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
+  // Possible if application is paused during startup.
   if (!client) {
     return;
   }
@@ -433,6 +434,7 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     std::move(callback).Run();
     return;
   }
+  LOG(INFO) << "Flushing cookies and local storage";
   auto* web_contents = web_contents_observer_->web_contents();
   CHECK(web_contents);
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
