@@ -258,6 +258,8 @@ android_apk("cobalt_apk") {
 
 robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
@@ -273,8 +275,10 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
+    "//services/media_session/public/cpp/android:media_session_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
     "//third_party/junit",
+    "//url:gurl_java",
   ]
 }
