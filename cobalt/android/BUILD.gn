@@ -48,11 +48,25 @@ generate_jni("jni_headers") {
   }
 }
 
+generate_jni("browser_jni_headers") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+}
+
+android_library("cobalt_browser_java") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+  srcjar_deps = [ ":browser_jni_headers" ]
+  deps = [ "//third_party/jni_zero:jni_zero_java" ]
+}
+
 android_library("cobalt_main_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
-    ":jni_headers",
+    ":cobalt_browser_java",
     "//base:base_java",
     "//base:process_launcher_java",
     "//base/version_info/android:version_constants_java",

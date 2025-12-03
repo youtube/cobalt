@@ -43,6 +43,7 @@
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/fragment",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/gen/base_module",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/jni_zero",
                 "lib.java"
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"

@@ -34,6 +34,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -60,9 +61,9 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -198,10 +199,12 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // Load an empty page to let shell create WebContents. Override Shell.java's
+    // onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("",
+    mShellManager.launchShell(
+        "",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -242,7 +245,7 @@ public abstract class CobaltActivity extends Activity {
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyDown(keyCode, event);
+      return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
@@ -250,7 +253,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyUp(keyCode, event);
+      return super.onKeyUp(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -414,6 +417,12 @@ public abstract class CobaltActivity extends Activity {
   }
 
   @Override
+  protected void onPause() {
+    CobaltContentBrowserClient.dispatchBlur();
+    super.onPause();
+  }
+
+  @Override
   protected void onStop() {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
@@ -445,6 +454,7 @@ public abstract class CobaltActivity extends Activity {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
+    CobaltContentBrowserClient.dispatchFocus();
   }
 
   @Override

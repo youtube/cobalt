@@ -18,6 +18,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -63,6 +64,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       delete;
 
   ~CobaltContentBrowserClient() override;
+
+  static CobaltContentBrowserClient* Get();
 
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
@@ -124,8 +127,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  void DispatchBlur();
+  void DispatchFocus();
+
  private:
   void CreateVideoGeometrySetterService();
+  void DispatchEvent(const std::string&, base::OnceClosure);
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;

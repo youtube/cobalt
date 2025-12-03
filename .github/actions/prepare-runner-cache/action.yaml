@@ -4,28 +4,35 @@ runs:
   using: "composite"
   steps:
     - name: Check Runner Cache Status
+      id: cache_status
       run: |
         # If .git/index.lock exists, it indicates a previous abnormal exit.
         if [ -f "${CHECKOUT_PATH}/.git/index.lock" ]; then
           echo "index.lock found, removing the cache."
-          rm -f "${CHECKOUT_PATH}"
-        fi
-        # Check src already exists by earlier runners:
-        if [ -d "${CHECKOUT_PATH}/.git" ]; then
+          rm -rf "${CHECKOUT_PATH}"
+          echo "cache_reused=false" >> "$GITHUB_OUTPUT"
+        elif [ -d "${CHECKOUT_PATH}/.git" ]; then
           echo "Existing Git repository found. Performing hard reset and clean."
+          echo "cache_reused=true" >> "$GITHUB_OUTPUT"
           cd "${CHECKOUT_PATH}"
           git reset --hard
           # Remove unmerged/conflict markers if any merge was aborted
           git merge --abort || true
+        else
+          echo "cache_reused=false" >> "$GITHUB_OUTPUT"
         fi
         # Ensure the base directory exists before the symlink step
         mkdir -p /runner-cache/cobalt
       env:
         CHECKOUT_PATH: /runner-cache/cobalt/src
       shell: bash
+    - name: Notify Cache Reuse
+      if: steps.cache_status.outputs.cache_reused == 'true'
+      run: echo "Cache is valid and reused."
+      shell: bash
     - name: Link Runner Cache
       run: |
-        ln -sf /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
+        ln -sfn /runner-cache/cobalt ${GITHUB_WORKSPACE}/
       shell: bash
     - name: Set Safe Directory
       run: git config --global --add safe.directory "${GITHUB_WORKSPACE}/cobalt/src"
