@@ -78,29 +78,11 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-<<<<<<< HEAD
-String H5vccExperiments::getFeature(const String& feature_name) {
-  EnsureReceiverIsBound();
-  h5vcc_experiments::mojom::blink::OverrideState feature_state;
-  remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
-  switch (feature_state) {
-    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_ENABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kENABLED);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_DISABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kDISABLED);
-  }
-  NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
-                        << feature_name;
-=======
-ScriptPromise<V8OverrideState> H5vccExperiments::getFeature(
+ScriptPromise H5vccExperiments::getFeature(
     ScriptState* script_state,
     const String& feature_name,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<V8OverrideState>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
   EnsureReceiverIsBound();
@@ -111,7 +93,6 @@ ScriptPromise<V8OverrideState> H5vccExperiments::getFeature(
       WTF::BindOnce(&H5vccExperiments::OnGetFeature, WrapPersistent(this),
                     WrapPersistent(resolver)));
   return promise;
->>>>>>> b1bfff78d1e (Change getFeature to async (#7678))
 }
 
 const String& H5vccExperiments::getFeatureParam(
@@ -235,7 +216,7 @@ void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
 }
 
 void H5vccExperiments::OnGetFeature(
-    ScriptPromiseResolver<V8OverrideState>* resolver,
+    ScriptPromiseResolver* resolver,
     h5vcc_experiments::mojom::blink::OverrideState feature_state) {
   ongoing_requests_.erase(resolver);
   switch (feature_state) {

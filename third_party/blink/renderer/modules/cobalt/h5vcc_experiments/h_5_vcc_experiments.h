@@ -42,22 +42,14 @@ class MODULES_EXPORT H5vccExperiments final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-<<<<<<< HEAD
   ScriptPromise setExperimentState(ScriptState*,
                                    const ExperimentConfiguration*,
                                    ExceptionState&);
-  ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
-  String getFeature(const String&);
-=======
-  ScriptPromise<IDLUndefined> setExperimentState(ScriptState*,
-                                                 const ExperimentConfiguration*,
-                                                 ExceptionState&);
-  ScriptPromise<IDLUndefined> resetExperimentState(ScriptState*,
-                                                   ExceptionState&);
-  ScriptPromise<V8OverrideState> getFeature(ScriptState*,
-                                            const String&,
-                                            ExceptionState&);
->>>>>>> b1bfff78d1e (Change getFeature to async (#7678))
+  ScriptPromise resetExperimentState(ScriptState*,
+                                     ExceptionState&);
+  ScriptPromise getFeature(ScriptState*,
+                           const String&,
+                           ExceptionState&);
   const String& getFeatureParam(const String&);
   ScriptPromise getActiveExperimentConfigData(ScriptState*, ExceptionState&);
   ScriptPromise getLatestExperimentConfigHashData(ScriptState*,
@@ -78,20 +70,12 @@ class MODULES_EXPORT H5vccExperiments final
   void OnGetActiveExperimentConfigData(ScriptPromiseResolver*, const String&);
   void OnGetLatestExperimentConfigHashData(ScriptPromiseResolver*,
                                            const String&);
-<<<<<<< HEAD
   void OnSetExperimentState(ScriptPromiseResolver*);
   void OnSetFinchParameters(ScriptPromiseResolver*);
   void OnSetLatestExperimentConfigHashData(ScriptPromiseResolver*);
   void OnResetExperimentState(ScriptPromiseResolver*);
-=======
-  void OnSetExperimentState(ScriptPromiseResolver<IDLUndefined>*);
-  void OnSetFinchParameters(ScriptPromiseResolver<IDLUndefined>*);
-  void OnSetLatestExperimentConfigHashData(
-      ScriptPromiseResolver<IDLUndefined>*);
-  void OnResetExperimentState(ScriptPromiseResolver<IDLUndefined>*);
-  void OnGetFeature(ScriptPromiseResolver<V8OverrideState>*,
+  void OnGetFeature(ScriptPromiseResolver*,
                     h5vcc_experiments::mojom::blink::OverrideState);
->>>>>>> b1bfff78d1e (Change getFeature to async (#7678))
   void OnConnectionError();
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_experiments::mojom::blink::H5vccExperiments>
