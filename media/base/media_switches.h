@@ -439,6 +439,42 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseTaskRunnerForMojoVEAService);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kFuchsiaMediacodecVideoEncoder);
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
+<<<<<<< HEAD
+=======
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoDecodeBatching);
+
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseWindowBoundsForPip);
+
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaLogToConsole);
+
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kLibvpxUseChromeThreads);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kLibaomUseChromeThreads);
+
+#if BUILDFLAG(IS_WIN)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D12VideoDecoder);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D12VideoEncodeAccelerator);
+
+MEDIA_EXPORT extern const base::FeatureParam<double> kAudioOffloadBufferTimeMs;
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAudioOffload);
+#endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationAcceleratedEncodeOnArm64);
+#endif
+
+#if BUILDFLAG(IS_WIN)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationD3DVideoProcessing);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationSharedImageEncode);
+#endif
+
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kRenderMutedAudio);
+
+// Enable experimental headless captions.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kHeadlessLiveCaption);
+
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kNotifyMemoryPressureBeforePlayback);
+
+>>>>>>> 661bee1645e (feat(media): Add critical memory pressure signal before playback (#8240))
 // Based on a |command_line| and the current platform, returns the effective
 // autoplay policy. In other words, it will take into account the default policy
 // if none is specified via the command line and options passed for testing.
