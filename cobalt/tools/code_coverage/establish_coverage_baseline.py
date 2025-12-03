@@ -1,4 +1,19 @@
-"Automates the process of generating a code coverage baseline for Cobalt."
+#!/usr/bin/env python3
+#
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+'''Automates the process of generating a code coverage baseline for Cobalt.'''
 
 import argparse
 import glob
@@ -14,20 +29,21 @@ from typing import Sequence
 class CoverageBaselineRunner:
   """Automates generating a code coverage baseline for Cobalt."""
 
-  def __init__(self,
-               platform: str,
-               build_type: str = 'qa',
-               cobalt_src_root: str = '.',
-               verbose: bool = False,
-               skip_gn_gen: bool = False,
-               test_target: str = None,
-               post_process_only: bool = False,
-               include_skipped_tests: bool = False,
-               merge_only: bool = False,
-               merge_lcov: bool = False,
-               lcov_filter: Sequence[str] | None = None,
-               gen_html: bool = False,
-               output_file: str | None = None):
+  def __init__(  # pylint: disable=too-many-positional-arguments
+      self,
+      platform: str,
+      build_type: str = 'qa',
+      cobalt_src_root: str = '.',
+      verbose: bool = False,
+      skip_gn_gen: bool = False,
+      test_target: str = None,
+      post_process_only: bool = False,
+      include_skipped_tests: bool = False,
+      merge_only: bool = False,
+      merge_lcov: bool = False,
+      lcov_filter: Sequence[str] | None = None,
+      gen_html: bool = False,
+      output_file: str | None = None):
     """Initializes the CoverageBaselineRunner.
 
     Args:
@@ -81,7 +97,8 @@ class CoverageBaselineRunner:
         self.cobalt_src_root / 'third_party/llvm-build/Release+Asserts/bin')
     self.raw_lcov_dir = self.cobalt_src_root / f'out/lcov_raw_{self.platform}'
     self.merged_lcov_file = self.raw_lcov_dir / 'merged.lcov'
-    self.html_report_dir = self.cobalt_src_root / f'out/lcov_html_report_{self.platform}'
+    self.html_report_dir = (
+        self.cobalt_src_root / f'out/lcov_html_report_{self.platform}')
     base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
     platform_target_dir = self.platform
     if self.platform == 'android-x86':
@@ -118,7 +135,7 @@ class CoverageBaselineRunner:
     Returns:
       The CompletedProcess object.
     """
-    print(f'--- Running command: {" ".join(command)} ---', flush=True)
+    print('--- Running command: ' + ' '.join(command) + ' ---', flush=True)
     try:
       result = subprocess.run(
           command, check=check, cwd=cwd, capture_output=True, text=True)
@@ -192,7 +209,7 @@ class CoverageBaselineRunner:
       print(f'No test targets of type \'test\' found in '
             f'{self.test_targets_json}')  # pylint: disable=W1405
     else:
-      print(f'Found test targets: {", ".join(targets)}')
+      print(f'Found test targets: {', '.join(targets)}')
     return targets
 
   def run_coverage_for_target(self, test_name: str) -> bool:
@@ -224,7 +241,8 @@ class CoverageBaselineRunner:
         # Ensure failing_tests is a list
         if not isinstance(failing_tests, list):
           print(
-              f'WARNING: Failing tests filter for {test_name} is not a list. Skipping filter.',
+              'WARNING: Failing tests filter for '
+              f'{test_name} is not a list. Skipping filter.',
               file=sys.stderr)
           failing_tests = []  # Reset to empty list to avoid errors
 
@@ -234,7 +252,7 @@ class CoverageBaselineRunner:
 
         if failing_tests:
           gtest_filter_arg = '--gtest_filter=-' + ':'.join(failing_tests)
-          print(f"Constructed gtest filter: {gtest_filter_arg}")
+          print(f'Constructed gtest filter: {gtest_filter_arg}')
 
     cmd = [
         'time',
@@ -255,14 +273,14 @@ class CoverageBaselineRunner:
     if gtest_filter_arg:
       cmd.append(gtest_filter_arg)
 
-    print(f'Coverage.py command: {" ".join(cmd)}', flush=True)
+    print('Coverage.py command: ' + ' '.join(cmd), flush=True)
     try:
       self._run_command(cmd)
       lcov_file = test_lcov_out_dir / 'linux' / 'coverage.lcov'
       if not lcov_file.exists():
         print(
             f'WARNING: coverage.lcov not found for {test_name} in '
-            f'{test_lcov_out_dir / "linux"}',
+            'test_lcov_out_dir / ' + 'linux',
             file=sys.stderr)
         return False
       return True
@@ -407,7 +425,7 @@ def main() -> None:
       action='store_true',
       help='Enable verbose output for debugging.')
   parser.add_argument(
-      '--skip-gn-gen', action='store_true', help='Skip the "gn gen" step.')
+      '--skip-gn-gen', action='store_true', help='Skip the \'gn gen\' step.')
   parser.add_argument(
       '--test-target', type=str, help='The single test target to run.')
   parser.add_argument(

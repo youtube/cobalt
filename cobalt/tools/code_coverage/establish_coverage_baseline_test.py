@@ -1,15 +1,27 @@
+#!/usr/bin/env python3
+#
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Tests the process of generating a code coverage baseline for Cobalt"""
+
 import unittest
 from unittest import mock
 import pathlib
-import sys
 import os
 import json
 import shutil
 import subprocess
-
-sys.path.insert(
-    0,
-    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 
 from cobalt.tools.code_coverage.establish_coverage_baseline import CoverageBaselineRunner
 
@@ -114,8 +126,10 @@ class EstablishCoverageBaselineTest(unittest.TestCase):
 
   @mock.patch('pathlib.Path.exists', return_value=False)
   def test_get_test_targets_file_not_found(self, mock_exists):
-    """Test that get_test_targets raises FileNotFoundError if JSON file is missing."""
-    del mock_exists  # mock_exists is used as a patcher, not directly in the test
+    """Test that get_test_targets raises FileNotFoundError
+       if JSON file is missing."""
+    del mock_exists  # mock_exists is used as a patcher,
+    # not directly in the test
     with self.assertRaises(FileNotFoundError):
       self.runner.get_test_targets()
 
@@ -155,7 +169,8 @@ class EstablishCoverageBaselineTest(unittest.TestCase):
 
   @mock.patch('shutil.which', return_value=None)
   def test_merge_lcov_files_lcov_not_found(self, mock_which):
-    """Test that an EnvironmentError is raised if lcov is not found for merging."""
+    """Test that an EnvironmentError is raised if lcov
+       is not found for merging."""
     del mock_which  # mock_which is used as a patcher, not directly in the test
     self.runner.raw_lcov_dir.mkdir(parents=True, exist_ok=True)
     (self.runner.raw_lcov_dir / 'test1').mkdir()
@@ -286,16 +301,16 @@ class TestTestFiltering(unittest.TestCase):
     if self.test_dir.exists():
       shutil.rmtree(self.test_dir)
 
-  @mock.patch(
-      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
-  )
+  @mock.patch('cobalt.tools.code_coverage.establish_coverage_baseline.'
+              'CoverageBaselineRunner._run_command')
   @mock.patch('pathlib.Path.exists', return_value=True)
   def test_applies_gtest_filter_from_json(self, mock_exists, mock_run_command):
     """Test that a gtest filter is correctly applied from a JSON file."""
+    del mock_exists
     test_name = 'my_cool_test'
     filter_file = self.filters_dir / f'{test_name}_filter.json'
     filter_content = {'failing_tests': ['Test.Case1', 'Test.Case2']}
-    with open(filter_file, 'w') as f:
+    with open(filter_file, 'w', encoding='utf-8') as f:
       json.dump(filter_content, f)
 
     self.runner.run_coverage_for_target(test_name)
@@ -305,13 +320,13 @@ class TestTestFiltering(unittest.TestCase):
     args, _ = mock_run_command.call_args
     self.assertIn('--gtest_filter=-Test.Case1:Test.Case2', args[0])
 
-  @mock.patch(
-      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
-  )
+  @mock.patch('cobalt.tools.code_coverage.establish_coverage_baseline.'
+              'CoverageBaselineRunner._run_command')
   @mock.patch('pathlib.Path.exists', return_value=False)
   def test_gracefully_handles_non_existent_filter_dir(self, mock_exists,
                                                       mock_run_command):
     """Test that no filter is applied if the filter directory doesn't exist."""
+    del mock_exists
     test_name = 'my_cool_test'
     # We are mocking that the filter *file* doesn't exist.
     self.runner.run_coverage_for_target(test_name)
@@ -320,17 +335,17 @@ class TestTestFiltering(unittest.TestCase):
     args, _ = mock_run_command.call_args
     self.assertNotIn('--gtest_filter', ' '.join(args[0]))
 
-  @mock.patch(
-      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
-  )
+  @mock.patch('cobalt.tools.code_coverage.establish_coverage_baseline.'
+              'CoverageBaselineRunner._run_command')
   @mock.patch('pathlib.Path.exists', return_value=True)
   def test_skips_target_for_wildcard_filter(self, mock_exists,
                                             mock_run_command):
     """Test that a target is skipped if the filter is a wildcard '*'."""
+    del mock_exists
     test_name = 'my_skippable_test'
     filter_file = self.filters_dir / f'{test_name}_filter.json'
     filter_content = {'failing_tests': ['*']}
-    with open(filter_file, 'w') as f:
+    with open(filter_file, 'w', encoding='utf-8') as f:
       json.dump(filter_content, f)
 
     result = self.runner.run_coverage_for_target(test_name)
@@ -340,18 +355,18 @@ class TestTestFiltering(unittest.TestCase):
     # But no command should have been executed.
     mock_run_command.assert_not_called()
 
-  @mock.patch(
-      'cobalt.tools.code_coverage.establish_coverage_baseline.CoverageBaselineRunner._run_command'
-  )
+  @mock.patch('cobalt.tools.code_coverage.establish_coverage_baseline.'
+              'CoverageBaselineRunner._run_command')
   @mock.patch('pathlib.Path.exists', return_value=True)
   def test_ignores_filter_when_include_skipped_is_true(self, mock_exists,
                                                        mock_run_command):
     """Test that filters are ignored when include_skipped_tests is True."""
+    del mock_exists
     self.runner.include_skipped_tests = True
     test_name = 'my_cool_test'
     filter_file = self.filters_dir / f'{test_name}_filter.json'
     filter_content = {'failing_tests': ['Test.Case1', 'Test.Case2']}
-    with open(filter_file, 'w') as f:
+    with open(filter_file, 'w', encoding='utf-8') as f:
       json.dump(filter_content, f)
 
     self.runner.run_coverage_for_target(test_name)
