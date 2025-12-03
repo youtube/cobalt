@@ -117,7 +117,17 @@ class NetworkFetcher : public update_client::NetworkFetcher {
   void OnProgressCallback(ProgressCallback response_started_callback,
                           uint64_t current);
 
+#if defined(IN_MEMORY_UPDATES)
+  void OnDownloadToStringComplete(
+      DownloadToStringCompleteCallback download_to_string_complete_callback,
+      std::unique_ptr<std::string> response_body);
+#endif
+
   static constexpr int kMaxRetriesOnNetworkChange = 3;
+
+#if defined(IN_MEMORY_UPDATES)
+  base::raw_ptr<std::string> dst_str_;  // not owned, can't be null
+#endif
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> simple_url_loader_;
