@@ -1,4 +1,4 @@
-"Automates the process of generating a code coverage baseline for Cobalt."
+'Automates the process of generating a code coverage baseline for Cobalt.'
 
 import argparse
 import glob
@@ -11,7 +11,7 @@ import sys
 from typing import Sequence
 
 
-class CoverageBaselineRunner:
+class CoverageBaselineRunner:  # pylint: disable=R0917  # pylint: disable=R0917
   """Automates generating a code coverage baseline for Cobalt."""
 
   def __init__(self,
@@ -24,6 +24,7 @@ class CoverageBaselineRunner:
                post_process_only: bool = False,
                include_skipped_tests: bool = False,
                merge_only: bool = False,
+               merge_lcov: bool = False,
                lcov_filter: Sequence[str] | None = None,
                gen_html: bool = False,
                output_file: str | None = None):
@@ -39,6 +40,7 @@ class CoverageBaselineRunner:
       post_process_only: Whether to only run the post-processing steps.
       include_skipped_tests: Whether to include tests skipped by filters.
       merge_only: Whether to only run the merge lcov files step.
+      merge_lcov: Whether to merge lcov files.
       lcov_filter: A list of directory patterns to include in the report.
       gen_html: Whether to generate an HTML report from the merged lcov file.
       output_file: The name of the merged lcov file.
@@ -52,6 +54,7 @@ class CoverageBaselineRunner:
     self.post_process_only = post_process_only
     self.include_skipped_tests = include_skipped_tests
     self.merge_only = merge_only
+    self.merge_lcov = merge_lcov
     self.lcov_filter = lcov_filter
     self.gen_html = gen_html
     self.output_file = output_file
@@ -78,7 +81,8 @@ class CoverageBaselineRunner:
         self.cobalt_src_root / 'third_party/llvm-build/Release+Asserts/bin')
     self.raw_lcov_dir = self.cobalt_src_root / f'out/lcov_raw_{self.platform}'
     self.merged_lcov_file = self.raw_lcov_dir / 'merged.lcov'
-    self.html_report_dir = self.cobalt_src_root / f'out/lcov_html_report_{self.platform}'
+    self.html_report_dir = (
+        self.cobalt_src_root / f'out/lcov_html_report_{self.platform}')
     base_target_path = self.cobalt_src_root / 'cobalt/build/testing/targets'
     platform_target_dir = self.platform
     if self.platform == 'android-x86':
@@ -189,7 +193,7 @@ class CoverageBaselineRunner:
       print(f'No test targets of type \'test\' found in '
             f'{self.test_targets_json}')  # pylint: disable=W1405
     else:
-      print(f'Found test targets: {", ".join(targets)}')
+      print(f'Found test targets: {', '.join(targets)}')
     return targets
 
   def run_coverage_for_target(self, test_name: str) -> bool:
@@ -221,7 +225,8 @@ class CoverageBaselineRunner:
         # Ensure failing_tests is a list
         if not isinstance(failing_tests, list):
           print(
-              f'WARNING: Failing tests filter for {test_name} is not a list. Skipping filter.',
+              f'WARNING: Failing tests filter for {test_name} is not a list. '
+              f'Skipping filter.',
               file=sys.stderr)
           failing_tests = []  # Reset to empty list to avoid errors
 
@@ -259,7 +264,7 @@ class CoverageBaselineRunner:
       if not lcov_file.exists():
         print(
             f'WARNING: coverage.lcov not found for {test_name} in '
-            f'{test_lcov_out_dir / "linux"}',
+            f'{str(test_lcov_out_dir / "linux")}',
             file=sys.stderr)
         return False
       return True
@@ -353,16 +358,17 @@ class CoverageBaselineRunner:
           return
         _, failed_targets = self.run_all_coverage(targets)
 
-      self.merge_lcov_files()
+      if self.merge_lcov:
+        self.merge_lcov_files()
 
-      if self.lcov_filter:
-        self.filter_lcov_file(self.lcov_filter)
+        if self.lcov_filter:
+          self.filter_lcov_file(self.lcov_filter)
 
-      if self.gen_html:
-        self.generate_html_report()
+        if self.gen_html:
+          self.generate_html_report()
 
-      if self.output_file:
-        shutil.move(self.merged_lcov_file, self.output_file)
+        if self.output_file:
+          shutil.move(self.merged_lcov_file, self.output_file)
 
       if failed_targets:
         print('\n--- Unit Test Failures ---', file=sys.stderr)
@@ -427,6 +433,10 @@ def main() -> None:
       action='store_true',
       help='Only run the merge lcov files step.')
   parser.add_argument(
+      '--merge-lcov',
+      action='store_true',
+      help='Merge individual lcov files into a single file.')
+  parser.add_argument(
       '--filter',
       nargs='+',
       help='A list of directory patterns to include in the report.')
@@ -441,8 +451,8 @@ def main() -> None:
   runner = CoverageBaselineRunner(
       args.platform, args.build_type, args.cobalt_src_root, args.verbose,
       args.skip_gn_gen, args.test_target, args.post_process_only,
-      args.include_skipped_tests, args.merge_only, args.lcov_filter,
-      args.gen_html, args.output_file)
+      args.include_skipped_tests, args.merge_only, args.merge_lcov,
+      args.lcov_filter, args.gen_html, args.output_file)
   runner.run_baseline()
 
 
