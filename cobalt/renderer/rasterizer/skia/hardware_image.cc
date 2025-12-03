@@ -137,6 +137,8 @@ class HardwareFrontendImage::HardwareBackendImage {
                  "HardwareBackendImage::InitializeFromImageData()");
     backend->texture_ =
         cobalt_context->CreateTexture(image_data->PassTextureData());
+    LOG(WARNING) << "HardwareBackendImage::InitializeFromImageData:"
+                 << backend->texture_->gl_handle();
     backend->CommonInitialize(gr_context, cobalt_context);
   }
 
@@ -151,6 +153,8 @@ class HardwareFrontendImage::HardwareBackendImage {
         texture_memory, offset, descriptor.size,
         ConvertRenderTreeFormatToGL(descriptor.pixel_format),
         descriptor.pitch_in_bytes);
+    LOG(WARNING) << "HardwareBackendImage::InitializeFromRawImageData:"
+                 << backend->texture_->gl_handle();
     backend->CommonInitialize(gr_context, cobalt_context);
   }
 
@@ -160,6 +164,8 @@ class HardwareFrontendImage::HardwareBackendImage {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::InitializeFromTexture()");
     backend->texture_ = std::move(texture);
+    LOG(WARNING) << "HardwareBackendImage::InitializeFromTexture:"
+                 << backend->texture_->gl_handle();
     backend::GraphicsContextEGL* cobalt_context =
         backend->texture_->graphics_context();
     backend->CommonInitialize(gr_context, cobalt_context);
@@ -187,6 +193,8 @@ class HardwareFrontendImage::HardwareBackendImage {
 
     std::unique_ptr<backend::TextureEGL> texture(
         new backend::TextureEGL(cobalt_context, render_target));
+    LOG(WARNING) << "HardwareFrontEndImage::InitializeFromRenderTree: "
+                 << texture->gl_handle();
 
     InitializeFromTexture(std::move(texture), gr_context, backend);
 
@@ -297,6 +305,9 @@ math::Size AdjustSizeForFormat(
 }
 }  // namespace
 
+#define LHANDLE(message, backend_image) \
+  { LOG(WARNING) << message; }
+
 HardwareFrontendImage::HardwareFrontendImage(
     std::unique_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
@@ -311,6 +322,9 @@ HardwareFrontendImage::HardwareFrontendImage(
   backend_image_.reset(new HardwareBackendImage(
       base::Bind(&HardwareBackendImage::InitializeFromImageData,
                  base::Passed(&image_data), cobalt_context, gr_context)));
+  LHANDLE(
+      "HardwareFrontendImage::HardwareFrontendImage 1 (HardwareImageData) : ",
+      backend_image_);
   InitializeBackend();
 }
 
@@ -329,6 +343,10 @@ HardwareFrontendImage::HardwareFrontendImage(
   backend_image_.reset(new HardwareBackendImage(base::Bind(
       &HardwareBackendImage::InitializeFromRawImageData, raw_texture_memory,
       offset, descriptor, cobalt_context, gr_context)));
+  LHANDLE(
+      "HardwareFrontendImage::HardwareFrontendImage 2 "
+      "(ConstRawTextureMemoryEGL) : ",
+      backend_image_);
   InitializeBackend();
 }
 
@@ -353,6 +371,9 @@ HardwareFrontendImage::HardwareFrontendImage(
   backend_image_.reset(new HardwareBackendImage(
       base::Bind(&HardwareBackendImage::InitializeFromTexture,
                  base::Passed(&texture), gr_context)));
+  LHANDLE(
+      "HardwareFrontendImage::HardwareFrontendImage 3 (backend::TextureEGL) : ",
+      backend_image_);
   InitializeBackend();
 }
 
@@ -372,6 +393,9 @@ HardwareFrontendImage::HardwareFrontendImage(
   backend_image_.reset(new HardwareBackendImage(
       base::Bind(&HardwareBackendImage::InitializeFromRenderTree, root, size_,
                  submit_offscreen_callback, cobalt_context, gr_context)));
+  LHANDLE(
+      "HardwareFrontendImage::HardwareFrontendImage 4 (render_tree::Node) : ",
+      backend_image_);
   InitializeBackend();
 }
 
