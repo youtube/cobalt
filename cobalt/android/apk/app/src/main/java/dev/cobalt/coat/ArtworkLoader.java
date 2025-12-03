@@ -139,30 +139,37 @@ public class ArtworkLoader {
   public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
-    if (mRequestedArtworkUrl.equals(url)) {
-      mRequestedArtworkUrl = "";
-      if (bitmap != null) {
-        final Bitmap oldArtwork = mCurrentArtwork;
-        mCurrentArtworkUrl = url;
-        mCurrentArtwork = bitmap;
 
-        mHandler.post(
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  mCallback.onArtworkLoaded(bitmap);
-                } finally {
-                  if (oldArtwork != null) {
-                    oldArtwork.recycle();
-                  }
-                }
-              }
-            });
+    if (!mRequestedArtworkUrl.equals(url)) {
+      if (bitmap != null) {
+        bitmap.recycle();
       }
-    } else if (bitmap != null) {
-      bitmap.recycle();
+      return;
     }
+
+    mRequestedArtworkUrl = "";
+
+    if (bitmap == null) {
+      return;
+    }
+
+    final Bitmap oldArtwork = mCurrentArtwork;
+    mCurrentArtworkUrl = url;
+    mCurrentArtwork = bitmap;
+
+    mHandler.post(
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              mCallback.onArtworkLoaded(bitmap);
+            } finally {
+              if (oldArtwork != null) {
+                oldArtwork.recycle();
+              }
+            }
+          }
+        });
   }
 
   private class DownloadArtworkThread extends Thread {
