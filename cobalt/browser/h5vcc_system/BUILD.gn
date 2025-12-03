@@ -43,4 +43,11 @@ source_set("h5vcc_system") {
   if (is_starboard) {
     deps += [ "//cobalt/configuration" ]
   }
+
+  if (is_ios && target_platform == "tvos") {
+    frameworks = [
+      "AdSupport.framework",
+      "AppTrackingTransparency.framework",
+    ]
+  }
 }
