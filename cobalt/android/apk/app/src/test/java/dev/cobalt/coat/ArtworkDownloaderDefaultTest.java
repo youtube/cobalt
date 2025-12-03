@@ -16,6 +16,7 @@ package dev.cobalt.coat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.util.Pair;
@@ -48,7 +49,7 @@ public class ArtworkDownloaderDefaultTest {
       mDownloader.downloadArtwork(url, mMockLoader);
 
       // Even if download fails, bitmap will be null, but it should still be processed.
-      verify(mMockLoader).cropTo16x9(any());
-      verify(mMockLoader).onDownloadFinished(any(Pair.class));
+      verify(mMockLoader, timeout(1000)).consumeBitmapAndCropTo16x9(any());
+      verify(mMockLoader, timeout(1000)).onDownloadFinished(any(Pair.class));
   }
 }
