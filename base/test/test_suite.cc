@@ -347,6 +347,183 @@ void TestSuite::InitializeFromCommandLine(int argc, wchar_t** argv) {
   testing::InitGoogleMock(&argc, argv);
 }
 #endif  // BUILDFLAG(IS_WIN)
+<<<<<<< HEAD
+=======
+}
+
+void TestSuite::Initialize() {
+  DCHECK(!is_initialized_);
+
+  InitializeFromCommandLine(&argc_, argv_);
+
+#if GTEST_HAS_DEATH_TEST
+  if (::testing::internal::InDeathTestChild() &&
+      !CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kWithDeathTestStackTraces)) {
+    // For death tests using the "threadsafe" style (which includes all such
+    // tests on Windows and Fuchsia, and is the default for all Chromium tests
+    // on all platforms except Android; see `PreInitialize`),
+    //
+    // For more information, see
+    // https://github.com/google/googletest/blob/main/docs/advanced.md#death-test-styles.
+    debug::StackTrace::SuppressStackTracesWithMessageForTesting(
+        GetStackTraceMessage());
+  }
+#endif
+
+  // Logging must be initialized before any thread has a chance to call logging
+  // functions.
+  InitializeLogging();
+
+  // The AsanService causes ASAN errors to emit additional information. It is
+  // helpful on its own. It is also required by ASAN BackupRefPtr when
+  // reconfiguring PartitionAlloc below.
+#if defined(ADDRESS_SANITIZER)
+  base::debug::AsanService::GetInstance()->Initialize();
+#endif
+
+  // TODO(crbug.com/40250141): Enable BackupRefPtr in unittests on
+  // Android too. Same for ASAN.
+  // TODO(crbug.com/40255771): Enable PartitionAlloc in unittests with
+  // ASAN.
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC) && !defined(ADDRESS_SANITIZER)
+  allocator::PartitionAllocSupport::Get()->ReconfigureForTests();
+#endif  // BUILDFLAG(IS_WIN)
+
+  test::ScopedRunLoopTimeout::SetAddGTestFailureOnTimeout();
+
+  const CommandLine* command_line = CommandLine::ForCurrentProcess();
+#if !BUILDFLAG(IS_IOS)
+  if (command_line->HasSwitch(switches::kWaitForDebugger)) {
+    debug::WaitForDebugger(60, true);
+  }
+#endif
+
+#if BUILDFLAG(DCHECK_IS_CONFIGURABLE)
+  // Default the configurable DCHECK level to FATAL when running death tests'
+  // child process, so that they behave as expected.
+  // TODO(crbug.com/40120934): Remove this in favor of the codepath in
+  // FeatureList::SetInstance() when/if OnTestStart() TestEventListeners
+  // are fixed to be invoked in the child process as expected.
+  if (command_line->HasSwitch("gtest_internal_run_death_test")) {
+    logging::LOGGING_DCHECK = logging::LOGGING_FATAL;
+  }
+#endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
+
+#if BUILDFLAG(IS_IOS)
+  InitIOSTestMessageLoop();
+#endif  // BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_ANDROID)
+  InitAndroidTestMessageLoop();
+#endif  // else BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+  InitStarboardTestMessageLoop();
+#endif
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // Hermetic builds rely on the signal handlers installed by the platform under
+  // Starboard. We don't want these overridden by base::debug's signal handlers.
+  // We do, however, want to ignore SIGPIPE: chromium code generally expects
+  // this and cobalt gets this behavior via content::SetupSignalHandlers. To get
+  // this behavior for tests the following block of code is lifted from the
+  // stack_trace_posix.cc implementation of EnableInProcessStackDumping().
+  struct sigaction sigpipe_action;
+  memset(&sigpipe_action, 0, sizeof(sigpipe_action));
+  sigpipe_action.sa_handler = SIG_IGN;
+  sigemptyset(&sigpipe_action.sa_mask);
+  sigaction(SIGPIPE, &sigpipe_action, nullptr);
+#else
+  CHECK(debug::EnableInProcessStackDumping());
+#endif
+
+#if BUILDFLAG(IS_WIN)
+  RouteStdioToConsole(true);
+  // Make sure we run with high resolution timer to minimize differences
+  // between production code and test code.
+  Time::EnableHighResolutionTimer(true);
+#endif  // BUILDFLAG(IS_WIN)
+
+  // In some cases, we do not want to see standard error dialogs.
+  if (!debug::BeingDebugged() &&
+      !command_line->HasSwitch("show-error-dialogs")) {
+    SuppressErrorDialogs();
+    debug::SetSuppressDebugUI(true);
+    assert_handler_ = std::make_unique<logging::ScopedLogAssertHandler>(
+        BindRepeating(&TestSuite::UnitTestAssertHandler, Unretained(this)));
+  }
+
+  // Child processes generally do not need ICU.
+  if (!command_line->HasSwitch("test-child-process")) {
+    test::InitializeICUForTesting();
+
+    // A number of tests only work if the locale is en_US. This can be an issue
+    // on all platforms. To fix this we force the default locale to en_US. This
+    // does not affect tests that explicitly overrides the locale for testing.
+    // TODO(jshin): Should we set the locale via an OS X locale API here?
+    i18n::SetICUDefaultLocale("en_US");
+  }
+
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+  test_fonts::SetUpFontconfig();
+#endif
+
+  // Add TestEventListeners to enforce certain properties across tests.
+  testing::TestEventListeners& listeners =
+      testing::UnitTest::GetInstance()->listeners();
+  listeners.Append(new DisableMaybeTests);
+  listeners.Append(new ResetCommandLineBetweenTests);
+  listeners.Append(new FeatureListScopedToEachTest);
+  if (check_for_leaked_globals_) {
+    listeners.Append(new CheckForLeakedGlobals);
+  }
+  if (check_for_thread_and_process_priority_) {
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+    listeners.Append(new CheckProcessPriority);
+#endif
+  }
+
+  AddTestLauncherResultPrinter();
+
+  TestTimeouts::Initialize();
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  trace_to_file_.BeginTracingFromCommandLineOptions();
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+  debug::StartProfiling(GetProfileName());
+
+  debug::VerifyDebugger();
+
+  is_initialized_ = true;
+}
+
+void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
+  // CommandLine::Init() is called earlier from PreInitialize().
+  testing::InitGoogleTest(argc, argv);
+  testing::InitGoogleMock(argc, argv);
+  MaybeInitFuzztest(*argc, argv);
+
+#if BUILDFLAG(IS_IOS)
+  InitIOSArgs(*argc, argv);
+#endif
+}
+
+int TestSuite::RunAllTests() {
+  return RUN_ALL_TESTS();
+}
+
+void TestSuite::Shutdown() {
+  DCHECK(is_initialized_);
+#if GTEST_HAS_DEATH_TEST
+  if (::testing::internal::InDeathTestChild()) {
+    debug::StackTrace::SuppressStackTracesWithMessageForTesting({});
+  }
+#endif
+  debug::StopProfiling();
+}
+>>>>>>> 6ca73d207ca (Avoid base/debug signal handlers in hermetic tests (#8272))
 
 void TestSuite::PreInitialize() {
   DCHECK(!is_initialized_);
