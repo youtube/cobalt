@@ -646,7 +646,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
     state_ = STATE_FLUSHED;
     if (base::FeatureList::IsEnabled(
-            media::kNotifyMemoryPressureBeforePlayback)) {
+            media::kCobaltNotifyMemoryPressureBeforePlayback)) {
       // Send a one-time critical memory pressure signal to ask
       // other components to release memory.
       base::MemoryPressureListener::NotifyMemoryPressure(

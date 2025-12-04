@@ -229,6 +229,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDuration);
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal;
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltNotifyMemoryPressureBeforePlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltReportBufferingStateDuringFlush);
 #if BUILDFLAG(IS_ANDROID)
@@ -547,8 +548,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kRenderMutedAudio);
 
 // Enable experimental headless captions.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kHeadlessLiveCaption);
-
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kNotifyMemoryPressureBeforePlayback);
 
 // Based on a |command_line| and the current platform, returns the effective
 // autoplay policy. In other words, it will take into account the default policy
