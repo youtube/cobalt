@@ -5,7 +5,6 @@
                 "apks/Cobalt.apk",
                 "cobalt_shell.pak",
                 "gen/build_info.json",
-                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/base/natives/GEN_JNI.java",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
@@ -174,10 +173,6 @@
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
-                },
-                {
-                    "from_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/base/natives/GEN_JNI.java",
-                    "to_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/jni_zero/GEN_JNI.java"
                 },
                 {
                     "from_file": "gen/licenses_cobalt.spdx",
