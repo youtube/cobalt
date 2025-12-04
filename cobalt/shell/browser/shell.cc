@@ -79,9 +79,11 @@ std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
+             std::unique_ptr<WebContents> web_contents2,
              bool should_set_delegate)
     : WebContentsObserver(web_contents.get()),
-      web_contents_(std::move(web_contents)) {
+      web_contents_(std::move(web_contents)),
+      web_contents2_(std::move(web_contents2)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -94,6 +96,13 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
   }
+
+  LOG(ERROR) << "Cobalt: " << __func__ << " " << isMainFrameLoaded;
+  NavigationController::LoadURLParams params(GURL("https://www.google.com/"));
+  params.frame_name = std::string();
+  params.transition_type = ui::PageTransitionFromInt(
+      ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+  web_contents2_->GetController().LoadURLWithParams(params);
 }
 
 Shell::~Shell() {
@@ -147,9 +156,11 @@ void Shell::FinishShellInitialization(Shell* shell) {
 }
 
 Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
+                          std::unique_ptr<WebContents> web_contents2,
                           const gfx::Size& initial_size,
                           bool should_set_delegate) {
-  Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
+  Shell* shell = new Shell(std::move(web_contents), std::move(web_contents2),
+                           should_set_delegate);
   GetPlatform()->CreatePlatformWindow(shell, initial_size);
   FinishShellInitialization(shell);
   return shell;
@@ -171,7 +182,8 @@ void Shell::QuitMainMessageLoopForTesting() {
 // static
 void Shell::SetShellCreatedCallback(
     base::OnceCallback<void(Shell*)> shell_created_callback) {
-  DCHECK(!shell_created_callback_);
+  LOG(ERROR) << "Cobalt: " << __func__;
+  // DCHECK(!shell_created_callback_);
   shell_created_callback_ = std::move(shell_created_callback);
 }
 
@@ -247,9 +259,11 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   }
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
-  Shell* shell =
-      CreateShell(std::move(web_contents), AdjustWindowSize(initial_size),
-                  true /* should_set_delegate */);
+  std::unique_ptr<WebContents> web_contents2 =
+      WebContents::Create(create_params);
+  Shell* shell = CreateShell(std::move(web_contents), std::move(web_contents2),
+                             AdjustWindowSize(initial_size),
+                             true /* should_set_delegate */);
 
   if (!url.is_empty()) {
     shell->LoadURL(url);
@@ -345,7 +359,8 @@ WebContents* Shell::AddNewContents(
 
   WebContents* result = new_contents.get();
   CreateShell(
-      std::move(new_contents), AdjustWindowSize(window_features.bounds.size()),
+      std::move(new_contents), nullptr,
+      AdjustWindowSize(window_features.bounds.size()),
       !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
   return result;
 }
@@ -670,11 +685,20 @@ gfx::Size Shell::GetShellDefaultSize() {
   return default_shell_size;
 }
 
-#if BUILDFLAG(IS_ANDROID)
 void Shell::LoadProgressChanged(double progress) {
+#if BUILDFLAG(IS_ANDROID)
   g_platform->LoadProgressChanged(this, progress);
-}
 #endif
+  LOG(ERROR) << "Cobalt: " << __func__ << " progress " << progress;
+  if (progress >= 1.0 && isMainFrameLoaded == false) {
+    isMainFrameLoaded = true;
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&ShellPlatformDelegate::SetContents,
+                       base::Unretained(g_platform), base::Unretained(this)),
+        base::Milliseconds(1500));
+  }
+}
 
 void Shell::TitleWasSet(NavigationEntry* entry) {
   if (entry) {
