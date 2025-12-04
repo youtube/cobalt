@@ -14,15 +14,28 @@
 
 #include "cobalt/common/libc/locale/locale.h"
 
+#include <errno.h>
 #include <langinfo.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include <cstddef>
+#include <string>
+#include <vector>
+
+#include "cobalt/common/libc/locale/locale_support.h"
 
 namespace {
-thread_local locale_t g_current_locale = reinterpret_cast<locale_t>(0);
+constexpr char kLangEnv[] = "LANG";
+
+cobalt::LocaleImpl* GetGlobalLocale() {
+  static cobalt::LocaleImpl g_current_locale;
+  return &g_current_locale;
+}
+
+thread_local cobalt::LocaleImpl* g_current_thread_locale =
+    reinterpret_cast<cobalt::LocaleImpl*>(LC_GLOBAL_LOCALE);
 
 // The default locale is the C locale.
 const lconv* GetCLocaleConv() {
@@ -55,70 +68,171 @@ const lconv* GetCLocaleConv() {
   return &c_locale_conv;
 }
 
-// The C locale can be referenced by this statically allocated object.
-const lconv* GetCLocale() {
-  static const lconv c_locale(*GetCLocaleConv());
-  return &c_locale;
-}
-
 }  // namespace
 
-// The POSIX setlocale is not hermetic, so we must provide our own
-// implementation.
 char* setlocale(int category, const char* locale) {
+  if (!cobalt::IsValidLcCategory(category)) {
+    return nullptr;
+  }
+
+  cobalt::LocaleImpl* global_locale = GetGlobalLocale();
   if (locale == nullptr) {
-    return const_cast<char*>("C");
+    if (category == LC_ALL) {
+      return const_cast<char*>(global_locale->composite_lc_all.c_str());
+    }
+    return const_cast<char*>(global_locale->categories[category].c_str());
   }
-  if (strcmp(locale, "C") == 0 || strcmp(locale, "") == 0) {
-    return const_cast<char*>("C");
+
+  if (category != LC_ALL) {
+    std::string source_locale;
+    if (strcmp(locale, "") == 0) {
+      const char* env_locale = getenv(kLangEnv);
+      if (env_locale == nullptr || env_locale[0] == '\0') {
+        env_locale = cobalt::kCLocale;
+      }
+      source_locale = cobalt::GetCanonicalLocale(env_locale);
+    } else {
+      source_locale = cobalt::GetCanonicalLocale(locale);
+    }
+
+    if (source_locale.empty()) {
+      return nullptr;
+    }
+
+    global_locale->categories[category] = source_locale;
+
+    // We still need to check uniformity to keep LC_ALL return value correct.
+    RefreshCompositeString(global_locale);
+
+    // We sync ICU's default locale to the value of |LC_MESSAGES|, as
+    // LC_MESSAGES corresponds to how text is displayed.
+    if (category == LC_MESSAGES) {
+      cobalt::SyncIcuDefault(source_locale);
+    }
+
+    return const_cast<char*>(global_locale->categories[category].c_str());
   }
-  return nullptr;
+
+  std::array<std::string, LC_ALL> new_categories = global_locale->categories;
+  bool success = false;
+  // Special case where the locale string is the composite locale created from
+  // setlocale(LC_ALL, NULL);
+  if (ParseCompositeLocale(locale, *global_locale, new_categories)) {
+    success = true;
+  } else {
+    std::string canonical_locale;
+    if (strcmp(locale, "") == 0) {
+      const char* env_locale = getenv(kLangEnv);
+      if (env_locale == nullptr || env_locale[0] == '\0') {
+        env_locale = cobalt::kCLocale;
+      }
+      canonical_locale = cobalt::GetCanonicalLocale(env_locale);
+    } else {
+      canonical_locale = cobalt::GetCanonicalLocale(locale);
+    }
+    if (!canonical_locale.empty()) {
+      new_categories.fill(canonical_locale);
+      success = true;
+    }
+  }
+
+  if (!success) {
+    return nullptr;
+  }
+
+  global_locale->categories = new_categories;
+
+  // With the locales updated, we must update our composite string so that
+  // setlocale(LC_ALL, NULL) is accurate.
+  cobalt::RefreshCompositeString(global_locale);
+  cobalt::SyncIcuDefault(global_locale->categories[LC_MESSAGES]);
+
+  return const_cast<char*>(global_locale->composite_lc_all.c_str());
 }
 
 locale_t newlocale(int category_mask, const char* locale, locale_t base) {
+  int effective_mask = (category_mask == LC_ALL_MASK)
+                           ? cobalt::kAllValidCategoriesMask
+                           : category_mask;
+
   if (locale == nullptr ||
-      (strcmp(locale, "C") != 0 && strcmp(locale, "") != 0)) {
+      (effective_mask & ~cobalt::kAllValidCategoriesMask) != 0) {
+    errno = EINVAL;
     return (locale_t)0;
   }
 
-  lconv* new_lconv = new lconv;
-  if (base != (locale_t)0) {
-    memcpy(new_lconv, reinterpret_cast<lconv*>(base), sizeof(lconv));
-    freelocale(base);
+  std::string canonical_locale;
+  if (strcmp(locale, "") == 0) {
+    const char* env_locale = getenv(kLangEnv);
+    if (env_locale == nullptr || env_locale[0] == '\0') {
+      env_locale = cobalt::kCLocale;
+    }
+    canonical_locale = cobalt::GetCanonicalLocale(env_locale);
   } else {
-    memcpy(new_lconv, GetCLocale(), sizeof(lconv));
+    canonical_locale = cobalt::GetCanonicalLocale(locale);
   }
-  return reinterpret_cast<locale_t>(new_lconv);
+
+  if (canonical_locale == "") {
+    errno = ENOENT;
+    return (locale_t)0;
+  }
+
+  cobalt::LocaleImpl* cur_locale;
+  if (base == (locale_t)0) {
+    cur_locale = new cobalt::LocaleImpl();
+  } else {
+    cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(base);
+  }
+
+  UpdateLocaleSettings(effective_mask, canonical_locale.c_str(), cur_locale);
+  RefreshCompositeString(cur_locale);
+
+  return reinterpret_cast<locale_t>(cur_locale);
 }
 
 locale_t uselocale(locale_t newloc) {
-  // TODO: b/403007005 Fill in this stub.
-  return nullptr;
+  if (newloc == (locale_t)0) {
+    return reinterpret_cast<locale_t>(g_current_thread_locale);
+  }
+
+  cobalt::LocaleImpl* return_locale = g_current_thread_locale;
+  if (newloc == (locale_t)LC_GLOBAL_LOCALE) {
+    g_current_thread_locale =
+        reinterpret_cast<cobalt::LocaleImpl*>(LC_GLOBAL_LOCALE);
+    return reinterpret_cast<locale_t>(return_locale);
+  }
+
+  g_current_thread_locale = reinterpret_cast<cobalt::LocaleImpl*>(newloc);
+  return reinterpret_cast<locale_t>(return_locale);
 }
 
 void freelocale(locale_t loc) {
-  if (loc) {
-    delete reinterpret_cast<lconv*>(loc);
-  }
-}
-
-struct lconv* localeconv(void) {
-  return reinterpret_cast<lconv*>(g_current_locale);
+  delete reinterpret_cast<cobalt::LocaleImpl*>(loc);
 }
 
 locale_t duplocale(locale_t loc) {
-  if (loc == LC_GLOBAL_LOCALE) {
-    return LC_GLOBAL_LOCALE;
-  }
   if (loc == (locale_t)0) {
     return (locale_t)0;
   }
-  lconv* new_lconv = new lconv;
-  memcpy(new_lconv, reinterpret_cast<lconv*>(loc), sizeof(lconv));
-  return reinterpret_cast<locale_t>(new_lconv);
+
+  const cobalt::LocaleImpl* original_loc =
+      (loc == LC_GLOBAL_LOCALE)
+          ? GetGlobalLocale()
+          : reinterpret_cast<const cobalt::LocaleImpl*>(loc);
+
+  cobalt::LocaleImpl* new_copy = new cobalt::LocaleImpl();
+  new_copy->categories = original_loc->categories;
+  new_copy->composite_lc_all = original_loc->composite_lc_all;
+  return reinterpret_cast<locale_t>(new_copy);
+}
+
+struct lconv* localeconv(void) {
+  // TODO: b/461906423 - Properly implement localeconv.
+  return const_cast<lconv*>(GetCLocaleConv());
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
+  // TODO: b/461906423 - Properly implement nl_langinfo_l.
   if (locale == (locale_t)0) {
     // The behavior is undefined according to POSIX, but we will follow the
     // behavior of glibc and return an empty string.
@@ -246,5 +360,5 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 }
 
 char* nl_langinfo(nl_item item) {
-  return nl_langinfo_l(item, g_current_locale);
+  return nl_langinfo_l(item, reinterpret_cast<locale_t>(GetGlobalLocale()));
 }
