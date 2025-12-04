@@ -47,16 +47,19 @@ group("cobalt_shell_lib_deps") {
 
   public_deps = [
     ":android_shell_descriptors",
+    ":embed_polyfilled_javascript",
     ":resources",
     "//base",
     "//base:base_static",
     "//cc/base",
+    "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/embedder_support:embedder_support",
     "//components/embedder_support:user_agent",
+    "//components/js_injection/browser:browser",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
@@ -158,6 +161,10 @@ group("cobalt_shell_lib_deps") {
     if (is_android) {
       public_deps += [ "//starboard/android/shared:starboard_platform" ]
     }
+  }
+
+  if (is_androidtv) {
+    public_deps += [ "//cobalt/android/oom_intervention" ]
   }
 }
 
@@ -455,4 +462,21 @@ copy("copy_shell_resources") {
 
 group("resources") {
   public_deps = [ ":copy_shell_resources" ]
+}
+
+config("embed_polyfilled_javascript_config") {
+  include_dirs = [ root_gen_dir ]
+}
+
+# TODO(cobalt, b/390710539): migrate to GRIT.
+action("embed_polyfilled_javascript") {
+  script = "//cobalt/build/generate_data_header.py"
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_js.h" ]
+  public_configs = [ ":embed_polyfilled_javascript_config" ]
+
+  args = [
+    "CobaltJavaScriptPolyfill",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources", root_build_dir),
+  ]
 }
