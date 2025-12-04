@@ -34,28 +34,20 @@ import org.robolectric.shadows.ShadowLooper;
 public class ArtworkDownloaderDefaultTest {
 
   private ArtworkDownloaderDefault mDownloader;
-  private ArtworkDownloader mMockArtworkDownloader; // Needed for ArtworkLoader constructor
 
   @Before
   public void setUp() {
     mDownloader = new ArtworkDownloaderDefault();
-    mMockArtworkDownloader = mock(ArtworkDownloader.class);
   }
 
   @Test
-  public void testDownloadArtwork_CallsLoader() throws InterruptedException {
+  public void testDownloadArtwork_CallsOnDownloadFinished() throws InterruptedException {
     final CountDownLatch latch = new CountDownLatch(1);
 
     ArtworkLoader artworkLoader =
         new ArtworkLoader(
-            new ArtworkLoader.Callback() {
-              @Override
-              public void onArtworkLoaded(Bitmap bitmap) {
-                // This callback is posted to the main looper by ArtworkLoader.
-                // We will manually run the looper to trigger it.
-              }
-            },
-            mMockArtworkDownloader) {
+            mock(ArtworkLoader.Callback.class),
+            mock(ArtworkDownloader.class)) {
           @Override
           public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
             super.onDownloadFinished(urlBitmapPair);
@@ -68,16 +60,39 @@ public class ArtworkDownloaderDefaultTest {
     String url = "http://example.com/image.png";
     mDownloader.downloadArtwork(url, artworkLoader);
 
+    assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+  }
+
+  @Test
+  public void testDownloadArtwork_TriggersCallback() throws InterruptedException {
+    final CountDownLatch latch = new CountDownLatch(1);
+
+    ArtworkLoader artworkLoader =
+        new ArtworkLoader(
+            new ArtworkLoader.Callback() {
+              @Override
+              public void onArtworkLoaded(Bitmap bitmap) {
+                latch.countDown();
+              }
+            },
+            mock(ArtworkDownloader.class)) {
+          @Override
+          public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
+            // Return a dummy bitmap to simulate success and trigger the callback,
+            // even if the download (simulated to fail here) produces a null bitmap.
+            return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+          }
+        };
+
+    artworkLoader.mRequestedArtworkUrl = "http://example.com/image.png";
+
+    String url = "http://example.com/image.png";
+    mDownloader.downloadArtwork(url, artworkLoader);
+
+    // The download runs on the calling thread (in this test context), calls onDownloadFinished,
+    // which posts to the main looper. Run the looper to execute the callback.
     ShadowLooper.runUiThreadTasks();
 
     assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
-
-    // Verify interactions on the real ArtworkLoader (now that it has completed its work).
-    // This implicitly verifies consumeBitmapAndCropTo16x9 was called, and that
-    // onDownloadFinished was called.
-    // Note: We cannot directly verify calls on the 'artworkLoader' instance using Mockito
-    // 'verify' if it's a real object. If specific internal calls need verification,
-    // ArtworkLoader itself might need to be a spy or provide testable hooks.
-    // For this test, verifying the latch countdown is sufficient proof of the flow.
   }
 }
