@@ -207,17 +207,7 @@ locale_t uselocale(locale_t newloc) {
 }
 
 void freelocale(locale_t loc) {
-<<<<<<< HEAD
-  if (loc) {
-    delete reinterpret_cast<lconv*>(loc);
-  }
-}
-
-struct lconv* localeconv(void) {
-  return const_cast<struct lconv*>(GetCLocaleConv());
-=======
   delete reinterpret_cast<cobalt::LocaleImpl*>(loc);
->>>>>>> 793ef631b94 (3p: add locale support to Cobalt (#8027))
 }
 
 locale_t duplocale(locale_t loc) {
