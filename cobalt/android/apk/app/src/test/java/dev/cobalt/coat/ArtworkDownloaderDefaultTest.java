@@ -33,6 +33,9 @@ import org.robolectric.shadows.ShadowLooper;
 @Config(manifest = Config.NONE)
 public class ArtworkDownloaderDefaultTest {
 
+  private static final String TEST_URL = "http://example.com/image.png";
+  private static final int TIMEOUT_SECONDS = 1;
+
   private ArtworkDownloaderDefault mDownloader;
 
   @Before
@@ -40,27 +43,41 @@ public class ArtworkDownloaderDefaultTest {
     mDownloader = new ArtworkDownloaderDefault();
   }
 
+  // Helper to execute the download, flush the looper, and assert the latch.
+  private void executeAndVerify(ArtworkLoader loader, CountDownLatch latch)
+      throws InterruptedException {
+    loader.mRequestedArtworkUrl = TEST_URL;
+
+    mDownloader.downloadArtwork(TEST_URL, loader);
+
+    // The download runs on the calling thread (in this test context), calls onDownloadFinished,
+    // which posts to the main looper. Run the looper to execute the callback.
+    ShadowLooper.runUiThreadTasks();
+
+    assertThat(latch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+  }
+
   @Test
-  public void testDownloadArtwork_CallsOnDownloadFinished() throws InterruptedException {
+  public void testDownloadArtwork_Failure_CallsOnDownloadFinishedWithNull()
+      throws InterruptedException {
     final CountDownLatch latch = new CountDownLatch(1);
 
     ArtworkLoader artworkLoader =
         new ArtworkLoader(
             mock(ArtworkLoader.Callback.class),
-            mock(ArtworkDownloader.class)) {
+            mDownloader) {
           @Override
           public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
             super.onDownloadFinished(urlBitmapPair);
+            // In this test, the download is expected to fail, so the bitmap should be null.
+            // In this test environment, the download fails because the URL is not accessible,
+            // triggering the IOException catch block in ArtworkDownloaderDefault.
+            assertThat(urlBitmapPair.second).isNull();
             latch.countDown();
           }
         };
 
-    artworkLoader.mRequestedArtworkUrl = "http://example.com/image.png";
-
-    String url = "http://example.com/image.png";
-    mDownloader.downloadArtwork(url, artworkLoader);
-
-    assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+    executeAndVerify(artworkLoader, latch);
   }
 
   @Test
@@ -75,7 +92,7 @@ public class ArtworkDownloaderDefaultTest {
                 latch.countDown();
               }
             },
-            mock(ArtworkDownloader.class)) {
+            mDownloader) {
           @Override
           public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
             // Return a dummy bitmap to simulate success and trigger the callback,
@@ -84,15 +101,6 @@ public class ArtworkDownloaderDefaultTest {
           }
         };
 
-    artworkLoader.mRequestedArtworkUrl = "http://example.com/image.png";
-
-    String url = "http://example.com/image.png";
-    mDownloader.downloadArtwork(url, artworkLoader);
-
-    // The download runs on the calling thread (in this test context), calls onDownloadFinished,
-    // which posts to the main looper. Run the looper to execute the callback.
-    ShadowLooper.runUiThreadTasks();
-
-    assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+    executeAndVerify(artworkLoader, latch);
   }
 }
