@@ -46,7 +46,9 @@ SKIPPED_PRESUBMIT_CHECKS = [
     "CheckOwnersOnCommit",
     "CheckOwnersOnUpload",
     "CheckPatchFormatted",
-    "CheckSecurityOwners"
+    "CheckSecurityOwners",
+    # Prevents the "Tree state is: closed" errors
+    "CheckTreeIsOpen",
 ]
 
 # --- Monkey-patching to remove Gerrit dependencies ---
