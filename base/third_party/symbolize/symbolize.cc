@@ -789,7 +789,7 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void* pc,
   SafeAppendString("(", out, out_size);
 
 #if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN)
-  char* file_name = NULL;
+  char* file_name = nullptr;
   EvergreenInfo evergreen_info;
   if (GetEvergreenInfo(&evergreen_info)) {
     if (IS_EVERGREEN_ADDRESS(pc, evergreen_info)) {
@@ -799,7 +799,7 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void* pc,
     }
   }
   int object_fd = -1;
-  if (file_name != NULL) {
+  if (file_name) {
     object_fd = OpenFile(file_name);
   } else {
     object_fd = OpenObjectFileContainingPcAndGetStartAddress(
