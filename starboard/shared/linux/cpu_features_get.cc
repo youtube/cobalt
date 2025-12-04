@@ -282,6 +282,7 @@ class ProcCpuInfo {
   }
 };
 
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 // Check if getauxval() is supported
 bool IsGetauxvalSupported() {
   // TODO: figure out which linking flags are needed to use
@@ -337,7 +338,6 @@ uint32_t ReadElfHwcaps(uint32_t hwcap_type) {
   return hwcap;
 }
 
-#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 // Checks if a space-separated list of items |list|, in the form of a string,
 // contains one given item |item|.
 bool HasItemInList(const char* list, const char* flag) {
