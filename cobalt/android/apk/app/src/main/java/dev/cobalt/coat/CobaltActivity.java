@@ -99,6 +99,8 @@ public abstract class CobaltActivity extends Activity {
   private Boolean isKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector cobaltConnectivityDetector;
 
+  private boolean mIsSplashScreenStarted = false;
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
@@ -202,13 +204,19 @@ public abstract class CobaltActivity extends Activity {
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
-            // Inject JavaBridge objects to the WebContents.
-            initializeJavaBridge();
-            getStarboardBridge().setWebContents(getActiveWebContents());
+            if (!mIsSplashScreenStarted) {
+              // Inject JavaBridge objects to the WebContents.
+              initializeJavaBridge();
+              getStarboardBridge().setWebContents(getActiveWebContents());
 
-            // Load the `url` with the same shell we created above.
-            Log.i(TAG, "shellManager load url:" + mStartupUrl);
-            mShellManager.getActiveShell().loadUrl(mStartupUrl);
+              // Load the `url` with the same shell we created above.
+              Log.i(TAG, "shellManager load url:" + mStartupUrl);
+              mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+              // Load splash screen.
+              mIsSplashScreenStarted = true;
+              mShellManager.getActiveShell().loadSplashScreenWebContents();
+            }
           }
         });
   }
@@ -365,6 +373,7 @@ public abstract class CobaltActivity extends Activity {
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class);
     }
+    Log.e(TAG, "NativeSplash: initializeJavaBridge");
   }
 
   /**
@@ -651,6 +660,7 @@ public abstract class CobaltActivity extends Activity {
         new Runnable() {
           @Override
           public void run() {
+            Log.e(TAG, "SplashScreen: evaluateJavaScript");
             WebContents webContents = getActiveWebContents();
             if (webContents != null) {
               webContents.evaluateJavaScript(jsCode, null);

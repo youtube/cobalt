@@ -128,6 +128,14 @@ public class Shell {
         ShellJni.get().closeShell(mNativeShell);
     }
 
+    /**
+     * Load splash screen.
+     */
+    public void loadSplashScreenWebContents() {
+        if (mNativeShell == 0) return;
+        ShellJni.get().loadSplashScreenWebContents(mNativeShell);
+    }
+
     @CalledByNative
     private void onNativeDestroyed() {
         mWindow = null;
@@ -222,6 +230,26 @@ public class Shell {
     }
 
     /**
+     * Initializes the ContentView based on the native splash screen contents pointer passed in.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void initFromSplashScreenNativeTabContents(WebContents webContents) {
+        webContents.initialize(
+                "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
+        webContents.onShow();
+        mContentViewRenderView.setCurrentWebContents(webContents);
+    }
+
+    @CalledByNative
+    private void updateNativeTabContents(WebContents webContents) {
+        mWebContents = webContents;
+        mNavigationController = mWebContents.getNavigationController();
+        mWebContents.onShow();
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
+    }
+
+    /**
      * {link @ActionMode.Callback} that uses the default implementation in
      * {@link SelectionPopupController}.
      */
@@ -297,6 +325,7 @@ public class Shell {
 
     @NativeMethods
     interface Natives {
+        void loadSplashScreenWebContents(long shellPtr);
         void closeShell(long shellPtr);
     }
 }

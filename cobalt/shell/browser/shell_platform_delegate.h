@@ -75,6 +75,9 @@ class ShellPlatformDelegate {
   // Links the WebContents into the newly created window.
   virtual void SetContents(Shell* shell);
 
+  virtual void LoadSplashScreenContents(Shell* shell);
+  virtual void UpdateContents(Shell* shell);
+
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
 

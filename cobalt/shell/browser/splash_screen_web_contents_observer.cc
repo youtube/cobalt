@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
-namespace cobalt {
-namespace switches {
+namespace content {
 
-std::string GetInitialURL(const base::CommandLine& command_line) {
-  if (command_line.HasSwitch(kInitialURL)) {
-    return command_line.GetSwitchValueASCII(kInitialURL);
-  }
-  return ::switches::kDefaultURL;
+SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
+    WebContents* web_contents)
+    : WebContentsObserver(web_contents) {}
+
+SplashScreenWebContentsObserver::~SplashScreenWebContentsObserver() = default;
+
+void SplashScreenWebContentsObserver::WebContentsDestroyed() {
+  Observe(nullptr);
 }
 
-}  // namespace switches
-}  // namespace cobalt
+void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {}
+
+}  // namespace content

@@ -84,6 +84,25 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
       env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
 }
 
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  Java_Shell_initFromSplashScreenNativeTabContents(
+      env, shell_data.java_object,
+      shell->splash_screen_web_contents()->GetJavaWebContents());
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  Java_Shell_updateNativeTabContents(
+      env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
+}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->GetRenderWidgetHostView()->SetSize(content_size);
@@ -166,6 +185,12 @@ void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_onLoadProgressChanged(env, shell_data.java_object, progress);
+}
+
+// static
+void JNI_Shell_LoadSplashScreenWebContents(JNIEnv* env, jlong shellPtr) {
+  Shell* shell = reinterpret_cast<Shell*>(shellPtr);
+  shell->LoadSplashScreenWebContents();
 }
 
 // static

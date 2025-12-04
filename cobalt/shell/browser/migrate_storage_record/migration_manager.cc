@@ -65,7 +65,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
       std::make_unique<starboard::StorageRecord>(partition_key.c_str());
   if (!record->IsValid()) {
     record->Delete();
-    bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
+    bool fallback = partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
     if (!fallback) {
       return nullptr;
     }

@@ -376,6 +376,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   shell_data.window_widget->Show();
 }
 
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  SetContents(shell);
+}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->Resize(gfx::Rect(content_size));

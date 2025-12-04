@@ -109,7 +109,10 @@ source_set("switches") {
     "switches.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//cobalt/shell:cobalt_shell_switches",
+  ]
 }
 
 source_set("global_features") {
