@@ -579,9 +579,19 @@ void TestSuite::Initialize() {
   InitStarboardTestMessageLoop();
 #endif
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Hermetic builds rely on the signal handlers installed by the platform under
 // Starboard. We don't want these overridden by base::debug's signal handlers.
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// We do, however, want to ignore SIGPIPE: chromium code generally expects this
+// and cobalt gets this behavior via content::SetupSignalHandlers. To get this
+// behavior for tests the following block of code is lifted from the
+// stack_trace_posix.cc implementation of EnableInProcessStackDumping().
+  struct sigaction sigpipe_action;
+  memset(&sigpipe_action, 0, sizeof(sigpipe_action));
+  sigpipe_action.sa_handler = SIG_IGN;
+  sigemptyset(&sigpipe_action.sa_mask);
+  sigaction(SIGPIPE, &sigpipe_action, nullptr);
+#else
   CHECK(debug::EnableInProcessStackDumping());
 #endif
 
