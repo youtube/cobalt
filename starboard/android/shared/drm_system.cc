@@ -119,15 +119,12 @@ int DrmSystem::SessionUpdateRequest::TakeTicket() {
   // http://b/419320804#comment1).
   //
   // When TakeTicket() is called for the first time, it returns a valid
-  // ticket and sets 'ticket_' to `kSbDrmTicketInvalid`.
-  //
-  // Subsequent calls to TakeTicket() for the same request will return
-  // `kSbDrmTicketInvalid`. This is expected behavior and means that
-  // this is a "spontaneous" message for an existing session (i.e., a retry or
-  // deferred license request) rather than an initial request.
-  //
-  // See StarboardCdm's logic for "spontaneous" message:
-  // https://source.corp.google.com/h/github/youtube/cobalt/+/main:media/starboard/starboard_cdm.cc;l=336-345;drc=274beb9dd42dc6c7d7dd3ff9415a41e1393f0133
+  // ticket and sets 'ticket_' to `kSbDrmTicketInvalid`. Subsequent calls to
+  // TakeTicket() for the same request will return `kSbDrmTicketInvalid`. This
+  // is expected behavior and means that this is a "spontaneous" message for an
+  // existing session (i.e., a retry or deferred license request) rather than an
+  // initial request. See StarboardCdm's logic for "spontaneous" message:
+  // https://source.corp.google.com/h/github/youtube/cobalt/+/main:media/starboard/starboard_cdm.cc;l=336-359;drc=274beb9dd42dc6c7d7dd3ff9415a41e1393f0133
   return std::exchange(ticket_, kSbDrmTicketInvalid);
 }
 
