@@ -17,13 +17,8 @@
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-<<<<<<< HEAD
-#include "base/no_destructor.h"
-=======
 #include "base/memory/memory_pressure_listener.h"
-#include "base/strings/stringprintf.h"
-#include "base/task/sequenced_task_runner.h"
->>>>>>> 661bee1645e (feat(media): Add critical memory pressure signal before playback (#8240))
+#include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -590,7 +585,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
     state_ = STATE_FLUSHED;
     if (base::FeatureList::IsEnabled(
-            media::kNotifyMemoryPressureBeforePlayback)) {
+            media::kCobaltNotifyMemoryPressureBeforePlayback)) {
       // Send a one-time critical memory pressure signal to ask
       // other components to release memory.
       base::MemoryPressureListener::NotifyMemoryPressure(
