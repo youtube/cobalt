@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
 #include <numeric>
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
-#include "cobalt/browser/migrate_storage_record/storage.pb.h"
+#include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
