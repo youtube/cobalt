@@ -68,7 +68,16 @@
 #include "demangle.h"
 
 #include "build/build_config.h"
-#if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN)
+// TODO: b/398296821 - Cobalt: to support google::Symbolize() when called from
+// the Evergreen library (as opposed to from below Starboard) we would need to
+// also make these customizations when building with the Cobalt toolchain,
+// meaning we'd want to remove |BUILDFLAG(IS_STARBOARD_TOOLCHAIN)| from this
+// condition. But yavor@ described in
+// https://github.com/youtube/cobalt/pull/8290 why additional changes are needed
+// before we can safely do that.
+#if BUILDFLAG(IS_STARBOARD) && \
+    BUILDFLAG(USE_EVERGREEN) && \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #endif
 
@@ -507,7 +516,9 @@ static char *GetHex(const char *start, const char *end, uint64_t *hex) {
   return const_cast<char *>(p);
 }
 
-#if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD) && \
+    BUILDFLAG(USE_EVERGREEN) && \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
 static ATTRIBUTE_NOINLINE int OpenFile(const char* file_name) {
   int object_fd = -1;
   NO_INTR(object_fd = open(file_name, O_RDONLY));
@@ -788,7 +799,9 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void* pc,
   out[0] = '\0';
   SafeAppendString("(", out, out_size);
 
-#if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD) && \
+    BUILDFLAG(USE_EVERGREEN) && \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
   char* file_name = nullptr;
   EvergreenInfo evergreen_info;
   if (GetEvergreenInfo(&evergreen_info)) {
