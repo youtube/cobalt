@@ -116,3 +116,6 @@ enable_ppapi = false
 
 # Enable the compiler size optimizations e.g. -Os.
 optimize_for_size = true
+
+# Disable cast remote RPC as we don't use it.
+enable_media_remoting_rpc = false
