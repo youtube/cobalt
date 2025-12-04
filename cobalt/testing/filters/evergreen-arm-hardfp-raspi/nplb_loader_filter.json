@@ -19,15 +19,8 @@
     "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
     "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
     "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
+    "PosixLocaleThreadTest.DupLocale",
     "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "PosixLocaleThreadTest.DupLocaleGlobal",
-    "PosixLocaleThreadTest.UseLocale",
-    "PosixLocaleThreadTest.SetLocaleThenUseLocale",
-    "PosixLocaleThreadTest.SetLocaleThenUseLocaleThenUseGlobal",
-    "PosixLocaleThreadTest.UseLocaleThenSetLocale",
-    "PosixLocaleThreadTest.UseLocaleThenSetLocaleThenUseGlobal",
-    "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
+    "Posix/NlLanginfo*"
   ]
 }
