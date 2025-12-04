@@ -321,12 +321,11 @@ bool Mp2tStreamParser::AppendToParseBuffer(const uint8_t* buf, size_t size) {
   CHECK_EQ(uninspected_pending_bytes_, 0);
 
   // Add the data to the parser state.
-  uninspected_pending_bytes_ = base::checked_cast<int>(size);
-  if (!ts_byte_queue_.Push(buf, uninspected_pending_bytes_)) {
+  if (!ts_byte_queue_.Push(buf, base::checked_cast<int>(size))) {
     DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size " << size;
     return false;
   }
-
+  uninspected_pending_bytes_ = base::checked_cast<int>(size);
   return true;
 }
 
