@@ -1,6 +1,9 @@
 {
     "archive_datas": [
         {
+            "zipfiles": [
+                "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip"
+            ],
             "files": [
                 "cobalt_shell.pak",
                 "gen/build_info.json",
@@ -9,9 +12,793 @@
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
                 "libchrobalt.so",
+<<<<<<< HEAD
                 "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
+            ],
+            "rename_files": [
+                {
+=======
+                "obj/base/activity_state_java.javac.jar",
+                "obj/base/android_info_java.javac.jar",
+                "obj/base/base_cached_flags_java.javac.jar",
+                "obj/base/base_java.javac.jar",
+                "obj/base/base_jni_java.javac.jar",
+                "obj/base/base_minimal_jni_java.javac.jar",
+                "obj/base/base_shared_preferences_java.javac.jar",
+                "obj/base/base_switches_java.javac.jar",
+                "obj/base/build_info_java.javac.jar",
+                "obj/base/bundle_utils_java.javac.jar",
+                "obj/base/callback_java.javac.jar",
+                "obj/base/clang_profiler_java.javac.jar",
+                "obj/base/command_line_init_utils_java.javac.jar",
+                "obj/base/command_line_java.javac.jar",
+                "obj/base/command_line_jni_java.javac.jar",
+                "obj/base/content_uri_utils_java.javac.jar",
+                "obj/base/features_java.javac.jar",
+                "obj/base/file_provider_utils_java.javac.jar",
+                "obj/base/file_utils_java.javac.jar",
+                "obj/base/jank_tracker_java.javac.jar",
+                "obj/base/jni_android_java.javac.jar",
+                "obj/base/jni_utils_java.javac.jar",
+                "obj/base/library_loader_java.javac.jar",
+                "obj/base/library_loader_jni_java.javac.jar",
+                "obj/base/lifetime_java.javac.jar",
+                "obj/base/log_java.javac.jar",
+                "obj/base/memory_java.javac.jar",
+                "obj/base/metrics_java.javac.jar",
+                "obj/base/metrics_jni_java.javac.jar",
+                "obj/base/metrics_ScopedSysTraceEvent_java.javac.jar",
+                "obj/base/path_utils_java.javac.jar",
+                "obj/base/pii_elider_java.javac.jar",
+                "obj/base/process_launcher_java.javac.jar",
+                "obj/base/promise_java.javac.jar",
+                "obj/base/resetters_java.javac.jar",
+                "obj/base/service_loader_java.javac.jar",
+                "obj/base/stream_util_java.javac.jar",
+                "obj/base/supplier_java.javac.jar",
+                "obj/base/sys_utils_java.javac.jar",
+                "obj/base/tasks_java.javac.jar",
+                "obj/base/tasks_jni_java.javac.jar",
+                "obj/base/tasks_minimal_jni_java.javac.jar",
+                "obj/base/time_utils_java.javac.jar",
+                "obj/base/unowned_user_data_java.javac.jar",
+                "obj/base/version_info/android/channel_enum_java.javac.jar",
+                "obj/base/version_info/android/version_constants_java.javac.jar",
+                "obj/base/wrapped_class_loader_java.javac.jar",
+                "obj/build/android/build_java.javac.jar",
+                "obj/cc/cc_java.javac.jar",
+                "obj/cc/mojom/mojom_java.javac.jar",
+                "obj/cobalt/android/cobalt_apk.javac.jar",
+                "obj/cobalt/android/cobalt_apk_java.javac.jar",
+                "obj/cobalt/android/cobalt_main_java.javac.jar",
+                "obj/cobalt/browser/crash_annotator/public/mojom/mojom_java.javac.jar",
+                "obj/cobalt/shell/android/cobalt_shell_java.javac.jar",
+                "obj/components/cached_flags/java.javac.jar",
+                "obj/components/download/internal/common/internal_java.javac.jar",
+                "obj/components/download/public/common/public_java.javac.jar",
+                "obj/components/embedder_support/android/view_java.javac.jar",
+                "obj/components/input/android/java.javac.jar",
+                "obj/components/location/android/location_java.javac.jar",
+                "obj/components/metrics/metrics_java.javac.jar",
+                "obj/components/url_formatter/android/url_formatter_java.javac.jar",
+                "obj/components/variations/android/variations_java.javac.jar",
+                "obj/components/variations/variations_java.javac.jar",
+                "obj/components/viz/service/service_java.javac.jar",
+                "obj/content/public/android/content_app_jni_java.javac.jar",
+                "obj/content/public/android/content_full_java.javac.jar",
+                "obj/content/public/android/content_main_dex_java.javac.jar",
+                "obj/content/public/android/content_main_dex_jni_java.javac.jar",
+                "obj/content/public/android/content_util_java.javac.jar",
+                "obj/content/public/common/common_java.javac.jar",
+                "obj/device/bluetooth/java.javac.jar",
+                "obj/device/gamepad/java.javac.jar",
+                "obj/device/vr/public/java.javac.jar",
+                "obj/media/base/android/display_java.javac.jar",
+                "obj/media/base/android/media_java.javac.jar",
+                "obj/media/capture/video/android/capture_java.javac.jar",
+                "obj/media/midi/midi_java.javac.jar",
+                "obj/media/mojo/mojom/mojom_java.javac.jar",
+                "obj/mojo/public/java/base_java.javac.jar",
+                "obj/mojo/public/java/bindings_java.javac.jar",
+                "obj/mojo/public/java/system_java.javac.jar",
+                "obj/mojo/public/java/system/system_impl_java.javac.jar",
+                "obj/mojo/public/mojom/base/base_java.javac.jar",
+                "obj/net/android/net_java.javac.jar",
+                "obj/net/android/net_thread_stats_uid_java.javac.jar",
+                "obj/services/device/battery/android/battery_monitor_java.javac.jar",
+                "obj/services/device/generic_sensor/java.javac.jar",
+                "obj/services/device/geolocation/geolocation_java.javac.jar",
+                "obj/services/device/java.javac.jar",
+                "obj/services/device/nfc/android/java.javac.jar",
+                "obj/services/device/public/java/device_feature_list_java.javac.jar",
+                "obj/services/device/public/java/geolocation_java.javac.jar",
+                "obj/services/device/public/java/nfc_java.javac.jar",
+                "obj/services/device/public/mojom/mojom_java.javac.jar",
+                "obj/services/device/screen_orientation/java.javac.jar",
+                "obj/services/device/time_zone_monitor/java.javac.jar",
+                "obj/services/device/usb/java.javac.jar",
+                "obj/services/device/vibration/android/vibration_manager_java.javac.jar",
+                "obj/services/device/wake_lock/power_save_blocker/java.javac.jar",
+                "obj/services/media_session/public/cpp/android/media_session_java.javac.jar",
+                "obj/services/service_manager/public/java/service_manager_java.javac.jar",
+                "obj/services/service_manager/public/mojom/mojom_java.javac.jar",
+                "obj/skia/public/mojom/mojom_java.javac.jar",
+                "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar",
+                "obj/third_party/android_deps/local_modifications/preconditions/guava_stub_preconditions_java.javac.jar",
+                "obj/third_party/android_deps/utils/java.javac.jar",
+                "obj/third_party/android_provider/android_provider_java.javac.jar",
+                "obj/third_party/androidx/local_modifications/buildcompat/buildcompat_java.javac.jar",
+                "obj/third_party/androidx/local_modifications/window/window_util_java.javac.jar",
+                "obj/third_party/blink/public/blink_headers_java.javac.jar",
+                "obj/third_party/blink/public/common/common_java.javac.jar",
+                "obj/third_party/blink/public/mojom/android_mojo_bindings_java.javac.jar",
+                "obj/third_party/blink/public/mojom/color_scheme_mojo_bindings_java.javac.jar",
+                "obj/third_party/blink/public/mojom/gpu/gpu_java.javac.jar",
+                "obj/third_party/blink/public/mojom/mojom_core_java.javac.jar",
+                "obj/third_party/blink/public/mojom/mojom_mhtml_load_result_java.javac.jar",
+                "obj/third_party/blink/public/mojom/mojom_platform_java.javac.jar",
+                "obj/third_party/blink/public/mojom/origin_trials/origin_trial_feature_java.javac.jar",
+                "obj/third_party/blink/public/mojom/origin_trials/origin_trial_state_java.javac.jar",
+                "obj/third_party/blink/public/mojom/private_network_device/private_network_device_java.javac.jar",
+                "obj/third_party/blink/public/mojom/quota/quota_java.javac.jar",
+                "obj/third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state_java.javac.jar",
+                "obj/third_party/blink/public/mojom/script_type_mojo_bindings_java.javac.jar",
+                "obj/third_party/blink/public/mojom/service_worker/storage_java.javac.jar",
+                "obj/third_party/blink/public/mojom/storage_key/storage_key_java.javac.jar",
+                "obj/third_party/blink/public/mojom/tokens/tokens_java.javac.jar",
+                "obj/third_party/blink/public/mojom/usb/usb_java.javac.jar",
+                "obj/third_party/blink/public/mojom/web_feature_mojo_bindings_java.javac.jar",
+                "obj/third_party/jni_zero/gendeps_java.javac.jar",
+                "obj/third_party/jni_zero/jni_zero_java.javac.jar",
+                "obj/ui/accessibility/accessibility_features_java.javac.jar",
+                "obj/ui/accessibility/accessibility_features_native_map_java.javac.jar",
+                "obj/ui/accessibility/ax_base_java.javac.jar",
+                "obj/ui/android/ui_android_features_java.javac.jar",
+                "obj/ui/android/ui_no_recycler_view_java.javac.jar",
+                "obj/ui/android/ui_recycler_view_java.javac.jar",
+                "obj/ui/android/ui_utils_java.javac.jar",
+                "obj/ui/base/clipboard_jni_headers_java.javac.jar",
+                "obj/ui/base/ime/mojom/mojom_java.javac.jar",
+                "obj/ui/base/select_file_dialog_jni_headers_java.javac.jar",
+                "obj/ui/gfx/geometry/mojom/mojom_java.javac.jar",
+                "obj/ui/gl/gl_jni_headers_java.javac.jar",
+                "obj/url/url_java.javac.jar"
+            ],
+            "rename_files": [
+                {
+                    "from_file": "cobalt_shell.pak",
+                    "to_file": "content/cobalt_shell.pak"
+                },
+                {
+>>>>>>> a4b71897eab (Update Android packaging (#8280))
+                    "from_file": "gen/build_info.json",
+                    "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.spdx",
+                    "to_file": "licenses_cobalt.spdx"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.txt",
+                    "to_file": "licenses_cobalt.txt"
+                },
+                {
+                    "from_file": "icudtl.dat",
+                    "to_file": "content/icudtl.dat"
+                },
+                {
+                    "from_file": "lib.unstripped/libchrobalt.so",
+                    "to_file": "symbol/libchrobalt.so"
+                },
+                {
+                    "from_file": "libchrobalt.so",
+                    "to_file": "lib/libchrobalt.so"
+                },
+                {
+                    "from_file": "obj/base/activity_state_java.javac.jar",
+                    "to_file": "jar/base_activity_state_java.jar"
+                },
+                {
+                    "from_file": "obj/base/android_info_java.javac.jar",
+                    "to_file": "jar/base_android_info_java.jar"
+                },
+                {
+                    "from_file": "obj/base/base_cached_flags_java.javac.jar",
+                    "to_file": "jar/base_base_cached_flags_java.jar"
+                },
+                {
+                    "from_file": "obj/base/base_java.javac.jar",
+                    "to_file": "jar/base_base_java.jar"
+                },
+                {
+                    "from_file": "obj/base/base_jni_java.javac.jar",
+                    "to_file": "jar/base_base_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/base_minimal_jni_java.javac.jar",
+                    "to_file": "jar/base_base_minimal_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/base_shared_preferences_java.javac.jar",
+                    "to_file": "jar/base_base_shared_preferences_java.jar"
+                },
+                {
+                    "from_file": "obj/base/base_switches_java.javac.jar",
+                    "to_file": "jar/base_base_switches_java.jar"
+                },
+                {
+                    "from_file": "obj/base/build_info_java.javac.jar",
+                    "to_file": "jar/base_build_info_java.jar"
+                },
+                {
+                    "from_file": "obj/base/bundle_utils_java.javac.jar",
+                    "to_file": "jar/base_bundle_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/callback_java.javac.jar",
+                    "to_file": "jar/base_callback_java.jar"
+                },
+                {
+                    "from_file": "obj/base/clang_profiler_java.javac.jar",
+                    "to_file": "jar/base_clang_profiler_java.jar"
+                },
+                {
+                    "from_file": "obj/base/command_line_init_utils_java.javac.jar",
+                    "to_file": "jar/base_command_line_init_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/command_line_java.javac.jar",
+                    "to_file": "jar/base_command_line_java.jar"
+                },
+                {
+                    "from_file": "obj/base/command_line_jni_java.javac.jar",
+                    "to_file": "jar/base_command_line_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/content_uri_utils_java.javac.jar",
+                    "to_file": "jar/base_content_uri_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/features_java.javac.jar",
+                    "to_file": "jar/base_features_java.jar"
+                },
+                {
+                    "from_file": "obj/base/file_provider_utils_java.javac.jar",
+                    "to_file": "jar/base_file_provider_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/file_utils_java.javac.jar",
+                    "to_file": "jar/base_file_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/jank_tracker_java.javac.jar",
+                    "to_file": "jar/base_jank_tracker_java.jar"
+                },
+                {
+                    "from_file": "obj/base/jni_android_java.javac.jar",
+                    "to_file": "jar/base_jni_android_java.jar"
+                },
+                {
+                    "from_file": "obj/base/jni_utils_java.javac.jar",
+                    "to_file": "jar/base_jni_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/library_loader_java.javac.jar",
+                    "to_file": "jar/base_library_loader_java.jar"
+                },
+                {
+                    "from_file": "obj/base/library_loader_jni_java.javac.jar",
+                    "to_file": "jar/base_library_loader_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/lifetime_java.javac.jar",
+                    "to_file": "jar/base_lifetime_java.jar"
+                },
+                {
+                    "from_file": "obj/base/log_java.javac.jar",
+                    "to_file": "jar/base_log_java.jar"
+                },
+                {
+                    "from_file": "obj/base/memory_java.javac.jar",
+                    "to_file": "jar/base_memory_java.jar"
+                },
+                {
+                    "from_file": "obj/base/metrics_java.javac.jar",
+                    "to_file": "jar/base_metrics_java.jar"
+                },
+                {
+                    "from_file": "obj/base/metrics_jni_java.javac.jar",
+                    "to_file": "jar/base_metrics_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/metrics_ScopedSysTraceEvent_java.javac.jar",
+                    "to_file": "jar/base_metrics_ScopedSysTraceEvent_java.jar"
+                },
+                {
+                    "from_file": "obj/base/path_utils_java.javac.jar",
+                    "to_file": "jar/base_path_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/pii_elider_java.javac.jar",
+                    "to_file": "jar/base_pii_elider_java.jar"
+                },
+                {
+                    "from_file": "obj/base/process_launcher_java.javac.jar",
+                    "to_file": "jar/base_process_launcher_java.jar"
+                },
+                {
+                    "from_file": "obj/base/promise_java.javac.jar",
+                    "to_file": "jar/base_promise_java.jar"
+                },
+                {
+                    "from_file": "obj/base/resetters_java.javac.jar",
+                    "to_file": "jar/base_resetters_java.jar"
+                },
+                {
+                    "from_file": "obj/base/service_loader_java.javac.jar",
+                    "to_file": "jar/base_service_loader_java.jar"
+                },
+                {
+                    "from_file": "obj/base/stream_util_java.javac.jar",
+                    "to_file": "jar/base_stream_util_java.jar"
+                },
+                {
+                    "from_file": "obj/base/supplier_java.javac.jar",
+                    "to_file": "jar/base_supplier_java.jar"
+                },
+                {
+                    "from_file": "obj/base/sys_utils_java.javac.jar",
+                    "to_file": "jar/base_sys_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/tasks_java.javac.jar",
+                    "to_file": "jar/base_tasks_java.jar"
+                },
+                {
+                    "from_file": "obj/base/tasks_jni_java.javac.jar",
+                    "to_file": "jar/base_tasks_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/tasks_minimal_jni_java.javac.jar",
+                    "to_file": "jar/base_tasks_minimal_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/base/time_utils_java.javac.jar",
+                    "to_file": "jar/base_time_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/unowned_user_data_java.javac.jar",
+                    "to_file": "jar/base_unowned_user_data_java.jar"
+                },
+                {
+                    "from_file": "obj/base/version_info/android/channel_enum_java.javac.jar",
+                    "to_file": "jar/base_version_info_android_channel_enum_java.jar"
+                },
+                {
+                    "from_file": "obj/base/version_info/android/version_constants_java.javac.jar",
+                    "to_file": "jar/base_version_info_android_version_constants_java.jar"
+                },
+                {
+                    "from_file": "obj/base/wrapped_class_loader_java.javac.jar",
+                    "to_file": "jar/base_wrapped_class_loader_java.jar"
+                },
+                {
+                    "from_file": "obj/build/android/build_java.javac.jar",
+                    "to_file": "jar/build_android_build_java.jar"
+                },
+                {
+                    "from_file": "obj/cc/cc_java.javac.jar",
+                    "to_file": "jar/cc_cc_java.jar"
+                },
+                {
+                    "from_file": "obj/cc/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/cc_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/cobalt/android/cobalt_apk.javac.jar",
+                    "to_file": "jar/cobalt_android_cobalt_apk.jar"
+                },
+                {
+                    "from_file": "obj/cobalt/android/cobalt_apk_java.javac.jar",
+                    "to_file": "jar/cobalt_android_cobalt_apk_java.jar"
+                },
+                {
+                    "from_file": "obj/cobalt/android/cobalt_main_java.javac.jar",
+                    "to_file": "jar/cobalt_android_cobalt_main_java.jar"
+                },
+                {
+                    "from_file": "obj/cobalt/browser/crash_annotator/public/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/cobalt_browser_crash_annotator_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/cobalt/shell/android/cobalt_shell_java.javac.jar",
+                    "to_file": "jar/cobalt_shell_android_cobalt_shell_java.jar"
+                },
+                {
+                    "from_file": "obj/components/cached_flags/java.javac.jar",
+                    "to_file": "jar/components_cached_flags_java.jar"
+                },
+                {
+                    "from_file": "obj/components/download/internal/common/internal_java.javac.jar",
+                    "to_file": "jar/components_download_internal_common_internal_java.jar"
+                },
+                {
+                    "from_file": "obj/components/download/public/common/public_java.javac.jar",
+                    "to_file": "jar/components_download_public_common_public_java.jar"
+                },
+                {
+                    "from_file": "obj/components/embedder_support/android/view_java.javac.jar",
+                    "to_file": "jar/components_embedder_support_android_view_java.jar"
+                },
+                {
+                    "from_file": "obj/components/input/android/java.javac.jar",
+                    "to_file": "jar/components_input_android_java.jar"
+                },
+                {
+                    "from_file": "obj/components/location/android/location_java.javac.jar",
+                    "to_file": "jar/components_location_android_location_java.jar"
+                },
+                {
+                    "from_file": "obj/components/metrics/metrics_java.javac.jar",
+                    "to_file": "jar/components_metrics_metrics_java.jar"
+                },
+                {
+                    "from_file": "obj/components/url_formatter/android/url_formatter_java.javac.jar",
+                    "to_file": "jar/components_url_formatter_android_url_formatter_java.jar"
+                },
+                {
+                    "from_file": "obj/components/variations/android/variations_java.javac.jar",
+                    "to_file": "jar/components_variations_android_variations_java.jar"
+                },
+                {
+                    "from_file": "obj/components/variations/variations_java.javac.jar",
+                    "to_file": "jar/components_variations_variations_java.jar"
+                },
+                {
+                    "from_file": "obj/components/viz/service/service_java.javac.jar",
+                    "to_file": "jar/components_viz_service_service_java.jar"
+                },
+                {
+                    "from_file": "obj/content/public/android/content_app_jni_java.javac.jar",
+                    "to_file": "jar/content_public_android_content_app_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/content/public/android/content_full_java.javac.jar",
+                    "to_file": "jar/content_public_android_content_full_java.jar"
+                },
+                {
+                    "from_file": "obj/content/public/android/content_main_dex_java.javac.jar",
+                    "to_file": "jar/content_public_android_content_main_dex_java.jar"
+                },
+                {
+                    "from_file": "obj/content/public/android/content_main_dex_jni_java.javac.jar",
+                    "to_file": "jar/content_public_android_content_main_dex_jni_java.jar"
+                },
+                {
+                    "from_file": "obj/content/public/android/content_util_java.javac.jar",
+                    "to_file": "jar/content_public_android_content_util_java.jar"
+                },
+                {
+                    "from_file": "obj/content/public/common/common_java.javac.jar",
+                    "to_file": "jar/content_public_common_common_java.jar"
+                },
+                {
+                    "from_file": "obj/device/bluetooth/java.javac.jar",
+                    "to_file": "jar/device_bluetooth_java.jar"
+                },
+                {
+                    "from_file": "obj/device/gamepad/java.javac.jar",
+                    "to_file": "jar/device_gamepad_java.jar"
+                },
+                {
+                    "from_file": "obj/device/vr/public/java.javac.jar",
+                    "to_file": "jar/device_vr_public_java.jar"
+                },
+                {
+                    "from_file": "obj/media/base/android/display_java.javac.jar",
+                    "to_file": "jar/media_base_android_display_java.jar"
+                },
+                {
+                    "from_file": "obj/media/base/android/media_java.javac.jar",
+                    "to_file": "jar/media_base_android_media_java.jar"
+                },
+                {
+                    "from_file": "obj/media/capture/video/android/capture_java.javac.jar",
+                    "to_file": "jar/media_capture_video_android_capture_java.jar"
+                },
+                {
+                    "from_file": "obj/media/midi/midi_java.javac.jar",
+                    "to_file": "jar/media_midi_midi_java.jar"
+                },
+                {
+                    "from_file": "obj/media/mojo/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/media_mojo_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/mojo/public/java/base_java.javac.jar",
+                    "to_file": "jar/mojo_public_java_base_java.jar"
+                },
+                {
+                    "from_file": "obj/mojo/public/java/bindings_java.javac.jar",
+                    "to_file": "jar/mojo_public_java_bindings_java.jar"
+                },
+                {
+                    "from_file": "obj/mojo/public/java/system_java.javac.jar",
+                    "to_file": "jar/mojo_public_java_system_java.jar"
+                },
+                {
+                    "from_file": "obj/mojo/public/java/system/system_impl_java.javac.jar",
+                    "to_file": "jar/mojo_public_java_system_system_impl_java.jar"
+                },
+                {
+                    "from_file": "obj/mojo/public/mojom/base/base_java.javac.jar",
+                    "to_file": "jar/mojo_public_mojom_base_base_java.jar"
+                },
+                {
+                    "from_file": "obj/net/android/net_java.javac.jar",
+                    "to_file": "jar/net_android_net_java.jar"
+                },
+                {
+                    "from_file": "obj/net/android/net_thread_stats_uid_java.javac.jar",
+                    "to_file": "jar/net_android_net_thread_stats_uid_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/battery/android/battery_monitor_java.javac.jar",
+                    "to_file": "jar/services_device_battery_android_battery_monitor_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/generic_sensor/java.javac.jar",
+                    "to_file": "jar/services_device_generic_sensor_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/geolocation/geolocation_java.javac.jar",
+                    "to_file": "jar/services_device_geolocation_geolocation_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/java.javac.jar",
+                    "to_file": "jar/services_device_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/nfc/android/java.javac.jar",
+                    "to_file": "jar/services_device_nfc_android_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/public/java/device_feature_list_java.javac.jar",
+                    "to_file": "jar/services_device_public_java_device_feature_list_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/public/java/geolocation_java.javac.jar",
+                    "to_file": "jar/services_device_public_java_geolocation_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/public/java/nfc_java.javac.jar",
+                    "to_file": "jar/services_device_public_java_nfc_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/public/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/services_device_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/screen_orientation/java.javac.jar",
+                    "to_file": "jar/services_device_screen_orientation_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/time_zone_monitor/java.javac.jar",
+                    "to_file": "jar/services_device_time_zone_monitor_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/usb/java.javac.jar",
+                    "to_file": "jar/services_device_usb_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/vibration/android/vibration_manager_java.javac.jar",
+                    "to_file": "jar/services_device_vibration_android_vibration_manager_java.jar"
+                },
+                {
+                    "from_file": "obj/services/device/wake_lock/power_save_blocker/java.javac.jar",
+                    "to_file": "jar/services_device_wake_lock_power_save_blocker_java.jar"
+                },
+                {
+                    "from_file": "obj/services/media_session/public/cpp/android/media_session_java.javac.jar",
+                    "to_file": "jar/services_media_session_public_cpp_android_media_session_java.jar"
+                },
+                {
+                    "from_file": "obj/services/service_manager/public/java/service_manager_java.javac.jar",
+                    "to_file": "jar/services_service_manager_public_java_service_manager_java.jar"
+                },
+                {
+                    "from_file": "obj/services/service_manager/public/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/services_service_manager_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/skia/public/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/skia_public_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar",
+                    "to_file": "jar/third_party_android_deps_chromium_play_services_availability_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/android_deps/local_modifications/preconditions/guava_stub_preconditions_java.javac.jar",
+                    "to_file": "jar/third_party_android_deps_local_modifications_preconditions_guava_stub_preconditions_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/android_deps/utils/java.javac.jar",
+                    "to_file": "jar/third_party_android_deps_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/android_provider/android_provider_java.javac.jar",
+                    "to_file": "jar/third_party_android_provider_android_provider_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/local_modifications/buildcompat/buildcompat_java.javac.jar",
+                    "to_file": "jar/third_party_androidx_local_modifications_buildcompat_buildcompat_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/local_modifications/window/window_util_java.javac.jar",
+                    "to_file": "jar/third_party_androidx_local_modifications_window_window_util_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/blink_headers_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_blink_headers_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/common/common_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_common_common_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/android_mojo_bindings_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_android_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/color_scheme_mojo_bindings_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_color_scheme_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/gpu/gpu_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_gpu_gpu_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/mojom_core_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_mojom_core_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/mojom_mhtml_load_result_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_mojom_mhtml_load_result_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/mojom_platform_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_mojom_platform_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/origin_trials/origin_trial_feature_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_origin_trials_origin_trial_feature_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/origin_trials/origin_trial_state_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_origin_trials_origin_trial_state_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/private_network_device/private_network_device_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_private_network_device_private_network_device_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/quota/quota_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_quota_quota_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_runtime_feature_state_runtime_feature_state_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/script_type_mojo_bindings_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_script_type_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/service_worker/storage_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_service_worker_storage_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/storage_key/storage_key_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_storage_key_storage_key_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/tokens/tokens_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_tokens_tokens_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/usb/usb_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_usb_usb_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/blink/public/mojom/web_feature_mojo_bindings_java.javac.jar",
+                    "to_file": "jar/third_party_blink_public_mojom_web_feature_mojo_bindings_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/jni_zero/gendeps_java.javac.jar",
+                    "to_file": "jar/third_party_jni_zero_gendeps_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/jni_zero/jni_zero_java.javac.jar",
+                    "to_file": "jar/third_party_jni_zero_jni_zero_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/accessibility/accessibility_features_java.javac.jar",
+                    "to_file": "jar/ui_accessibility_accessibility_features_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/accessibility/accessibility_features_native_map_java.javac.jar",
+                    "to_file": "jar/ui_accessibility_accessibility_features_native_map_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/accessibility/ax_base_java.javac.jar",
+                    "to_file": "jar/ui_accessibility_ax_base_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/android/ui_android_features_java.javac.jar",
+                    "to_file": "jar/ui_android_ui_android_features_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/android/ui_no_recycler_view_java.javac.jar",
+                    "to_file": "jar/ui_android_ui_no_recycler_view_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/android/ui_recycler_view_java.javac.jar",
+                    "to_file": "jar/ui_android_ui_recycler_view_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/android/ui_utils_java.javac.jar",
+                    "to_file": "jar/ui_android_ui_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/base/clipboard_jni_headers_java.javac.jar",
+                    "to_file": "jar/ui_base_clipboard_jni_headers_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/base/ime/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/ui_base_ime_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/base/select_file_dialog_jni_headers_java.javac.jar",
+                    "to_file": "jar/ui_base_select_file_dialog_jni_headers_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/gfx/geometry/mojom/mojom_java.javac.jar",
+                    "to_file": "jar/ui_gfx_geometry_mojom_mojom_java.jar"
+                },
+                {
+                    "from_file": "obj/ui/gl/gl_jni_headers_java.javac.jar",
+                    "to_file": "jar/ui_gl_gl_jni_headers_java.jar"
+                },
+                {
+                    "from_file": "obj/url/url_java.javac.jar",
+                    "to_file": "jar/url_url_java.jar"
+                }
+            ],
+            "dirs": [
+                "0_res/layout",
+                "0_res/values"
+            ],
+            "rename_dirs": [
+                {
+                    "from_dir": "0_res/layout",
+                    "to_dir": "res/layout"
+                },
+                {
+                    "from_dir": "0_res/values",
+                    "to_dir": "res/values"
+                }
+            ],
+            "archive_type": "ARCHIVE_TYPE_ZIP"
+        },
+        {
+            "files": [
+                "gen/build_info.json",
+                "gen/licenses_cobalt.spdx",
+                "gen/licenses_cobalt.txt",
+                "lib.unstripped/libchrobalt.so"
             ],
             "rename_files": [
                 {
@@ -31,6 +818,7 @@
                     "to_file": "symbol/libchrobalt.so"
                 }
             ],
+<<<<<<< HEAD
             "dirs": [
                 "content/data",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/appcompat",
@@ -73,6 +861,9 @@
               }
           ],
           "archive_type": "ARCHIVE_TYPE_FILES"
+=======
+            "archive_type": "ARCHIVE_TYPE_FILES"
+>>>>>>> a4b71897eab (Update Android packaging (#8280))
         }
     ]
 }
