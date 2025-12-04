@@ -69,7 +69,7 @@
 
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN)
-#include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #endif
 
 _START_GOOGLE_NAMESPACE_
