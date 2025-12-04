@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_COMMON_URL_CONSTANTS_H_
-#define COBALT_SHELL_COMMON_URL_CONSTANTS_H_
+#include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 
 namespace content {
 
-inline constexpr char kCobaltSplashMainFrameName[] = "Splash";
-inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
+SplashScreenWebContentsDelegate::SplashScreenWebContentsDelegate(
+    base::OnceClosure on_close)
+    : on_close_(std::move(on_close)) {}
+
+SplashScreenWebContentsDelegate::~SplashScreenWebContentsDelegate() = default;
+
+void SplashScreenWebContentsDelegate::CloseContents(WebContents* source) {
+  DCHECK(on_close_);
+  std::move(on_close_).Run();
+}
 
 }  // namespace content
-
-#endif  // COBALT_SHELL_COMMON_URL_CONSTANTS_H_

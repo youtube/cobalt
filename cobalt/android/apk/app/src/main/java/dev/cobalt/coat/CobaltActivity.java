@@ -243,6 +243,9 @@ public abstract class CobaltActivity extends Activity {
                   }
                 }
               };
+
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
@@ -435,6 +438,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    updateShellActivityState(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
@@ -456,6 +460,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    updateShellActivityState(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
@@ -721,6 +726,23 @@ public abstract class CobaltActivity extends Activity {
             }
           });
       mIsKeepScreenOnEnabled = keepOn;
+    }
+  }
+
+  private void updateShellActivityState(boolean isActive) {
+    Shell shell = getActiveShell();
+    if (shell != null) {
+      shell.onActivityStateChange(isActive);
+      WebContents splash = shell.getSplashScreenWebContents();
+      if (splash != null) {
+        if (isActive) {
+          splash.onResume();
+          splash.updateWebContentsVisibility(Visibility.VISIBLE);
+        } else {
+          splash.updateWebContentsVisibility(Visibility.HIDDEN);
+          splash.onFreeze();
+        }
+      }
     }
   }
 }
