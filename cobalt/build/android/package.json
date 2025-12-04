@@ -1313,12 +1313,17 @@
         },
         {
           "files": [
+              "apks/Cobalt.apk",
               "gen/build_info.json",
               "gen/licenses_cobalt.spdx",
               "gen/licenses_cobalt.txt",
               "lib.unstripped/libchrobalt.so"
           ],
           "rename_files": [
+              {
+                  "from_file": "apks/Cobalt.apk",
+                  "to_file": "Cobalt.apk"
+              },
               {
                   "from_file": "gen/build_info.json",
                   "to_file": "build_info.json"
