@@ -8,16 +8,16 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
-      key = 'PACKAGE_PLATFORM'
-      value = 'android-coat'
-    },
-    {
-      key = 'PACKAGE_PLATFORM_GCS_SUFFIX'
+      key = 'GCS_PLATFORM_SUFFIX'
       value = '-coat'
     },
     {
       key = 'GN_TARGET'
       value = 'cobalt/android:cobalt_apk'
+    },
+    {
+      key = 'PACKAGE_PLATFORM'
+      value = 'android-coat'
     },
     {
       key = 'PLATFORM'

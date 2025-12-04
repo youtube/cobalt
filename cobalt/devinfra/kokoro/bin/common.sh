@@ -213,7 +213,7 @@ run_package_release_pipeline () {
     if [[ "$(get_kokoro_env)" == "qa" ]]; then
       bucket="cobalt-internal-build-artifacts-qa"
     fi
-    local gcs_archive_path="gs://${bucket}/${PLATFORM}${PACKAGE_PLATFORM_GCS_SUFFIX:-}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+    local gcs_archive_path="gs://${bucket}/${PLATFORM}${GCS_PLATFORM_SUFFIX:-}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
     init_gcloud
     # Ensure that only package directory contents are uploaded and not the
     # directory itself.
