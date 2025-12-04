@@ -14,12 +14,15 @@
 
 package dev.cobalt.coat;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.util.Pair;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,15 +44,28 @@ public class ArtworkDownloaderDefaultTest {
   }
 
   @Test
-  public void testDownloadArtwork_CallsLoader() {
-      // This test verifies that even if the download fails (which is expected here as we
-      // aren't mocking the network layer fully), the downloader still reports back to the loader.
+  public void testDownloadArtwork_CallsLoader() throws InterruptedException {
+    // This test verifies that even if the download fails (which is expected here as we
+    // aren't mocking the network layer fully), the downloader still reports back to the loader.
 
-      String url = "http://example.com/image.png";
-      mDownloader.downloadArtwork(url, mMockLoader);
+    final CountDownLatch latch = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              latch.countDown();
+              return null;
+            })
+        .when(mMockLoader)
+        .onDownloadFinished(any(Pair.class));
 
-      // Even if download fails, bitmap will be null, but it should still be processed.
-      verify(mMockLoader, timeout(1000)).consumeBitmapAndCropTo16x9(any());
-      verify(mMockLoader, timeout(1000)).onDownloadFinished(any(Pair.class));
+    String url = "http://example.com/image.png";
+    mDownloader.downloadArtwork(url, mMockLoader);
+
+    // Wait for the background thread to call onDownloadFinished.
+    boolean completed = latch.await(1, TimeUnit.SECONDS);
+    assertThat(completed).isTrue();
+
+    // Even if download fails, bitmap will be null, but it should still be processed.
+    verify(mMockLoader).consumeBitmapAndCropTo16x9(any());
+    verify(mMockLoader).onDownloadFinished(any(Pair.class));
   }
 }
