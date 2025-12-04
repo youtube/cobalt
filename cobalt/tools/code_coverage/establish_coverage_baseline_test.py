@@ -318,8 +318,9 @@ class TestTestFiltering(unittest.TestCase):
     # Check that coverage.py was called with the correct gtest_filter.
     mock_run_command.assert_called_once()
     args, _ = mock_run_command.call_args
-    # The -c argument is at index 10 of the command list.
-    self.assertIn('--gtest_filter=-Test.Case1:Test.Case2', args[0][10])
+    # The full command is passed as the last argument to coverage.py.
+    full_command = ' '.join(args[0])
+    self.assertIn('--gtest_filter=-Test.Case1:Test.Case2', full_command)
 
   @mock.patch('cobalt.tools.code_coverage.establish_coverage_baseline.'
               'CoverageBaselineRunner._run_command')

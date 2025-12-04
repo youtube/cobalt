@@ -270,6 +270,8 @@ class CoverageBaselineRunner:
         'vpython3',
         'tools/code_coverage/coverage.py',
         test_name,
+        '--coverage-tools-dir',
+        str(self.llvm_bin_dir),
         '-b',
         str(self.coverage_build_dir),
         '-o',
