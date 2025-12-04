@@ -111,7 +111,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static bool ShouldHideToolbar();
 
-  WebContents* web_contents() const { return web_contents_.get(); }
+  WebContents* web_contents() const {
+    return isMainFrameLoaded ? web_contents_.get() : web_contents2_.get();
+  }
 
 #if !BUILDFLAG(IS_ANDROID)
   gfx::NativeWindow window();
@@ -190,10 +192,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   friend class TestShell;
 
-  Shell(std::unique_ptr<WebContents> web_contents, bool should_set_delegate);
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> web_contents2,
+        bool should_set_delegate);
 
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
+                            std::unique_ptr<WebContents> web_contents2,
                             const gfx::Size& initial_size,
                             bool should_set_delegate);
 
@@ -212,15 +217,15 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ToggleFullscreenModeForTab(WebContents* web_contents,
                                   bool enter_fullscreen);
   // WebContentsObserver
-#if BUILDFLAG(IS_ANDROID)
   void LoadProgressChanged(double progress) override;
-#endif
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
+  std::unique_ptr<WebContents> web_contents2_;
+  bool isMainFrameLoaded = false;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
