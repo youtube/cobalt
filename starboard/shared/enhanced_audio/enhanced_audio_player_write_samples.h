@@ -16,7 +16,6 @@
 #define STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_PLAYER_WRITE_SAMPLES_H_
 
 #include "starboard/extension/enhanced_audio.h"
-
 #include "starboard/media.h"
 #include "starboard/player.h"
 

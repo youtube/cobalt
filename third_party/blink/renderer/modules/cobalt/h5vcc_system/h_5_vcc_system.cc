@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
+
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
@@ -27,8 +28,9 @@ H5vccSystem::H5vccSystem(LocalDOMWindow& window)
 
 void H5vccSystem::ContextDestroyed() {}
 
-ScriptPromise<IDLString> H5vccSystem::getAdvertisingId(ScriptState* script_state,
-                                            ExceptionState& exception_state) {
+ScriptPromise<IDLString> H5vccSystem::getAdvertisingId(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
       script_state, exception_state.GetContext());
 
@@ -52,8 +54,9 @@ const String& H5vccSystem::advertisingId() {
   return advertising_id_;
 }
 
-ScriptPromise<IDLBoolean> H5vccSystem::getLimitAdTracking(ScriptState* script_state,
-                                              ExceptionState& exception_state) {
+ScriptPromise<IDLBoolean> H5vccSystem::getLimitAdTracking(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
 
@@ -66,8 +69,9 @@ ScriptPromise<IDLBoolean> H5vccSystem::getLimitAdTracking(ScriptState* script_st
   return resolver->Promise();
 }
 
-void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver<IDLBoolean>* resolver,
-                                       bool result) {
+void H5vccSystem::OnGetLimitAdTracking(
+    ScriptPromiseResolver<IDLBoolean>* resolver,
+    bool result) {
   resolver->Resolve(result);
 }
 

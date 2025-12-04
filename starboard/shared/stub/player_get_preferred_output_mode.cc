@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
-
 #include "starboard/configuration.h"
+#include "starboard/player.h"
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {

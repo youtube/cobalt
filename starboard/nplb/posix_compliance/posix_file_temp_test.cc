@@ -151,7 +151,7 @@ TEST_F(FileTempTest, MkostempBasicSuccess) {
   EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
   AddCreatedFile(buffer);
 
-  struct stat st {};
+  struct stat st{};
   const int stat_result = stat(buffer, &st);
   ASSERT_EQ(stat_result, 0) << "stat failed: " << strerror(errno);
   ASSERT_TRUE(S_ISREG(st.st_mode));

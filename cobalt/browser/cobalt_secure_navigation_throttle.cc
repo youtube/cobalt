@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
+
 #include "cobalt/browser/switches.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/http/http_response_headers.h"
