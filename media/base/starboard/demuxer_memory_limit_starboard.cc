@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "media/base/demuxer_memory_limit.h"
+// clang-format on
+
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/demuxer_memory_limit.h"
 #include "media/base/video_codecs.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)

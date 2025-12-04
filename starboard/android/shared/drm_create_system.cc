@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/android/shared/drm_system.h"
+// clang-format on
+
 #include "starboard/android/shared/media_common.h"
 
 SbDrmSystem SbDrmCreateSystem(
