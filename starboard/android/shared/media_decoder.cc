@@ -140,12 +140,15 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      decoder_state_tracker_(initial_max_frames
+      decoder_state_tracker_(initial_max_frames && !tunnel_mode_enabled_
                                  ? std::make_unique<DecoderStateTracker>(
                                        *initial_max_frames,
                                        [this] { condition_variable_.Signal(); })
                                  : nullptr),
       condition_variable_(mutex_) {
+  if (initial_max_frames && tunnel_mode_enabled_) {
+    SB_LOG(INFO) << "DecoderStateTracker is disabled for tunnel mode.";
+  }
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -516,14 +519,6 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
-  if (!input_buffer_already_written && decoder_state_tracker_) {
-    if (pending_input.type != PendingInput::kWriteEndOfStream) {
-      decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
-    } else {
-      decoder_state_tracker_->SetEosFrameAdded();
-    }
-  }
-
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
     // Drm system initialization is asynchronous. If there's a drm system, we
@@ -557,6 +552,14 @@ bool MediaDecoder::ProcessOneInputBuffer(
     SB_DCHECK(!pending_input_to_retry_);
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
+  }
+
+  if (decoder_state_tracker_) {
+    if (pending_input.type == PendingInput::kWriteEndOfStream) {
+      decoder_state_tracker_->SetEosFrameAdded();
+    } else {
+      decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
+    }
   }
 
   is_output_restricted_ = false;
