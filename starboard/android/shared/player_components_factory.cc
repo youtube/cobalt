@@ -86,6 +86,10 @@ std::optional<int> ReadSystemPropertyPositiveInt(const char* key) {
   return static_cast<int>(val);
 }
 
+// For local testing with non-Gold build, set properties to enable decoder
+// throttling.
+// $ adb shell setprop setprop debug.cobalt.max_pending_inputs_size
+// $ adb shell setprop debug.cobalt.initial_max_frames_in_decoder 6
 VideoDecoder::FlowControlOptions ReadFlowControlOptionsFromSystemProperty() {
   VideoDecoder::FlowControlOptions options;
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)

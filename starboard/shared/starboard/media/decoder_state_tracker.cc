@@ -147,6 +147,10 @@ void DecoderStateTracker::SetFrameReleasedAt(int64_t presentation_time_us,
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
           if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
+            // If the number of frames in flight drops to the low-water mark
+            // after we have reached the max frames, it means the current max
+            // frames is too small to keep the decoder busy. We bump up the
+            // max frames to avoid underrun.
             int old_max = max_frames_;
             max_frames_++;
             reached_max_ = false;
