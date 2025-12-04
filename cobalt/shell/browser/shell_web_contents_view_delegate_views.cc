@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
+// clang-format on
+
 #include <memory>
 
-#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
 #include "content/public/browser/web_contents.h"
 
 namespace content {
