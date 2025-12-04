@@ -14,8 +14,9 @@
 
 #include "starboard/common/murmurhash2.h"
 
-#include <memory>
 #include <string.h>
+
+#include <memory>
 
 namespace starboard {
 
