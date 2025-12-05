@@ -110,12 +110,14 @@ public class ArtworkLoader {
    * wider, it is returned as is.
    *
    * The input bitmap is recycled if a new cropped bitmap is created.
+   * NOTE: This method is accessed from google3
+   * http://google3/java/com/google/android/libraries/youtube/tv/media/ArtworkDownloaderNoGMS.java;l=54;rcl=705660438
    *
    * @param bitmap The source bitmap.
    * @return The 16:9 cropped bitmap, or the original bitmap.
    */
   @CheckResult
-  public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
+  public Bitmap cropTo16x9(Bitmap bitmap) {
     // Crop to 16:9 as needed
     if (bitmap == null) {
       return null;

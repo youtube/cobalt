@@ -87,7 +87,7 @@ public class ArtworkLoaderTest {
   @Test
   public void testConsumeBitmapAndCropTo16x9_Exact16x9() {
     Bitmap bitmap = Bitmap.createBitmap(160, 90, Bitmap.Config.ARGB_8888);
-    Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+    Bitmap result = mArtworkLoader.cropTo16x9(bitmap);
     assertThat(result).isEqualTo(bitmap);
     assertThat(result.getWidth()).isEqualTo(160);
     assertThat(result.getHeight()).isEqualTo(90);
@@ -97,14 +97,14 @@ public class ArtworkLoaderTest {
   @Test
   public void testConsumeBitmapAndCropTo16x9_WiderThan16x9() {
     Bitmap bitmap = Bitmap.createBitmap(200, 90, Bitmap.Config.ARGB_8888);
-    Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+    Bitmap result = mArtworkLoader.cropTo16x9(bitmap);
     assertThat(result).isEqualTo(bitmap);
   }
 
   @Test
   public void testConsumeBitmapAndCropTo16x9_TallerThan16x9() {
     Bitmap bitmap = Bitmap.createBitmap(160, 200, Bitmap.Config.ARGB_8888);
-    Bitmap result = mArtworkLoader.consumeBitmapAndCropTo16x9(bitmap);
+    Bitmap result = mArtworkLoader.cropTo16x9(bitmap);
 
     assertThat(result).isNotEqualTo(bitmap);
     assertThat(result.getWidth()).isEqualTo(160);
@@ -114,7 +114,7 @@ public class ArtworkLoaderTest {
 
   @Test
   public void testConsumeBitmapAndCropTo16x9_Null() {
-      assertThat(mArtworkLoader.consumeBitmapAndCropTo16x9(null)).isNull();
+      assertThat(mArtworkLoader.cropTo16x9(null)).isNull();
   }
 
   @Test
