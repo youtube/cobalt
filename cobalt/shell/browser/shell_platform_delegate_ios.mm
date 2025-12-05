@@ -73,11 +73,11 @@ static const char kAllTracingCategories[] = "*";
  @private
   raw_ptr<content::Shell> _shell;
 }
-// Header containing navigation buttons and |field|.
-@property(nonatomic, strong) UIView* headerBackgroundView;
-// Header containing navigation buttons and |field|.
-@property(nonatomic, strong) UIView* headerContentView;
-// Height constraint for `headerContentView`.
+// Toolbar containing navigation buttons and |urlField|.
+@property(nonatomic, strong) UIStackView* toolbarBackgroundView;
+// Toolbar containing navigation buttons and |urlField|.
+@property(nonatomic, strong) UIStackView* toolbarContentView;
+// Height constraint for `toolbarContentView`.
 @property(nonatomic, strong) NSLayoutConstraint* headerHeightConstraint;
 // Button to navigate backwards.
 @property(nonatomic, strong) UIButton* backButton;
@@ -88,7 +88,7 @@ static const char kAllTracingCategories[] = "*";
 // Button that shows the menu
 @property(nonatomic, strong) UIButton* menuButton;
 // Text field used for navigating to URLs.
-@property(nonatomic, strong) UITextField* field;
+@property(nonatomic, strong) UITextField* urlField;
 // Container for |webView|.
 @property(nonatomic, strong) UIView* contentView;
 // Manages tracing and tracing state.
@@ -98,6 +98,10 @@ static const char kAllTracingCategories[] = "*";
 + (UIColor*)backgroundColorTracing;
 - (id)initWithShell:(content::Shell*)shell;
 - (content::Shell*)shell;
+- (UIStackView*)createToolbarBackgroundView;
+- (UIStackView*)createToolbarContentView;
+- (UIButton*)makeButton:(NSString*)imageName action:(SEL)action;
+- (UITextField*)makeURLBar;
 - (void)back;
 - (void)forward;
 - (void)reloadOrStop;
@@ -112,12 +116,12 @@ static const char kAllTracingCategories[] = "*";
 @implementation ContentShellWindowDelegate
 @synthesize backButton = _backButton;
 @synthesize contentView = _contentView;
-@synthesize field = _field;
+@synthesize urlField = _urlField;
 @synthesize forwardButton = _forwardButton;
 @synthesize reloadOrStopButton = _reloadOrStopButton;
 @synthesize menuButton = _menuButton;
-@synthesize headerBackgroundView = _headerBackgroundView;
-@synthesize headerContentView = _headerContentView;
+@synthesize toolbarBackgroundView = _toolbarBackgroundView;
+@synthesize toolbarContentView = _toolbarContentView;
 @synthesize headerHeightConstraint = _headerHeightConstraint;
 @synthesize tracingHandler = _tracingHandler;
 
@@ -138,107 +142,69 @@ static const char kAllTracingCategories[] = "*";
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  // View creation.
-  self.headerBackgroundView = [[UIView alloc] init];
-  self.headerContentView = [[UIView alloc] init];
+  // Create a web content view.
   self.contentView = [[UIView alloc] init];
-  self.backButton = [[UIButton alloc] init];
-  self.forwardButton = [[UIButton alloc] init];
-  self.reloadOrStopButton = [[UIButton alloc] init];
-  self.menuButton = [[UIButton alloc] init];
-  self.field = [[UITextField alloc] init];
-  self.tracingHandler = [[TracingHandler alloc] init];
-
-  // View hierarchy.
-  [self.view addSubview:_headerBackgroundView];
   [self.view addSubview:_contentView];
-  [_headerBackgroundView addSubview:_headerContentView];
-  [_headerContentView addSubview:_backButton];
-  [_headerContentView addSubview:_forwardButton];
-  [_headerContentView addSubview:_reloadOrStopButton];
-  [_headerContentView addSubview:_menuButton];
-  [_headerContentView addSubview:_field];
 
-  _headerBackgroundView.backgroundColor =
-      [ContentShellWindowDelegate backgroundColorDefault];
+  // Create a toolbar.
+  if (!content::Shell::ShouldHideToolbar()) {
+    self.toolbarBackgroundView = [self createToolbarBackgroundView];
+    self.toolbarContentView = [self createToolbarContentView];
 
-  [_backButton setImage:[UIImage imageNamed:@"ic_back"]
-               forState:UIControlStateNormal];
-  _backButton.tintColor = [UIColor whiteColor];
-  [_backButton addTarget:self
-                  action:@selector(back)
-        forControlEvents:UIControlEventTouchUpInside];
+    self.backButton = [self makeButton:@"ic_back" action:@selector(back)];
+    self.forwardButton = [self makeButton:@"ic_forward"
+                                   action:@selector(forward)];
+    self.reloadOrStopButton = [self makeButton:@"ic_reload"
+                                        action:@selector(reloadOrStop)];
+    self.menuButton = [self makeButton:@"ic_menu"
+                                action:@selector(showMainMenu)];
+    self.urlField = [self makeURLBar];
+    self.tracingHandler = [[TracingHandler alloc] init];
 
-  [_forwardButton setImage:[UIImage imageNamed:@"ic_forward"]
-                  forState:UIControlStateNormal];
-  _forwardButton.tintColor = [UIColor whiteColor];
-  [_forwardButton addTarget:self
-                     action:@selector(forward)
-           forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:_toolbarBackgroundView];
+    [_toolbarBackgroundView addArrangedSubview:_toolbarContentView];
 
-  [_reloadOrStopButton setImage:[UIImage imageNamed:@"ic_reload"]
-                       forState:UIControlStateNormal];
-  _reloadOrStopButton.tintColor = [UIColor whiteColor];
-  [_reloadOrStopButton addTarget:self
-                          action:@selector(reloadOrStop)
-                forControlEvents:UIControlEventTouchUpInside];
+    [_toolbarContentView addArrangedSubview:_backButton];
+    [_toolbarContentView addArrangedSubview:_forwardButton];
+    [_toolbarContentView addArrangedSubview:_reloadOrStopButton];
+    [_toolbarContentView addArrangedSubview:_menuButton];
+    [_toolbarContentView addArrangedSubview:_urlField];
 
-  _menuButton.tintColor = [UIColor whiteColor];
-  [_menuButton setImage:[UIImage imageNamed:@"ic_menu"]
-               forState:UIControlStateNormal];
-  [_menuButton addTarget:self
-                  action:@selector(showMainMenu)
-        forControlEvents:UIControlEventTouchUpInside];
+    self.view.accessibilityElements = @[ _toolbarBackgroundView, _contentView ];
+    self.view.isAccessibilityElement = NO;
 
-  _field.placeholder = @"Search or type URL";
-  _field.backgroundColor = [UIColor whiteColor];
-  _field.tintColor = _headerBackgroundView.backgroundColor;
-  [_field setContentHuggingPriority:UILayoutPriorityDefaultLow - 1
-                            forAxis:UILayoutConstraintAxisHorizontal];
-  _field.delegate = self;
-  _field.layer.cornerRadius = 2.0;
-  _field.keyboardType = UIKeyboardTypeWebSearch;
-  _field.autocapitalizationType = UITextAutocapitalizationTypeNone;
-  _field.clearButtonMode = UITextFieldViewModeWhileEditing;
-  _field.autocorrectionType = UITextAutocorrectionTypeNo;
-  UIView* spacerView = [[UIView alloc] init];
-  spacerView.frame = CGRectMake(0, 0, 8, 8);
-  _field.leftViewMode = UITextFieldViewModeAlways;
-  _field.leftView = spacerView;
+    // Constraint the toolbar background view.
+    _toolbarBackgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+      [_toolbarBackgroundView.topAnchor
+          constraintEqualToAnchor:self.view.topAnchor],
+      [_toolbarBackgroundView.leadingAnchor
+          constraintEqualToAnchor:self.view.leadingAnchor],
+      [_toolbarBackgroundView.trailingAnchor
+          constraintEqualToAnchor:self.view.trailingAnchor],
+    ]];
 
-  // Constraints.
-  _headerBackgroundView.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_headerBackgroundView.topAnchor
-        constraintEqualToAnchor:self.view.topAnchor],
-    [_headerBackgroundView.leadingAnchor
-        constraintEqualToAnchor:self.view.leadingAnchor],
-    [_headerBackgroundView.trailingAnchor
-        constraintEqualToAnchor:self.view.trailingAnchor],
-    [_headerBackgroundView.bottomAnchor
-        constraintEqualToAnchor:_headerContentView.bottomAnchor],
-  ]];
+    // Constraint the toolbar content view.
+    _toolbarContentView.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+      // This height constraint is somewhat arbitrary: the idea is that it gives
+      // us enough space to centralize the buttons inside |_toolbarContentView|
+      // while having enough top and bottom margins.
+      // Twice the size of a button also accounts for platforms such as tvOS,
+      // where focused buttons are larger and have a drop shadow.
+      [_toolbarContentView.heightAnchor
+          constraintEqualToAnchor:_backButton.heightAnchor
+                       multiplier:2.0],
+    ]];
+  }  // if (!content::Shell::ShouldHideToolbar())
 
-  _headerContentView.translatesAutoresizingMaskIntoConstraints = NO;
-  _headerHeightConstraint =
-      [_headerContentView.heightAnchor constraintEqualToConstant:56.0];
-  [NSLayoutConstraint activateConstraints:@[
-    [_headerContentView.topAnchor
-        constraintEqualToAnchor:_headerBackgroundView.safeAreaLayoutGuide
-                                    .topAnchor],
-    [_headerContentView.leadingAnchor
-        constraintEqualToAnchor:_headerBackgroundView.safeAreaLayoutGuide
-                                    .leadingAnchor],
-    [_headerContentView.trailingAnchor
-        constraintEqualToAnchor:_headerBackgroundView.safeAreaLayoutGuide
-                                    .trailingAnchor],
-    _headerHeightConstraint,
-  ]];
-
+  // Constraint the web content view.
   _contentView.translatesAutoresizingMaskIntoConstraints = NO;
   [NSLayoutConstraint activateConstraints:@[
     [_contentView.topAnchor
-        constraintEqualToAnchor:_headerBackgroundView.bottomAnchor],
+        constraintEqualToAnchor:content::Shell::ShouldHideToolbar()
+                                    ? self.view.topAnchor
+                                    : _toolbarBackgroundView.bottomAnchor],
     [_contentView.leadingAnchor
         constraintEqualToAnchor:self.view.leadingAnchor],
     [_contentView.trailingAnchor
@@ -246,54 +212,6 @@ static const char kAllTracingCategories[] = "*";
     [_contentView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
   ]];
 
-  _backButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_backButton.leadingAnchor
-        constraintEqualToAnchor:_headerContentView.safeAreaLayoutGuide
-                                    .leadingAnchor
-                       constant:16.0],
-    [_backButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-
-  _forwardButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_forwardButton.leadingAnchor
-        constraintEqualToAnchor:_backButton.trailingAnchor
-                       constant:16.0],
-    [_forwardButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-
-  _reloadOrStopButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_reloadOrStopButton.leadingAnchor
-        constraintEqualToAnchor:_forwardButton.trailingAnchor
-                       constant:16.0],
-    [_reloadOrStopButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-  _menuButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_menuButton.leadingAnchor
-        constraintEqualToAnchor:_reloadOrStopButton.trailingAnchor
-                       constant:16.0],
-    [_menuButton.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-  ]];
-
-  _field.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [_field.leadingAnchor constraintEqualToAnchor:_menuButton.trailingAnchor
-                                         constant:16.0],
-    [_field.centerYAnchor
-        constraintEqualToAnchor:_headerContentView.centerYAnchor],
-    [_field.trailingAnchor
-        constraintEqualToAnchor:_headerContentView.safeAreaLayoutGuide
-                                    .trailingAnchor
-                       constant:-16.0],
-    [_field.heightAnchor constraintEqualToConstant:32.0],
-  ]];
   UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
   [_contentView addSubview:web_contents_view];
 }
@@ -307,6 +225,71 @@ static const char kAllTracingCategories[] = "*";
 
 - (content::Shell*)shell {
   return _shell;
+}
+
+- (UIButton*)makeButton:(NSString*)imageName action:(SEL)action {
+  UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
+  [button setImage:[UIImage imageNamed:imageName]
+          forState:UIControlStateNormal];
+  button.tintColor = [UIColor whiteColor];
+  [button addTarget:self
+                action:action
+      forControlEvents:UIControlEventTouchUpInside |
+                       UIControlEventPrimaryActionTriggered];
+  return button;
+}
+
+- (UITextField*)makeURLBar {
+  UITextField* field = [[UITextField alloc] init];
+  field.placeholder = @"Search or type URL";
+  field.tintColor = _toolbarBackgroundView.backgroundColor;
+  [field setContentHuggingPriority:UILayoutPriorityDefaultLow - 1
+                           forAxis:UILayoutConstraintAxisHorizontal];
+  field.delegate = self;
+  field.borderStyle = UITextBorderStyleRoundedRect;
+  field.keyboardType = UIKeyboardTypeWebSearch;
+  field.autocapitalizationType = UITextAutocapitalizationTypeNone;
+  field.clearButtonMode = UITextFieldViewModeWhileEditing;
+  field.autocorrectionType = UITextAutocorrectionTypeNo;
+  return field;
+}
+
+- (UIStackView*)createToolbarBackgroundView {
+  UIStackView* toolbarBackgroundView = [[UIStackView alloc] init];
+
+  // |toolbarBackgroundView| is a 1-item UIStackView. We use a UIStackView so
+  // that we can:
+  // 1. Easily hide |toolbarContentView| when entering fullscreen mode in a
+  // way that removes it from the layout.
+  // 2. Let UIStackView figure out most constraints for |toolbarContentView|
+  // so that we do not have to do it manually.
+  toolbarBackgroundView.backgroundColor =
+      [ContentShellWindowDelegate backgroundColorDefault];
+  toolbarBackgroundView.alignment = UIStackViewAlignmentBottom;
+  toolbarBackgroundView.axis = UILayoutConstraintAxisHorizontal;
+
+  // Use the root view's layout margins (which account for safe areas and the
+  // system's minimum margins).
+  toolbarBackgroundView.layoutMarginsRelativeArrangement = YES;
+  toolbarBackgroundView.preservesSuperviewLayoutMargins = YES;
+
+  return toolbarBackgroundView;
+}
+
+- (UIStackView*)createToolbarContentView {
+  UIStackView* toolbarContentView = [[UIStackView alloc] init];
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // On tvOS, make it impossible to focus `_toolbarContentView` by simply
+  // swiping up on the remote control since this behavior is not intuitive.
+  toolbarContentView.userInteractionEnabled = NO;
+#endif
+
+  toolbarContentView.alignment = UIStackViewAlignmentCenter;
+  toolbarContentView.axis = UILayoutConstraintAxisHorizontal;
+  toolbarContentView.spacing = 16.0;
+
+  return toolbarContentView;
 }
 
 - (void)back {
@@ -382,7 +365,7 @@ static const char kAllTracingCategories[] = "*";
 }
 
 - (void)updateBackground {
-  _headerBackgroundView.backgroundColor =
+  _toolbarBackgroundView.backgroundColor =
       [_tracingHandler isTracing]
           ? [ContentShellWindowDelegate backgroundColorTracing]
           : [ContentShellWindowDelegate backgroundColorDefault];
@@ -405,7 +388,7 @@ static const char kAllTracingCategories[] = "*";
 }
 
 - (void)setURL:(NSString*)url {
-  _field.text = url;
+  _urlField.text = url;
 }
 
 - (BOOL)textFieldShouldReturn:(UITextField*)field {
@@ -589,6 +572,10 @@ void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
 void ShellPlatformDelegate::EnableUIControl(Shell* shell,
                                             UIControl control,
                                             bool is_enabled) {
+  if (content::Shell::ShouldHideToolbar()) {
+    return;
+  }
+
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
   UIButton* button = nil;
@@ -660,7 +647,7 @@ void ShellPlatformDelegate::ToggleFullscreenModeForTab(
       headerHeightConstraint]
       .constant = height;
   [((ContentShellWindowDelegate*)shell_data.window.rootViewController)
-      headerContentView]
+      toolbarContentView]
       .hidden = enter_fullscreen;
 }
 
