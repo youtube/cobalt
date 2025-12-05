@@ -70,7 +70,8 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
   if (!accessibility_api ||
       strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) !=
-      0 || accessibility_api->version < 1) {
+          0 ||
+      accessibility_api->version < 1) {
     std::move(callback).Run(false);
     return;
   }
