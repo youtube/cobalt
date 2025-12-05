@@ -46,7 +46,7 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
     {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
      switches::kMSEVideoBufferSizeLimitClampMb},
     {kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback,
-     media::kCobaltNotifyMemoryPressureBeforePlayback.name},
+     switches::kCobaltNotifyMemoryPressureBeforePlaybackSwitch},
 };
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
