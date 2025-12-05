@@ -47,6 +47,7 @@ group("cobalt_shell_lib_deps") {
 
   public_deps = [
     ":android_shell_descriptors",
+    ":embed_loader_resources_as_header_files",
     ":resources",
     "//base",
     "//base:base_static",
@@ -175,6 +176,8 @@ static_library("cobalt_shell_lib") {
     ":cobalt_shell_switches",
   ]
   sources = [
+    "browser/h5vcc_scheme_url_loader_factory.cc",
+    "browser/h5vcc_scheme_url_loader_factory.h",
     "browser/shell.cc",
     "browser/shell.h",
     "browser/shell_browser_context.cc",
@@ -204,6 +207,7 @@ static_library("cobalt_shell_lib") {
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
+    "common/url_constants.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
@@ -455,4 +459,17 @@ copy("copy_shell_resources") {
 
 group("resources") {
   public_deps = [ ":copy_shell_resources" ]
+}
+
+action("embed_loader_resources_as_header_files") {
+  script = "//cobalt/build/generate_data_header.py"
+
+  inputs = [ "embedded_resources/splash.html" ]
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_resources.h" ]
+
+  args = [
+    "LoaderEmbeddedResources",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources", root_build_dir),
+  ]
 }
