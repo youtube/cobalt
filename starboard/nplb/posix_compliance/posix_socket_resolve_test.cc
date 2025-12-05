@@ -142,13 +142,10 @@ TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
   int flags_to_test[] = {
   // Non-modular builds use native libc getaddrinfo.
 #if defined(SB_MODULAR_BUILD)
-    // And bionic does not support these flags.
-    AI_V4MAPPED,
-    AI_V4MAPPED | AI_ALL,
-    AI_NUMERICHOST,
-    AI_NUMERICSERV,
+      // And bionic does not support these flags.
+      AI_V4MAPPED, AI_V4MAPPED | AI_ALL, AI_NUMERICHOST, AI_NUMERICSERV,
 #endif
-      AI_PASSIVE,  AI_CANONNAME,   AI_ADDRCONFIG,
+      AI_PASSIVE,  AI_CANONNAME,         AI_ADDRCONFIG,
   };
   for (auto flag : flags_to_test) {
     hints.ai_family = GetAddressFamily();
