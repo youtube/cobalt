@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/asset_manager.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#include <android/asset_manager.h>
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"

@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include <errno.h>
-#include <string.h>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"

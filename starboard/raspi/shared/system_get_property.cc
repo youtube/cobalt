@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include <sys/utsname.h>
 
 #include <cstring>
@@ -24,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
+#include "starboard/system.h"
 
 namespace {
 

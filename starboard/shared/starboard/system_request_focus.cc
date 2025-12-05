@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/shared/starboard/application.h"
+#include "starboard/system.h"
 
 void SbSystemRequestFocus() {
   starboard::Application::Get()->Focus(NULL, NULL);

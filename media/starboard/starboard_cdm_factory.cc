@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #include "starboard_cdm_factory.h"
-#include "starboard_cdm.h"
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/task/bind_post_task.h"
 #include "media/base/cdm_config.h"
 #include "media/base/key_systems.h"
+#include "starboard_cdm.h"
 
 namespace media {
 
@@ -44,9 +44,11 @@ void StarboardCdmFactory::Create(
       base::BindPostTaskToCurrentDefault(std::move(cdm_created_cb));
 
   if (cdm->HasValidSbDrm()) {
-    std::move(bound_cdm_created_cb).Run(std::move(cdm), CreateCdmStatus::kSuccess);
+    std::move(bound_cdm_created_cb)
+        .Run(std::move(cdm), CreateCdmStatus::kSuccess);
   } else {
-    std::move(bound_cdm_created_cb).Run(nullptr, CreateCdmStatus::kCdmFactoryCreationFailed);
+    std::move(bound_cdm_created_cb)
+        .Run(nullptr, CreateCdmStatus::kCdmFactoryCreationFailed);
   }
 }
 
