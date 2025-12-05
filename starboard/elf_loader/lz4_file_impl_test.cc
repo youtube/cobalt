@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-
 #include "starboard/elf_loader/lz4_file_impl.h"
+
+#include <string>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"

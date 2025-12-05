@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/extension/crash_handler.h"
+
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/starboard_bridge.h"

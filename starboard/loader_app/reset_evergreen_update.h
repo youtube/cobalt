@@ -15,8 +15,6 @@
 #ifndef STARBOARD_LOADER_APP_RESET_EVERGREEN_UPDATE_H_
 #define STARBOARD_LOADER_APP_RESET_EVERGREEN_UPDATE_H_
 
-#include <string>
-
 namespace loader_app {
 
 // Reset the Evergreen Update Storage

@@ -33,8 +33,8 @@ class CORE_EXPORT PerformanceExtensions final {
   static uint64_t measureAvailableCpuMemory(ScriptState*, const Performance&);
   static uint64_t measureUsedCpuMemory(ScriptState*, const Performance&);
   static ScriptPromise<IDLLongLong> getAppStartupTime(ScriptState*,
-                                         const Performance&,
-                                         ExceptionState&);
+                                                      const Performance&,
+                                                      ExceptionState&);
 };
 
 }  // namespace blink

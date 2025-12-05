@@ -57,7 +57,7 @@ repos:
                 ^starboard/shared/uikit/accessibility_extension.cc$|
                 ^starboard/shared/uikit/player_configuration.cc$
             )
-        additional_dependencies: ['clang-format==17.0.1']
+        additional_dependencies: ['clang-format==21.1.0']
     -   id: cpplint
         name: cpplint
         entry: cpplint

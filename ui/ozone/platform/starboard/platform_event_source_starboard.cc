@@ -14,20 +14,18 @@
 
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
+#include "base/containers/fixed_flat_map.h"
 #include "base/logging.h"
+#include "base/task/single_thread_task_runner.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "ui/events/event.h"
-
-#include "base/containers/fixed_flat_map.h"
-#include "base/task/single_thread_task_runner.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/events/keycodes/keyboard_code_conversion_starboard.h"
-
 #include "ui/events/types/event_type.h"
 
 namespace ui {

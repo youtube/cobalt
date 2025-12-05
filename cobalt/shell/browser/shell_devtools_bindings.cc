@@ -290,8 +290,8 @@ void ShellDevToolsBindings::HandleMessageFromDevToolsFrontend(
     if (!agent_host_ || !protocol_message) {
       return;
     }
-    agent_host_->DispatchProtocolMessage(
-      this, base::as_byte_span(*protocol_message));
+    agent_host_->DispatchProtocolMessage(this,
+                                         base::as_byte_span(*protocol_message));
   } else if (*method == "loadCompleted") {
     CallClientFunction("DevToolsAPI", "setUseSoftMenu", base::Value(true));
   } else if (*method == "loadNetworkResource" && params.size() == 3) {
@@ -410,7 +410,7 @@ void ShellDevToolsBindings::DispatchProtocolMessage(
     DevToolsAgentHost* agent_host,
     base::span<const uint8_t> message) {
   std::string_view str_message(reinterpret_cast<const char*>(message.data()),
-                                message.size());
+                               message.size());
   if (str_message.length() < kShellMaxMessageChunkSize) {
     CallClientFunction("DevToolsAPI", "dispatchMessage",
                        base::Value(std::string(str_message)));

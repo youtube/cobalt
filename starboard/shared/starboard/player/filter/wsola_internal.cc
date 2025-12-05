@@ -37,6 +37,7 @@
 #elif (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
 #define USE_SIMD 1
 #include <arm_neon.h>
+
 #include "starboard/common/check_op.h"
 #endif
 

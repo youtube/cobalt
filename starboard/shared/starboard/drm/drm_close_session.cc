@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/drm.h"
-
 #include "starboard/common/log.h"
+#include "starboard/drm.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmCloseSession(SbDrmSystem drm_system,

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
-
 #include "starboard/common/log.h"
 
 int SbAudioSinkGetNearestSupportedSampleFrequency(int sampling_frequency_hz) {

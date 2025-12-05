@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/window.h"
-
 #include "starboard/raspi/shared/application_dispmanx.h"
+#include "starboard/window.h"
 
 bool SbWindowDestroy(SbWindow window) {
   return starboard::ApplicationDispmanx::Get()->DestroyWindow(window);

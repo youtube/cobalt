@@ -15,11 +15,11 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_INTERNAL_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_INTERNAL_H_
 
-#include "starboard/decode_target.h"
-
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
+
+#include "starboard/decode_target.h"
 
 struct SbDecodeTargetPrivate {
   EGLDisplay display;

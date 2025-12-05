@@ -111,7 +111,7 @@ class OzonePlatformStarboard : public OzonePlatform {
     return std::make_unique<InputMethodMinimal>(ime_key_event_dispatcher);
   }
 
-  bool  IsWindowCompositingSupported() const override { return false; }
+  bool IsWindowCompositingSupported() const override { return false; }
 
   void PostCreateMainMessageLoop(base::OnceCallback<void()> shutdown_cb,
                                  scoped_refptr<base::SingleThreadTaskRunner>

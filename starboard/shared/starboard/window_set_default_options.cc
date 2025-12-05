@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/window.h"
-
 #include <string.h>
+
+#include "starboard/window.h"
 
 void SbWindowSetDefaultOptions(SbWindowOptions* options) {
   memset(options, 0, sizeof(*options));

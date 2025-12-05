@@ -39,18 +39,18 @@ import org.robolectric.RobolectricTestRunner;
     shadows = {},
     manifest = Config.NONE)
 public class ShellManagerTest {
-  @Mock private ShellManager.Natives mockShellManagerNatives;
+  @Mock private ShellManager.Natives mMockShellManagerNatives;
 
   private Activity mActivity;
   private ShellManager mShellManager;
   private FrameLayout mRootView;
-  @Mock private ContentViewRenderView mockContentViewRenderView;
+  @Mock private ContentViewRenderView mMockContentViewRenderView;
 
 
   @Before
   public void setUp() {
     initMocks(this);
-    ShellManager.setNativesForTesting(mockShellManagerNatives);
+    ShellManager.setNativesForTesting(mMockShellManagerNatives);
     mActivity = Robolectric.buildActivity(Activity.class).create().get();
     mRootView = new FrameLayout(mActivity);
     mActivity.setContentView(mRootView);
@@ -61,10 +61,10 @@ public class ShellManagerTest {
   public void testSetContentViewRenderView() {
     Shell shell = new Shell(mActivity);
     shell.setRootViewForTesting(mRootView);
-    shell.setContentViewRenderView(mockContentViewRenderView);
+    shell.setContentViewRenderView(mMockContentViewRenderView);
 
     assertEquals(1, mRootView.getChildCount());
-    assertEquals(mockContentViewRenderView, mRootView.getChildAt(0));
+    assertEquals(mMockContentViewRenderView, mRootView.getChildAt(0));
 
     shell.setContentViewRenderView(null);
 

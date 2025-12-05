@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/buffer_internal.h"
-
 #include <utility>
 
+#include "starboard/shared/starboard/player/buffer_internal.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

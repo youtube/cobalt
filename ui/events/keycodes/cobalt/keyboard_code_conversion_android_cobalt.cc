@@ -7,9 +7,9 @@
 #include "ui/events/keycodes/keyboard_code_conversion_android.cc"
 #undef KeyboardCodeFromAndroidKeyCode
 
-#include "ui/events/keycodes/keyboard_code_conversion_android.h"
-
 #include <android/keycodes.h>
+
+#include "ui/events/keycodes/keyboard_code_conversion_android.h"
 
 namespace ui {
 

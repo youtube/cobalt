@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
-
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.

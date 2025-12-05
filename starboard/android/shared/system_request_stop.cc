@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/common/log.h"
+#include "starboard/system.h"
 
 void SbSystemRequestStop(int error_level) {
   // TODO: b/450024477 - Implement this method when AOSP is used.

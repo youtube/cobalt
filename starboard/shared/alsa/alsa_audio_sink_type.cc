@@ -15,7 +15,6 @@
 #include "starboard/shared/alsa/alsa_audio_sink_type.h"
 
 #include <alsa/asoundlib.h>
-
 #include <pthread.h>
 #include <unistd.h>
 

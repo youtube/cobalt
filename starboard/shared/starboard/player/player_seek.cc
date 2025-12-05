@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
-
 #include "starboard/common/log.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerSeek(SbPlayer player, int64_t seek_to_timestamp, int ticket) {

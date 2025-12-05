@@ -17,11 +17,11 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <optional>
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"

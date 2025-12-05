@@ -17,16 +17,14 @@
 #include <memory>
 #include <utility>
 
-#include "base/functional/callback_helpers.h"
-#include "base/strings/stringprintf.h"
-#include "net/base/net_errors.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
-
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"

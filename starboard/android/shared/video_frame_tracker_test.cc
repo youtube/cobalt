@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-
 #include "starboard/android/shared/video_frame_tracker.h"
+
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 

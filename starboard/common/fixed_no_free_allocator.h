@@ -18,6 +18,8 @@
 #ifndef STARBOARD_COMMON_FIXED_NO_FREE_ALLOCATOR_H_
 #define STARBOARD_COMMON_FIXED_NO_FREE_ALLOCATOR_H_
 
+#include <cstddef>
+
 #include "starboard/common/allocator.h"
 
 namespace starboard {

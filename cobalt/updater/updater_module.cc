@@ -16,7 +16,6 @@
 
 #include <utility>
 #include <vector>
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -44,6 +43,7 @@
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 

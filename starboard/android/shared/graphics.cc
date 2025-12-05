@@ -14,9 +14,8 @@
 
 #include "starboard/android/shared/graphics.h"
 
-#include "starboard/common/log.h"
-
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/log.h"
 #include "starboard/extension/graphics.h"
 
 namespace starboard {

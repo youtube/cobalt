@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/player.h"
-
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 

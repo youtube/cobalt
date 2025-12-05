@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
+#include "starboard/elf_loader/lz4_file_impl.h"
 
 #include <string.h>
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <vector>
-
-#include "starboard/elf_loader/lz4_file_impl.h"
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"

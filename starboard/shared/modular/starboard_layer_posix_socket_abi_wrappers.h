@@ -15,10 +15,9 @@
 #ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_SOCKET_ABI_WRAPPERS_H_
 #define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_SOCKET_ABI_WRAPPERS_H_
 
-#include <stdint.h>
-
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <stdint.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
