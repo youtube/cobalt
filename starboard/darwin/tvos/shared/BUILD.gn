@@ -285,8 +285,6 @@ static_library("starboard_platform") {
               "//starboard/shared/uikit/get_home_directory.cc",
               "//starboard/shared/uikit/graphics.cc",
               "//starboard/shared/uikit/graphics.h",
-              "//starboard/shared/uikit/ifa.h",
-              "//starboard/shared/uikit/ifa.mm",
               "//starboard/shared/uikit/input_device.mm",
               "//starboard/shared/uikit/input_events.mm",
               "//starboard/shared/uikit/keyboard_input_device.mm",
