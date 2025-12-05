@@ -28,16 +28,25 @@
 #include "base/nix/xdg_util.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "starboard/configuration_constants.h"  // nogncheck
+#include "starboard/system.h"                   // nogncheck
+#endif
+
 namespace content {
 
 namespace {
 
 bool GetDefaultUserDataDirectory(base::FilePath* result) {
-#if BUILDFLAG(IS_LINUX)
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-  base::FilePath config_dir(base::nix::GetXDGDirectory(
-      env.get(), base::nix::kXdgConfigHomeEnvVar, base::nix::kDotConfigDir));
-  *result = config_dir.Append("content_shell");
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  std::vector<char> path(kSbFileMaxPath, 0);
+  bool success =
+      SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(), path.size());
+  CHECK(success) << "kSbSystemPathFilesDirectory not defined.";
+  *result = base::FilePath(path.data());
+#elif BUILDFLAG(IS_LINUX)
+  CHECK(base::PathService::Get(base::DIR_CACHE, result));
+  *result = result->Append("cobalt");
 #elif BUILDFLAG(IS_APPLE)
   CHECK(base::PathService::Get(base::DIR_APP_DATA, result));
   *result = result->Append("Chromium Content Shell");
