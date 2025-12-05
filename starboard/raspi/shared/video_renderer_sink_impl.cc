@@ -30,7 +30,7 @@ VideoRendererSinkImpl::VideoRendererSinkImpl(SbPlayer player)
 }
 
 VideoRendererSinkImpl::~VideoRendererSinkImpl() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
                                   0, 0, 0);

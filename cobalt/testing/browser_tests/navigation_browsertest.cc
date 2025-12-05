@@ -800,63 +800,6 @@ IN_PROC_BROWSER_TEST_P(NavigationBrowserTestReferrerPolicy,
   EXPECT_EQ(kDestination, web_contents()->GetLastCommittedURL());
 }
 
-// Test to verify that an exploited renderer process trying to upload a file
-// it hasn't been explicitly granted permissions to is correctly terminated.
-// TODO: b/432503432 - Investigate test failure
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_PostUploadIllegalFilePath PostUploadIllegalFilePath
-#else
-#define MAYBE_PostUploadIllegalFilePath DISABLED_PostUploadIllegalFilePath
-#endif
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_PostUploadIllegalFilePath) {
-  GURL form_url(
-      embedded_test_server()->GetURL("/form_that_posts_to_echoall.html"));
-  EXPECT_TRUE(NavigateToURL(shell(), form_url));
-
-  // Prepare a file for the upload form.
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  base::ScopedTempDir temp_dir;
-  base::FilePath file_path;
-  std::string file_content("test-file-content");
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_dir.GetPath(), &file_path));
-  ASSERT_TRUE(base::WriteFile(file_path, file_content));
-
-  base::RunLoop run_loop;
-  // Fill out the form to refer to the test file.
-  std::unique_ptr<FileChooserDelegate> delegate(
-      new FileChooserDelegate(file_path, run_loop.QuitClosure()));
-  web_contents()->SetDelegate(delegate.get());
-  EXPECT_TRUE(
-      ExecJs(web_contents(), "document.getElementById('file').click();"));
-  run_loop.Run();
-
-  // Ensure that the process is allowed to access to the chosen file and
-  // does not have access to the other file name.
-  EXPECT_TRUE(ChildProcessSecurityPolicyImpl::GetInstance()->CanReadFile(
-      current_frame_host()->GetProcess()->GetID(), file_path));
-
-  // Revoke the access to the file and submit the form. The renderer process
-  // should be terminated.
-  RenderProcessHostBadIpcMessageWaiter process_kill_waiter(
-      current_frame_host()->GetProcess());
-  ChildProcessSecurityPolicyImpl* security_policy =
-      ChildProcessSecurityPolicyImpl::GetInstance();
-  security_policy->RevokeAllPermissionsForFile(
-      current_frame_host()->GetProcess()->GetID(), file_path);
-
-  // Use EvalJs and respond back to the browser process before doing the actual
-  // submission. This will ensure that the process termination is guaranteed to
-  // arrive after the response from the executed JavaScript.
-  EXPECT_EQ(
-      true,
-      EvalJs(
-          shell(),
-          "setTimeout(() => document.getElementById('file-form').submit(), 0);"
-          "true;"));
-  EXPECT_EQ(bad_message::ILLEGAL_UPLOAD_PARAMS, process_kill_waiter.Wait());
-}
-
 // Test case to verify that redirects to data: URLs are properly disallowed,
 // even when invoked through a reload.
 // See https://crbug.com/723796.

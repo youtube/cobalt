@@ -15,8 +15,6 @@
 #ifndef COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_IMPL_H_
 #define COBALT_BROWSER_H5VCC_RUNTIME_H5VCC_RUNTIME_IMPL_H_
 
-#include <string>
-
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"

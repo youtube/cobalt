@@ -94,7 +94,7 @@ AudioRendererPassthrough::AudioRendererPassthrough(
 }
 
 AudioRendererPassthrough::~AudioRendererPassthrough() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (is_valid()) {
     SB_LOG(INFO) << "Force a seek to 0 to reset all states before destructing.";
@@ -105,7 +105,7 @@ AudioRendererPassthrough::~AudioRendererPassthrough() {
 void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
                                           const PrerolledCB& prerolled_cb,
                                           const EndedCB& ended_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
@@ -123,7 +123,7 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
 }
 
 void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_.load());
 
@@ -142,7 +142,7 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 }
 
 void AudioRendererPassthrough::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (end_of_stream_written_) {
     SB_LOG(INFO) << "WriteEndOfStream() ignored as |end_of_stream_written_| is"
@@ -165,7 +165,7 @@ void AudioRendererPassthrough::WriteEndOfStream() {
 }
 
 void AudioRendererPassthrough::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (volume_ == volume) {
     SB_LOG(INFO) << "Volume already at " << volume;
@@ -179,19 +179,19 @@ void AudioRendererPassthrough::SetVolume(double volume) {
 }
 
 bool AudioRendererPassthrough::IsEndOfStreamWritten() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   return end_of_stream_written_;
 }
 
 bool AudioRendererPassthrough::IsEndOfStreamPlayed() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   return end_of_stream_played_.load();
 }
 
 bool AudioRendererPassthrough::CanAcceptMoreData() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard scoped_lock(mutex_);
   return can_accept_more_data_.load() &&
@@ -199,7 +199,7 @@ bool AudioRendererPassthrough::CanAcceptMoreData() const {
 }
 
 void AudioRendererPassthrough::Play() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!paused_) {
     SB_LOG(INFO) << "Already playing.";
@@ -213,7 +213,7 @@ void AudioRendererPassthrough::Play() {
 }
 
 void AudioRendererPassthrough::Pause() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (paused_) {
     SB_LOG(INFO) << "Already paused.";
@@ -227,7 +227,7 @@ void AudioRendererPassthrough::Pause() {
 }
 
 void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (playback_rate > 0.0 && playback_rate != 1.0) {
     // TODO: Report unsupported playback rate as an error.
@@ -249,7 +249,7 @@ void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
 }
 
 void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Seek to " << seek_to_time;
 

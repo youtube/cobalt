@@ -15,14 +15,13 @@
 #ifndef STARBOARD_ANDROID_SHARED_FILE_INTERNAL_H_
 #define STARBOARD_ANDROID_SHARED_FILE_INTERNAL_H_
 
-#include <errno.h>
-
 #include <android/asset_manager.h>
+#include <errno.h>
 #include <jni.h>
+
 #include <string>
 
 #include "starboard/android/shared/starboard_bridge.h"
-
 #include "starboard/shared/internal_only.h"
 
 struct SbFilePrivate {

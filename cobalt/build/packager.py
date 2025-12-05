@@ -26,6 +26,7 @@ import json
 import os
 import shutil
 import tempfile
+import zipfile
 
 
 def copy(src, dst):
@@ -49,17 +50,16 @@ def remove_empty_directories(directory):
 
 
 def layout(archive_data, out_dir, base_dir):
+  zips = archive_data.get('zipfiles')
+  if zips:
+    for z in zips:
+      with zipfile.ZipFile(os.path.join(out_dir, z)) as zf:
+        zf.extractall(out_dir)
+
   files = archive_data.get('files')
   if files:
     for f in files:
       copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
-
-  rename_files = archive_data.get('rename_files')
-  if rename_files:
-    for f in rename_files:
-      move(
-          os.path.join(base_dir, f['from_file']),
-          os.path.join(base_dir, f['to_file']))
 
   dirs = archive_data.get('dirs')
   if dirs:
@@ -68,6 +68,13 @@ def layout(archive_data, out_dir, base_dir):
           os.path.join(out_dir, d),
           os.path.join(base_dir, d),
           dirs_exist_ok=True)
+
+  rename_files = archive_data.get('rename_files')
+  if rename_files:
+    for f in rename_files:
+      move(
+          os.path.join(base_dir, f['from_file']),
+          os.path.join(base_dir, f['to_file']))
 
   rename_dirs = archive_data.get('rename_dirs')
   if rename_dirs:

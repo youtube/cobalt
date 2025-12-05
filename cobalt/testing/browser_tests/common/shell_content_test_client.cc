@@ -19,9 +19,9 @@
 
 namespace content {
 
-ShellContentTestClient::ShellContentTestClient() {}
+ShellContentTestClient::ShellContentTestClient() = default;
 
-ShellContentTestClient::~ShellContentTestClient() {}
+ShellContentTestClient::~ShellContentTestClient() = default;
 
 std::u16string ShellContentTestClient::GetLocalizedString(int message_id) {
   if (switches::IsRunWebTestsSwitchPresent()) {

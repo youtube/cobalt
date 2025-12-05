@@ -22,10 +22,9 @@
 #include "starboard/common/queue.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
-#include "starboard/window.h"
-
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+#include "starboard/window.h"
 
 namespace starboard {
 

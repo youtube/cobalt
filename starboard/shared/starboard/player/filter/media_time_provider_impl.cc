@@ -28,7 +28,7 @@ MediaTimeProviderImpl::MediaTimeProviderImpl(
 }
 
 void MediaTimeProviderImpl::Play() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (is_playing_) {
     return;
@@ -40,7 +40,7 @@ void MediaTimeProviderImpl::Play() {
 }
 
 void MediaTimeProviderImpl::Pause() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!is_playing_) {
     return;
@@ -52,7 +52,7 @@ void MediaTimeProviderImpl::Pause() {
 }
 
 void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (playback_rate_ == playback_rate) {
     return;
@@ -64,7 +64,7 @@ void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
 }
 
 void MediaTimeProviderImpl::Seek(int64_t seek_to_time) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard scoped_lock(mutex_);
 

@@ -88,7 +88,7 @@ StubAudioDecoder::StubAudioDecoder(const AudioStreamInfo& audio_stream_info)
 
 void StubAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
@@ -96,7 +96,7 @@ void StubAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -110,7 +110,7 @@ void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void StubAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   if (decoder_thread_) {
     decoder_thread_->job_queue()->Schedule(
         std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
@@ -121,7 +121,7 @@ void StubAudioDecoder::WriteEndOfStream() {
 }
 
 scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   *samples_per_second = samples_per_second_;
   std::lock_guard lock(decoded_audios_mutex_);
@@ -134,7 +134,7 @@ scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
 }
 
 void StubAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   decoder_thread_.reset();
   last_input_buffer_ = NULL;

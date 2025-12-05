@@ -15,6 +15,8 @@
 #include "starboard/raspi/shared/open_max/open_max_video_decode_component.h"
 
 #include <algorithm>
+#include <map>
+#include <queue>
 
 #include "starboard/configuration.h"
 

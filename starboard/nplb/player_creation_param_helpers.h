@@ -15,9 +15,8 @@
 #ifndef STARBOARD_NPLB_PLAYER_CREATION_PARAM_HELPERS_H_
 #define STARBOARD_NPLB_PLAYER_CREATION_PARAM_HELPERS_H_
 
-#include "starboard/configuration.h"
-
 #include "starboard/common/log.h"
+#include "starboard/configuration.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_util.h"

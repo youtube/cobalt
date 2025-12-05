@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
 
-#include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
-
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -31,6 +29,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
 
 namespace starboard {
 

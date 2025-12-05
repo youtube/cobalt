@@ -30,12 +30,14 @@ constexpr char kExperimentConfigActiveConfigData[] =
 constexpr char kExperimentConfigFeatures[] = "experiment_config.features";
 constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
+constexpr char kExperimentConfigMinVersion[] = "experiment_config.min_version";
 constexpr char kFinchParameters[] = "finch_parameters";
 constexpr char kLatestConfigHash[] = "latest_config_hash";
 constexpr char kSafeConfig[] = "safe_config";
 constexpr char kSafeConfigActiveConfigData[] = "safe_config.active_config_data";
 constexpr char kSafeConfigFeatures[] = "safe_config.features";
 constexpr char kSafeConfigFeatureParams[] = "safe_config.feature_params";
+constexpr char kSafeConfigMinVersion[] = "safe_config.min_version";
 
 }  // namespace cobalt
 

@@ -35,13 +35,13 @@ De265VideoDecoder::De265VideoDecoder(
 }
 
 De265VideoDecoder::~De265VideoDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   Reset();
 }
 
 void De265VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                    const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -52,7 +52,7 @@ void De265VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 }
 
 void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
@@ -73,7 +73,7 @@ void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void De265VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
@@ -92,7 +92,7 @@ void De265VideoDecoder::WriteEndOfStream() {
 }
 
 void De265VideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.

@@ -904,6 +904,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     return result;
   }
 
+#ifdef V8_ENABLE_TURBOFAN
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
     return GetWasmEngine()->call_descriptors()->GetBigIntToI64Descriptor(
         needs_frame_state);
@@ -932,6 +933,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                          base::VectorOf({input, context}), ts_call_descriptor)
                : __ Call(target, {input, context}, ts_call_descriptor);
   }
+#endif
 
   OpIndex FromJS(V<Object> input, OpIndex context, CanonicalValueType type,
                  OptionalOpIndex frame_state = {}) {
@@ -1011,8 +1013,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         return BuildChangeTaggedToInt32(input, context, frame_state);
 
       case kI64:
+#ifdef V8_ENABLE_TURBOFAN
         // i64 values can only come from BigInt.
         return BuildChangeBigIntToInt64(input, context, frame_state);
+#endif
 
       case kS128:
       case kI8:

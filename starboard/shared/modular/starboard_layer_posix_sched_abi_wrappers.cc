@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <sched.h>
+
 #include <cstring>
 
 int __abi_wrap_sched_getaffinity(musl_pid_t pid,

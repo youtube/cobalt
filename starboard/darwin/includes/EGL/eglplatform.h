@@ -83,4 +83,4 @@ typedef EGLNativeWindowType NativeWindowType;
  */
 typedef khronos_int32_t EGLint;
 
-#endif /* STARBOARD_DARWIN_INCLUDES_EGL_EGLPLATFORM_H_ */
+#endif  // STARBOARD_DARWIN_INCLUDES_EGL_EGLPLATFORM_H_

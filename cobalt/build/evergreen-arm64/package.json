@@ -9,6 +9,9 @@
                 "gen/licenses_cobalt.txt",
                 "lib.unstripped/libcobalt.so"
             ],
+            "dirs": [
+                "app"
+            ],
             "rename_files": [
                 {
                     "from_file": "gen/build_info.json",

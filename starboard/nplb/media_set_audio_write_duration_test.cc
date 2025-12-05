@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/media.h"
-
 #include <unistd.h>
+
 #include <atomic>
 #include <optional>
 
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/media.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"

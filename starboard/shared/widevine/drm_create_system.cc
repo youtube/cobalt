@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/drm.h"
-
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/drm.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
 #warning "This implementation is meant to use for testing purpose only."

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/shared/starboard/application.h"
+#include "starboard/system.h"
 
 void SbSystemRequestBlur() {
   starboard::Application::Get()->Blur(NULL, NULL);

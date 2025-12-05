@@ -36,13 +36,13 @@ OpenH264VideoDecoder::OpenH264VideoDecoder(
 }
 
 OpenH264VideoDecoder::~OpenH264VideoDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   Reset();
 }
 
 void OpenH264VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                       const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -53,7 +53,7 @@ void OpenH264VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 }
 
 void OpenH264VideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
@@ -121,7 +121,7 @@ void OpenH264VideoDecoder::TeardownCodec() {
 
 void OpenH264VideoDecoder::WriteInputBuffers(
     const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
@@ -254,7 +254,7 @@ void OpenH264VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
 }
 
 void OpenH264VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that

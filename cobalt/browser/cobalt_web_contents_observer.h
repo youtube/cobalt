@@ -16,9 +16,8 @@
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
 #include "cobalt/shell/browser/shell_content_browser_client.h"
-#include "content/public/browser/web_contents_observer.h"
-
 #include "components/js_injection/browser/js_communication_host.h"
+#include "content/public/browser/web_contents_observer.h"
 
 namespace cobalt {
 

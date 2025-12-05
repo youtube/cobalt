@@ -22,6 +22,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+
 #include <string>
 
 #include "starboard/configuration_constants.h"

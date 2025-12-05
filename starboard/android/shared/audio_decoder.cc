@@ -88,7 +88,7 @@ MediaCodecAudioDecoder::~MediaCodecAudioDecoder() {}
 
 void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
                                         const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -105,7 +105,7 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
                                     const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
@@ -133,7 +133,7 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void MediaCodecAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
@@ -144,7 +144,7 @@ void MediaCodecAudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
     int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   scoped_refptr<DecodedAudio> result;
@@ -167,7 +167,7 @@ scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
 }
 
 void MediaCodecAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then

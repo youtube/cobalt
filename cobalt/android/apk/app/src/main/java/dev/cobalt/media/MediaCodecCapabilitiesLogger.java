@@ -134,21 +134,21 @@ public class MediaCodecCapabilitiesLogger {
     boolean isSupported(String name, CodecCapabilities codecCapabilities);
   }
 
-  static TreeMap<String, CodecFeatureSupported> featureMap;
+  static TreeMap<String, CodecFeatureSupported> sFeatureMap;
 
   private static void ensurefeatureMapInitialized() {
-    if (featureMap != null) {
+    if (sFeatureMap != null) {
       return;
     }
-    featureMap = new TreeMap<>();
-    featureMap.put(
+    sFeatureMap = new TreeMap<>();
+    sFeatureMap.put(
         "AdaptivePlayback",
         (name, codecCapabilities) -> {
           return codecCapabilities.isFeatureSupported(
               MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
         });
     if (Build.VERSION.SDK_INT >= 29) {
-      featureMap.put(
+      sFeatureMap.put(
           "FrameParsing",
           (name, codecCapabilities) -> {
             return codecCapabilities.isFeatureSupported(
@@ -156,7 +156,7 @@ public class MediaCodecCapabilitiesLogger {
           });
     }
     if (Build.VERSION.SDK_INT >= 30) {
-      featureMap.put(
+      sFeatureMap.put(
           "LowLatency",
           (name, codecCapabilities) -> {
             return codecCapabilities.isFeatureSupported(
@@ -164,7 +164,7 @@ public class MediaCodecCapabilitiesLogger {
           });
     }
     if (Build.VERSION.SDK_INT >= 29) {
-      featureMap.put(
+      sFeatureMap.put(
           "MultipleFrames",
           (name, codecCapabilities) -> {
             return codecCapabilities.isFeatureSupported(
@@ -172,20 +172,20 @@ public class MediaCodecCapabilitiesLogger {
           });
     }
     if (Build.VERSION.SDK_INT >= 26) {
-      featureMap.put(
+      sFeatureMap.put(
           "PartialFrame",
           (name, codecCapabilities) -> {
             return codecCapabilities.isFeatureSupported(
                 MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
           });
     }
-    featureMap.put(
+    sFeatureMap.put(
         "SecurePlayback",
         (name, codecCapabilities) -> {
           return codecCapabilities.isFeatureSupported(
               MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
         });
-    featureMap.put(
+    sFeatureMap.put(
         "TunneledPlayback",
         (name, codecCapabilities) -> {
           return codecCapabilities.isFeatureSupported(
@@ -195,7 +195,7 @@ public class MediaCodecCapabilitiesLogger {
 
   private static String getAllFeatureNames() {
     ensurefeatureMapInitialized();
-    return featureMap.keySet().toString();
+    return sFeatureMap.keySet().toString();
   }
 
   private static String getSupportedFeaturesAsString(
@@ -203,7 +203,7 @@ public class MediaCodecCapabilitiesLogger {
     StringBuilder featuresAsString = new StringBuilder();
 
     ensurefeatureMapInitialized();
-    for (Map.Entry<String, CodecFeatureSupported> entry : featureMap.entrySet()) {
+    for (Map.Entry<String, CodecFeatureSupported> entry : sFeatureMap.entrySet()) {
       if (entry.getValue().isSupported(name, codecCapabilities)) {
         if (featuresAsString.length() > 0) {
           featuresAsString.append(", ");
@@ -240,12 +240,6 @@ public class MediaCodecCapabilitiesLogger {
                 isHardwareAccelerated));
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
-        String resultName =
-            (codecCapabilities.isFeatureSupported(
-                        MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback)
-                    && !name.endsWith(MediaCodecUtil.getSecureDecoderSuffix()))
-                ? (name + MediaCodecUtil.getSecureDecoderSuffix())
-                : name;
         boolean isHdrCapable =
             MediaCodecUtil.isHdrCapableVideoDecoder(
                 codecCapabilities.getMimeType(), codecCapabilities);

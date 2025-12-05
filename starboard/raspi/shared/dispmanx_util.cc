@@ -15,6 +15,7 @@
 #include "starboard/raspi/shared/dispmanx_util.h"
 
 #include <utility>
+
 #include "starboard/common/check_op.h"
 
 namespace starboard {

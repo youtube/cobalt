@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
-
 #include <memory>
 
+#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
 #include "content/public/browser/web_contents.h"
 
 namespace content {

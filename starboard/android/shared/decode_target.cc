@@ -14,12 +14,11 @@
 
 #include "starboard/android/shared/decode_target.h"
 
-#include <android/native_window_jni.h>
-#include <jni.h>
-
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <android/native_window_jni.h>
+#include <jni.h>
 
 #include <functional>
 #include <mutex>

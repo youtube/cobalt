@@ -15,9 +15,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_STARBOARD_FONT_UNIQUE_NAME_LOOKUP_STARBOARD_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_STARBOARD_FONT_UNIQUE_NAME_LOOKUP_STARBOARD_H_
 
-#include "third_party/blink/renderer/platform/fonts/font_unique_name_lookup.h"
-
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
+#include "third_party/blink/renderer/platform/fonts/font_unique_name_lookup.h"
 
 namespace blink {
 

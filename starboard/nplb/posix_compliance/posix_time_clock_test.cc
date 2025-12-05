@@ -41,7 +41,7 @@ static int64_t TimespecToMicroseconds(const struct timespec& ts) {
 // The CPU time clock is then checked to see how much CPU time was actually
 // consumed.
 long ConsumeCpuForDuration(long work_time_microseconds) {
-  struct timespec ts_before {};
+  struct timespec ts_before{};
   int ret_before = clock_gettime(CLOCK_MONOTONIC, &ts_before);
   // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
   // value.
@@ -59,7 +59,7 @@ long ConsumeCpuForDuration(long work_time_microseconds) {
     for (int i = 0; i < kCpuWorkIterations; ++i) {
       counter_sum += i;  // Simple work
     }
-    struct timespec ts_after {};
+    struct timespec ts_after{};
     int ret_current = clock_gettime(CLOCK_MONOTONIC, &ts_after);
     // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
     // value.

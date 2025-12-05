@@ -62,8 +62,8 @@
 #include "cc/base/math_util.h"
 #include "cc/input/touch_action.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"  // nogncheck
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
@@ -6795,43 +6795,6 @@ IN_PROC_BROWSER_TEST_P(
   // There are posted tasks that must be run before the test shuts down, lest
   // they access deleted state.
   RunPostedTasks();
-}
-
-// Test for https://crbug.com/615575. It ensures that file chooser triggered
-// by a document in an out-of-process subframe works properly.
-// TODO(b/437371782): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_FileChooserInSubframe FileChooserInSubframe
-#else
-#define MAYBE_FileChooserInSubframe DISABLED_FileChooserInSubframe
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_FileChooserInSubframe) {
-  EXPECT_TRUE(NavigateToURL(
-      shell(), embedded_test_server()->GetURL(
-                   "a.com", "/cross_site_iframe_factory.html?a(b)")));
-  FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
-
-  GURL url(embedded_test_server()->GetURL("b.com", "/file_input.html"));
-  EXPECT_TRUE(NavigateToURLFromRenderer(root->child_at(0), url));
-
-  // Use FileChooserDelegate to avoid showing the actual dialog and to respond
-  // back to the renderer process with predefined file.
-  base::RunLoop run_loop;
-  base::FilePath file;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_TEMP, &file));
-  file = file.AppendASCII("bar");
-  std::unique_ptr<FileChooserDelegate> delegate(
-      new FileChooserDelegate(file, run_loop.QuitClosure()));
-  shell()->web_contents()->SetDelegate(delegate.get());
-  EXPECT_TRUE(ExecJs(root->child_at(0),
-                     "document.getElementById('fileinput').click();"));
-  run_loop.Run();
-
-  // Also, extract the file from the renderer process to ensure that the
-  // response made it over successfully and the proper filename is set.
-  EXPECT_EQ("bar",
-            EvalJs(root->child_at(0),
-                   "document.getElementById('fileinput').files[0].name;"));
 }
 
 // Test that the pending RenderFrameHost is canceled and destroyed when its

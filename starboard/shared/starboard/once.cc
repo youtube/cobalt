@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/once.h"
+
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 // Platform-independent SbOnce() implementation based on the functionality

@@ -82,8 +82,8 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
   const bool is_hdr_;
 
   std::unique_ptr<vpx_codec_ctx> context_;
-  int current_frame_width_ = 0;
-  int current_frame_height_ = 0;
+  unsigned int current_frame_width_ = 0;
+  unsigned int current_frame_height_ = 0;
   int total_input_frames_ = 0;
   int total_output_frames_ = 0;
   std::atomic_uint64_t preroll_frame_count_ = {0};
@@ -94,11 +94,11 @@ class Vp9SwAVVideoSampleBufferBuilder : public AVVideoSampleBufferBuilder {
   size_t frames_with_skip_loop_filter_ = 0;
   bool skip_loop_filter_on_decoder_thread_ = false;
 
-  starboard::player::ScopedJobThreadPtr decoder_thread_;
-  starboard::player::ScopedJobThreadPtr builder_thread_;
+  std::unique_ptr<JobThread> decoder_thread_;
+  std::unique_ptr<JobThread> builder_thread_;
 
   std::mutex pending_input_buffers_mutex_;
-  std::queue<const scoped_refptr<InputBuffer>>
+  std::queue<scoped_refptr<InputBuffer>>
       pending_input_buffers_;  // Guarded by |pending_input_buffers_mutex_|.
   int64_t media_time_offset_ = 0;
 

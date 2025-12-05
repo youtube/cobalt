@@ -104,7 +104,7 @@ const char* GetCommaDecimalSeparatorLocale() {
   static const char* locale = [kCommaDecimalSeparatorLocales]() -> const char* {
     static std::vector<std::string> generated_locales;
     if (generated_locales.empty()) {
-      const char* suffixes[] = {"", ".UTF-8", ".ISO-8859-1", ".ISO-8859-15"};
+      const char* suffixes[] = {"", ".UTF-8"};
       for (const char* base_locale : kCommaDecimalSeparatorLocales) {
         for (const char* suffix : suffixes) {
           generated_locales.push_back(std::string(base_locale) + suffix);

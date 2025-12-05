@@ -15,10 +15,9 @@
 #include <pthread.h>
 
 #include "starboard/configuration.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
 namespace {

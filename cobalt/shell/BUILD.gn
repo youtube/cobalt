@@ -161,49 +161,6 @@ group("cobalt_shell_lib_deps") {
   }
 }
 
-source_set("browsertests_sources") {
-  testonly = true
-  sources = [
-    "common/main_frame_counter_test_impl.cc",
-    "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
-    "renderer/render_frame_test_helper.cc",
-    "renderer/render_frame_test_helper.h",
-    "renderer/shell_render_frame_observer.cc",
-    "renderer/shell_render_frame_observer.h",
-  ]
-
-  public_deps = [
-    ":browsertests_mojom",
-    ":shell_controller_mojom",
-    ":shell_test_switches_lib",
-    "//components/custom_handlers:test_support",
-    "//components/metrics:test_support",
-    "//components/services/storage/test_api",
-    "//content/common:main_frame_counter",
-    "//content/public/child",
-    "//content/public/common",
-    "//content/public/renderer",
-    "//content/public/utility",
-    "//content/test:content_test_mojo_bindings",
-    "//content/test:test_support",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
-  ]
-
-  if (use_aura) {
-    public_deps += [ "//ui/aura:test_support" ]
-
-    if (shell_use_toolkit_views) {
-      public_deps += [
-        "//ui/views:test_support",
-        "//ui/wm:test_support",
-      ]
-    }
-  }
-}
-
 static_library("cobalt_shell_switches") {
   sources = [
     "common/shell_switches.cc",
@@ -247,8 +204,6 @@ static_library("cobalt_shell_lib") {
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
-    "gpu/shell_content_gpu_client.cc",
-    "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
@@ -266,8 +221,6 @@ static_library("cobalt_shell_lib") {
 
   if (is_ios) {
     sources += [
-      "browser/shell_file_select_helper.cc",
-      "browser/shell_file_select_helper.h",
       "browser/shell_platform_delegate_ios.mm",
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
@@ -287,7 +240,11 @@ static_library("cobalt_shell_lib") {
   # an official build, including not only browser tests but also web tests or render tests.
   if (run_browser_tests) {
     defines += [ "RUN_BROWSER_TESTS=1" ]
-    public_deps += [ ":browsertests_sources" ]
+
+    public_deps += [
+      ":shell_test_switches_lib",
+      "//content/test:test_support",
+    ]
   }
 
   if (shell_use_toolkit_views) {
@@ -498,22 +455,4 @@ copy("copy_shell_resources") {
 
 group("resources") {
   public_deps = [ ":copy_shell_resources" ]
-}
-
-mojom("browsertests_mojom") {
-  sources = [
-    "common/main_frame_counter_test.mojom",
-    "common/power_monitor_test.mojom",
-    "common/render_frame_test_helper.mojom",
-  ]
-  public_deps = [
-    "//sandbox/policy/mojom",
-    "//third_party/blink/public/mojom/tokens",
-  ]
-}
-
-mojom("shell_controller_mojom") {
-  testonly = true
-  sources = [ "common/shell_controller.test-mojom" ]
-  public_deps = [ "//mojo/public/mojom/base" ]
 }

@@ -15,9 +15,9 @@
 #ifndef STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIME_HELPER_H_
 #define STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIME_HELPER_H_
 
+#include <gtest/gtest.h>
 #include <time.h>
 
-#include <gtest/gtest.h>
 #include <type_traits>
 
 namespace nplb {

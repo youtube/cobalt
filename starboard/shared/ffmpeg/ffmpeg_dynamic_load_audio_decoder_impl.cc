@@ -15,9 +15,8 @@
 // This file contains the creation of the specialized AudioDecoderImpl object
 // corresponding to the version of the dynamically loaded ffmpeg library.
 
-#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
-
 #include "starboard/player.h"
+#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl_interface.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/media/media_util.h"

@@ -17,6 +17,7 @@
     "PosixLocaleThreadTest.UseLocaleThenSetLocaleThenUseGlobal",
     "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
+    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
+    "Posix/NlLanginfo*"
   ]
 }

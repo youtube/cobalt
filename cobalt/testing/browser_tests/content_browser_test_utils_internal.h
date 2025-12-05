@@ -43,7 +43,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/choosers/popup_menu.mojom.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-test-utils.h"
 #include "third_party/blink/public/mojom/page/widget.mojom-test-utils.h"
@@ -231,35 +230,6 @@ TestShell* OpenPopup(const ToRenderFrameHost& opener,
 TestShell* OpenPopup(const ToRenderFrameHost& opener,
                      const GURL& url,
                      const std::string& name);
-
-// Helper for mocking choosing a file via a file dialog.
-class FileChooserDelegate : public WebContentsDelegate {
- public:
-  // Constructs a WebContentsDelegate that mocks a file dialog.
-  // The mocked file dialog will always reply that the user selected |file| or
-  // |files|. |callback| is invoked when RunFileChooser() is called.
-  FileChooserDelegate(const base::FilePath& file, base::OnceClosure callback);
-  // |base_dir| must be set to the folder being uploaded in |kUploadFolder|
-  // mode, and must be empty in all other modes.
-  FileChooserDelegate(std::vector<base::FilePath> files,
-                      const base::FilePath& base_dir,
-                      base::OnceClosure callback);
-  ~FileChooserDelegate() override;
-
-  // Implementation of WebContentsDelegate::RunFileChooser.
-  void RunFileChooser(RenderFrameHost* render_frame_host,
-                      scoped_refptr<content::FileSelectListener> listener,
-                      const blink::mojom::FileChooserParams& params) override;
-
-  // The params passed to RunFileChooser.
-  const blink::mojom::FileChooserParams& params() const { return *params_; }
-
- private:
-  std::vector<base::FilePath> files_;
-  const base::FilePath base_dir_;
-  base::OnceClosure callback_;
-  blink::mojom::FileChooserParamsPtr params_;
-};
 
 // This class is a TestNavigationManager that only monitors notifications within
 // the given frame tree node.

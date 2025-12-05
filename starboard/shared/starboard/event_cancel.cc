@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/event.h"
-
 #include "starboard/shared/starboard/application.h"
 
 void SbEventCancel(SbEventId event_id) {

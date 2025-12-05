@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/media/media_support_internal.h"
-
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 // Need this nested namespace to prevent breaking RDK build on CI.

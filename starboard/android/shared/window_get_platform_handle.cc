@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/window.h"
-
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/window.h"
 
 void* SbWindowGetPlatformHandle(SbWindow window) {
   if (!SbWindowIsValid(window)) {

@@ -76,7 +76,6 @@ class ShellBrowserContext : public BrowserContext {
   OriginTrialsControllerDelegate* GetOriginTrialsControllerDelegate() override;
 
  protected:
-
   bool ignore_certificate_errors() const { return ignore_certificate_errors_; }
 
   std::unique_ptr<BackgroundSyncController> background_sync_controller_;
