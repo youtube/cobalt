@@ -48,7 +48,7 @@ public class ArtworkDownloaderDefaultTest {
       mDownloader.downloadArtwork(url, mMockLoader);
 
       // Even if download fails, bitmap will be null, but it should still be processed.
-      verify(mMockLoader).consumeBitmapAndCropTo16x9(any());
+      verify(mMockLoader).cropTo16x9(any());
       verify(mMockLoader).onDownloadFinished(any(Pair.class));
   }
 }
