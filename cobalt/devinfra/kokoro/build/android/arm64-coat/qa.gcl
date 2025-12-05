@@ -12,17 +12,5 @@ config build = common.build {
       key = 'CONFIG'
       value = 'qa'
     },
-    {
-      key = 'PLATFORM'
-      value = 'evergreen-arm-softfp-sbversion-17'
-    },
-    {
-      key = 'SB_API_VERSION'
-      value = 'sb_api_version=17'
-    },
-    {
-      key = 'BOOTLOADER_TARGET'
-      value = 'loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
-    },
   ]
 }
