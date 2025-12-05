@@ -102,7 +102,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
     // Returns the ticket. On the first call, it returns a valid ticket and
     // resets its internal state to kSbDrmTicketInvalid. Subsequent calls will
-    // return `kSbDrmTicketInvalid`.
+    // return `kSbDrmTicketInvalid`, which means a spontaneous drm request.
     int TakeTicket();
 
    private:

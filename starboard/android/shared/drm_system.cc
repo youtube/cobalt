@@ -42,6 +42,15 @@ namespace {
 
 constexpr char kNoUrl[] = "";
 
+// kSbDrmTicketInvalid after the session is created means a drm ticket for a DRM
+// request that DRM service spontaneously creates. (not initiated by
+// Javascript). This spontaneous DRM request includes deferred license request
+// or multiple provisioning requests. NOTE: Some device requires multiple rounds
+// of provisioning (See http://b/419320804#comment1). See StarboardCdm's logic
+// for "spontaneous" message:
+// https://source.corp.google.com/h/github/youtube/cobalt/+/main:media/starboard/starboard_cdm.cc;l=336-359;drc=274beb9dd42dc6c7d7dd3ff9415a41e1393f0133
+constexpr int kSpontaneousDrmTicketId = kSbDrmTicketInvalid;
+
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
 }  // namespace
@@ -114,18 +123,7 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
 
 int DrmSystem::SessionUpdateRequest::TakeTicket() {
-  // NOTE: The same SessionUpdateRequest can be used multiple times if the
-  // device requires multiple rounds of provisioning (See
-  // http://b/419320804#comment1).
-  //
-  // When TakeTicket() is called for the first time, it returns a valid
-  // ticket and sets 'ticket_' to `kSbDrmTicketInvalid`. Subsequent calls to
-  // TakeTicket() for the same request will return `kSbDrmTicketInvalid`. This
-  // is expected behavior and means that this is a "spontaneous" message for an
-  // existing session (i.e., a retry or deferred license request) rather than an
-  // initial request. See StarboardCdm's logic for "spontaneous" message:
-  // https://source.corp.google.com/h/github/youtube/cobalt/+/main:media/starboard/starboard_cdm.cc;l=336-359;drc=274beb9dd42dc6c7d7dd3ff9415a41e1393f0133
-  return std::exchange(ticket_, kSbDrmTicketInvalid);
+  return std::exchange(ticket_, kSpontaneousDrmTicketId);
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
