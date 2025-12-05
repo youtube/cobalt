@@ -15,6 +15,7 @@
 #ifndef COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
 #define COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
 
+#include <langinfo.h>
 #include <locale.h>
 
 #include <array>
@@ -79,6 +80,55 @@ struct LocaleImpl {
   }
 };
 
+struct LconvImpl {
+  struct lconv result;
+
+  // Backing storage for the pointers in 'result'
+  std::string stored_decimal, stored_thousands, stored_grouping;
+  std::string stored_mon_decimal, stored_mon_thousands_sep, stored_mon_grouping;
+  std::string stored_pos_sign, stored_neg_sign, stored_currency_sym,
+      stored_int_curr_sym;
+
+  // Cache keys to prevent re-parsing ICU data if locale hasn't changed
+  std::string current_numeric_locale;
+  std::string current_monetary_locale;
+
+  LconvImpl() { ResetToC(); }
+
+  void ResetToC() {
+    // Point to standard "C" literals (or empty strings for safety)
+    result.decimal_point = const_cast<char*>(".");
+    result.thousands_sep = const_cast<char*>("");
+    result.grouping = const_cast<char*>("");
+
+    result.mon_decimal_point = const_cast<char*>("");
+    result.mon_thousands_sep = const_cast<char*>("");
+    result.mon_grouping = const_cast<char*>("");
+    result.positive_sign = const_cast<char*>("");
+    result.negative_sign = const_cast<char*>("");
+    result.currency_symbol = const_cast<char*>("");
+    result.int_curr_symbol = const_cast<char*>("");
+
+    result.frac_digits = CHAR_MAX;
+    result.int_frac_digits = CHAR_MAX;
+    result.p_cs_precedes = CHAR_MAX;
+    result.p_sep_by_space = CHAR_MAX;
+    result.n_cs_precedes = CHAR_MAX;
+    result.n_sep_by_space = CHAR_MAX;
+    result.p_sign_posn = CHAR_MAX;
+    result.n_sign_posn = CHAR_MAX;
+    result.int_p_cs_precedes = CHAR_MAX;
+    result.int_p_sep_by_space = CHAR_MAX;
+    result.int_n_cs_precedes = CHAR_MAX;
+    result.int_n_sep_by_space = CHAR_MAX;
+    result.int_p_sign_posn = CHAR_MAX;
+    result.int_n_sign_posn = CHAR_MAX;
+
+    current_numeric_locale = "C";
+    current_monetary_locale = "C";
+  }
+};
+
 // Returns whether the specified category is a category that Cobalt
 // supports.
 bool IsValidLcCategory(int category);
@@ -103,6 +153,10 @@ void RefreshCompositeString(LocaleImpl* loc);
 
 // Updates the LocaleImpl struct based on a given mask and locale string.
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base);
+
+void UpdateLconvData(const std::string& numeric_locale,
+                     const std::string& monetary_locale,
+                     LconvImpl* cur_lconv);
 
 }  // namespace cobalt
 
