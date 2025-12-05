@@ -65,22 +65,22 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
     IsTextToSpeechEnabledSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
-  SbAccessibilityTextToSpeechSettings settings{};
   auto accessibility_api =
       static_cast<const StarboardExtensionAccessibilityApi*>(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
-  if (accessibility_api &&
-      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) ==
-          0 &&
-      accessibility_api->version >= 1) {
-    if (!accessibility_api->GetTextToSpeechSettings(&settings)) {
-      std::move(callback).Run(false);
-      return;
-    }
-  } else {
+  if (!accessibility_api ||
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) != 0 ||
+      accessibility_api->version < 1) {
     std::move(callback).Run(false);
     return;
   }
+
+  SbAccessibilityTextToSpeechSettings settings{};
+  if (!accessibility_api->GetTextToSpeechSettings(&settings)) {
+    std::move(callback).Run(false);
+    return;
+  }
+
   std::move(callback).Run(settings.has_text_to_speech_setting &&
                           settings.is_text_to_speech_enabled);
 #elif BUILDFLAG(IS_ANDROIDTV)
