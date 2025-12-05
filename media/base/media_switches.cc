@@ -191,11 +191,11 @@ const char kMSEAudioBufferSizeLimitMb[] = "mse-audio-buffer-size-limit-mb";
 const char kMSEVideoBufferSizeLimitMb[] = "mse-video-buffer-size-limit-mb";
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+const char kCobaltNotifyMemoryPressureBeforePlaybackSwitch[] = "cobalt-notify-memory-pressure-before-playback";
 // Allows explicitly specifiying MSE video buffer size maximum as megabytes.
 // Any video buffer size greater than this value will be clamped down to the
 // associated switch value.
 const char kMSEVideoBufferSizeLimitClampMb[] = "mse-video-buffer-size-limit-clamp-mb";
-const char kCobaltNotifyMemoryPressureBeforePlaybackSwitch[] = "cobalt-notify-memory-pressure-before-playback";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Specifies the path to the Clear Key CDM for testing, which is necessary to
