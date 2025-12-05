@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -123,7 +124,7 @@ bool ReadCommandLineSwitchForMemoryPressureSignal() {
   }
   std::string value = command_line->GetSwitchValueASCII(
       switches::kCobaltNotifyMemoryPressureBeforePlaybackSwitch);
-  return value != "0" && value != "false";
+  return value != "0" && base::ToLowerASCII(value) != "false";
 }
 
 }  // namespace
