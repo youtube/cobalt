@@ -76,8 +76,13 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
       ::media::EME_CODEC_VP8 | ::media::EME_CODEC_OPUS |
       ::media::EME_CODEC_VORBIS | ::media::EME_CODEC_MPEG_H_AUDIO |
       ::media::EME_CODEC_FLAC | ::media::EME_CODEC_HEVC_PROFILE_MAIN |
-      ::media::EME_CODEC_HEVC_PROFILE_MAIN10 | ::media::EME_CODEC_AV1 |
-      ::media::EME_CODEC_AC3 | ::media::EME_CODEC_EAC3;
+      ::media::EME_CODEC_HEVC_PROFILE_MAIN10 | ::media::EME_CODEC_AC3 |
+      ::media::EME_CODEC_EAC3;
+
+#if BUILDFLAG(ENABLE_AV1_DECODER)
+  codecs |= ::media::EME_CODEC_AV1;
+#endif
+
   // TODO(b/375232937) Add IAMF
   return codecs;
 }

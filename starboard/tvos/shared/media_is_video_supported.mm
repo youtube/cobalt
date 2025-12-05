@@ -38,6 +38,10 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
+  if (video_codec == kSbMediaVideoCodecAv1) {
+    return false;
+  }
+
   bool experimental_allowed = false;
 
   if (mime_type) {
