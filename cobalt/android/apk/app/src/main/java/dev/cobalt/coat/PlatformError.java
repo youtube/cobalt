@@ -140,9 +140,8 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+            cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
-          cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           mDialog.dismiss();
           break;
         default: // fall out

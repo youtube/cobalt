@@ -40,6 +40,8 @@ public class CobaltConnectivityDetector {
   private final CobaltActivity activity;
   private PlatformError platformError;
   protected boolean mShouldReloadOnResume = false;
+  private boolean mHasSuccessfullyLoaded = false;
+  private boolean mHasVerifiedConnectivity = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
@@ -51,12 +53,9 @@ public class CobaltConnectivityDetector {
         new NetworkChangeNotifier.ConnectionTypeObserver() {
           @Override
           public void onConnectionTypeChanged(@ConnectionType int connectionType) {
-            Log.i(TAG, "onConnectionTypeChanged: " + connectionType);
             if (connectionType != ConnectionType.CONNECTION_NONE) {
-              // Only run the check if we have a network connection.
-              // This will handle the case where the user reconnects to Wi-Fi/cellular
-              // while the error dialog is showing.
-              mShouldReloadOnResume = false;
+              // This triggers an activeNetworkCheck() on a new connection type that is not
+              // None, which should auto-dismiss the error dialog if the connection is valid.
               activeNetworkCheck();
             }
           }
@@ -116,6 +115,7 @@ public class CobaltConnectivityDetector {
   }
 
   private void handleSuccess() {
+    mHasVerifiedConnectivity = true;
     activity.runOnUiThread(
         () -> {
           Log.i(TAG, "Active Network check successful." + platformError);
@@ -125,16 +125,23 @@ public class CobaltConnectivityDetector {
             platformError = null;
           }
           if (mShouldReloadOnResume) {
-            WebContents webContents = activity.getActiveWebContents();
-            if (webContents != null) {
-              webContents.getNavigationController().reload(true);
+            if (!mHasSuccessfullyLoaded) {
+              WebContents webContents = activity.getActiveWebContents();
+              if (webContents != null) {
+                webContents.getNavigationController().reload(true);
+              }
             }
             mShouldReloadOnResume = false;
+          } else if (!mHasSuccessfullyLoaded) {
+            // This is the first successful network check on a fresh app start. The
+            // WebContentsObserver will handle setting the flag to true for any subsequent reloads.
+            mHasSuccessfullyLoaded = true;
           }
         });
   }
 
   private void handleFailure() {
+    mHasVerifiedConnectivity = false;
     activity.runOnUiThread(
         () -> {
           if (platformError == null || !platformError.isShowing()) {
@@ -151,6 +158,14 @@ public class CobaltConnectivityDetector {
 
   public void setShouldReloadOnResume(boolean shouldReload) {
     mShouldReloadOnResume = shouldReload;
+  }
+
+  public void setHasSuccessfullyLoaded(boolean hasCompleted) {
+    mHasSuccessfullyLoaded = hasCompleted;
+  }
+
+  public boolean hasVerifiedConnectivity() {
+    return mHasVerifiedConnectivity;
   }
 
   private boolean performSingleProbe(String urlString) {
