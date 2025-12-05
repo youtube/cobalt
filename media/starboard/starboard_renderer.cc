@@ -118,11 +118,11 @@ bool ReadCommandLineSwitchForMemoryPressureSignal() {
   // as command line switches to the renderer process.
   const auto* command_line = base::CommandLine::ForCurrentProcess();
   if (!command_line->HasSwitch(
-          media::kCobaltNotifyMemoryPressureBeforePlayback.name)) {
+          switches::kCobaltNotifyMemoryPressureBeforePlaybackSwitch)) {
     return false;
   }
   std::string value = command_line->GetSwitchValueASCII(
-      media::kCobaltNotifyMemoryPressureBeforePlayback.name);
+      switches::kCobaltNotifyMemoryPressureBeforePlaybackSwitch);
   return value != "0" && value != "false";
 }
 
