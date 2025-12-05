@@ -105,15 +105,13 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
     # Copy the stale args.gn into stale_args.gn
     stale_dst_args_gn_file = dst_args_gn_file.replace('args', 'stale_args')
     os.rename(dst_args_gn_file, stale_dst_args_gn_file)
-    print(f' Warning: {dst_args_gn_file} is rewritten.'
-          f' Old file is copied to {stale_dst_args_gn_file}.'
-          'In general, if the file exists, you should run'
-          ' `gn args <out_directory>` to edit it instead.')
+    print('WARNING: Existing args.gn was overwritten. '
+          'Old file was copied to stale_args.gn.')
 
   write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
-  print(' '.join(gn_command))
+  print('Running', ' '.join(gn_command))
   try:
     subprocess.check_call(gn_command)
   except subprocess.CalledProcessError:
@@ -154,6 +152,10 @@ def parse_args():
       default=False,
       action='store_true',
       help='Pass this flag to disable Remote Build Execution.')
+
+  # Consume --args to avoid passing to gn gen, overriding args.gn file.
+  parser.add_argument('--args', help=argparse.SUPPRESS)
+
   script_args, gen_args = parser.parse_known_args()
 
   if script_args.platform == 'linux':
@@ -161,6 +163,9 @@ def parse_args():
 
   if not script_args.no_check:
     gen_args.append('--check')
+
+  if script_args.args:
+    print('WARNING: \'--args\' was ignored to avoid overriding args.gn file.')
 
   return script_args, gen_args
 
