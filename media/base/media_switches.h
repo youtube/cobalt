@@ -89,7 +89,7 @@ MEDIA_EXPORT extern const char kMSEAudioBufferSizeLimitMb[];
 MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitMb[];
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-MEDIA_EXPORT extern const char kCobaltNotifyMemoryPressureBeforePlaybackSwitch[];
+MEDIA_EXPORT extern const char kCobaltNotifyMemoryPressureBeforePlayback[];
 MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitClampMb[];
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
