@@ -26,6 +26,7 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/update_client/utils.h"
@@ -131,6 +132,11 @@ bool GetProductDirectoryPath(base::FilePath* path) {
 }
 
 base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
+  // This is necessary to allow blocking for reading Evergreen version and
+  // populating it in the user agent string to prevent
+  // a crash due to blocking restrictions.
+  // TODO(b/468067703): Investigate async approach with task posting.
+  base::ScopedAllowBlocking allow_blocking;
   auto manifest = update_client::ReadManifest(installation_dir);
   if (manifest) {
     auto version = manifest->Find("version");
