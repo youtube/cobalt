@@ -36,6 +36,8 @@ const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
+const char kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback[] =
+    "Media.NotifyMemoryPressureBeforePlayback";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -43,6 +45,8 @@ const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
 const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
     {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
      switches::kMSEVideoBufferSizeLimitClampMb},
+    {kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback,
+     media::kCobaltNotifyMemoryPressureBeforePlayback.name},
 };
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
