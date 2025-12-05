@@ -33,11 +33,13 @@ if (is_ios) {
 declare_args() {
   build_updater_sandbox = false
 
-  # tvOS: Default app bundle identifier.
-  cobalt_bundle_identifier = "dev.cobalt.tvos"
+  if (is_ios && target_platform == "tvos") {
+    # tvOS: Default app bundle identifier.
+    cobalt_bundle_identifier = "dev.cobalt.tvos"
 
-  # tvOS: Default Info.plist path for the bundle.
-  cobalt_info_plist = "shell/app/ios-Info.plist"
+    # tvOS: Default Info.plist path for the bundle.
+    cobalt_info_plist = "shell/app/ios-Info.plist"
+  }
 }
 
 group("gn_all") {
