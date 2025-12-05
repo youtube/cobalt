@@ -19,6 +19,8 @@ static_library("libc") {
   ]
   if (is_cobalt_hermetic_build) {
     sources += [
+      "locale/lconv_support.cc",
+      "locale/lconv_support.h",
       "locale/locale.cc",
       "locale/locale.h",
       "locale/locale_support.cc",
