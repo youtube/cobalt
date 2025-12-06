@@ -25,6 +25,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.ConnectionType;
+import org.chromium.net.NetworkChangeNotifier;
 
 /** Detects network connectivity with a guaranteed timeout. */
 public class CobaltConnectivityDetector {
@@ -38,12 +40,30 @@ public class CobaltConnectivityDetector {
   private final CobaltActivity activity;
   private PlatformError platformError;
   protected boolean mShouldReloadOnResume = false;
+  private boolean mHasSuccessfullyLoaded = false;
+  private boolean mHasVerifiedConnectivity = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
+  private final NetworkChangeNotifier.ConnectionTypeObserver mConnectionTypeObserver;
 
   public CobaltConnectivityDetector(CobaltActivity activity) {
     this.activity = activity;
+    mConnectionTypeObserver =
+        new NetworkChangeNotifier.ConnectionTypeObserver() {
+          @Override
+          public void onConnectionTypeChanged(@ConnectionType int connectionType) {
+            if (connectionType != ConnectionType.CONNECTION_NONE) {
+              // This triggers an activeNetworkCheck() on a new connection type that is not
+              // None, which should auto-dismiss the error dialog if the connection is valid.
+              activeNetworkCheck();
+            }
+          }
+        };
+  }
+
+  public void registerObserver() {
+    NetworkChangeNotifier.addConnectionTypeObserver(mConnectionTypeObserver);
   }
 
   public void activeNetworkCheck() {
@@ -95,6 +115,7 @@ public class CobaltConnectivityDetector {
   }
 
   private void handleSuccess() {
+    mHasVerifiedConnectivity = true;
     activity.runOnUiThread(
         () -> {
           Log.i(TAG, "Active Network check successful." + platformError);
@@ -104,16 +125,23 @@ public class CobaltConnectivityDetector {
             platformError = null;
           }
           if (mShouldReloadOnResume) {
-            WebContents webContents = activity.getActiveWebContents();
-            if (webContents != null) {
-              webContents.getNavigationController().reload(true);
+            if (!mHasSuccessfullyLoaded) {
+              WebContents webContents = activity.getActiveWebContents();
+              if (webContents != null) {
+                webContents.getNavigationController().reload(true);
+              }
             }
             mShouldReloadOnResume = false;
+          } else if (!mHasSuccessfullyLoaded) {
+            // This is the first successful network check on a fresh app start. The
+            // WebContentsObserver will handle setting the flag to true for any subsequent reloads.
+            mHasSuccessfullyLoaded = true;
           }
         });
   }
 
   private void handleFailure() {
+    mHasVerifiedConnectivity = false;
     activity.runOnUiThread(
         () -> {
           if (platformError == null || !platformError.isShowing()) {
@@ -130,6 +158,14 @@ public class CobaltConnectivityDetector {
 
   public void setShouldReloadOnResume(boolean shouldReload) {
     mShouldReloadOnResume = shouldReload;
+  }
+
+  public void setHasSuccessfullyLoaded(boolean hasCompleted) {
+    mHasSuccessfullyLoaded = hasCompleted;
+  }
+
+  public boolean hasVerifiedConnectivity() {
+    return mHasVerifiedConnectivity;
   }
 
   private boolean performSingleProbe(String urlString) {
@@ -157,6 +193,7 @@ public class CobaltConnectivityDetector {
   }
 
   public void destroy() {
+    NetworkChangeNotifier.removeConnectionTypeObserver(mConnectionTypeObserver);
     managementExecutor.shutdownNow();
   }
 }
