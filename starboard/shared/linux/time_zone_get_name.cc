@@ -14,6 +14,7 @@
 
 #include <limits.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -55,19 +56,56 @@ const char* SbTimeZoneGetName() {
   But this is production-tested solution for most versions of Linux.
   */
 
+  struct stat timeZoneStat;
+  char timeZoneInputBuffer[PATH_MAX];
+
   if (gTimeZoneBufferPtr == NULL) {
-    int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer,
-                                    sizeof(gTimeZoneBuffer) - 1);
-    if (0 < ret) {
-      int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
+    // Copy default path into timeZoneInputBuffer
+    memcpy(timeZoneInputBuffer, TZDEFAULT, sizeof(TZDEFAULT));
+
+    // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
+    // symlink chain:
+    //
+    //   $ readlink /etc/localtime 
+    //   /.host-etc/localtime
+    //
+    //   $ readlink /.host-etc/localtime 
+    //   /etc/zoneinfo/America/New_York
+    //
+
+    // Follow symlinks up to a reasonable depth to avoid infinite loops.
+    const int kMaxSymlinks = 8;
+    for (int i = 0; i < kMaxSymlinks; ++i) {
+      int32_t ret = (int32_t)readlink(timeZoneInputBuffer, gTimeZoneBuffer,
+                                      sizeof(gTimeZoneBuffer) - 1);
+
+      if (ret <= 0) {
+        // Failed to read link, or it's not a link.
+        break;
+      }
+
+      int32_t tzZoneInfoTailLen = sizeof(TZZONEINFOTAIL) - 1;
       gTimeZoneBuffer[ret] = 0;
       char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
 
+      // Stop on the first symlink that is a valid time zone.
       if (tzZoneInfoTailPtr != NULL &&
           isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
         return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
       }
+
+      // Check if the target is another symlink to follow.
+      if (gTimeZoneBuffer[0] != '/' ||
+          lstat(gTimeZoneBuffer, &timeZoneStat) == -1 ||
+          !S_ISLNK(timeZoneStat.st_mode)) {
+        // Not an absolute path, lstat failed, or not a symlink. Stop.
+        break;
+      }
+
+      // It is another symlink, copy path and continue loop.
+      memcpy(timeZoneInputBuffer, gTimeZoneBuffer, ret + 1);
     }
+
     SB_NOTREACHED();
     return "";
   } else {
