@@ -100,10 +100,10 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
-    // Returns the ticket and resets it to kSbDrmTicketInvalid. This function
-    // should only be called when the ticket is valid, otherwise the program
-    // will crash.
-    int ReleaseTicket();
+    // Returns the ticket. On the first call, it returns a valid ticket and
+    // resets its internal state to kSbDrmTicketInvalid. Subsequent calls will
+    // return `kSbDrmTicketInvalid`, which means a spontaneous drm request.
+    int TakeTicket();
 
    private:
     int ticket_;
