@@ -21,10 +21,9 @@
 #include <string>
 #include <unordered_map>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
-
-#include "starboard/common/check_op.h"
 #include "starboard/common/once.h"
 #include "starboard/log.h"
 #include "starboard/media.h"

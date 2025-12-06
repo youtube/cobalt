@@ -2,49 +2,80 @@ name: Set Up Depot Tools
 description: Sets up Depot Tools and initializes gclient. Requires source code to be cloned to src/ directory.
 inputs:
   run_sync:
-    description: "Whether or not to run gclient sync."
-    default: "true"
+    description: Whether or not to run gclient sync.
+    default: 'true'
+  use_cache:
+    description: Whether or not to use runner cache.
+    default: 'true'
+  rbe_instance:
+    description: The RBE instance to use.
+    default: projects/cobalt-actions-prod/instances/default_instance
+
 runs:
   using: "composite"
   steps:
-      - name: Get depot tools
+      - name: Clear Cache and Clone Depot Tools
+        if: inputs.use_cache != 'true'
         run: |
-          if [ -d "/runner-cache/depot_tools" ]; then
-            echo "depot_tools directory found. Resetting repository..."
-            git -C /runner-cache/depot_tools reset --hard origin/main
-          else
-            echo "depot_tools directory not found. Cloning repository..."
-            git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
-          fi
+          rm -rf /runner-cache/depot_tools /runner-cache/cobalt/.cipd_cache
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
         shell: bash
-      - name: Bootstrap bundled python3
+
+      - name: Reset Cached Depot Tools
+        if: inputs.use_cache == 'true'
+        run: git -C /runner-cache/depot_tools reset --hard origin/main
+        shell: bash
+
+      - name: Add Depot Tools to PATH
+        run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Bootstrap Bundled python3
         run: |
           # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
           source /runner-cache/depot_tools/bootstrap_python3 && bootstrap_python3
         shell: bash
-      - name: Add depot tools to PATH
-        run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
+
+      - name: Disable Chromium client side build telemetry
+        run: build_telemetry opt-out
         shell: bash
-      - name: Generate gclient file
-        run: cd cobalt && gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
+
+      - name: Run gclient config
+        run: |
+          cd cobalt
+          gclient config \
+            --name=src \
+            --custom-var=download_remoteexec_cfg=True \
+            --custom-var='rbe_instance="${{ inputs.rbe_instance }}"' \
+            https://github.com/${{ github.repository }}
         shell: bash
+
       - name: Set target OS for Android
-        if: ${{ contains(matrix.platform, 'android') }}
+        if: contains(matrix.platform, 'android')
         run: |
           cd cobalt
           echo "target_os=['android']" >> .gclient
           gclient validate
         shell: bash
-      - name: gclient sync
+
+      - name: Run gclient sync
         if: inputs.run_sync == 'true'
-        run: cd cobalt && gclient sync -v --shallow --no-history --nohooks --force -r ${{ github.sha }}
+        run: |
+          cd cobalt
+          gclient sync \
+            --verbose \
+            --shallow \
+            --no-history \
+            --nohooks \
+            --force \
+            --revision ${{ github.sha }}
         shell: bash
-      - name: gclient runhook
+
+      - name: Run gclient runhooks
         if: inputs.run_sync == 'true'
-        run: cd cobalt && gclient runhooks --verbose
         env:
           CIPD_CACHE_DIR: "/runner-cache/cobalt/.cipd_cache"
-        shell: bash
-      - name: Disable Chromium client side build telemetry
-        run: build_telemetry opt-out
+        run: |
+          cd cobalt
+          gclient runhooks --verbose
         shell: bash

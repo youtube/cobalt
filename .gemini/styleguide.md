@@ -36,3 +36,11 @@ For JNI (Java Native Interface) code, please adhere to the following best practi
 *   **Android Isolated Splits**: /docs/android_isolated_splits.md
 *   **Binary Size Optimization Advice**: /docs/speed/binary_size/optimization_advice.md
 
+# Web IDL Best Practices
+
+For changes involving Web IDL, refer to the following guides for API design principles and Chromium-specific implementation details:
+
+*   **Blink Web IDL Style Guide**: /docs/website/site/blink/webidl/index.md
+*   **Chromium IDL Extended Attributes**: /third_party/blink/renderer/bindings/IDLExtendedAttributes.md
+*   **Web IDL Interfaces**: /docs/website/site/developers/web-idl-interfaces/index.md
+

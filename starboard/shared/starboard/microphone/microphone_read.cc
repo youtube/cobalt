@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/microphone.h"
-
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
 int SbMicrophoneRead(SbMicrophone microphone,

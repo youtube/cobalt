@@ -28,34 +28,34 @@ import dev.cobalt.util.Log;
 /** Class to help Cobalt monitor status change. */
 public class NetworkStatus {
 
-  private NetworkCallback networkCallback;
-  private ConnectivityManager connectivityManager;
-  private final Handler mainHandler = new Handler(Looper.getMainLooper());
-  private boolean callbackAdded = false;
+  private NetworkCallback mNetworkCallback;
+  private ConnectivityManager mConnectivityManager;
+  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+  private boolean mCallbackAdded = false;
 
   static class CobaltNetworkCallback extends ConnectivityManager.NetworkCallback {
-    private final NetworkStatus networkStatus;
+    private final NetworkStatus mNetworkStatus;
 
     /** Constructor for CobaltNetworkCallback */
     public CobaltNetworkCallback(NetworkStatus networkStatus, Handler handler) {
       super();
-      this.networkStatus = networkStatus;
+      mNetworkStatus = networkStatus;
     }
 
     @Override
     public void onLost(Network network) {
-      this.networkStatus.sendStatusChange(false);
+      mNetworkStatus.sendStatusChange(false);
     }
 
     @Override
     public void onAvailable(Network network) {
-      this.networkStatus.sendStatusChange(true);
+      mNetworkStatus.sendStatusChange(true);
     }
   }
   ;
 
   public void sendStatusChange(final boolean online) {
-    this.mainHandler.post(
+    mMainHandler.post(
         new Runnable() {
           @Override
           public void run() {
@@ -69,33 +69,33 @@ public class NetworkStatus {
   }
 
   public NetworkStatus(Context appContext) {
-    connectivityManager =
+    mConnectivityManager =
         (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
     Log.i(TAG, "Opening NetworkStatus");
-    networkCallback = new CobaltNetworkCallback(this, mainHandler);
-    connectivityManager.registerDefaultNetworkCallback(networkCallback);
-    callbackAdded = true;
+    mNetworkCallback = new CobaltNetworkCallback(this, mMainHandler);
+    mConnectivityManager.registerDefaultNetworkCallback(mNetworkCallback);
+    mCallbackAdded = true;
   }
 
   public void beforeStartOrResume() {
-    if (connectivityManager != null && !callbackAdded) {
-      connectivityManager.registerDefaultNetworkCallback(networkCallback);
-      callbackAdded = true;
+    if (mConnectivityManager != null && !mCallbackAdded) {
+      mConnectivityManager.registerDefaultNetworkCallback(mNetworkCallback);
+      mCallbackAdded = true;
     }
   }
 
   public void beforeSuspend() {
-    if (connectivityManager != null && callbackAdded) {
-      connectivityManager.unregisterNetworkCallback(networkCallback);
-      callbackAdded = false;
+    if (mConnectivityManager != null && mCallbackAdded) {
+      mConnectivityManager.unregisterNetworkCallback(mNetworkCallback);
+      mCallbackAdded = false;
     }
   }
 
   public boolean isConnected() {
-    if (connectivityManager != null) {
+    if (mConnectivityManager != null) {
       // Return the current network bandwidth when client pings the NetworkStatus service.
       NetworkCapabilities cap =
-          connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork());
+          mConnectivityManager.getNetworkCapabilities(mConnectivityManager.getActiveNetwork());
       return cap != null
           && (cap.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
               || cap.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)

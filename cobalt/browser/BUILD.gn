@@ -83,6 +83,7 @@ source_set("browser") {
 
   if (is_androidtv) {
     deps += [
+      "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
       "//cobalt/android/oom_intervention",
     ]

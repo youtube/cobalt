@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include <unistd.h>
 
 #include "starboard/common/log.h"
+#include "starboard/system.h"
 
 int SbSystemGetNumberOfProcessors() {
   // It seems that sysconf returns the number of "logical" processors on both

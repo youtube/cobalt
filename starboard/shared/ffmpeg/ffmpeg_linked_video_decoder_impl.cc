@@ -15,12 +15,11 @@
 // This file contains the creation of the specialized VideoDecoderImpl object
 // corresponding to the version of the linked ffmpeg library.
 
-#include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
-
 #include "starboard/common/check_op.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+#include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.h"
 
 namespace starboard {

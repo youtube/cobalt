@@ -29,8 +29,10 @@ services:
       - ${COBALT_SRC:-.}:/code/
     # TODO(b/350543978): This block for environment variables is manually
     # maintained. It would be easier to maintain if it were programmatically
-    # generated from # the calling environment and passed via arguments to the
+    # generated from the calling environment and passed via arguments to the
     # compose command.
+    # Forwarding of environment variables used in the Docker image build and the
+    # subsequent Cobalt build in the container.
     environment:
       PLATFORM: ${PLATFORM}
       CONFIG: ${CONFIG}

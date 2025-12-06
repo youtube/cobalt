@@ -24,6 +24,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/context_factory.h"
@@ -54,8 +55,6 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
-
-#include "cobalt/shell/browser/cobalt_views_delegate.h"
 
 namespace content {
 

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/android/shared/drm_system.h"
-
 #include "starboard/android/shared/media_common.h"
 
 SbDrmSystem SbDrmCreateSystem(

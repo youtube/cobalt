@@ -41,8 +41,9 @@ base::FilePath ShellCrashReporterClient::GetReporterLogFilename() {
 
 bool ShellCrashReporterClient::GetCrashDumpLocation(base::FilePath* crash_dir) {
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kCrashDumpsDir))
+          switches::kCrashDumpsDir)) {
     return false;
+  }
   base::FilePath crash_directory =
       base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
           switches::kCrashDumpsDir);

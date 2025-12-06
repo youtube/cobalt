@@ -14,6 +14,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 

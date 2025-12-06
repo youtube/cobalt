@@ -26,6 +26,8 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
+#include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
@@ -36,9 +38,6 @@
 #include "starboard/key.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-
-#include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
-#include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 
 namespace starboard {
 

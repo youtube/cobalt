@@ -395,22 +395,22 @@ public class AudioTrackBridge {
         // This conversion is safe, as only the lower bits will be set, since we
         // called |getTimestamp| without a timebase.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        mAudioTimestamp.framePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
-        mAudioTimestamp.nanoTime = mRawAudioTimestamp.nanoTime;
+        mAudioTimestamp.mFramePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
+        mAudioTimestamp.mNanoTime = mRawAudioTimestamp.nanoTime;
       } else {
         // Time stamps haven't been updated yet, assume playback hasn't started.
-        mAudioTimestamp.framePosition = 0;
-        mAudioTimestamp.nanoTime = System.nanoTime();
+        mAudioTimestamp.mFramePosition = 0;
+        mAudioTimestamp.mNanoTime = System.nanoTime();
       }
 
       if (mAudioTimestamp.getFramePosition() > mMaxFramePositionSoFar) {
         mMaxFramePositionSoFar = mAudioTimestamp.getFramePosition();
       } else {
-        // The returned |audioTimestamp.framePosition| is not monotonically
+        // The returned |audioTimestamp.mFramePosition| is not monotonically
         // increasing, and a monotonically increastion frame position is
         // required to calculate the playback time correctly, because otherwise
         // we would be going back in time.
-        mAudioTimestamp.framePosition = mMaxFramePositionSoFar;
+        mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
       }
     }
 
@@ -436,24 +436,24 @@ public class AudioTrackBridge {
 
   /** A wrapper of the android AudioTimestamp class to be used by JNI. */
   private static class AudioTimestamp {
-    private long framePosition;
-    private long nanoTime;
+    private long mFramePosition;
+    private long mNanoTime;
 
     public AudioTimestamp(long framePosition, long nanoTime) {
-      this.framePosition = framePosition;
-      this.nanoTime = nanoTime;
+      mFramePosition = framePosition;
+      mNanoTime = nanoTime;
     }
 
 
 
     @CalledByNative("AudioTimestamp")
     public long getFramePosition() {
-      return framePosition;
+      return mFramePosition;
     }
 
     @CalledByNative("AudioTimestamp")
     public long getNanoTime() {
-      return nanoTime;
+      return mNanoTime;
     }
   }
 

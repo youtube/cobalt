@@ -15,6 +15,7 @@
 #include "starboard/shared/deviceauth/deviceauth_internal.h"
 
 #include <string.h>
+
 #include <string>
 
 #include "starboard/common/log.h"

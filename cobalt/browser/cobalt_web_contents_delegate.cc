@@ -55,7 +55,7 @@ const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
     }
 
     auto it = std::ranges::find(devices, requested_device_id,
-                                 &blink::MediaStreamDevice::id);
+                                &blink::MediaStreamDevice::id);
     if (it != devices.end()) {
       return &(*it);
     }

@@ -391,6 +391,8 @@ static_library("cobalt_shell_test_lib") {
   sources = [
     "app/shell_main_test_delegate.cc",
     "app/shell_main_test_delegate.h",
+    "browser/shell_browser_test_context.cc",
+    "browser/shell_browser_test_context.h",
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
     "browser/test_shell.cc",

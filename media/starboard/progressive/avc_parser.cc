@@ -81,7 +81,8 @@ bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
     if (buffer_size & 0xffffe000) {
       return false;
     }
-    std::vector<uint8_t> audio_prepend(audio_prepend_.as_span().begin(), audio_prepend_.as_span().end());
+    std::vector<uint8_t> audio_prepend(audio_prepend_.as_span().begin(),
+                                       audio_prepend_.as_span().end());
     // OR size into buffer, byte 3 gets 2 MSb of 13-bit size
     audio_prepend[3] |= (uint8_t)((buffer_size & 0x00001800) >> 11);
     // byte 4 gets bits 10-3 of size

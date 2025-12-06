@@ -35,9 +35,7 @@
     static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT; \
     static Type* s_singleton = NULL;                       \
     struct Local {                                         \
-      static void Init() {                                 \
-        s_singleton = new Type();                          \
-      }                                                    \
+      static void Init() { s_singleton = new Type(); }     \
     };                                                     \
     pthread_once(&s_once_flag, Local::Init);               \
     return s_singleton;                                    \

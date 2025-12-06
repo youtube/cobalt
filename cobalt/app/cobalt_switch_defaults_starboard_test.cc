@@ -103,14 +103,13 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::vector<const char*> always_on_switches {
-    ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
-        ::switches::kIgnoreGpuBlocklist,
+  std::vector<const char*> always_on_switches{
+      ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
+      ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
-        ::switches::kUserLevelMemoryPressureSignalParams,
+      ::switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-        sandbox::policy::switches::kNoSandbox
-  };
+      sandbox::policy::switches::kNoSandbox};
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));

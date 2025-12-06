@@ -22,13 +22,12 @@
 
 #include <mutex>
 
+#include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
-
-#include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
 
 namespace starboard {
 

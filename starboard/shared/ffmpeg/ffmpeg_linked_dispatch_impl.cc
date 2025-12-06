@@ -15,8 +15,6 @@
 // This file implements the FFMPEGDispatch interface for a library linked
 // directly, or which the symbols are already available in the global namespace.
 
-#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
-
 #include <dlfcn.h>
 #include <pthread.h>
 
@@ -26,6 +24,7 @@
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
+#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 namespace starboard {

@@ -101,6 +101,10 @@ FEATURE_LIST_START
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// By default, app provisioning is disabled. Set the following variable to true
+// to enable app provisioning.
+STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
+
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/get_home_directory.h"
+
 #include <pwd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -20,7 +22,6 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/get_home_directory.h"
 
 namespace starboard::shared::starboard {
 

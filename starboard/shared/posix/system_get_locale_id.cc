@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include <locale.h>  // for setlocale and LC_*
 #include <stdlib.h>  // for getenv
 
 #include "starboard/common/string.h"
+#include "starboard/system.h"
 
 namespace {
 bool IsValidId(const char* posix_id) {

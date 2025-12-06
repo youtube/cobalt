@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
-
 #include <limits>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 
 namespace starboard {
 
@@ -79,7 +78,8 @@ const float kQuadToFivePointOneMatrix[] = {
 
 // 2 -> 1
 const float kStereoToMonoMatrix[] = {
-    0.5f, 0.5f,  // output = 0.5 * (input.L + input.R)
+    0.5f,
+    0.5f,  // output = 0.5 * (input.L + input.R)
 };
 
 // 4 -> 1

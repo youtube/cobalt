@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/window.h"
-
 #include "starboard/shared/x11/application_x11.h"
+#include "starboard/window.h"
 
 bool SbWindowDestroy(SbWindow window) {
   return starboard::ApplicationX11::Get()->DestroyWindow(window);

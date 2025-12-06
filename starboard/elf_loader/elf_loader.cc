@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/elf_loader.h"
 
 #include <string.h>
+
 #include <vector>
 
 #include "starboard/common/check_op.h"
