@@ -15,22 +15,22 @@
 #ifndef STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 #define STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 
-#include <GLES2/gl2.h>
-
 #include <cstdint>
+#include <memory>
 
-#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/queue_application.h"
 
 namespace starboard {
 
+class CommandLine;
+
 class ApplicationDarwin : public QueueApplication {
  public:
-  explicit ApplicationDarwin(SbEventHandleCallback sb_event_handle_callback)
-      : QueueApplication(sb_event_handle_callback) {}
+  explicit ApplicationDarwin(
+      std::unique_ptr<::starboard::CommandLine> command_line);
+  ~ApplicationDarwin() override;
+
   static ApplicationDarwin* Get() {
     Application* application = Application::Get();
     return static_cast<ApplicationDarwin*>(application);
@@ -66,8 +66,10 @@ class ApplicationDarwin : public QueueApplication {
     return nullptr;
   }
   void WakeSystemEventWait() override {}
-  void Initialize() override;
-  void Teardown() override;
+
+ private:
+  struct ObjCStorage;
+  std::unique_ptr<ObjCStorage> objc_storage_;
 };
 
 template <typename T>

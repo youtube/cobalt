@@ -19,9 +19,17 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/starboard_test_environment.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
+#if BUILDFLAG(IS_IOS_TVOS)
+  ::testing::AddGlobalTestEnvironment(
+      new starboard::StarboardTestEnvironment(argc, argv));
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   return RUN_ALL_TESTS();
 }
 }  // namespace

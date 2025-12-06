@@ -44,13 +44,11 @@ if (current_toolchain == starboard_toolchain) {
 
 source_set("cast_starboard_api_test") {
   testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "cast_starboard_api_test.cc",
-  ]
+  sources = [ "cast_starboard_api_test.cc" ]
   data_deps = [ ":cast_starboard_api_test_data($starboard_toolchain)" ]
   deps = [
     "//starboard:starboard_group",
+    "//starboard:starboard_test_main",
     "//starboard/common",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//testing/gtest",

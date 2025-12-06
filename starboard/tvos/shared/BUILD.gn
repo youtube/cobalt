@@ -12,6 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+static_library("test_support") {
+  testonly = true
+
+  public_deps = [ "//testing/gtest" ]
+
+  deps = [ ":starboard_platform" ]
+
+  sources = [
+    "starboard_test_environment.h",
+    "starboard_test_environment.mm",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
 static_library("starboard_platform") {
   sources = [
     "//starboard/shared/posix/log.cc",
