@@ -22,6 +22,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
@@ -177,6 +178,21 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;
+  mojo::PendingRemote<network::mojom::URLLoaderFactory>
+  CreateNonNetworkNavigationURLLoaderFactory(
+      const std::string& scheme,
+      FrameTreeNodeId frame_tree_node_id) override;
+  void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
+      BrowserContext* browser_context,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
+      BrowserContext* browser_context,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkSubresourceURLLoaderFactories(
+      int render_process_id,
+      int render_frame_id,
+      const std::optional<url::Origin>& request_initiator_origin,
+      NonNetworkURLLoaderFactoryMap* factories) override;
 
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
@@ -247,6 +263,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // Needed so that content_shell can use fieldtrial_testing_config.
   virtual void SetUpFieldTrials();
 
+  // Helper function to register the H5vccSchemeURLLoaderFactory for the
+  // custom scheme kH5vccEmbeddedScheme.
+  void RegisterH5vccScheme(NonNetworkURLLoaderFactoryMap* factories);
+
   // Returns the list of ShellContentBrowserClients ordered by time created.
   // If a test overrides ContentBrowserClient, this list will have more than
   // one item.
@@ -268,6 +288,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       create_throttles_for_navigation_callback_;
   base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
       override_web_preferences_callback_;
+  std::unique_ptr<H5vccSchemeURLLoaderFactory> h5vcc_scheme_url_loader_factory_;
 
   // NOTE: Tests may install a second ShellContentBrowserClient that becomes
   // the ContentBrowserClient used by content. This has subtle implications

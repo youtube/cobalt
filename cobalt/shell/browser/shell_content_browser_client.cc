@@ -46,6 +46,7 @@
 #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/embedder_support/switches.h"
@@ -255,6 +256,8 @@ ShellContentBrowserClient* ShellContentBrowserClient::Get() {
 
 ShellContentBrowserClient::ShellContentBrowserClient() {
   GetShellContentBrowserClientInstancesImpl().push_back(this);
+  h5vcc_scheme_url_loader_factory_ =
+      std::make_unique<H5vccSchemeURLLoaderFactory>();
 }
 
 ShellContentBrowserClient::~ShellContentBrowserClient() {
@@ -296,7 +299,7 @@ bool ShellContentBrowserClient::IsHandledURL(const GURL& url) {
       url::kHttpScheme, url::kHttpsScheme,        url::kWsScheme,
       url::kWssScheme,  url::kBlobScheme,         url::kFileSystemScheme,
       kChromeUIScheme,  kChromeUIUntrustedScheme, kChromeDevToolsScheme,
-      url::kDataScheme, url::kFileScheme,
+      url::kDataScheme, url::kFileScheme,         kH5vccEmbeddedScheme,
   };
   for (const char* supported_protocol : kProtocolList) {
     if (url.scheme_piece() == supported_protocol) {
@@ -677,6 +680,71 @@ ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
 const std::vector<ShellContentBrowserClient*>&
 ShellContentBrowserClient::GetShellContentBrowserClientInstances() {
   return GetShellContentBrowserClientInstancesImpl();
+}
+
+void ShellContentBrowserClient::RegisterH5vccScheme(
+    NonNetworkURLLoaderFactoryMap* factories) {
+  if (!h5vcc_scheme_url_loader_factory_) {
+    LOG(WARNING) << "h5vcc_scheme_url_loader_factory_ is not initialized!";
+    return;
+  }
+
+  mojo::PendingRemote<network::mojom::URLLoaderFactory> remote;
+  h5vcc_scheme_url_loader_factory_->Clone(
+      remote.InitWithNewPipeAndPassReceiver());
+
+  auto result = factories->try_emplace(kH5vccEmbeddedScheme, std::move(remote));
+  if (!result.second) {
+    LOG(WARNING) << "h5vcc-scheme already registered in this map.";
+  }
+}
+
+mojo::PendingRemote<network::mojom::URLLoaderFactory>
+ShellContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
+    const std::string& scheme,
+    FrameTreeNodeId frame_tree_node_id) {
+  // Registers factories for kH5vccEmbeddedScheme used in main frame
+  // navigations.
+  if (scheme == kH5vccEmbeddedScheme) {
+    if (!h5vcc_scheme_url_loader_factory_) {
+      LOG(WARNING) << "h5vcc_scheme_url_loader_factory_ is not initialized!";
+      return {};
+    }
+
+    mojo::PendingRemote<network::mojom::URLLoaderFactory> remote;
+    h5vcc_scheme_url_loader_factory_->Clone(
+        remote.InitWithNewPipeAndPassReceiver());
+    return remote;
+  }
+  return {};
+}
+
+void ShellContentBrowserClient::
+    RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
+        BrowserContext* browser_context,
+        NonNetworkURLLoaderFactoryMap* factories) {
+  // Registers factories for kH5vccEmbeddedScheme used to load the main script
+  // for Web Workers.
+  RegisterH5vccScheme(factories);
+}
+
+void ShellContentBrowserClient::
+    RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
+        BrowserContext* browser_context,
+        NonNetworkURLLoaderFactoryMap* factories) {
+  // Registers factories for kH5vccEmbeddedScheme used when fetching or updating
+  // Service Worker scripts.
+  RegisterH5vccScheme(factories);
+}
+
+void ShellContentBrowserClient::RegisterNonNetworkSubresourceURLLoaderFactories(
+    int render_process_id,
+    int render_frame_id,
+    const std::optional<url::Origin>& request_initiator_origin,
+    NonNetworkURLLoaderFactoryMap* factories) {
+  // Registers factories for kH5vccEmbeddedScheme used for loading subresources
+  // within a document.
+  RegisterH5vccScheme(factories);
 }
 
 }  // namespace content
