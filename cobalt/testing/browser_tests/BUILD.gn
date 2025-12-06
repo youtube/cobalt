@@ -345,12 +345,11 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "$root_build_dir/cobalt/testing/browser_tests/data",
+    "//content/test/data/",
     "//media/test/data/",
   ]
 
   data_deps = [
-    ":copy_test_data",
     "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
@@ -439,10 +438,4 @@ static_library("cobalt_shell_test_lib") {
       public_deps += [ "//ui/views:test_support" ]
     }
   }
-}
-
-action("copy_test_data") {
-  script = "data/update_build_gn.py"
-  outputs = [ "$target_gen_dir/copy_test_data.stamp" ]
-  args = [ rebase_path(root_out_dir, root_build_dir) ]
 }
