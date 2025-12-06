@@ -225,7 +225,7 @@ public abstract class CobaltActivity extends Activity {
                 @Override
                 public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
                   if (!navigationHandle.isSameDocument()) {
-                    cobaltConnectivityDetector.setHasSuccessfullyLoaded(false);
+                    mCobaltConnectivityDetector.setHasSuccessfullyLoaded(false);
                   }
                 }
 
@@ -237,10 +237,10 @@ public abstract class CobaltActivity extends Activity {
                   if (navigationHandle.hasCommitted()
                       && !navigationHandle.isErrorPage()
                       && NetworkChangeNotifier.isOnline()
-                      && cobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
                     String scheme = navigationHandle.getUrl().getScheme();
                     if ("http".equals(scheme) || "https".equals(scheme)) {
-                      cobaltConnectivityDetector.setHasSuccessfullyLoaded(true);
+                      mCobaltConnectivityDetector.setHasSuccessfullyLoaded(true);
                     }
                   }
                 }
@@ -360,7 +360,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
-    cobaltConnectivityDetector.registerObserver();
+    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     mVideoSurfaceView = new VideoSurfaceView(this);
