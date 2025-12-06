@@ -32,6 +32,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_run_loop_timeout.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
@@ -533,6 +534,13 @@ void BrowserTestBase::SetUp() {
   // Need to wipe feature list clean, since BrowserMain calls
   // FeatureList::SetInstance, which expects no instance to exist.
   base::FeatureList::ClearInstanceForTesting();
+
+  // Temporarily initialize a ScopedFeatureList to ensure it's valid during
+  // early browser process setup, which might access it before the true
+  // FeatureList is established by the test harness. This bridges the gap
+  // between ClearInstanceForTesting() and the actual FeatureList setup.
+  std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list = std::make_unique<base::test::ScopedFeatureList>();
+  scoped_feature_list->InitWithEmptyFeatureAndFieldTrialLists();
 
   auto created_main_parts_closure = base::BindOnce(
       &BrowserTestBase::CreatedBrowserMainPartsImpl, base::Unretained(this));
