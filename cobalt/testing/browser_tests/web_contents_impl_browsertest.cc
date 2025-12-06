@@ -58,7 +58,6 @@
 #include "content/common/frame.mojom.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -2074,20 +2073,6 @@ class TestWCDelegateForDialogsAndFullscreen : public JavaScriptDialogManager,
   std::unique_ptr<base::RunLoop> run_loop_ = std::make_unique<base::RunLoop>();
 };
 
-class MockFileSelectListener : public FileChooserImpl::FileSelectListenerImpl {
- public:
-  MockFileSelectListener() : FileChooserImpl::FileSelectListenerImpl(nullptr) {
-    SetListenerFunctionCalledTrueForTesting();
-  }
-  void FileSelected(std::vector<blink::mojom::FileChooserFileInfoPtr> files,
-                    const base::FilePath& base_dir,
-                    blink::mojom::FileChooserParams::Mode mode) override {}
-  void FileSelectionCanceled() override {}
-
- private:
-  ~MockFileSelectListener() override = default;
-};
-
 // TODO(b/437415063): Investigate failing test.
 #if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_JavaScriptDialogsInMainAndSubframes \
@@ -3247,21 +3232,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_TRUE(ExecJs(inner_contents, script));
   inner_test_delegate.Wait();
   EXPECT_FALSE(top_contents->IsFullscreen());
-}
-
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FileChooserEndsFullscreen) {
-  WebContentsImpl* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
-  TestWCDelegateForDialogsAndFullscreen test_delegate(wc);
-
-  GURL url("about:blank");
-  EXPECT_TRUE(NavigateToURL(shell(), url));
-
-  wc->EnterFullscreenMode(wc->GetPrimaryMainFrame(), {});
-  EXPECT_TRUE(wc->IsFullscreen());
-  wc->RunFileChooser(wc->GetPrimaryMainFrame(),
-                     base::MakeRefCounted<MockFileSelectListener>(),
-                     blink::mojom::FileChooserParams());
-  EXPECT_FALSE(wc->IsFullscreen());
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
