@@ -96,7 +96,7 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
-  private CobaltConnectivityDetector cobaltConnectivityDetector;
+  private CobaltConnectivityDetector mCobaltConnectivityDetector;
   private WebContentsObserver mWebContentsObserver;
 
   // Initially copied from ContentShellActiviy.java
@@ -222,7 +222,7 @@ public abstract class CobaltActivity extends Activity {
                 @Override
                 public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
                   if (!navigationHandle.isSameDocument()) {
-                    cobaltConnectivityDetector.setHasSuccessfullyLoaded(false);
+                    mCobaltConnectivityDetector.setHasSuccessfullyLoaded(false);
                   }
                 }
 
@@ -234,10 +234,10 @@ public abstract class CobaltActivity extends Activity {
                   if (navigationHandle.hasCommitted()
                       && !navigationHandle.isErrorPage()
                       && NetworkChangeNotifier.isOnline()
-                      && cobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
                     String scheme = navigationHandle.getUrl().getScheme();
                     if ("http".equals(scheme) || "https".equals(scheme)) {
-                      cobaltConnectivityDetector.setHasSuccessfullyLoaded(true);
+                      mCobaltConnectivityDetector.setHasSuccessfullyLoaded(true);
                     }
                   }
                 }
@@ -353,11 +353,11 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
-    cobaltConnectivityDetector.registerObserver();
+    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     mVideoSurfaceView = new VideoSurfaceView(this);
@@ -413,7 +413,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return cobaltConnectivityDetector;
+    return mCobaltConnectivityDetector;
   }
 
   @Override
@@ -470,7 +470,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    cobaltConnectivityDetector.activeNetworkCheck();
+    mCobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -480,8 +480,8 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (cobaltConnectivityDetector != null) {
-      cobaltConnectivityDetector.destroy();
+    if (mCobaltConnectivityDetector != null) {
+      mCobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
