@@ -52,14 +52,14 @@ bool g_initialization_result = false;
 
 // Gets the full path to the ICU data file.
 std::string GetIcuDataPath() {
-  std::vector<char> base_path(kSbFileMaxPath);
-  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, base_path.data(),
+  std::string base_path(kSbFileMaxPath, 0);
+  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, &base_path[0],
                                 base_path.size());
   SB_CHECK(result) << "Failed to get ICU data path.";
-  std::string data_path(base_path.data());
-  data_path += kSbFileSepString;
-  data_path += kIcuDataFileName;
-  return data_path;
+  base_path.resize(strlen(base_path.c_str()));
+  base_path += kSbFileSepString;
+  base_path += kIcuDataFileName;
+  return base_path;
 }
 
 off_t GetIcuDataLength(const std::string& data_path) {

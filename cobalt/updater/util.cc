@@ -115,14 +115,15 @@ bool CreateProductDirectory(base::FilePath* path) {
 }
 
 bool GetProductDirectoryPath(base::FilePath* path) {
-  std::vector<char> storage_dir(kSbFileMaxPath);
-  if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
+  std::string storage_dir(kSbFileMaxPath, 0);
+  if (!SbSystemGetPath(kSbSystemPathStorageDirectory, &storage_dir[0],
                        kSbFileMaxPath)) {
     LOG(ERROR) << "GetProductDirectoryPath: Failed to get "
                   "kSbSystemPathStorageDirectory";
     return false;
   }
-  base::FilePath app_data_dir(storage_dir.data());
+  storage_dir.resize(strlen(storage_dir.c_str()));
+  base::FilePath app_data_dir(storage_dir);
   const auto product_data_dir =
       app_data_dir.AppendASCII(PRODUCT_FULLNAME_STRING);
 
@@ -159,18 +160,17 @@ const std::string GetEvergreenFileType(const std::string& installation_path) {
 }
 
 const base::FilePath GetLoadedInstallationPath() {
-  std::vector<char> system_path_content_dir(kSbFileMaxPath);
+  std::string system_path_content_dir(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathContentDirectory,
-                       system_path_content_dir.data(), kSbFileMaxPath)) {
+                       &system_path_content_dir[0], kSbFileMaxPath)) {
     LOG(ERROR) << "Failed to get system path content directory";
     return base::FilePath();
   }
+  system_path_content_dir.resize(strlen(system_path_content_dir.c_str()));
   // Since the Cobalt library has already been loaded,
   // kSbSystemPathContentDirectory points to the content dir of the running
   // library and the installation dir is therefore its parent.
-  return base::FilePath(std::string(system_path_content_dir.begin(),
-                                    system_path_content_dir.end()))
-      .DirName();
+  return base::FilePath(system_path_content_dir).DirName();
 }
 
 const base::FilePath FindInstallationPath(
@@ -244,17 +244,16 @@ std::string GetLibrarySha256(int index) {
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager && index == 0) {
     // Evergreen Lite
-    std::vector<char> system_path_content_dir(kSbFileMaxPath);
+    std::string system_path_content_dir(kSbFileMaxPath, 0);
     if (!SbSystemGetPath(kSbSystemPathContentDirectory,
-                         system_path_content_dir.data(), kSbFileMaxPath)) {
+                         &system_path_content_dir[0], kSbFileMaxPath)) {
       LOG(ERROR)
           << "GetLibrarySha256: Failed to get system path content directory";
       return "";
     }
+    system_path_content_dir.resize(strlen(system_path_content_dir.c_str()));
 
-    filepath = base::FilePath(std::string(system_path_content_dir.begin(),
-                                          system_path_content_dir.end()))
-                   .DirName();
+    filepath = base::FilePath(system_path_content_dir).DirName();
   } else if (!installation_manager && index != 0) {
     LOG(ERROR) << "GetLibrarySha256: Evergreen lite supports only slot 0";
     return "";
