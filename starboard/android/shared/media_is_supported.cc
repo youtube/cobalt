@@ -22,7 +22,7 @@
 
 namespace starboard::shared::starboard::media {
 
-bool MediaIsSupported(SbMediaVideoCodec video_codec,
+bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
                       const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
