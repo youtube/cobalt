@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
-
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {

@@ -18,13 +18,12 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
+#include "cobalt/android/jni_headers/CobaltService_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_service.h"
-
-#include "cobalt/android/jni_headers/CobaltService_jni.h"
 
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;

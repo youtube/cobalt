@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ui/events/keycodes/keyboard_code_conversion_android.h"
-
 #include <android/keycodes.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/events/keycodes/keyboard_code_conversion_android.h"
 
 namespace ui {
 namespace {

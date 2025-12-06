@@ -61,20 +61,20 @@ enum class UpdaterStatus {
 // processing the updater status.
 // clang-format off
 const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map = {
-        // clang-format on
-        {ComponentState::kNew, UpdaterStatus::kNewUpdate},
-        {ComponentState::kChecking, UpdaterStatus::kChecking},
-        {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
-        {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
-        {ComponentState::kDownloading, UpdaterStatus::kDownloading},
-        {ComponentState::kDownloaded, UpdaterStatus::kDownloaded},
-        {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
-        {ComponentState::kUpdating, UpdaterStatus::kUpdating},
-        {ComponentState::kUpdated, UpdaterStatus::kUpdated},
-        {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
-        {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
-        {ComponentState::kUninstalled, UpdaterStatus::kUninstalled},
-        {ComponentState::kRun, UpdaterStatus::kRun},
+    // clang-format on
+    {ComponentState::kNew, UpdaterStatus::kNewUpdate},
+    {ComponentState::kChecking, UpdaterStatus::kChecking},
+    {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
+    {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
+    {ComponentState::kDownloading, UpdaterStatus::kDownloading},
+    {ComponentState::kDownloaded, UpdaterStatus::kDownloaded},
+    {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
+    {ComponentState::kUpdating, UpdaterStatus::kUpdating},
+    {ComponentState::kUpdated, UpdaterStatus::kUpdated},
+    {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
+    {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
+    {ComponentState::kUninstalled, UpdaterStatus::kUninstalled},
+    {ComponentState::kRun, UpdaterStatus::kRun},
 };
 
 // Translating an updater status to a status string. Used when logging the

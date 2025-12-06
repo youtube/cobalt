@@ -22,9 +22,8 @@
 
 #include <limits>
 
-#include "starboard/extension/accessibility.h"
-
 #include "starboard/common/log.h"
+#include "starboard/extension/accessibility.h"
 
 namespace starboard {
 

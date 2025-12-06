@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include <errno.h>
+
+#include "starboard/system.h"
 
 SbSystemError SbSystemGetLastError() {
   return errno;

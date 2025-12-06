@@ -23,7 +23,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
 #include "components/update_client/network.h"
-
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
 
 namespace base {
