@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -148,6 +149,11 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
       return false;  // No associated container in YT.
     case kSbMediaVideoCodecVc1:
     case kSbMediaVideoCodecAv1:
+#if BUILDFLAG(IS_IOS_TVOS)
+      if (mime_info.video_codec == kSbMediaVideoCodecAv1) {
+        return false;
+      }
+#endif
       if (mime_type.subtype() != "mp4") {
         return false;
       }
