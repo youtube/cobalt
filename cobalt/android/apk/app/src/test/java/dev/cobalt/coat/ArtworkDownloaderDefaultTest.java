@@ -94,7 +94,7 @@ public class ArtworkDownloaderDefaultTest {
             },
             mDownloader) {
           @Override
-          public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
+          public Bitmap cropTo16x9(Bitmap bitmap) {
             // Return a dummy bitmap to simulate success and trigger the callback,
             // even if the download (simulated to fail here) produces a null bitmap.
             return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
