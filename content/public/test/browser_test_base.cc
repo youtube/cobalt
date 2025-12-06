@@ -539,8 +539,8 @@ void BrowserTestBase::SetUp() {
   // early browser process setup, which might access it before the true
   // FeatureList is established by the test harness. This bridges the gap
   // between ClearInstanceForTesting() and the actual FeatureList setup.
-  std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list = std::make_unique<base::test::ScopedFeatureList>();
-  scoped_feature_list->InitWithEmptyFeatureAndFieldTrialLists();
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
 
   auto created_main_parts_closure = base::BindOnce(
       &BrowserTestBase::CreatedBrowserMainPartsImpl, base::Unretained(this));
