@@ -24,6 +24,10 @@
 #include "starboard/android/shared/text_to_speech_observer.h"
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/accessibility.h"
+#endif
+
 namespace h5vcc_accessibility {
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -32,6 +36,19 @@ using base::android::AttachCurrentThread;
 using ::starboard::CobaltTextToSpeechHelper;
 #endif
 
+namespace {
+
+// Wrapper function to adapt a C-style callback to a C++ member function call.
+void OnTextToSpeechStateChanged(void* context) {
+  DCHECK(context);
+  // The context is expected to be a pointer to an H5vccAccessibilityImpl
+  // instance.
+  static_cast<h5vcc_accessibility::H5vccAccessibilityImpl*>(context)
+      ->ObserveTextToSpeechChange();
+}
+
+}  // namespace
+
 H5vccAccessibilityImpl::H5vccAccessibilityImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccAccessibilityBrowser> receiver)
@@ -39,7 +56,19 @@ H5vccAccessibilityImpl::H5vccAccessibilityImpl(
           render_frame_host,
           std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
+  auto accessibility_api =
+      static_cast<const StarboardExtensionAccessibilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+  if (accessibility_api &&
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) ==
+          0 &&
+      accessibility_api->version >= 1 &&
+      accessibility_api->RegisterOnTextToSpeechStateChangedCallback) {
+    accessibility_api->RegisterOnTextToSpeechStateChangedCallback(
+        &OnTextToSpeechStateChanged, this);
+  }
+#elif BUILDFLAG(IS_ANDROIDTV)
   CobaltTextToSpeechHelper::GetInstance()->AddObserver(this);
 #endif
 }
@@ -84,14 +113,11 @@ void H5vccAccessibilityImpl::RegisterClient(
   remote_clients_.Add(std::move(client));
 }
 
-#if BUILDFLAG(IS_ANDROIDTV)
-// TODO(b/391708407): Add support for Starboard.
 void H5vccAccessibilityImpl::ObserveTextToSpeechChange() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (auto& client : remote_clients_) {
     client->NotifyTextToSpeechChange();
   }
 }
-#endif
 
 }  // namespace h5vcc_accessibility
