@@ -14,19 +14,12 @@
 
 #include "starboard/android/shared/text_to_speech_helper.h"
 
-#include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/memory.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
 namespace starboard {
-
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 
 CobaltTextToSpeechHelper* CobaltTextToSpeechHelper::GetInstance() {
   return base::Singleton<CobaltTextToSpeechHelper>::get();
