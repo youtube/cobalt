@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include <android/native_activity.h>
 #include <jni.h>
 
 #include <functional>
 
+#include "cobalt/android/jni_headers/PlatformError_jni.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
-
-#include "cobalt/android/jni_headers/PlatformError_jni.h"
+#include "starboard/system.h"
 
 namespace {
 using base::android::ScopedJavaGlobalRef;

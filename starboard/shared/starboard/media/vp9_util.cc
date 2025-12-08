@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/starboard/media/vp9_util.h"
+
 #include "starboard/common/check_op.h"
 
 namespace starboard {

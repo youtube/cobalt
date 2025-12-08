@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/system.h"
 
 void SbSystemRequestConceal() {
   JNIEnv* env = base::android::AttachCurrentThread();

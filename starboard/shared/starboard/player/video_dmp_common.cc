@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #include <limits>
+
 #include "starboard/common/check_op.h"
 
 namespace starboard {

@@ -16,6 +16,7 @@
 
 #include <map>
 #include <memory>
+
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -26,11 +27,10 @@
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
 #include "build/build_config.h"
-#include "starboard/common/system_property.h"
-#include "starboard/extension/platform_info.h"
-
 #include "cobalt/cobalt_build_id.h"  // Generated
 #include "cobalt/version.h"
+#include "starboard/common/system_property.h"
+#include "starboard/extension/platform_info.h"
 #include "v8/include/v8-version-string.h"
 
 namespace cobalt {

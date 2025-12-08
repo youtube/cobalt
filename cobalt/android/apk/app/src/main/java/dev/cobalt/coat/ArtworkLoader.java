@@ -110,12 +110,13 @@ public class ArtworkLoader {
    * wider, it is returned as is.
    *
    * The input bitmap is recycled if a new cropped bitmap is created.
+   * NOTE: This method is accessed from google3(http://shortn/_SoIqBrEPhR).
    *
    * @param bitmap The source bitmap.
    * @return The 16:9 cropped bitmap, or the original bitmap.
    */
   @CheckResult
-  public Bitmap consumeBitmapAndCropTo16x9(Bitmap bitmap) {
+  public Bitmap cropTo16x9(Bitmap bitmap) {
     // Crop to 16:9 as needed
     if (bitmap == null) {
       return null;

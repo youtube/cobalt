@@ -71,7 +71,7 @@ class PosixEpollWaitTests : public PosixEpollTest {
 
   // Helper to remove from epoll
   void RemoveFromEpoll(int fd_to_remove) {
-    struct epoll_event event {};  // Dummy event, required for older kernels
+    struct epoll_event event{};  // Dummy event, required for older kernels
     if (epfd_ >= 0 && fd_to_remove >= 0) {
       epoll_ctl(epfd_, EPOLL_CTL_DEL, fd_to_remove, &event);
     }

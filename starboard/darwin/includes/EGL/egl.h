@@ -77,7 +77,7 @@ typedef void (*__eglMustCastToProperFunctionPointerType)(void);
 #define EGL_CONFIG_ID 0x3028
 #define EGL_CORE_NATIVE_ENGINE 0x305B
 #define EGL_DEPTH_SIZE 0x3025
-#define EGL_DONT_CARE ((EGLint)-1)
+#define EGL_DONT_CARE ((EGLint) - 1)
 #define EGL_DRAW 0x3059
 #define EGL_EXTENSIONS 0x3055
 #define EGL_FALSE 0
@@ -241,7 +241,7 @@ typedef void* EGLClientBuffer;
 #define EGL_RGB_BUFFER 0x308E
 #define EGL_SINGLE_BUFFER 0x3085
 #define EGL_SWAP_BEHAVIOR 0x3093
-#define EGL_UNKNOWN ((EGLint)-1)
+#define EGL_UNKNOWN ((EGLint) - 1)
 #define EGL_VERTICAL_RESOLUTION 0x3091
 EGLAPI EGLBoolean EGLAPIENTRY eglBindAPI(EGLenum api);
 EGLAPI EGLenum EGLAPIENTRY eglQueryAPI(void);

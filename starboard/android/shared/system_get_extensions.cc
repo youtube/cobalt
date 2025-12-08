@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
@@ -34,6 +32,7 @@
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/system_info.h"
+#include "starboard/system.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
