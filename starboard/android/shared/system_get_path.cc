@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <linux/limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -21,7 +25,6 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/system.h"
 
 using ::base::android::ScopedJavaGlobalRef;
 using ::starboard::g_app_assets_dir;

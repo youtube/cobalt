@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <string>
 
 #include "base/android/jni_android.h"
@@ -20,7 +24,6 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
-#include "starboard/system.h"
 
 namespace starboard {
 namespace {
