@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/decode_target.h"
+// clang-format on
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/decode_target.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget target) {
