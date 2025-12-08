@@ -22,7 +22,6 @@
 @class SBDDrmManager;
 @class SBDEglAdapter;
 @class SBDPlayerManager;
-@class SBDSpeechSynthesizer;
 @class SBDWindowManager;
 @protocol SBDStarboardApplication;
 
@@ -66,11 +65,6 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  *  @brief Enables Starboard to partially implement the EGL API.
  */
 @property(nonatomic, readonly) SBDEglAdapter* eglAdapter;
-
-/**
- *  @brief Enables Starboard to speak text.
- */
-@property(nonatomic, readonly) SBDSpeechSynthesizer* speechSynthesizer;
 
 /**
  *  @brief Returns display refresh rate.
