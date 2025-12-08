@@ -722,6 +722,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
                        weak_factory_.GetWeakPtr(), stream, status, buffers));
     return;
   }
+  TRACE_EVENT0("media", "StarboardRenderer::OnDemuxerStreamRead");
 
   if (pending_flush_cb_) {
     if (stream == audio_stream_) {
@@ -805,6 +806,7 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
+  TRACE_EVENT0("media", "StarboardRenderer::OnNeedData");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if the callback is fired when creation of the `player_bridge_`
@@ -912,6 +914,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
   auto stream = (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
   DCHECK(stream);
 
+  TRACE_EVENT0("media", "StarboardRenderer::OnDemuxerStreamRead:Read");
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
                               weak_factory_.GetWeakPtr(), stream));

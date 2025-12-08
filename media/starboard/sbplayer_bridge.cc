@@ -622,6 +622,7 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
 
 void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreateUrlPlayer");
+  LOG(INFO) << "cobalt::media" << ":" << "SbPlayerBridge::CreateUrlPlayer";
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
@@ -661,6 +662,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 void SbPlayerBridge::CreatePlayer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   TRACE_EVENT0("media", "SbPlayerBridge::CreatePlayer");
+  LOG(INFO) << "media" << ":" << "SbPlayerBridge::CreatePlayer";
 
 #if COBALT_MEDIA_ENABLE_BACKGROUND_MODE
   bool is_visible = SbWindowIsValid(window_);
@@ -1005,6 +1007,8 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
+  TRACE_EVENT0("media", "SbPlayerBridge::OnDecoderStatus");
+  LOG(INFO) << "media" << ":" << "SbPlayerBridge::OnDecoderStatus";
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1058,6 +1062,8 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
                                     int ticket) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   TRACE_EVENT1("media", "SbPlayerBridge::OnPlayerStatus", "state", state);
+  LOG(INFO) << "media" << ":" << "SbPlayerBridge::OnPlayerStatus" << ":"
+            << "state=" << state;
 
   if (player_ != player) {
     return;
