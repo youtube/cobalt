@@ -1,17 +1,22 @@
 {
     "archive_datas": [
         {
+            "zipfiles": [
+                "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip"
+            ],
             "files": [
-                "apks/Cobalt.apk",
                 "cobalt_shell.pak",
                 "gen/build_info.json",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/core/R.java",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/base/natives/GEN_JNI.java",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/build/BuildConfig.java",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/build/NativeLibraries.java",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
                 "libchrobalt.so",
                 "libstarboard_jni_state.so",
-                "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar",
                 "lib.java/base/android/jni_generator/jni_processor.jar",
@@ -167,12 +172,28 @@
             ],
             "rename_files": [
                 {
-                  "from_file": "apks/Cobalt.apk",
-                  "to_file": "Cobalt.apk"
+                    "from_file": "cobalt_shell.pak",
+                    "to_file": "content/cobalt_shell.pak"
                 },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/core/R.java",
+                    "to_file": "java/replace/androidx/core/R.java"
+                },
+                {
+                    "from_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/base/natives/GEN_JNI.java",
+                    "to_file": "java/GEN_JNI.java"
+                },
+                {
+                    "from_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/build/BuildConfig.java",
+                    "to_file": "java/replace/BuildConfig.java"
+                },
+                {
+                    "from_file": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/build/NativeLibraries.java",
+                    "to_file": "java/replace/NativeLibraries.java"
                 },
                 {
                     "from_file": "gen/licenses_cobalt.spdx",
@@ -183,8 +204,20 @@
                     "to_file": "licenses_cobalt.txt"
                 },
                 {
+                    "from_file": "icudtl.dat",
+                    "to_file": "content/icudtl.dat"
+                },
+                {
                     "from_file": "lib.unstripped/libchrobalt.so",
                     "to_file": "symbol/libchrobalt.so"
+                },
+                {
+                    "from_file": "libchrobalt.so",
+                    "to_file": "lib/libchrobalt.so"
+                },
+                {
+                    "from_file": "libstarboard_jni_state.so",
+                    "to_file": "lib/libstarboard_jni_state.so"
                 },
                 {
                     "from_file": "obj/components/metrics/metrics_java.javac.jar",
@@ -796,46 +829,82 @@
                 }
             ],
             "dirs": [
-                "content/data",
+                "0_res/layout",
+                "0_res/values",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/appcompat",
-                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/core",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/fragment",
                 "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/gen/base_module",
-                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium"
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/content",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/media",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/ui"
+            ],
+            "rename_dirs": [
+                {
+                    "from_dir": "0_res/layout",
+                    "to_dir": "res/layout"
+                },
+                {
+                    "from_dir": "0_res/values",
+                    "to_dir": "res/values"
+                },
+                {
+                    "from_dir": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/appcompat",
+                    "to_dir": "java/replace/androidx/appcompat"
+                },
+                {
+                    "from_dir": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/fragment",
+                    "to_dir": "java/replace/androidx/fragment"
+                },
+                {
+                    "from_dir": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/gen/base_module",
+                    "to_dir": "java/replace/gen/base_module"
+                },
+                {
+                    "from_dir": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/content",
+                    "to_dir": "java/replace/org/chromium/content"
+                },
+                {
+                    "from_dir": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/media",
+                    "to_dir": "java/replace/org/chromium/media"
+                },
+                {
+                    "from_dir": "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium/ui",
+                    "to_dir": "java/replace/org/chromium/ui"
+                }
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"
         },
         {
-          "files": [
-              "apks/Cobalt.apk",
-              "gen/build_info.json",
-              "gen/licenses_cobalt.spdx",
-              "gen/licenses_cobalt.txt",
-              "lib.unstripped/libchrobalt.so"
-          ],
-          "rename_files": [
-              {
-                  "from_file": "apks/Cobalt.apk",
-                  "to_file": "Cobalt.apk"
-              },
-              {
-                  "from_file": "gen/build_info.json",
-                  "to_file": "build_info.json"
-              },
-              {
-                  "from_file": "gen/licenses_cobalt.spdx",
-                  "to_file": "licenses_cobalt.spdx"
-              },
-              {
-                  "from_file": "gen/licenses_cobalt.txt",
-                  "to_file": "licenses_cobalt.txt"
-              },
-              {
-                  "from_file": "lib.unstripped/libchrobalt.so",
-                  "to_file": "symbol/libchrobalt.so"
-              }
-          ],
-          "archive_type": "ARCHIVE_TYPE_FILES"
+            "files": [
+                "apks/Cobalt.apk",
+                "gen/build_info.json",
+                "gen/licenses_cobalt.spdx",
+                "gen/licenses_cobalt.txt",
+                "lib.unstripped/libchrobalt.so"
+            ],
+            "rename_files": [
+                {
+                    "from_file": "apks/Cobalt.apk",
+                    "to_file": "Cobalt.apk"
+                },
+                {
+                    "from_file": "gen/build_info.json",
+                    "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.spdx",
+                    "to_file": "licenses_cobalt.spdx"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.txt",
+                    "to_file": "licenses_cobalt.txt"
+                },
+                {
+                    "from_file": "lib.unstripped/libchrobalt.so",
+                    "to_file": "symbol/libchrobalt.so"
+                }
+            ],
+            "archive_type": "ARCHIVE_TYPE_FILES"
         }
     ]
 }
