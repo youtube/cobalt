@@ -35,7 +35,7 @@ config("compiler_rt_config") {
 
 static_library("compiler_rt") {
   sources = [
-    "lib/builtins/emutls.c",    
+    "lib/builtins/emutls.c",
     "lib/builtins/udivmodti4.c",
     "lib/builtins/udivti3.c",
     "lib/builtins/umodti3.c",
@@ -77,6 +77,8 @@ static_library("compiler_rt") {
       "lib/builtins/extenddftf2.c",
       "lib/builtins/extendsftf2.c",
       "lib/builtins/fixtfsi.c",
+      "lib/builtins/fixunstfsi.c",
+      "lib/builtins/floatditf.c",
       "lib/builtins/floatsitf.c",
       "lib/builtins/floatunditf.c",
       "lib/builtins/floatunsitf.c",

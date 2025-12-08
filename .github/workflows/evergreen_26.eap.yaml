@@ -71,6 +71,6 @@ jobs:
     with:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
-      # TODO: b/463376302 - Enable leak detector once leaks are plugged.
+      run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
