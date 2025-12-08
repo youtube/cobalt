@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import <Foundation/Foundation.h>
+#ifndef COBALT_SHELL_COMMON_URL_CONSTANTS_H_
+#define COBALT_SHELL_COMMON_URL_CONSTANTS_H_
 
-#include "starboard/speech_synthesis.h"
-#import "starboard/tvos/shared/speech_synthesizer.h"
-#import "starboard/tvos/shared/starboard_application.h"
+namespace content {
 
-void SbSpeechSynthesisCancel() {
-  @autoreleasepool {
-    [SBDGetApplication().speechSynthesizer cancelAllUtterances];
-  }
-}
+inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
+
+}  // namespace content
+
+#endif  // COBALT_SHELL_COMMON_URL_CONSTANTS_H_
