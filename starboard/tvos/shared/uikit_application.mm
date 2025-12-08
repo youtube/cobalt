@@ -26,7 +26,6 @@
 #import "starboard/tvos/shared/media/drm_manager.h"
 #import "starboard/tvos/shared/media/egl_adapter.h"
 #import "starboard/tvos/shared/media/player_manager.h"
-#import "starboard/tvos/shared/speech_synthesizer.h"
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/uikit.h"
 #import "starboard/tvos/shared/window_manager.h"
@@ -173,7 +172,6 @@ id<SBDStarboardApplication> SBDGetApplication() {
 @synthesize drmManager = _drmManager;
 @synthesize eglAdapter = _eglAdapter;
 @synthesize playerManager = _playerManager;
-@synthesize speechSynthesizer = _speechSynthesizer;
 @synthesize windowManager = _windowManager;
 
 #pragma mark - Initialization
@@ -188,7 +186,6 @@ id<SBDStarboardApplication> SBDGetApplication() {
     // circular reference.
     self.delegate = self;
 
-    _speechSynthesizer = [[SBDSpeechSynthesizer alloc] init];
     _drmManager = [[SBDDrmManager alloc] init];
     _windowManager = [[SBDWindowManager alloc] init];
     _playerManager = [[SBDPlayerManager alloc] init];
