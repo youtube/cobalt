@@ -19,6 +19,10 @@
 
 namespace cobalt {
 
+// LconvImpl is the struct that will store the state of any given lconv object.
+// It stores the string values that an lconv object will point to, along with
+// the current locale strings used, to minimize duplication costs of a locale
+// whos values are already loaded.
 struct LconvImpl {
   struct lconv result;
 
@@ -32,42 +36,22 @@ struct LconvImpl {
 
   LconvImpl() { ResetToC(); }
 
-  void ResetToC() {
-    result.decimal_point = const_cast<char*>(".");
-    result.thousands_sep = const_cast<char*>("");
-    result.grouping = const_cast<char*>("");
-
-    result.mon_decimal_point = const_cast<char*>("");
-    result.mon_thousands_sep = const_cast<char*>("");
-    result.mon_grouping = const_cast<char*>("");
-    result.positive_sign = const_cast<char*>("");
-    result.negative_sign = const_cast<char*>("");
-    result.currency_symbol = const_cast<char*>("");
-    result.int_curr_symbol = const_cast<char*>("");
-
-    result.frac_digits = CHAR_MAX;
-    result.int_frac_digits = CHAR_MAX;
-    result.p_cs_precedes = CHAR_MAX;
-    result.p_sep_by_space = CHAR_MAX;
-    result.n_cs_precedes = CHAR_MAX;
-    result.n_sep_by_space = CHAR_MAX;
-    result.p_sign_posn = CHAR_MAX;
-    result.n_sign_posn = CHAR_MAX;
-    result.int_p_cs_precedes = CHAR_MAX;
-    result.int_p_sep_by_space = CHAR_MAX;
-    result.int_n_cs_precedes = CHAR_MAX;
-    result.int_n_sep_by_space = CHAR_MAX;
-    result.int_p_sign_posn = CHAR_MAX;
-    result.int_n_sign_posn = CHAR_MAX;
-
-    current_numeric_locale = "C";
-    current_monetary_locale = "C";
-  }
+  void ResetToC();
 };
 
-void UpdateNumericLconv(const std::string& locale_name, LconvImpl* cur_lconv);
+// Updates all lconv values tied to the LC_NUMERIC locale for a given LconvImpl
+// object. This function leverages ICU data to fill in the lconv struct to the
+// best of its ability. Will return a boolean indicating if the function was
+// successful in updating the lconv values.
+bool UpdateNumericLconv(const std::string& locale_name, LconvImpl* cur_lconv);
 
-void UpdateMonetaryLconv(const std::string& locale_name, LconvImpl* curr_lconv);
+// Updates all lconv values tied to the LC_MONETARY locale for a given LconvImpl
+// object. This function leverages ICU data to fill in the lconv struct to the
+// best of its ability. For some fields, a 1 : 1 matching from ICU to POSIX
+// isn't possible, so we try to match the fields to as close to the POSIX
+// standard as possible. Will return a boolean indicating if the function was
+// successful in updating the lconv values.
+bool UpdateMonetaryLconv(const std::string& locale_name, LconvImpl* cur_lconv);
 }  //  namespace cobalt
 
 #endif  // COBALT_COMMON_LIBC_LOCALE_LCONV_SUPPORT_H_

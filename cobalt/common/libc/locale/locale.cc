@@ -27,6 +27,7 @@
 #include "cobalt/common/libc/locale/lconv_support.h"
 #include "cobalt/common/libc/locale/locale_support.h"
 #include "cobalt/common/libc/no_destructor.h"
+#include "starboard/common/log.h"
 
 namespace {
 constexpr char kLangEnv[] = "LANG";
@@ -224,8 +225,12 @@ struct lconv* localeconv(void) {
     return &(current_lconv->result);
   }
 
-  cobalt::UpdateNumericLconv(numeric_locale, current_lconv);
-  cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv);
+  if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv) ||
+      !cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
+    SB_LOG(WARNING) << "Failed to properly retrieve the updated lconv struct. "
+                       "Returning the C lconv.";
+    current_lconv->ResetToC();
+  }
 
   return &(current_lconv->result);
 }

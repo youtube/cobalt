@@ -5,6 +5,7 @@
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixTimeClockTests.ClockIncreasesOverTime",
+    "Posix/NlLanginfo*",
     "SbAudioSinkTest.*",
     "SbLogFlushTest.DontCrashMeBro",
     "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
@@ -14,15 +15,6 @@
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerTest.*",
     "SbPlayerWriteSampleTests*",
-    "VerticalVideoTests/VerticalVideoTest*",
-
-    "PosixLocaleSetTest.LocaleConvC",
-    "PosixLocaleSetTest.NewUseFreeLocale",
-    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
-    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
-    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
-    "PosixLocaleThreadTest.DupLocale",
-    "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "Posix/NlLanginfo*"
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

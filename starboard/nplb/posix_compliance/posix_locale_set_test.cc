@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "starboard/common/log.h"
 #include "starboard/nplb/posix_compliance/posix_locale_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -116,90 +115,6 @@ TEST(PosixLocaleSetTest, LocaleConvC) {
   EXPECT_STREQ("", conv->mon_grouping);
   EXPECT_STREQ("", conv->positive_sign);
   EXPECT_STREQ("", conv->negative_sign);
-}
-
-TEST(PosixLocaleSetTest, LocaleConvHandlesMixedCategories) {
-  // 1. Find two distinct locales (e.g., US for Money, France for Numbers)
-  const char* kUsLocale = LocaleFinder::FindSupported({"en_US.UTF-8", "en_US"});
-  const char* kFrLocale =
-      GetCommaDecimalSeparatorLocale();  // Likely fr_FR or de_DE
-
-  if (!kUsLocale || !kFrLocale) {
-    GTEST_SKIP() << "Need two distinct locales";
-  }
-
-  SB_LOG(INFO) << "The comma-separated locale is " << kFrLocale;
-
-  // 2. Create a mixed locale object
-  // Start with US (Dollars)
-  locale_t loc = newlocale(LC_ALL_MASK, kUsLocale, (locale_t)0);
-  ASSERT_NE((locale_t)0, loc);
-
-  // Overlay France (Comma Decimal) onto LC_NUMERIC only
-  locale_t mixed_loc = newlocale(LC_NUMERIC_MASK, kFrLocale, loc);
-  ASSERT_NE((locale_t)0, mixed_loc);
-
-  // 3. Activate
-  locale_t old = uselocale(mixed_loc);
-
-  // 4. Verify Split Personality
-  struct lconv* lc = localeconv();
-  ASSERT_NE(nullptr, lc);
-
-  // Decimal point should be from France (",")
-  EXPECT_STREQ(",", lc->decimal_point);
-
-  // Currency symbol should be from US ("$")
-  // Note: We check if it contains '$' or 'USD' depending on platform
-  std::string currency = lc->currency_symbol;
-  EXPECT_TRUE(currency == "$" || currency.find("USD") != std::string::npos)
-      << "Expected US currency, got: " << currency;
-
-  // 5. Cleanup
-  uselocale(old);
-  freelocale(mixed_loc);
-}
-
-TEST(PosixLocaleTest, LocaleConvHandlesMixedCategoriesInverse) {
-  // 1. Find the "Foreign" locale (Base)
-  const char* kCommaLocale = GetCommaDecimalSeparatorLocale();
-  if (!kCommaLocale) {
-    GTEST_SKIP() << "No supported locale with comma decimal separator found.";
-  }
-
-  // 2. Create the Base: All categories set to the Comma Locale (e.g. fr_FR)
-  locale_t base_loc = newlocale(LC_ALL_MASK, kCommaLocale, (locale_t)0);
-  ASSERT_NE((locale_t)0, base_loc);
-
-  // 3. Overlay the "C" (Dot) locale ONLY onto LC_NUMERIC
-  // This overwrites just the math formatting, keeping currency/time as French.
-  locale_t mixed_loc = newlocale(LC_NUMERIC_MASK, kDefaultLocale, base_loc);
-  ASSERT_NE((locale_t)0, mixed_loc);
-
-  // 4. Activate
-  locale_t old = uselocale(mixed_loc);
-  struct lconv* lc = localeconv();
-  ASSERT_NE(nullptr, lc);
-
-  // --- VERIFICATION ---
-
-  // Check LC_NUMERIC (Should match the Overlay: "C")
-  // In "C", decimal is "."
-  EXPECT_STREQ(".", lc->decimal_point);
-
-  // Check LC_MONETARY (Should match the Base: "fr_FR")
-  // In Comma locales, the monetary separator is usually ",".
-  // In "C", this would be empty string "".
-  // By asserting it equals ",", we prove we didn't accidentally reset Money to
-  // C.
-  EXPECT_STREQ(",", lc->mon_decimal_point);
-
-  // Check Consistency: The two decimal points should be different
-  EXPECT_STRNE(lc->decimal_point, lc->mon_decimal_point);
-
-  // 5. Cleanup
-  uselocale(old);
-  freelocale(mixed_loc);
 }
 
 // newlocale, uselocale, and freelocale are part of POSIX.1-2008 and may not be

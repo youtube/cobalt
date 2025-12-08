@@ -54,6 +54,7 @@ source_set("libc_test") {
 
   if (is_cobalt_hermetic_build) {
     sources = [
+      "locale/lconv_support_test.cc",
       "locale/locale_support_test.cc",
       "time/icu_time_support_test.cc",
       "time/time_zone_state_test.cc",
