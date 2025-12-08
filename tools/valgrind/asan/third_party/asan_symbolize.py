@@ -428,6 +428,7 @@ class SymbolizationLoop(object):
       self.load_addr_re = re.compile(r'Load start=(0x[0-9a-fA-F]+)')
       self.unknown_module_re = re.compile(
           r'^( *#(\d+) *)(0x[0-9a-fA-F]+) *\(<unknown module>\)(.*)')
+      # End Cobalt customizations
 
   def symbolize_address(self, addr, binary, offset, arch):
     # On non-Darwin (i.e. on platforms without .dSYM debug info) always use
@@ -497,6 +498,7 @@ class SymbolizationLoop(object):
   def process_line_echo(self, line):
     return [line.rstrip()]
 
+  # Cobalt customizations
   def check_for_base_addr(self, line):
     if self.base_addr:
       return
@@ -523,6 +525,7 @@ class SymbolizationLoop(object):
     arch = guess_arch(addrstr)
     symbolized_line = self.symbolize_address(addrstr, self.extra_binary_path, offset, arch)
     return self.get_symbolized_lines(symbolized_line)
+  # End Cobalt customizations
 
   def process_line_posix(self, line):
     self.current_line = line.rstrip()

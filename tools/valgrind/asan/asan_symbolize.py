@@ -249,13 +249,17 @@ def main():
       help='Path to program executable. Used on OSX swarming bots to locate '
            'dSYM bundles for associated frameworks and bundles.')
   parser.add_argument('--sysroot', help='Root directory for symbol files')
+  # Cobalt customizations
   parser.add_argument('--extra-binary', default=None,
       help='Path to a dynamically loaded binary for which to symbolize '
            'stack traces.')
+  # End Cobalt customizations
   args = parser.parse_args()
 
+  # Cobalt customizations
   if args.extra_binary and not os.path.exists(args.extra_binary):
     raise ValueError(f"Extra binary not found at: {args.extra_binary}\n")
+  # End Cobalt customizations
 
   disable_buffering()
   set_symbolizer_path()
