@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <sys/utsname.h>
 
 #include <cstring>
@@ -22,7 +26,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
-#include "starboard/system.h"
 
 namespace {
 
