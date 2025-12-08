@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/thread.h"
+// clang-format on
+
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include "starboard/thread.h"
 
 SbThreadId SbThreadGetId() {
   // This is not portable outside of Linux.

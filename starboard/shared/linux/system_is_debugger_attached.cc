@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -21,7 +25,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/posix/file_internal.h"
 #include "starboard/shared/posix/handle_eintr.h"
-#include "starboard/system.h"
 
 // Adapted from base/debug/debugger_posix.cc
 bool SbSystemIsDebuggerAttached() {

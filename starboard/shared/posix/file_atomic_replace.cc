@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/file.h"
+// clang-format on
+
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -21,7 +25,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 
 namespace {
