@@ -235,13 +235,13 @@ if (current_toolchain == starboard_toolchain) {
   }
   target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
-    deps = [ ":starboard_test_main" ]
     defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
 
     write_runtime_deps =
         "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
 
-    deps += [
+    deps = [
+      ":starboard_test_main",
       "//starboard:starboard_headers_only",
       "//starboard/common:common_test",
       "//testing/gtest",
