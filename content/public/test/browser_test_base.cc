@@ -39,6 +39,8 @@
 #include "base/time/time.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
+#include "base/check_is_test.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "build/chromeos_buildflags.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "components/tracing/common/tracing_switches.h"
@@ -293,6 +295,7 @@ BrowserTestBase::~BrowserTestBase() {
 }
 
 void BrowserTestBase::SetUp() {
+  base::test::AllowCheckIsTestForTesting();
   set_up_called_ = true;
 
   if (!UseProductionQuotaSettings()) {
@@ -539,8 +542,18 @@ void BrowserTestBase::SetUp() {
   // early browser process setup, which might access it before the true
   // FeatureList is established by the test harness. This bridges the gap
   // between ClearInstanceForTesting() and the actual FeatureList setup.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
+  const bool feature_list_present = base::FeatureList::GetInstance();
+  base::test::ScopedFeatureList scoped_feature_list_for_testing;
+  if (!feature_list_present) {
+    // Browser tests clear and reset the global FeatureList (via
+    // ClearInstanceForTesting()); production code always has a
+    // FeatureList, even if it's empty (which it never is, since
+    // at the very least it has the process type, 'browser').
+    CHECK_IS_TEST();
+    // If in testing, initialize a bogus FeatureList for
+    // GpuDataManagerImpl to be access, otherwise it crashes :(
+    scoped_feature_list_for_testing.InitWithEmptyFeatureAndFieldTrialLists();
+  }
 
   auto created_main_parts_closure = base::BindOnce(
       &BrowserTestBase::CreatedBrowserMainPartsImpl, base::Unretained(this));
