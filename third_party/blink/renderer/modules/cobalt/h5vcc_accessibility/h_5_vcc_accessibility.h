@@ -48,7 +48,7 @@ class MODULES_EXPORT H5vccAccessibility final
   bool textToSpeech();
 
   // Mojom interface:
-  void NotifyTextToSpeechChange() override;
+  void NotifyTextToSpeechChange(bool enabled) override;
 
   void AddedEventListener(
       const AtomicString& event_type,
