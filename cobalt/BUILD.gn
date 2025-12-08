@@ -38,7 +38,7 @@ declare_args() {
     cobalt_bundle_identifier = "dev.cobalt.tvos"
 
     # tvOS: Default Info.plist path for the bundle.
-    cobalt_info_plist = "shell/app/ios-Info.plist"
+    cobalt_info_plist = "//cobalt/shell/app/tvos-Info.plist"
   }
 }
 
@@ -104,7 +104,7 @@ if (is_ios && target_platform == "tvos") {
     data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
 
     bundle_identifier = cobalt_bundle_identifier
-    entitlements_path = "//build/config/ios/entitlements.plist"
+    entitlements_path = "//cobalt/shell/app/tvos-entitlements.plist"
     info_plist = cobalt_info_plist
   }
 
