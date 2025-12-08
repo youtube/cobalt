@@ -33,7 +33,7 @@ jobs:
           echo "Fetching failed '_tests' jobs for workflow run ${WORKFLOW}"
 
           # Fetch failed jobs ending with _tests
-          failed_job_ids=$(gh run view "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | endswith("_tests")) | .databaseId')
+          failed_job_ids=$(gh run view "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
 
           if [ -z "$failed_job_ids" ]; then
             echo "No failing '_tests' jobs found to rerun."
