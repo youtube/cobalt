@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
+
+#include "starboard/common/log.h"
 
 void SbSystemRequestStop(int error_level) {
   // TODO: b/450024477 - Implement this method when AOSP is used.

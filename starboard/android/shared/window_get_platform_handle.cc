@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/window_internal.h"
+// clang-format off
 #include "starboard/window.h"
+// clang-format on
+
+#include "starboard/android/shared/window_internal.h"
 
 void* SbWindowGetPlatformHandle(SbWindow window) {
   if (!SbWindowIsValid(window)) {
