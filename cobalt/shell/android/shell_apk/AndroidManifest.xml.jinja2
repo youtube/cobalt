@@ -44,13 +44,14 @@
     {% block extra_uses_permissions %}
     {% endblock %}
 
-    <application android:name="dev.cobalt.app.CobaltApplication"
+    <application android:name="{% block application_name %}dev.cobalt.app.CobaltApplication{% endblock %}"
             android:icon="@mipmap/ic_app"
             android:banner="@drawable/app_banner"
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
             {# Cobalt/CoAT app is for the development only #}
-            android:debuggable="true"
+            android:debuggable="{{ debuggable }}"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
+        {% block main_activity %}
         <activity android:name="dev.cobalt.app.MainActivity"
                   android:launchMode="singleTask"
                   android:theme="@style/CobaltTheme"
@@ -83,6 +84,7 @@
               <data android:pathPattern=".*"/>
             </intent-filter>
         </activity>
+        {% endblock %}
         <!-- The following service entries exist in order to allow us to
              start more than one sandboxed process. -->
 
