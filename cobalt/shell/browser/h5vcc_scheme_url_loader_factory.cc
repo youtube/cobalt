@@ -189,6 +189,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
   ~H5vccSchemeURLLoader() override = default;
 
+  // network::mojom::URLLoader:
   void FollowRedirect(
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_headers,
