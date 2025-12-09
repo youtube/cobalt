@@ -116,3 +116,6 @@ enable_ppapi = false
 
 # Enable the compiler size optimizations e.g. -Os.
 optimize_for_size = true
+
+# Enable v8 snapshot compression to reduce the binary size.
+v8_enable_snapshot_compression = true
