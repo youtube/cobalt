@@ -581,6 +581,7 @@ UserMediaRequest* UserMediaProcessor::CurrentRequest() {
 
 void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
+  LOG(INFO) << "YO THOR - UserMediaProcessor::ProcessRequest";
   DCHECK(!request_completed_cb_);
   DCHECK(!current_request_info_);
   request_completed_cb_ = std::move(callback);

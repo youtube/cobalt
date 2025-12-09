@@ -42,7 +42,7 @@ class AudioManagerStarboard : public AudioManagerBase {
       const AudioParameters& params,
       const std::string& device_id,
       const LogCallback& log_callback) override;
-  const std::string_view GetName() override;
+  const char* GetName() override;
 
  protected:
   void ShutdownOnAudioThread() override;

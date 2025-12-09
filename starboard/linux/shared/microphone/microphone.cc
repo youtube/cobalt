@@ -36,6 +36,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   ~SbMicrophoneImpl() override { Close(); }
 
   bool Open() override {
+    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Open";
     if (handle_) {
       return true;
     }
@@ -103,6 +104,12 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       return false;
     }
 
+    error = snd_pcm_prepare(handle_);
+    if (error < 0) {
+      Close();
+      return false;
+    }
+
     return true;
   }
 
@@ -115,17 +122,27 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   }
 
   int Read(void* out_audio_data, int audio_data_size) override {
+    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Read - audio_data_size: "
+                 << audio_data_size;
     if (!handle_ || !out_audio_data || audio_data_size <= 0) {
       return -1;
     }
 
     int frames_to_read = audio_data_size / (kChannels * sizeof(int16_t));
+    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Read - frames_to_read: "
+                 << frames_to_read;
     int frames_read = snd_pcm_readi(handle_, out_audio_data, frames_to_read);
+    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Read - frames_read: "
+                 << frames_read;
 
     if (frames_read < 0) {
       // Recover from the error.
-      snd_pcm_recover(handle_, frames_read, 0);
+      snd_pcm_recover(handle_, frames_read, 1);
       return -1;
+    }
+    if (frames_read < frames_to_read) {
+      SB_LOG(WARNING) << "Short read from microphone: " << frames_read << "/"
+                      << frames_to_read;
     }
 
     return frames_read * kChannels * sizeof(int16_t);
@@ -249,7 +266,7 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
 bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
     SbMicrophoneId id,
     int sample_rate_in_hz) {
-  return sample_rate_in_hz == kSampleRateInHz;
+  return sample_rate_in_hz == 16000 || sample_rate_in_hz == 48000;
 }
 
 SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,

@@ -334,6 +334,7 @@ UserMediaClient::UserMediaClient(
           std::move(task_runner)) {}
 
 void UserMediaClient::RequestUserMedia(UserMediaRequest* user_media_request) {
+  LOG(INFO) << "YO THOR - UserMediaClient::RequestUserMedia";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(user_media_request);
   DCHECK(user_media_request->Audio() || user_media_request->Video());

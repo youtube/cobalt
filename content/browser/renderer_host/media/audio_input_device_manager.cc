@@ -109,6 +109,7 @@ void AudioInputDeviceManager::UnregisterListener(
 
 base::UnguessableToken AudioInputDeviceManager::Open(
     const blink::MediaStreamDevice& device) {
+  LOG(INFO) << "YO THOR - AudioInputDeviceManager::Open";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   // Generate a new id for this device.
   auto session_id = base::UnguessableToken::Create();

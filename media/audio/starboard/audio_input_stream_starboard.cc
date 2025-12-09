@@ -29,29 +29,35 @@ AudioInputStreamStarboard::~AudioInputStreamStarboard() {
 }
 
 AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
+  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open";
   if (microphone_) {
+    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - Already open";
     return OpenOutcome::kAlreadyOpen;
   }
 
   SbMicrophoneInfo info;
 
   if (SbMicrophoneGetAvailable(&info, 1) < 1) {
+    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - "
+                 "SbMicrophoneGetAvailable failed";
     return OpenOutcome::kFailed;
   }
 
   microphone_ = SbMicrophoneCreate(info.id, params_.sample_rate(),
-
                                    params_.frames_per_buffer() * 2);
 
   if (!SbMicrophoneIsValid(microphone_)) {
+    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - "
+                 "SbMicrophoneCreate failed. Sample rate: "
+              << params_.sample_rate();
     return OpenOutcome::kFailed;
   }
 
   if (!SbMicrophoneOpen(microphone_)) {
+    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - SbMicrophoneOpen "
+                 "failed";
     SbMicrophoneDestroy(microphone_);
-
     microphone_ = kSbMicrophoneInvalid;
-
     return OpenOutcome::kFailed;
   }
 
@@ -60,29 +66,20 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   DCHECK(callback);
-
   DCHECK(!thread_.IsRunning());
-
   callback_ = callback;
-
   stop_event_.Reset();
-
   thread_.Start();
-
   thread_.task_runner()->PostTask(
-
       FROM_HERE, base::BindOnce(&AudioInputStreamStarboard::ThreadMain,
-
                                 base::Unretained(this)));
 }
 
 void AudioInputStreamStarboard::Stop() {
   if (thread_.IsRunning()) {
     stop_event_.Signal();
-
     thread_.Stop();
   }
-
   callback_ = nullptr;
 }
 
@@ -91,9 +88,7 @@ void AudioInputStreamStarboard::Close() {
 
   if (SbMicrophoneIsValid(microphone_)) {
     SbMicrophoneClose(microphone_);
-
     SbMicrophoneDestroy(microphone_);
-
     microphone_ = kSbMicrophoneInvalid;
   }
 }
@@ -121,27 +116,42 @@ bool AudioInputStreamStarboard::GetAutomaticGainControl() {
 }
 
 void AudioInputStreamStarboard::SetOutputDeviceForAec(
-
     const std::string& output_device_id) {}
 
 void AudioInputStreamStarboard::ThreadMain() {
   auto audio_bus = AudioBus::Create(params_);
 
-  const int buffer_size = params_.frames_per_buffer();
-
-  std::vector<int16_t> buffer(buffer_size);
+  // The read buffer is for mono data from the microphone.
+  const int buffer_size_frames = params_.frames_per_buffer();
+  std::vector<int16_t> mono_buffer(buffer_size_frames);
 
   while (!stop_event_.IsSignaled()) {
-    int bytes_read =
-
-        SbMicrophoneRead(microphone_, buffer.data(), buffer_size * 2);
+    // Read mono data. The size is frames * 1 channel * 2 bytes/sample.
+    int bytes_read = SbMicrophoneRead(microphone_, mono_buffer.data(),
+                                      mono_buffer.size() * sizeof(int16_t));
 
     if (bytes_read > 0) {
+      int frames = bytes_read / sizeof(int16_t);
+      DCHECK_LE(frames, buffer_size_frames);
+      LOG(INFO) << "YO THOR - Read " << bytes_read << " bytes for " << frames
+                << " frames.";
+
+      // Create a temporary stereo buffer on the stack and duplicate the mono
+      // samples.
+      std::vector<int16_t> stereo_buffer(frames * 2);
+      for (int i = 0; i < frames; ++i) {
+        stereo_buffer[i * 2] = mono_buffer[i];
+        stereo_buffer[i * 2 + 1] = mono_buffer[i];
+      }
+
+      // Convert the stereo PCM data into the planar float format of the
+      // AudioBus.
       audio_bus->FromInterleaved<SignedInt16SampleTypeTraits>(
+          stereo_buffer.data(), frames);
 
-          buffer.data(), audio_bus->frames());
-
+      LOG(INFO) << "YO THOR - Calling OnData with stereo bus.";
       callback_->OnData(audio_bus.get(), base::TimeTicks::Now(), 0.0, {});
+      LOG(INFO) << "YO THOR - Returned from OnData.";
     }
   }
 }

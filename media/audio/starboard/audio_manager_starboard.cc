@@ -74,7 +74,7 @@ AudioInputStream* AudioManagerStarboard::MakeAudioInputStream(
   return new AudioInputStreamStarboard(this, params);
 }
 
-const std::string_view AudioManagerStarboard::GetName() {
+const char* AudioManagerStarboard::GetName() {
   return "Starboard";
 }
 
@@ -86,7 +86,7 @@ AudioParameters AudioManagerStarboard::GetInputStreamParameters(
     const std::string& device_id) {
   // TODO(b/294816013): Get the device info and check for sample rate support.
   return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         ChannelLayoutConfig::Mono(), 48000, 1024);
+                         ChannelLayoutConfig::Stereo(), 48000, 1024);
 }
 
 AudioParameters AudioManagerStarboard::GetPreferredOutputStreamParameters(
