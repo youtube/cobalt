@@ -214,11 +214,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         ::network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
         bucket_locator, ::storage::mojom::CacheStorageOwner::kCacheAPI,
         cache_storage_remote_.BindNewPipeAndPassReceiver());
-    const char16_t kSplashCacheName[] = u"splash-cache-v1";
+    const char16_t kSplashCacheName[] = u"splash-cache-v2";
     LOG(INFO) << "lxn:::ready to match cache with origin: " << origin;
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
-    fetch_api_request->url = GURL("https://lxn-test.uc.r.appspot.com/static/music_splash.webm");
+    fetch_api_request->url = GURL("https://lxn-test.uc.r.appspot.com/static/splash.html");
     fetch_api_request->method = "GET";
 
     auto match_options = blink::mojom::MultiCacheQueryOptions::New();
@@ -259,39 +259,24 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void SendBlobContent(const std::string& mime_type,
                        std::vector<char> content) {
-    cached_blob_content_ = std::move(content);
-    cached_blob_mime_type_ = mime_type;
+    // std::string base64_video_data;
+    // base::Base64Encode(std::string(content.begin(), content.end()),
+    //                    &base64_video_data);
 
-    // Now read the splash.html file
-    GeneratedResourceMap resource_map;
-    LoaderEmbeddedResources::GenerateMap(resource_map);
-    if (resource_map.find("splash.html") == resource_map.end()) {
-        LOG(WARNING) << "splash.html not found in embedded resources.";
-        SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
-        return;
-    }
-    FileContents file_contents = resource_map["splash.html"];
-    OnSplashHtmlRead(std::string(
-        reinterpret_cast<const char*>(file_contents.data),
-        file_contents.size));
-  }
-
-  void OnSplashHtmlRead(const std::string& html_content) {
-    std::string base64_video_data;
-    base::Base64Encode(
-        std::string(cached_blob_content_.begin(), cached_blob_content_.end()),
-        &base64_video_data);
-
-    std::string new_html = html_content;
-    const std::string to_replace = "const VIDEO_DATA_STR = '";
-    size_t pos = new_html.find(to_replace);
-    if (pos != std::string::npos) {
-      size_t start = pos + to_replace.length();
-      size_t end = new_html.find("'", start);
-      if (end != std::string::npos) {
-        new_html.replace(start, end - start, base64_video_data);
-      }
-    }
+    // std::string new_html(content_html_);
+    // LOG(ERROR) << "lxn:::new html:" << new_html;
+    // const std::string to_replace = "REPLACE_VIDEO_HERE";
+    // size_t pos = content_html_.find(to_replace);
+    // if (pos != std::string::npos) {
+    //   size_t start = pos + to_replace.length();
+    //   size_t end = content_html_.find("'", start);
+    //   if (end != std::string::npos) {
+    //     content_html_.replace(start, end - start, base64_video_data);
+    //   }
+    // }
+    // LOG(ERROR) << "lxn:::" << content_html_;
+    std::string new_html(content.begin(), content.end());
+    LOG(ERROR) << "lxn:::" << new_html;
     SendResponse(new_html, "text/html");
   }
 
@@ -363,6 +348,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   GURL url_;
   ShellBrowserContext* browser_context_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
+  std::string content_html_;
   std::vector<char> cached_blob_content_;
   std::string cached_blob_mime_type_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
