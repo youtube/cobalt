@@ -189,7 +189,7 @@ Shell* ContentBrowserTest::CreateOffTheRecordBrowser() {
 }
 
 base::FilePath ContentBrowserTest::GetTestDataFilePath() {
-  return base::FilePath(FILE_PATH_LITERAL("cobalt/testing/browser_tests/data"));
+  return base::FilePath(FILE_PATH_LITERAL("content/test/data"));
 }
 
 }  // namespace content

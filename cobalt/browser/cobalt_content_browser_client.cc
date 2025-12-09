@@ -31,8 +31,8 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
-#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
@@ -51,6 +51,8 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_view_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
@@ -99,6 +101,22 @@ static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
     return;
   }
   client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+static void JNI_CobaltActivity_DispatchBlur(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchBlur();
+}
+
+static void JNI_CobaltActivity_DispatchFocus(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchFocus();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -391,9 +409,29 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   return true;
 }
 
+void CobaltContentBrowserClient::DispatchBlur() {
+  if (web_contents_observer_) {
+    auto* web_contents = web_contents_observer_->web_contents();
+    if (web_contents) {
+      web_contents->GetRenderViewHost()->GetWidget()->Blur();
+    }
+  }
+  FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+void CobaltContentBrowserClient::DispatchFocus() {
+  if (web_contents_observer_) {
+    auto* web_contents = web_contents_observer_->web_contents();
+    if (web_contents) {
+      web_contents->GetRenderViewHost()->GetWidget()->Focus();
+    }
+  }
+}
+
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     base::OnceClosure callback) {
   if (!web_contents_observer_) {
+    std::move(callback).Run();
     return;
   }
   LOG(INFO) << "Flushing cookies and local storage";
@@ -403,12 +441,11 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   CHECK(rfh);
   auto* storage_partition = rfh->GetStoragePartition();
   CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   CHECK(cookie_manager);
-  auto flush_cookies =
-      base::BindOnce(&network::mojom::CookieManager::FlushCookieStore,
-                     base::Unretained(cookie_manager), std::move(callback));
-  storage_partition->GetLocalStorageControl()->Flush(std::move(flush_cookies));
+  cookie_manager->FlushCookieStore(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

@@ -245,15 +245,15 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // Needed so that content_shell can use fieldtrial_testing_config.
   virtual void SetUpFieldTrials();
 
+  // Helper function to register the H5vccSchemeURLLoaderFactory for the
+  // custom scheme kH5vccEmbeddedScheme.
+  void RegisterH5vccScheme(NonNetworkURLLoaderFactoryMap* factories);
+
   // Returns the list of ShellContentBrowserClients ordered by time created.
   // If a test overrides ContentBrowserClient, this list will have more than
   // one item.
   static const std::vector<ShellContentBrowserClient*>&
   GetShellContentBrowserClientInstances();
-
-  // Helper function to register the H5vccSchemeURLLoaderFactory for the
-  // custom scheme kH5vccEmbeddedScheme.
-  void RegisterH5vccScheme(NonNetworkURLLoaderFactoryMap* factories);
 
   static bool allow_any_cors_exempt_header_for_browser_;
 

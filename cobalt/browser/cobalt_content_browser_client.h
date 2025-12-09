@@ -125,7 +125,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
-  void FlushCookiesAndLocalStorage(base::OnceClosure);
+  void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  void DispatchBlur();
+  void DispatchFocus();
 
  private:
   void CreateVideoGeometrySetterService();

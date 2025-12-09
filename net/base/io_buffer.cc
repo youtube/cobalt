@@ -113,7 +113,7 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
 // Calling reallocate with size 0 and a non-null pointer causes memory leaks
 // on many platforms, since it may return nullptr while also not deallocating
 // the previously allocated memory.
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   if (capacity == 0) {
     real_data_.reset();
     capacity_ = 0;
