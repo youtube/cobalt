@@ -140,11 +140,11 @@ if (is_android) {
 
   android_library("content_browsertests_java") {
     testonly = true
-    resources_package = "dev.cobalt.coat"
+    resources_package = "org.chromium.content_browsertests_apk"
     sources = [
-      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsActivity.java",
-      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsApplication.java",
-      "browsertests_apk/src/dev/cobalt/coat/ContentShellBrowserTestActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentShellBrowserTestActivity.java",
     ]
     deps = [
       ":content_browsertests_manifest",

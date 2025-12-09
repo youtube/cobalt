@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.coat;
+package org.chromium.content_browsertests_apk;
 
 import android.content.Context;
 import android.net.Uri;
@@ -127,7 +127,11 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
         return "user-data-dir";
     }
 
-    protected abstract int getTestActivityViewId();
+    protected int getTestActivityViewId() {
+        return R.layout.test_activity;
+    }
 
-    protected abstract int getShellManagerViewId();
+    protected int getShellManagerViewId() {
+        return R.id.shell_container;
+    }
 }
