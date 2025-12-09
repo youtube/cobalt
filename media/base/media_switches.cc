@@ -191,6 +191,11 @@ const char kMSEAudioBufferSizeLimitMb[] = "mse-audio-buffer-size-limit-mb";
 const char kMSEVideoBufferSizeLimitMb[] = "mse-video-buffer-size-limit-mb";
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Send a critical memory pressure signal to the system before starting playback.
+// This is used to reduce memory fragmentation and free up memory for the media
+// pipeline.
+const char kCobaltNotifyMemoryPressureBeforePlayback[] = "cobalt-notify-memory-pressure-before-playback";
+
 // Allows explicitly specifiying MSE video buffer size maximum as megabytes.
 // Any video buffer size greater than this value will be clamped down to the
 // associated switch value.
