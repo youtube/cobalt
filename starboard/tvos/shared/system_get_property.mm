@@ -151,6 +151,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       case kSbSystemPropertyCertificationScope:
         // TODO: b/460479616, b/464200271 - Reenable once the expected
         // functionality is clear in Chrobalt.
+        SB_NOTIMPLEMENTED();
         return false;
 
       case kSbSystemPropertyAdvertisingId: {
