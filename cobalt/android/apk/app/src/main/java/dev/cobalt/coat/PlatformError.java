@@ -145,6 +145,9 @@ public class PlatformError
             if (webContents != null) {
               webContents.getNavigationController().reload(true);
             }
+            else {
+              Log.e(TAG, "WebContents is null and not available to reload the application.");
+            }
             cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
           mDialog.dismiss();
