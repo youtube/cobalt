@@ -27,6 +27,7 @@
 
 namespace content {
 
+namespace {
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
     "default-src 'self'; "
@@ -35,6 +36,7 @@ const char kH5vccContentSecurityPolicy[] =
     "img-src 'self' data: blob:; "
     "media-src 'self' data: blob:; "
     "connect-src 'self' blob: data:;";
+}  // namespace
 
 class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
