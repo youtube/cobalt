@@ -15,6 +15,8 @@
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
 #include <cstdint>
+#include <memory>
+
 #include "base/base64.h"
 #include "base/strings/string_util.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
@@ -40,9 +42,9 @@
 
 // TODO(b/454630524): Move below constants to command args.
 namespace {
-const std::string kSplashDomain = "https://lxn-test.uc.r.appspot.com";
+const std::string kSplashDomain = "https://www.youtube.com";
 const std::string kSplashPath = "static/splash.html";
-const char16_t kSplashCacheName[] = u"splash-cache-v2";
+const char16_t kSplashCacheName[] = u"splash-cache-v1";
 }  // namespace
 
 namespace content {
@@ -107,6 +109,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
  private:
   void OnDataAvailable(MojoResult result,
                        const mojo::HandleSignalsState& state) {
+    constexpr uint32_t kReadBufferSize = 256;
     if (result != MOJO_RESULT_OK) {
       watcher_.reset();
       consumer_handle_.reset();
@@ -120,7 +123,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
     }
 
     while (true) {
-      uint8_t buffer[256];
+      uint8_t buffer[kReadBufferSize];
       uint32_t num_bytes = sizeof(buffer);
       MojoResult read_result = consumer_handle_->ReadData(
           buffer, &num_bytes, MOJO_READ_DATA_FLAG_NONE);
@@ -165,7 +168,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (resource_map.find(key) == resource_map.end()) {
       LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                    << " not found.";
-      SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
+      SendResponse("Resource not found", "text/html", net::HTTP_NOT_FOUND);
       return;
     }
 
@@ -174,9 +177,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type = "text/html";
-      std::string content_html_(
-          reinterpret_cast<const char*>(file_contents.data),
-          file_contents.size);
+      content_html_ =
+          std::string(reinterpret_cast<const char*>(file_contents.data),
+                      file_contents.size);
       ReadSplashCache();
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       // TODO(b/454630524): Support cached webm files.
@@ -242,18 +245,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         std::string mime_type = response->blob->content_type;
         mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
             std::move(response->blob->blob);
-        new BlobReader(  // BlobReader is self-deleting
+        blob_reader_ = std::make_unique<BlobReader>(
             std::move(pending_blob_remote),
             base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
                            weak_factory_.GetWeakPtr(), mime_type));
       } else {
         LOG(INFO) << "Splash video cache is empty. Fallback to builtin.";
-        SendResponse(content_html_, "text/plain");
+        SendResponse(content_html_, "text/html");
       }
     } else {
       LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
-      SendResponse(content_html_, "text/plain");
+      SendResponse(content_html_, "text/html");
     }
   }
 
@@ -261,7 +264,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                        std::vector<uint8_t> content) {
     if (content.empty()) {
       LOG(ERROR) << "Empty cache. Fallback to built-in splash.";
-      SendResponse(content_html_, "text/plain");
+      SendResponse(content_html_, "text/html");
       return;
     }
     std::string cached_html(reinterpret_cast<const char*>(content.data()),
@@ -338,8 +341,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   ShellBrowserContext* browser_context_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
   std::string content_html_;
-  std::vector<char> cached_blob_content_;
+  std::vector<uint8_t> cached_blob_content_;
   std::string cached_blob_mime_type_;
+  std::unique_ptr<BlobReader> blob_reader_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
