@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
@@ -40,6 +41,15 @@ namespace starboard {
 namespace {
 
 constexpr char kNoUrl[] = "";
+
+// kSbDrmTicketInvalid after the session is created means a drm ticket for a DRM
+// request that DRM service spontaneously creates. (not initiated by
+// Javascript). This spontaneous DRM request includes deferred license request
+// or multiple provisioning requests. NOTE: Some device requires multiple rounds
+// of provisioning (See http://b/419320804#comment1). See StarboardCdm's logic
+// for "spontaneous" message:
+// https://source.corp.google.com/h/github/youtube/cobalt/+/main:media/starboard/starboard_cdm.cc;l=336-359;drc=274beb9dd42dc6c7d7dd3ff9415a41e1393f0133
+constexpr int kSpontaneousDrmTicketId = kSbDrmTicketInvalid;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
@@ -112,11 +122,8 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     std::string_view initialization_data)
     : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
 
-int DrmSystem::SessionUpdateRequest::ReleaseTicket() {
-  SB_CHECK_NE(ticket_, kSbDrmTicketInvalid);
-  int ticket = ticket_;
-  ticket_ = kSbDrmTicketInvalid;
-  return ticket;
+int DrmSystem::SessionUpdateRequest::TakeTicket() {
+  return std::exchange(ticket_, kSpontaneousDrmTicketId);
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
@@ -358,7 +365,7 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
            "session update request.";
     eme_session_id = session_id_mapper_->CreateOrGetBridgeEmeSessionId();
     SB_CHECK(!eme_session_id.empty());
-    ticket = deferred_session_update_requests_.front()->ReleaseTicket();
+    ticket = deferred_session_update_requests_.front()->TakeTicket();
   }
 
   SB_LOG(INFO) << "Return provision request using pending ticket=" << ticket;
