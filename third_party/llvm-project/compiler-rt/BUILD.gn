@@ -72,6 +72,7 @@ static_library("compiler_rt") {
   } else if (target_cpu == "arm64") {
     sources += [
       "lib/builtins/addtf3.c",
+      "lib/builtins/ashlti3.c",
       "lib/builtins/comparetf2.c",
       "lib/builtins/divtf3.c",
       "lib/builtins/extenddftf2.c",
@@ -82,6 +83,7 @@ static_library("compiler_rt") {
       "lib/builtins/floatsitf.c",
       "lib/builtins/floatunditf.c",
       "lib/builtins/floatunsitf.c",
+      "lib/builtins/lshrti3.c",
       "lib/builtins/multf3.c",
       "lib/builtins/riscv/fp_mode.c",
       "lib/builtins/subtf3.c",
