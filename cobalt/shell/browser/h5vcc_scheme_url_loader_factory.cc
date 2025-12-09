@@ -349,8 +349,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   ShellBrowserContext* browser_context_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
   std::string content_html_;
-  std::vector<uint8_t> cached_blob_content_;
-  std::string cached_blob_mime_type_;
   std::unique_ptr<BlobReader> blob_reader_;
   const GeneratedResourceMap* resource_map_test_ = nullptr;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
