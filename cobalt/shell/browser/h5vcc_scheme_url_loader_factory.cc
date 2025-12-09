@@ -39,6 +39,7 @@
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom.h"
+#include <cstdint>
 
 namespace content {
 
@@ -55,7 +56,7 @@ const char kH5vccContentSecurityPolicy[] =
 
 class BlobReader : public blink::mojom::BlobReaderClient {
  public:
-  using ContentReadyCallback = base::OnceCallback<void(std::vector<char>)>;
+  using ContentReadyCallback = base::OnceCallback<void(std::vector<uint8_t>)>;
 
   BlobReader(mojo::PendingRemote<blink::mojom::Blob> blob_remote,
              ContentReadyCallback callback)
@@ -118,7 +119,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
     }
 
     while (true) {
-      char buffer[256];
+      uint8_t buffer[256];
       uint32_t num_bytes = sizeof(buffer);
       MojoResult read_result = consumer_handle_->ReadData(
           buffer, &num_bytes, MOJO_READ_DATA_FLAG_NONE);
@@ -136,7 +137,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
 
   mojo::Remote<blink::mojom::Blob> blob_;
   mojo::Receiver<blink::mojom::BlobReaderClient> receiver_;
-  std::vector<char> content_;
+  std::vector<uint8_t> content_;
   ContentReadyCallback callback_;
   mojo::ScopedDataPipeConsumerHandle consumer_handle_;
   std::unique_ptr<mojo::SimpleWatcher> watcher_;
@@ -178,7 +179,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     std::string content_html_(reinterpret_cast<const char*>(file_contents.data),
                         file_contents.size);
     ReadSplashCache();
-    //SendResponse(content, mime_type);
+    //SendResponse(content_html_, mime_type);
     return;
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -247,18 +248,17 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
             base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
                            weak_factory_.GetWeakPtr(), mime_type));
       } else {
-        SendResponse("Empty splash screen from cache!", "text/plain");
+        SendResponse(content_html_, "text/plain");
       }
     } else {
       LOG(ERROR) << "lxn:::Failed to match cache for " << url_.spec()
                  << ", error: " << result->get_status();
-      SendResponse("Error reading from splash cache", "text/plain",
-                   net::HTTP_NOT_FOUND);
+      SendResponse(content_html_, "text/plain");
     }
   }
 
   void SendBlobContent(const std::string& mime_type,
-                       std::vector<char> content) {
+                       std::vector<uint8_t> content) {
     // std::string base64_video_data;
     // base::Base64Encode(std::string(content.begin(), content.end()),
     //                    &base64_video_data);
@@ -275,7 +275,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     //   }
     // }
     // LOG(ERROR) << "lxn:::" << content_html_;
-    std::string new_html(content.begin(), content.end());
+    if (content.empty()) {
+      SendResponse(content_html_, "text/plain");
+      return;
+    }
+    std::string new_html(reinterpret_cast<const char*>(content.data()), content.size());
     LOG(ERROR) << "lxn:::" << new_html;
     SendResponse(new_html, "text/html");
   }
