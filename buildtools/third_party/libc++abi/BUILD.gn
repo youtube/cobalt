@@ -8,7 +8,17 @@ import("//build/config/unwind.gni")
 
 source_set("libc++abi") {
   if (export_libcxxabi_from_executables) {
+<<<<<<< HEAD
     visibility = [ "//build/config:executable_deps" ]
+=======
+    visibility = [
+      "//build/config:executable_deps",
+      "//build/config:rust_bin_deps",
+    ]
+    if (is_cobalt_hermetic_build) {
+      visibility += [ "//buildtools/third_party/libc++" ]
+    }
+>>>>>>> 0f6e7c5e5c7 (Enable sanitizers for linux builds (#6350))
   } else {
     visibility = [ "//buildtools/third_party/libc++" ]
   }

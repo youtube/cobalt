@@ -612,8 +612,13 @@ target(libcxx_target_type, "libc++") {
 
   if (!is_win) {
     defines += [ "LIBCXX_BUILDING_LIBCXXABI" ]
+<<<<<<< HEAD
     if (!export_libcxxabi_from_executables) {
       deps += [ "//buildtools/third_party/libc++abi" ]
+=======
+    if (!export_libcxxabi_from_executables || is_cobalt_hermetic_build) {
+      deps = [ "//buildtools/third_party/libc++abi" ]
+>>>>>>> 0f6e7c5e5c7 (Enable sanitizers for linux builds (#6350))
     }
   }
 

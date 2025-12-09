@@ -33,6 +33,19 @@ declare_args() {
       target_os != "android" && target_os != "ios"
 
   use_evergreen = false
+<<<<<<< HEAD
+=======
+
+  # TODO(b/444119857) remove this flag once the Chromium rebase has landed.
+  build_with_exoplayer = false
+
+  use_tsan = false
+}
+
+declare_args() {
+  use_asan = !is_official_build && is_linux && is_cobalt_hermetic_build &&
+             !use_evergreen && !use_tsan
+>>>>>>> 0f6e7c5e5c7 (Enable sanitizers for linux builds (#6350))
 }
 
 assert(!(is_starboard && is_native_target_build),
