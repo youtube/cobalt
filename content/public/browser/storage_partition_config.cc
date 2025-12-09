@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "base/check.h"
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "content/public/browser/browser_context.h"
 #include "url/gurl.h"
@@ -45,7 +46,10 @@ StoragePartitionConfig::StoragePartitionConfig(
     bool in_memory)
     : partition_domain_(partition_domain),
       partition_name_(partition_name),
-      in_memory_(in_memory) {}
+      in_memory_(in_memory) {
+        // if (!partition_domain.empty())
+        // LOG(INFO) << "lxn:::domain: " << partition_domain;
+      }
 
 absl::optional<StoragePartitionConfig>
 StoragePartitionConfig::GetFallbackForBlobUrls() const {

@@ -60,6 +60,7 @@ class H5vccSchemeURLLoaderFactory final
 
  private:
   ShellBrowserContext* browser_context_;
+  std::string content_html_;
 };
 
 }  // namespace content
