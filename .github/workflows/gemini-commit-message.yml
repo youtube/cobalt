@@ -64,7 +64,7 @@ jobs:
     # Run condition: PR open/reopen OR comment '/generate-commit-message' on a PR
     if: >
       github.event_name == 'pull_request_target' ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.body == '/generate-commit-message')
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/generate-commit-message'))
 
     runs-on: ubuntu-latest
 
@@ -98,21 +98,25 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
           PR_BODY: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
           PR_DIFF: ${{ steps.diff.outputs.diff_content }}
+          COMMENT: ${{ github.event.comment.body }}
           GEMINI_SECRET: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
         run: |
           set -eux
+          # Keep only what is after the first space in the comment body.
+          COMMENT=${COMMENT_BODY#* }
 
-          # Use jq to safely combine the instructions with the variables
+          # Use jq to safely combine the instructions with the variables.
           json_payload=$(jq -n \
             --arg instr "$PROMPT" \
             --arg url "$PR_URL" \
             --arg title "$PR_TITLE" \
             --arg body "$PR_BODY" \
             --arg diff "$PR_DIFF" \
+            --arg comment "$COMMENT" \
             '{
               contents: [{
                 parts: [{
-                  text: ($instr + "\n\n**Pull Request URL:** " + $url + "\n**Pull Request Title:** " + $title + "\n**Original PR Description:**\n" + $body + "\n\n**Code Diff to Analyze:**\n" + $diff)
+                  text: ($instr + "\n\n**Additional instructions:** " + $comment + "\n\n**Pull Request URL:** " + $url + "\n**Pull Request Title:** " + $title + "\n**Original PR Description:**\n" + $body + "\n\n**Code Diff to Analyze:**\n" + $diff)
                 }]
               }]
             }')
