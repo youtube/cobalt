@@ -23,6 +23,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <string>
+#include <tuple>
+#include <utility>
+
+#include "build/build_config.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
 namespace nplb {
 
 #if defined(SOMAXCONN)
@@ -67,6 +74,8 @@ struct trio_socket_fd {
   int* server_socket_fd_ptr;
 };
 
+std::string GetPosixSocketHintsName(
+    ::testing::TestParamInfo<std::tuple<int, std::pair<int, int>>> info);
 }  // namespace nplb
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_SOCKET_HELPERS_H_
