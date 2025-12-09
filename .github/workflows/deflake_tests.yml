@@ -21,19 +21,20 @@ jobs:
           MAX_ATTEMPTS: 3
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           WORKFLOW: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
           set +x
-          if gh run view ${WORKFLOW} --attempt ${MAX_ATTEMPTS}; then
-            # The last attemp was successfully loaded. Our work is done.
+          if gh run view --repo "${REPO}" ${WORKFLOW} --attempt ${MAX_ATTEMPTS}; then
+            echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${MAX_ATTEMPTS} attempts."
             exit 0
           fi
 
           echo "Fetching failed '_tests' jobs for workflow run ${WORKFLOW}"
 
           # Fetch failed jobs ending with _tests
-          failed_job_ids=$(gh run view "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
+          failed_job_ids=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
 
           if [ -z "$failed_job_ids" ]; then
             echo "No failing '_tests' jobs found to rerun."
@@ -42,5 +43,5 @@ jobs:
 
           for job_id in $failed_job_ids; do
             echo "Rerunning job https://github.com/${REPO}/actions/runs/${WORKFLOW}/jobs/${job_id}"
-            gh run rerun "${WORKFLOW}" --job "${job_id}" --repo "${REPO}"
+            gh run rerun --repo "${REPO}" "${WORKFLOW}" --job "${job_id}"
           done
