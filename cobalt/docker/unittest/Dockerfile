@@ -7,8 +7,10 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     jq \
     libasound2 \
+    libatomic1 \
     libdbus-1-3 \
     libegl1 \
+    libegl1-mesa \
     libegl-mesa0 \
     libgbm-dev \
     libglapi-mesa \
