@@ -74,10 +74,8 @@ struct trio_socket_fd {
   int* server_socket_fd_ptr;
 };
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 std::string GetPosixSocketHintsName(
     ::testing::TestParamInfo<std::tuple<int, std::pair<int, int>>> info);
-#endif  // #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 }  // namespace nplb
 
 #endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_SOCKET_HELPERS_H_

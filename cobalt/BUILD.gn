@@ -28,10 +28,10 @@ group("gn_all") {
   testonly = true
 
   # TODO(b/371589344): Fix android build configs.
-  deps = [ "//starboard:starboard_group" ]
-  if (!cobalt_is_release_build) {
-    deps += [ "//starboard/nplb" ]
-  }
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/nplb",
+  ]
   if (is_android) {
     # TODO(cobalt): reuse build rules below to define Android target.
     deps += [ "android:cobalt_apk" ]
