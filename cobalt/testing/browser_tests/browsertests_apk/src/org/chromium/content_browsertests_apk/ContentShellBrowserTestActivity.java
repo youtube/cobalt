@@ -127,11 +127,7 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
         return "user-data-dir";
     }
 
-    protected int getTestActivityViewId() {
-        return R.layout.test_activity;
-    }
+    protected abstract int getTestActivityViewId();
 
-    protected int getShellManagerViewId() {
-        return R.id.shell_container;
-    }
+    protected abstract int getShellManagerViewId();
 }
