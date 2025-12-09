@@ -16,7 +16,6 @@
 
 #include "base/base64.h"
 #include "base/strings/string_util.h"
-#include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/http/http_response_headers.h"
@@ -28,6 +27,7 @@
 
 namespace content {
 
+namespace {
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
     "default-src 'self'; "
@@ -36,18 +36,26 @@ const char kH5vccContentSecurityPolicy[] =
     "img-src 'self' data: blob:; "
     "media-src 'self' data: blob:; "
     "connect-src 'self' blob: data:;";
+}  // namespace
 
 class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
   H5vccSchemeURLLoader(
       const network::ResourceRequest& request,
-      mojo::PendingRemote<network::mojom::URLLoaderClient> client)
-      : client_(std::move(client)), url_(request.url) {
+      mojo::PendingRemote<network::mojom::URLLoaderClient> client,
+      const GeneratedResourceMap* resource_map_test)
+      : client_(std::move(client)),
+        url_(request.url),
+        resource_map_test_(resource_map_test) {
     std::string key = url_.host();
 
     // Get the embedded header resource
     GeneratedResourceMap resource_map;
-    LoaderEmbeddedResources::GenerateMap(resource_map);
+    if (resource_map_test_) {
+      resource_map = *resource_map_test_;
+    } else {
+      LoaderEmbeddedResources::GenerateMap(resource_map);
+    }
 
     if (resource_map.find(key) == resource_map.end()) {
       LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
@@ -105,7 +113,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                                       std::to_string(data_content.size()));
     response_head->headers->AddHeader("Content-Security-Policy",
                                       kH5vccContentSecurityPolicy);
-    // We should support HTTP range requests.
+    // Range requests are not supported.
     response_head->headers->AddHeader("Accept-Ranges", "none");
 
     mojo::ScopedDataPipeProducerHandle producer_handle;
@@ -141,6 +149,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
+  const GeneratedResourceMap* resource_map_test_ = nullptr;
 };
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory() = default;
@@ -155,7 +164,8 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   mojo::MakeSelfOwnedReceiver(
-      std::make_unique<H5vccSchemeURLLoader>(url_request, std::move(client)),
+      std::make_unique<H5vccSchemeURLLoader>(url_request, std::move(client),
+                                             resource_map_test_),
       std::move(receiver));
 }
 
@@ -163,6 +173,11 @@ void H5vccSchemeURLLoaderFactory::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver) {
   mojo::MakeSelfOwnedReceiver(std::make_unique<H5vccSchemeURLLoaderFactory>(),
                               std::move(receiver));
+}
+
+void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
+    const GeneratedResourceMap* resource_map_test) {
+  resource_map_test_ = resource_map_test;
 }
 
 }  // namespace content

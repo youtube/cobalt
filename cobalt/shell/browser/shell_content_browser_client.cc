@@ -886,9 +886,8 @@ void ShellContentBrowserClient::RegisterH5vccScheme(
   h5vcc_scheme_url_loader_factory_->Clone(
       remote.InitWithNewPipeAndPassReceiver());
 
-  auto [it, inserted] =
-      factories->try_emplace(kH5vccEmbeddedScheme, std::move(remote));
-  if (!inserted) {
+  auto result = factories->try_emplace(kH5vccEmbeddedScheme, std::move(remote));
+  if (!result.second) {
     LOG(WARNING) << "h5vcc-scheme already registered in this map.";
   }
 }
