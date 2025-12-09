@@ -14,36 +14,38 @@
 
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
+#include <cstdint>
 #include "base/base64.h"
 #include "base/strings/string_util.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
+#include "components/services/storage/public/cpp/buckets/bucket_locator.h"
+#include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
+#include "content/public/browser/storage_partition.h"
+#include "content/public/browser/storage_partition_config.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "mojo/public/cpp/system/data_pipe.h"
+#include "mojo/public/cpp/system/simple_watcher.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/blink/public/mojom/blob/blob.mojom.h"
+#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-#include "cobalt/shell/browser/shell_browser_context.h"
-#include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
-#include "content/public/browser/storage_partition.h"
-#include "content/public/browser/storage_partition_config.h"
-#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
-
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
-#include "mojo/public/cpp/system/data_pipe.h"
-#include "mojo/public/cpp/system/simple_watcher.h"
-#include "third_party/blink/public/mojom/blob/blob.mojom.h"
-#include <cstdint>
+// TODO(b/454630524): Move below constants to command args.
+namespace {
+const std::string kSplashDomain = "https://lxn-test.uc.r.appspot.com";
+const std::string kSplashPath = "static/splash.html";
+const char16_t kSplashCacheName[] = u"splash-cache-v2";
+}  // namespace
 
 namespace content {
-
-class BlobReader; // Forward declaration
 
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
@@ -88,7 +90,6 @@ class BlobReader : public blink::mojom::BlobReaderClient {
 
   ~BlobReader() override = default;
 
-  // blink::mojom::BlobReaderClient:
   void OnCalculatedSize(uint64_t total_size,
                         uint64_t expected_content_size) override {}
 
@@ -173,18 +174,21 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type = "text/html";
+      std::string content_html_(
+          reinterpret_cast<const char*>(file_contents.data),
+          file_contents.size);
+      ReadSplashCache();
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
+      // TODO(b/454630524): Support cached webm files.
       mime_type = "video/webm";
+      std::string content(reinterpret_cast<const char*>(file_contents.data),
+                          file_contents.size);
+      SendResponse(content, mime_type);
     }
-    std::string content_html_(reinterpret_cast<const char*>(file_contents.data),
-                        file_contents.size);
-    ReadSplashCache();
-    //SendResponse(content_html_, mime_type);
     return;
   }
   ~H5vccSchemeURLLoader() override = default;
 
-  // network::mojom::URLLoader:
   void FollowRedirect(
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_headers,
@@ -196,30 +200,24 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void ResumeReadingBodyFromNet() override {}
 
   void ReadSplashCache() {
-    LOG(INFO) << "lxn:::open partition";
-    // Create a global Storage Partition Config.
-    auto spc =
-        content::StoragePartitionConfig::CreateDefault(browser_context_);
+    auto spc = content::StoragePartitionConfig::CreateDefault(browser_context_);
 
     content::StoragePartition* storage_partition =
         browser_context_->GetStoragePartition(spc);
-    ::storage::mojom::CacheStorageControl* cache_storage_control =
+    storage::mojom::CacheStorageControl* cache_storage_control =
         storage_partition->GetCacheStorageControl();
-    url::Origin origin =
-        url::Origin::Create(GURL("https://lxn-test.uc.r.appspot.com/"));
+    url::Origin origin = url::Origin::Create(GURL(kSplashDomain));
     blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
-    ::storage::BucketLocator bucket_locator =
-        ::storage::BucketLocator::ForDefaultBucket(storage_key);
+    storage::BucketLocator bucket_locator =
+        storage::BucketLocator::ForDefaultBucket(storage_key);
 
     cache_storage_control->AddReceiver(
-        ::network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+        network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
         bucket_locator, ::storage::mojom::CacheStorageOwner::kCacheAPI,
         cache_storage_remote_.BindNewPipeAndPassReceiver());
-    const char16_t kSplashCacheName[] = u"splash-cache-v2";
-    LOG(INFO) << "lxn:::ready to match cache with origin: " << origin;
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
-    fetch_api_request->url = GURL("https://lxn-test.uc.r.appspot.com/static/splash.html");
+    fetch_api_request->url = GURL(kSplashDomain).Resolve(kSplashPath);
     fetch_api_request->method = "GET";
 
     auto match_options = blink::mojom::MultiCacheQueryOptions::New();
@@ -237,7 +235,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void OnCacheMatched(blink::mojom::MatchResultPtr result) {
     if (result->is_response()) {
-      LOG(INFO) << "lxn:::Found match in cache for " << url_.spec();
+      LOG(INFO) << "Found valid splash video in cache.";
       auto& response = result->get_response();
       if (response->blob) {
         std::string mime_type = response->blob->content_type;
@@ -248,10 +246,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
             base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
                            weak_factory_.GetWeakPtr(), mime_type));
       } else {
+        LOG(INFO) << "Splash video cache is empty. Fallback to builtin.";
         SendResponse(content_html_, "text/plain");
       }
     } else {
-      LOG(ERROR) << "lxn:::Failed to match cache for " << url_.spec()
+      LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
       SendResponse(content_html_, "text/plain");
     }
@@ -259,29 +258,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void SendBlobContent(const std::string& mime_type,
                        std::vector<uint8_t> content) {
-    // std::string base64_video_data;
-    // base::Base64Encode(std::string(content.begin(), content.end()),
-    //                    &base64_video_data);
-
-    // std::string new_html(content_html_);
-    // LOG(ERROR) << "lxn:::new html:" << new_html;
-    // const std::string to_replace = "REPLACE_VIDEO_HERE";
-    // size_t pos = content_html_.find(to_replace);
-    // if (pos != std::string::npos) {
-    //   size_t start = pos + to_replace.length();
-    //   size_t end = content_html_.find("'", start);
-    //   if (end != std::string::npos) {
-    //     content_html_.replace(start, end - start, base64_video_data);
-    //   }
-    // }
-    // LOG(ERROR) << "lxn:::" << content_html_;
     if (content.empty()) {
+      LOG(ERROR) << "Empty cache. Fallback to built-in splash.";
       SendResponse(content_html_, "text/plain");
       return;
     }
-    std::string new_html(reinterpret_cast<const char*>(content.data()), content.size());
-    LOG(ERROR) << "lxn:::" << new_html;
-    SendResponse(new_html, "text/html");
+    std::string cached_html(reinterpret_cast<const char*>(content.data()),
+                            content.size());
+    SendResponse(cached_html, "text/html");
   }
 
  private:
