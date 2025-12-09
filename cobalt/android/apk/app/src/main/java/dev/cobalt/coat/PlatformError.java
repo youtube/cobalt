@@ -128,7 +128,6 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
@@ -154,7 +153,6 @@ public class PlatformError
     mDialog = null;
       CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }

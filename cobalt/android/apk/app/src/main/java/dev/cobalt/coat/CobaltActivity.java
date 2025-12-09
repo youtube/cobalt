@@ -225,23 +225,18 @@ public abstract class CobaltActivity extends Activity {
                 @Override
                 public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
                   if (!navigationHandle.isSameDocument()) {
-                    mCobaltConnectivityDetector.setHasSuccessfullyLoaded(false);
+                    mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
                   }
                 }
 
                 @Override
                 public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
-                  // A navigation can successfully commit a cached page while the network is
-                  // offline. We must check that the network is actually online before we
-                  // consider a page load to be a "successful first load".
+                  // The connectivity detector will consider the app has loaded if the navigation has
+                  // committed successfully with a valid internet connection.
                   if (navigationHandle.hasCommitted()
                       && !navigationHandle.isErrorPage()
-                      && NetworkChangeNotifier.isOnline()
                       && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
-                    String scheme = navigationHandle.getUrl().getScheme();
-                    if ("http".equals(scheme) || "https".equals(scheme)) {
-                      mCobaltConnectivityDetector.setHasSuccessfullyLoaded(true);
-                    }
+                        mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
                   }
                 }
               };

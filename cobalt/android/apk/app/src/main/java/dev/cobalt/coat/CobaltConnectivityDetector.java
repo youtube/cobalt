@@ -39,8 +39,7 @@ public class CobaltConnectivityDetector {
 
   private final CobaltActivity activity;
   private PlatformError platformError;
-  protected boolean mShouldReloadOnResume = false;
-  private boolean mHasSuccessfullyLoaded = false;
+  private boolean mAppHasSuccessfullyLoaded = false;
   private boolean mHasVerifiedConnectivity = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
@@ -72,6 +71,8 @@ public class CobaltConnectivityDetector {
       managementFuture.cancel(true);
     }
 
+    // Manage a separate timeout to raise a platform error in the case that the connectivity
+    // check takes too long ie. a hanging DNS resolution error.
     managementFuture =
         managementExecutor.submit(
             () -> {
@@ -124,22 +125,21 @@ public class CobaltConnectivityDetector {
             platformError.dismiss();
             platformError = null;
           }
-          if (mShouldReloadOnResume) {
-            if (!mHasSuccessfullyLoaded) {
-              WebContents webContents = activity.getActiveWebContents();
-              if (webContents != null) {
-                webContents.getNavigationController().reload(true);
-              }
+          // The app should only reload if we haven't previously successfully loaded past startup.
+          if (!mAppHasSuccessfullyLoaded) {
+            WebContents webContents = activity.getActiveWebContents();
+            if (webContents != null) {
+              webContents.getNavigationController().reload(true);
             }
-            mShouldReloadOnResume = false;
-          } else if (!mHasSuccessfullyLoaded) {
+          } else if (!mAppHasSuccessfullyLoaded) {
             // This is the first successful network check on a fresh app start. The
             // WebContentsObserver will handle setting the flag to true for any subsequent reloads.
-            mHasSuccessfullyLoaded = true;
+            mAppHasSuccessfullyLoaded = true;
           }
         });
   }
 
+  // Raise a platform error for any connectivity check failure
   private void handleFailure() {
     mHasVerifiedConnectivity = false;
     activity.runOnUiThread(
@@ -153,15 +153,10 @@ public class CobaltConnectivityDetector {
             platformError.raise();
           }
         });
-    mShouldReloadOnResume = true;
   }
 
-  public void setShouldReloadOnResume(boolean shouldReload) {
-    mShouldReloadOnResume = shouldReload;
-  }
-
-  public void setHasSuccessfullyLoaded(boolean hasCompleted) {
-    mHasSuccessfullyLoaded = hasCompleted;
+  public void setAppHasSuccessfullyLoaded(boolean hasCompleted) {
+    mAppHasSuccessfullyLoaded = hasCompleted;
   }
 
   public boolean hasVerifiedConnectivity() {
