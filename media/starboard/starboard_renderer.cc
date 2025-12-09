@@ -146,6 +146,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
       notify_memory_pressure_before_playback_(
+          base::FeatureList::IsEnabled(
+              media::kCobaltNotifyMemoryPressureBeforePlayback) ||
           ReadCommandLineSwitchForMemoryPressureSignal()) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
