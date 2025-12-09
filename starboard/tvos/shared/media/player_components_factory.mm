@@ -196,15 +196,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
 
-      video_decoder->reset();
-
-      video_render_algorithm->reset(new VideoRenderAlgorithmImpl([]() {
-        @autoreleasepool {
-          return UIScreen.mainScreen.maximumFramesPerSecond;
-        }
-      }));
-      *video_renderer_sink = NULL;
-
       // TODO: b/447334535 - This code needs decode to texture support and is
       // therefore always failing here by design.
       SB_LOG(ERROR) << "Unsupported video codec "
