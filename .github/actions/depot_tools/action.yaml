@@ -19,6 +19,7 @@ runs:
         run: |
           rm -rf /runner-cache/depot_tools /runner-cache/cobalt/.cipd_cache
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
+          git -C /runner-cache/src clean -fdx
         shell: bash
 
       - name: Reset Cached Depot Tools
