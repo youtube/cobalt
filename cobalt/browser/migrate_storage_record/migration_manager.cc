@@ -147,13 +147,14 @@ Task ReloadTask(content::WeakDocumentPtr weak_document_ptr) {
 }
 
 base::FilePath GetOldCachePath() {
-  std::vector<char> path(kSbFileMaxPath, 0);
+  std::string path(kSbFileMaxPath, 0);
   bool success =
-      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path.size());
+      SbSystemGetPath(kSbSystemPathCacheDirectory, &path[0], path.size());
   if (!success) {
     return base::FilePath();
   }
-  return base::FilePath(path.data());
+  path.resize(strlen(path.c_str()));
+  return base::FilePath(path);
 }
 
 void DeleteOldCacheDirectoryAsync() {
