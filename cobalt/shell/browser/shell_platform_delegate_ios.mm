@@ -22,11 +22,14 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/browser_accessibility_state.h"
+#include "content/public/browser/scoped_accessibility_mode.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
 #import "starboard/tvos/shared/starboard_application.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+#include "ui/accessibility/ax_mode.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -36,23 +39,26 @@
 
 namespace {
 
-static const char kGraphicsTracingCategories[] =
+const char kGraphicsTracingCategories[] =
     "-*,blink,cc,gpu,renderer.scheduler,sequence_manager,v8,toplevel,viz,evdev,"
     "input,benchmark";
 
-static const char kDetailedGraphicsTracingCategories[] =
+const char kDetailedGraphicsTracingCategories[] =
     "-*,blink,cc,gpu,renderer.scheduler,sequence_manager,v8,toplevel,viz,evdev,"
     "input,benchmark,disabled-by-default-skia,disabled-by-default-skia.gpu,"
     "disabled-by-default-skia.gpu.cache,disabled-by-default-skia.shaders";
 
-static const char kNavigationTracingCategories[] =
+const char kNavigationTracingCategories[] =
     "-*,benchmark,toplevel,ipc,base,browser,navigation,omnibox,ui,shutdown,"
     "safe_browsing,loading,startup,mojom,renderer_host,"
     "disabled-by-default-system_stats,disabled-by-default-cpu_profiler,dwrite,"
     "fonts,ServiceWorker,passwords,disabled-by-default-file,sql,"
     "disabled-by-default-user_action_samples,disk_cache";
 
-static const char kAllTracingCategories[] = "*";
+const char kAllTracingCategories[] = "*";
+
+constexpr ui::AXMode kVoiceOverEnabledAXMode =
+    ui::kAXModeComplete | ui::AXMode::kFromPlatform | ui::AXMode::kScreenReader;
 
 }  // namespace
 
@@ -110,6 +116,7 @@ static const char kAllTracingCategories[] = "*";
 - (void)startTracingWithCategories:(const char*)categories;
 - (UIAlertController*)actionSheetWithTitle:(nullable NSString*)title
                                    message:(nullable NSString*)message;
+- (void)voiceOverStatusDidChange;
 @end
 
 @implementation ContentShellWindowDelegate
@@ -122,6 +129,7 @@ static const char kAllTracingCategories[] = "*";
 @synthesize toolbarBackgroundView = _toolbarBackgroundView;
 @synthesize toolbarContentView = _toolbarContentView;
 @synthesize tracingHandler = _tracingHandler;
+std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
 
 + (UIColor*)backgroundColorDefault {
   return [UIColor colorWithRed:66.0 / 255.0
@@ -220,6 +228,20 @@ static const char kAllTracingCategories[] = "*";
   playerContainerView.accessibilityIdentifier = @"Player Container";
   [_contentView addSubview:playerContainerView];
   [SBDGetApplication() setPlayerContainerView:playerContainerView];
+
+  // Enable Accessibility if VoiceOver is already running.
+  if (UIAccessibilityIsVoiceOverRunning()) {
+    _scopedAccessibilityMode =
+        content::BrowserAccessibilityState::GetInstance()
+            ->CreateScopedModeForProcess(kVoiceOverEnabledAXMode);
+  }
+
+  // Register for VoiceOver notifications.
+  [[NSNotificationCenter defaultCenter]
+      addObserver:self
+         selector:@selector(voiceOverStatusDidChange)
+             name:UIAccessibilityVoiceOverStatusDidChangeNotification
+           object:nil];
 
   UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
   [_contentView addSubview:web_contents_view];
@@ -427,6 +449,17 @@ static const char kAllTracingCategories[] = "*";
       CGRectMake(CGRectGetWidth(_menuButton.bounds) / 2,
                  CGRectGetHeight(_menuButton.bounds), 1, 1);
   return alertController;
+}
+
+- (void)voiceOverStatusDidChange {
+  content::BrowserAccessibilityState* accessibility_state =
+      content::BrowserAccessibilityState::GetInstance();
+  if (UIAccessibilityIsVoiceOverRunning()) {
+    _scopedAccessibilityMode = accessibility_state->CreateScopedModeForProcess(
+        kVoiceOverEnabledAXMode);
+  } else {
+    _scopedAccessibilityMode.reset();
+  }
 }
 
 @end
