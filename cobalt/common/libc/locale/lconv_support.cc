@@ -14,20 +14,27 @@
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 
+#include "third_party/icu/source/common/unicode/localebuilder.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/icu/source/i18n/unicode/decimfmt.h"
+#include "third_party/icu/source/i18n/unicode/dtfmtsym.h"
 #include "third_party/icu/source/i18n/unicode/unum.h"
 
 namespace cobalt {
 namespace {
+
+// Specific values for |cs_precedes|
 constexpr char kCurrencySymbolSucceeds = 0;
 constexpr char kCurrencySymbolPrecedes = 1;
 
+// Specific values for |sep_by_space|
 constexpr char kNoSpace = 0;
 constexpr char kSpaceBetweenClusterAndValue = 1;
 constexpr char kSpaceBetweenSignAndSym = 2;
 
+// Specific values for |sign_posn|
 constexpr char kSignPosnParens = 0;
 constexpr char kSignPrecedesAll = 1;
 constexpr char kSignSucceedsAll = 2;
@@ -48,6 +55,54 @@ std::string ToUtf8(const icu::UnicodeString& us) {
   std::string out;
   us.toUTF8String(out);
   return out;
+}
+
+// Convenience method to convert a POSIX locale string to the ICU string format.
+// Some POSIX strings like sr_RS@latin require special handling to be fully
+// translated from POSIX to ICU.
+icu::Locale GetCorrectICULocale(const std::string& posix_name) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  char canonical_buffer[ULOC_FULLNAME_CAPACITY];
+  uloc_canonicalize(posix_name.c_str(), canonical_buffer,
+                    ULOC_FULLNAME_CAPACITY, &status);
+
+  if (U_FAILURE(status)) {
+    return icu::Locale::createCanonical(posix_name.c_str());
+  }
+
+  icu::Locale loc = icu::Locale::createFromName(canonical_buffer);
+  const char* variant = loc.getVariant();
+
+  // ICU will store the modifier variable (e.g. @latin) in its variant field, if
+  // it exists. For ICU to correctly translate the string, we must convert the
+  // script to its shortname and set it in the script field.
+  if (variant && *variant) {
+    UScriptCode codes[1];
+
+    UErrorCode script_status = U_ZERO_ERROR;
+    int32_t num_codes = uscript_getCode(variant, codes, 1, &script_status);
+
+    if (U_SUCCESS(script_status) && num_codes == 1) {
+      UScriptCode actual_script = codes[0];
+
+      if (actual_script != USCRIPT_INVALID_CODE &&
+          actual_script != USCRIPT_UNKNOWN) {
+        const char* short_name = uscript_getShortName(actual_script);
+
+        if (short_name) {
+          icu::LocaleBuilder builder;
+          builder.setLanguage(loc.getLanguage());
+          builder.setRegion(loc.getCountry());
+          builder.setScript(short_name);
+
+          return builder.build(status);
+        }
+      }
+    }
+  }
+
+  return loc;
 }
 
 // Attempts to convert the currency layout of an ICU monetary format to the
@@ -117,6 +172,11 @@ CurrencyLayout DeriveCurrencyLayout(const icu::DecimalFormat* monetary_format,
     }
   }
 
+  // To deduce the value of |sep_by_space|, we must:
+  // - Check to see if the currency symbol is next to a space
+  // - If not, check to see if the sign and currency symbol are in the same
+  // affix
+  // - If they are, see if there is a space between the symbol and sign
   bool touches_space = false;
   if (result.cs_precedes == kCurrencySymbolPrecedes) {
     touches_space = (prefix.endsWith(" ") || prefix.endsWith((UChar)0x00A0));
@@ -128,10 +188,6 @@ CurrencyLayout DeriveCurrencyLayout(const icu::DecimalFormat* monetary_format,
   if (touches_space) {
     result.sep_by_space = kSpaceBetweenClusterAndValue;
   } else {
-    // To check if |sep_by_space| should be set to kSpaceBetweenSignAndSym, we
-    // must:
-    // - Check to see if the sign and currency symbol are in the same affix
-    // - If they are, see if there is a space between the two characters
     const icu::UnicodeString* shared_affix = nullptr;
     int sign_idx = -1;
     int sym_idx = -1;
@@ -240,11 +296,12 @@ bool UpdateNumericLconv(const std::string& locale_name, LconvImpl* cur_lconv) {
     return true;
   }
 
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale loc = GetCorrectICULocale(locale_name);
+
   // To avoid partially allocated lconv structs, we first initialize all the ICU
   // objects needed to fill out the struct. If any initialization fails, we just
   // return false and make no edits to the lconv.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale loc = icu::Locale::createCanonical(locale_name.c_str());
   icu::DecimalFormatSymbols sym(loc, status);
 
   std::unique_ptr<icu::DecimalFormat> grouping_format(
@@ -275,13 +332,25 @@ bool UpdateMonetaryLconv(const std::string& locale_name, LconvImpl* cur_lconv) {
     return true;
   }
 
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale loc = GetCorrectICULocale(locale_name);
+
+  // If the locale has no Country/Region defined, we can't determine the
+  // currency. We use addLikelySubtags to assume the default (e.g., "en" ->
+  // "en_US").
+  const char* country = loc.getCountry();
+  if (country == nullptr || *country == 0) {
+    loc.addLikelySubtags(status);
+  }
+
+  if (U_FAILURE(status)) {
+    return false;
+  }
+  status = U_ZERO_ERROR;
+
   // To avoid partially allocated lconv structs, we first initialize all the ICU
   // objects needed to fill out the struct. If any initialization fails, we just
   // return false and make no edits to the lconv.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Locale loc = icu::Locale::createCanonical(locale_name.c_str());
-  loc.addLikelySubtags(status);
-
   icu::DecimalFormatSymbols sym(loc, status);
   if (!U_SUCCESS(status)) {
     return false;
@@ -335,9 +404,6 @@ bool UpdateMonetaryLconv(const std::string& locale_name, LconvImpl* cur_lconv) {
 
   cur_lconv->result.frac_digits = (char)detected_frac_digits;
   cur_lconv->result.int_frac_digits = (char)detected_frac_digits;
-
-  cur_lconv->stored_pos_sign = ToUtf8(plus_sign);
-  cur_lconv->stored_neg_sign = ToUtf8(minus_sign);
 
   cur_lconv->stored_mon_grouping = GetGroupingString(loc_currency_fmt.get());
 

@@ -104,6 +104,49 @@ TEST_F(LconvSupportTest, ExhaustiveLconvFieldCheck) {
   EXPECT_NE(lconv_.result.int_n_sign_posn, CHAR_MAX);
 }
 
+TEST_F(LconvSupportTest, ExhaustiveSrRsLatinFieldCheck) {
+  UpdateNumericLconv("sr_RS@latin", &lconv_);
+  UpdateMonetaryLconv("sr_RS@latin", &lconv_);
+
+  EXPECT_STREQ(lconv_.result.decimal_point, ",");
+  EXPECT_STREQ(lconv_.result.thousands_sep, ".");
+  ASSERT_TRUE(lconv_.result.grouping != nullptr);
+  EXPECT_EQ(static_cast<int>(lconv_.result.grouping[0]), 3);
+
+  EXPECT_STREQ(lconv_.result.mon_decimal_point, ",");
+  EXPECT_STREQ(lconv_.result.mon_thousands_sep, ".");
+  ASSERT_TRUE(lconv_.result.mon_grouping != nullptr);
+  EXPECT_EQ(static_cast<int>(lconv_.result.mon_grouping[0]), 3);
+
+  // TODO: b/467701409 - Properly address the incorrect currency symbol.
+  // Currently, our ICU implementaiton will return "RSD" instead of "din".
+  // EXPECT_STREQ(lconv_.result.currency_symbol, "din");
+  EXPECT_STREQ(lconv_.result.int_curr_symbol, "RSD ");
+
+  EXPECT_STREQ(lconv_.result.positive_sign, "");
+  EXPECT_STREQ(lconv_.result.negative_sign, "-");
+
+  EXPECT_EQ(lconv_.result.frac_digits, 0);
+  EXPECT_EQ(lconv_.result.int_frac_digits, 0);
+
+  EXPECT_EQ(lconv_.result.p_cs_precedes, 0);
+  EXPECT_EQ(lconv_.result.p_sep_by_space, 1);
+  EXPECT_EQ(lconv_.result.p_sign_posn, 1);
+
+  EXPECT_EQ(lconv_.result.n_cs_precedes, 0);
+  EXPECT_EQ(lconv_.result.n_sep_by_space, 1);
+  EXPECT_EQ(lconv_.result.n_sign_posn, 1);
+
+  EXPECT_NE(lconv_.result.int_p_cs_precedes, CHAR_MAX);
+  EXPECT_NE(lconv_.result.int_p_sep_by_space, CHAR_MAX);
+
+  EXPECT_NE(lconv_.result.int_n_cs_precedes, CHAR_MAX);
+  EXPECT_NE(lconv_.result.int_n_sep_by_space, CHAR_MAX);
+
+  EXPECT_NE(lconv_.result.int_p_sign_posn, CHAR_MAX);
+  EXPECT_NE(lconv_.result.int_n_sign_posn, CHAR_MAX);
+}
+
 TEST_F(LconvSupportTest, UpdateMonetaryLconvHandlesJapaneseYen) {
   UpdateMonetaryLconv("ja_JP", &lconv_);
 
@@ -148,6 +191,8 @@ TEST_F(LconvSupportTest, UpdateMonetaryLconvHandlesEuroLayout) {
   UpdateMonetaryLconv("fr_FR", &lconv_);
 
   EXPECT_STREQ(lconv_.result.mon_decimal_point, ",");
+  EXPECT_STREQ(lconv_.result.currency_symbol, "€");
+  EXPECT_STREQ(lconv_.result.int_curr_symbol, "EUR ");
 
   EXPECT_EQ(lconv_.result.p_cs_precedes, 0);
   EXPECT_EQ(lconv_.result.n_cs_precedes, 0);
