@@ -24,12 +24,11 @@
 #include "cobalt/shell/browser/shell.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
+#import "starboard/tvos/shared/starboard_application.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/native_widget_types.h"
-
-#import "starboard/tvos/shared/starboard_application.h"
 
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
