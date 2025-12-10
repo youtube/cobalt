@@ -1,18 +1,18 @@
-name: E2E Tests
-description: Runs e2e tests.
+name: Internal Tests
+description: Runs internal tests.
 inputs:
   test_dimensions:
     description: "Test dimensions JSON string."
+    default: "{}"
+  test_targets:
+    description: "Test targets."
     required: true
-  e2e_test_targets:
-    description: "E2E test targets."
+  test_type:
+    description: "Test type (e.g. e2e_test or yts_test)"
     required: true
   artifact_name:
-    description: "The name of the artifact to be used for E2E tests (e.g., Cobalt.apk)."
+    description: "The name of the artifact to be used for tests (e.g., Cobalt.apk)."
     default: "Cobalt.apk"
-  test_attempts:
-    description: "Number of attempts for the tests."
-    default: ""
 
 runs:
   using: "composite"
@@ -52,8 +52,7 @@ runs:
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
-        TEST_TYPE: e2e_test
+        TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
       run: |
         set -x
@@ -62,7 +61,7 @@ runs:
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
-          --targets '${{ inputs.e2e_test_targets }}' \
+          --targets '${{ inputs.test_targets }}' \
           --retry_level ${TEST_RETRY_LEVEL} \
           --label ${TEST_TYPE} \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
