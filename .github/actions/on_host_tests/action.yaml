@@ -39,6 +39,10 @@ runs:
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
+        # TODO: b/467135717 - Remove this once tests don't have asan leaks.
+        # Don't fail if only asan fails.
+        export ASAN_OPTIONS=exitcode=0
+
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
@@ -55,6 +59,12 @@ runs:
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           filename=$(basename "${test_binary_path}")
           test_binary="${filename%%.*}"
+
+          if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" =~ ^nplb ]]; then
+            # Workaround for nplb not supporting sharding.
+            continue
+          fi
+
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"

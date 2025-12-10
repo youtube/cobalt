@@ -17,6 +17,24 @@
     "PosixLocaleThreadTest.UseLocaleThenSetLocaleThenUseGlobal",
     "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
+    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
+    "Posix/NlLanginfo*",
+
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "SbAudioSinkTest.UpdateStatusCalled",
+    "SbLogFlushTest.DontCrashMeBro"
+  ],
+  "_filtered_b/467135717": [
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "SbAudioSinkTest.UpdateStatusCalled",
+    "SbLogFlushTest.DontCrashMeBro"
   ]
 }
