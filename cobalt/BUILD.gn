@@ -149,6 +149,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
   ]
 
   if (is_starboard) {
@@ -167,13 +168,15 @@ test("cobalt_unittests") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-    "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
+    "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//mojo/core/embedder",
+    "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",

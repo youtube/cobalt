@@ -191,6 +191,11 @@ const char kMSEAudioBufferSizeLimitMb[] = "mse-audio-buffer-size-limit-mb";
 const char kMSEVideoBufferSizeLimitMb[] = "mse-video-buffer-size-limit-mb";
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Send a critical memory pressure signal to the system before starting playback.
+// This is used to reduce memory fragmentation and free up memory for the media
+// pipeline.
+const char kCobaltNotifyMemoryPressureBeforePlayback[] = "cobalt-notify-memory-pressure-before-playback";
+
 // Allows explicitly specifiying MSE video buffer size maximum as megabytes.
 // Any video buffer size greater than this value will be clamped down to the
 // associated switch value.
@@ -507,6 +512,11 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
 // When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt will notify memory pressure listeners before
+// video playback.
+BASE_FEATURE(kCobaltNotifyMemoryPressureBeforePlayback,
+             "CobaltNotifyMemoryPressureBeforePlayback",
              base::FEATURE_DISABLED_BY_DEFAULT);
 // When disabled, Cobalt rejects progressive video formats.
 BASE_FEATURE(kCobaltProgressivePlayback,

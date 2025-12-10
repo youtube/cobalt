@@ -77,6 +77,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltConnectivityDetector.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
@@ -224,6 +225,8 @@ android_apk("cobalt_apk") {
 
 robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/MockShellManagerNatives.java",
@@ -237,8 +240,10 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
+    "//services/media_session/public/cpp/android:media_session_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
     "//third_party/junit",
+    "//url:gurl_java",
   ]
 }

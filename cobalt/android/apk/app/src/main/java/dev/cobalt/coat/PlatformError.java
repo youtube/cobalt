@@ -29,6 +29,7 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import org.chromium.content_public.browser.WebContents;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
@@ -127,7 +128,7 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.mShouldReloadOnResume = true;
+            cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
@@ -139,9 +140,15 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents != null) {
+              webContents.getNavigationController().reload(true);
+            }
+            else {
+              Log.e(TAG, "WebContents is null and not available to reload the application.");
+            }
+            cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
-          cobaltActivity.activeNetworkCheck();
           mDialog.dismiss();
           break;
         default: // fall out
@@ -154,7 +161,7 @@ public class PlatformError
     mDialog = null;
       CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.mShouldReloadOnResume = true;
+        cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }

@@ -14,10 +14,13 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -109,6 +112,21 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
+
+bool ReadCommandLineSwitchForMemoryPressureSignal() {
+  // TODO(b/460292554): remove this once we have full base::Feature support.
+  // We check the feature name as a switch because h5vcc settings are passed
+  // as command line switches to the renderer process.
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (!command_line->HasSwitch(
+          switches::kCobaltNotifyMemoryPressureBeforePlayback)) {
+    return false;
+  }
+  std::string value = command_line->GetSwitchValueASCII(
+      switches::kCobaltNotifyMemoryPressureBeforePlayback);
+  return value != "0" && base::ToLowerASCII(value) != "false";
+}
+
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -126,7 +144,11 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      notify_memory_pressure_before_playback_(
+          base::FeatureList::IsEnabled(
+              media::kCobaltNotifyMemoryPressureBeforePlayback) ||
+          ReadCommandLineSwitchForMemoryPressureSignal()) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -134,7 +156,9 @@ StarboardRenderer::StarboardRenderer(
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_);
+            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", notify_memory_pressure_before_playback="
+            << (notify_memory_pressure_before_playback_ ? "true" : "false");
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -583,6 +607,14 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;
+    if (notify_memory_pressure_before_playback_) {
+      // Send a one-time critical memory pressure signal to ask
+      // other components to release memory.
+      base::MemoryPressureListener::NotifyMemoryPressure(
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
+                   "burden.";
+    }
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }

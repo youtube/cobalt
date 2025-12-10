@@ -38,6 +38,7 @@ function animate(onAnimationEnd) {
   videoEl.addEventListener('ended', () => {
     maybeDestroyVideoInstance();
     onAnimationEnd && onAnimationEnd();
+    window.close();
   });
 
   const showPlaceholderImage = () => {
@@ -61,8 +62,8 @@ function playSplashAnimation(afterVideoStart) {
 
   const mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', () => {
-    var binaryData;
-    if (MediaSource.isTypeSupported("video/webm; codecs=\"vp09.00.51.08\"; width=3840; height=2160;")) {
+    let binaryData;
+    if (MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) {
       // 4k device uses 1080p splash screen.
       binaryData = atob(VIDEO_DATA_STR);
     } else {

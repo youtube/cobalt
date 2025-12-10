@@ -15,7 +15,6 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 #define MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -179,6 +178,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const bool notify_memory_pressure_before_playback_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

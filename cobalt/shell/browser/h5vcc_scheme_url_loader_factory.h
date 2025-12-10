@@ -15,6 +15,7 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
@@ -56,6 +57,12 @@ class H5vccSchemeURLLoaderFactory final
 
   void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
       override;
+
+  // Testing seam to inject a resource map.
+  void SetResourceMapForTesting(const GeneratedResourceMap* resource_map_test);
+
+ private:
+  const GeneratedResourceMap* resource_map_test_ = nullptr;
 };
 
 }  // namespace content

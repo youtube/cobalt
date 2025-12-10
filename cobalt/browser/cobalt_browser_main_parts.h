@@ -51,6 +51,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
+  void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific
