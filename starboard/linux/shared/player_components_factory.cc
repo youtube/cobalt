@@ -131,7 +131,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                 creation_parameters.decode_target_graphics_context_provider()));
         if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
           SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
-          components.video.decoder.reset(ffmpeg_video_decoder.release());
+          components.video.decoder = std::move(ffmpeg_video_decoder);
         } else {
           const char* codec_name =
               GetMediaVideoCodecName(creation_parameters.video_codec());
