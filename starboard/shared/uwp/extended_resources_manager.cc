@@ -180,6 +180,15 @@ void ExtendedResourcesManager::Quit() {
   pending_extended_resources_release_.store(true);
 }
 
+void ExtendedResourcesManager::ResetNonrecoverableFailure() {
+  ScopedLock scoped_lock(mutex_);
+  if (is_nonrecoverable_failure_.load()) {
+    SB_LOG(INFO) << "Resetting nonrecoverable failure state and retry counter.";
+    is_nonrecoverable_failure_.store(false);
+    consecutive_acquire_failures_ = 0;
+  }
+}
+
 void ExtendedResourcesManager::ReleaseBuffersHeap() {
   d3d12FrameBuffersHeap_.Reset();
 }
@@ -341,15 +350,27 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
           }
           semaphore.Put();
         });
-    if (semaphore.TakeWait(10 * kSbTimeSecond)) {
+    // Reduced timeout from 10s to 2s for better responsiveness to suspend
+    // requests and faster retry cycles.
+    if (semaphore.TakeWait(2 * kSbTimeSecond)) {
       acquisition_condition_.Signal();
       // If extended resource acquisition was not successful after the wait
-      // time, signal a nonrecoverable failure, unless a release of
-      // extended resources has since been requested.
+      // time, increment failure counter instead of immediately marking as
+      // nonrecoverable, unless a release of extended resources has since
+      // been requested.
       if (!is_extended_resources_acquired_.load() &&
           !pending_extended_resources_release_.load()) {
-        SB_LOG(WARNING) << "Extended resource mode acquisition timed out";
-        OnNonrecoverableFailure();
+        consecutive_acquire_failures_++;
+        SB_LOG(WARNING) << "Extended resource mode acquisition timed out"
+                        << " (attempt " << consecutive_acquire_failures_
+                        << " of " << kMaxConsecutiveAcquireFailures << ")";
+        // Only mark as nonrecoverable after multiple consecutive failures
+        if (consecutive_acquire_failures_ >= kMaxConsecutiveAcquireFailures) {
+          SB_LOG(ERROR) << "Extended resource acquisition failed "
+                        << kMaxConsecutiveAcquireFailures
+                        << " times, marking as nonrecoverable.";
+          OnNonrecoverableFailure();
+        }
       }
     }
   }
@@ -358,6 +379,8 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
     SB_LOG(INFO) << "AcquireExtendedResourcesInternal() failed.";
     return false;
   }
+  // Reset failure counter on successful acquisition
+  consecutive_acquire_failures_ = 0;
   return is_extended_resources_acquired_.load();
 }
 
@@ -544,6 +567,8 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
           // will bubble up any exceptions thrown during the task.
           task.get();
           SB_LOG(INFO) << "Released extended resources.";
+          // Reset failure counter on successful release to start fresh
+          consecutive_acquire_failures_ = 0;
         } catch (const std::exception& e) {
           SB_LOG(ERROR) << "Exception on releasing extended resources: "
                         << e.what();
