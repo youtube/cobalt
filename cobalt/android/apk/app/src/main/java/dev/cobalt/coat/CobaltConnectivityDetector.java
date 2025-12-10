@@ -131,7 +131,6 @@ public class CobaltConnectivityDetector {
             if (webContents != null) {
               webContents.getNavigationController().reload(true);
             }
-          } else if (!mAppHasSuccessfullyLoaded) {
             // This is the first successful network check on a fresh app start. The
             // WebContentsObserver will handle setting the flag to true for any subsequent reloads.
             mAppHasSuccessfullyLoaded = true;
