@@ -139,11 +139,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
         if (PlayerComponents::Factory::OutputModeSupported(
                 output_mode, video_codec, kSbDrmSystemInvalid)) {
           SbPlayerPrivate players[kDecodersToCreate];
-          std::unique_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
-          std::unique_ptr<VideoRenderAlgorithm>
-              video_render_algorithms[kDecodersToCreate];
-          scoped_refptr<VideoRendererSink>
-              video_renderer_sinks[kDecodersToCreate];
+          std::vector<PlayerComponents::Factory::VideoComponents>
+              video_components;
 
           for (int i = 0; i < kDecodersToCreate; ++i) {
             SbMediaAudioSampleInfo dummy_audio_sample_info = {
@@ -156,19 +153,17 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 
-            std::string error_message;
-            ASSERT_TRUE(factory->CreateSubComponents(
-                creation_parameters, nullptr, nullptr, &video_decoders[i],
-                &video_render_algorithms[i], &video_renderer_sinks[i],
-                &error_message));
-            ASSERT_TRUE(video_decoders[i]);
+            auto sub_components =
+                factory->CreateSubComponents(creation_parameters);
+            ASSERT_TRUE(sub_components) << sub_components.error();
+            video_components.push_back(std::move(sub_components->video));
 
-            if (video_renderer_sinks[i]) {
-              video_renderer_sinks[i]->SetRenderCB(
+            if (video_components[i].renderer_sink) {
+              video_components[i].renderer_sink->SetRenderCB(
                   std::bind(&VideoDecoderTestFixture::Render, &fixture_, _1));
             }
 
-            video_decoders[i]->Initialize(
+            video_components[i].decoder->Initialize(
                 std::bind(&VideoDecoderTestFixture::OnDecoderStatusUpdate,
                           &fixture_, _1, _2),
                 std::bind(&VideoDecoderTestFixture::OnError, &fixture_));
