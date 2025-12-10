@@ -46,10 +46,12 @@
 }
 
 - (void)setPlayerContainerView:(UIView*)view {
+  SB_CHECK(!_playerContainerView);
   _playerContainerView = view;
 }
 
 - (void)attachPlayerView:(UIView*)subView {
+  SB_CHECK(_playerContainerView);
   [_playerContainerView addSubview:subView];
 }
 
