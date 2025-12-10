@@ -22,7 +22,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #import "starboard/tvos/shared/media/drm_manager.h"
-#import "starboard/tvos/shared/media/egl_adapter.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
@@ -33,7 +32,6 @@
 
 @implementation ObjCApplication
 @synthesize drmManager = _drmManager;
-@synthesize eglAdapter = _eglAdapter;
 @synthesize playerManager = _playerManager;
 @synthesize windowManager = _windowManager;
 
@@ -43,7 +41,6 @@
     _drmManager = [[SBDDrmManager alloc] init];
     _windowManager = [[SBDWindowManager alloc] init];
     _playerManager = [[SBDPlayerManager alloc] init];
-    _eglAdapter = [[SBDEglAdapter alloc] init];
   }
   return self;
 }

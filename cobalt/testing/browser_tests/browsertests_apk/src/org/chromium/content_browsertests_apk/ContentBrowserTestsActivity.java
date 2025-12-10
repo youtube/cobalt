@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.coat;
+package org.chromium.content_browsertests_apk;
 
 import android.os.Bundle;
 
