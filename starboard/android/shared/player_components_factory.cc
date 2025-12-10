@@ -491,8 +491,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         &error_message);
     if (!error_message.empty()) {
-      return Failure("Failed to create video decoder with error: " +
-                     error_message);
+      return Failure(error_message);
     }
     if (creation_parameters.video_codec() != kSbMediaVideoCodecAv1 &&
         !video_decoder->is_decoder_created()) {
