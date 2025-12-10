@@ -28,6 +28,8 @@ env:
         should explain the 'what' and 'why' of the change, not the 'how', and
         wrap at 72 characters.
     4.  **Bug Trailer:** Add a 'Bug: xyz' git trailer on the last line.
+        The format of the trailer is e.g. `Bug: 1234` or `Issue: 1234`, where
+        1234 is the bug number (no b/).
 
     **Tag Selection (Prefix the subject line with one of these):**
 
