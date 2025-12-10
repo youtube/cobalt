@@ -30,7 +30,8 @@ limitations under the License.
 {% endblock %}
 
 {% block extra_root_definitions %}
-    <instrumentation android:name="org.chromium.base.test.BaseChromiumAndroidJUnitRunner"
-        android:targetPackage="{{manifest_package}}"
-        android:label="JUnit4-based tests for cobalt shell" />
+    <instrumentation android:name="org.chromium.native_test.NativeTestInstrumentationTestRunner"
+        android:label="ContentBrowserTests"
+        android:targetPackage="{{ manifest_package }}"
+        chromium-junit3="true"/>
 {% endblock %}
