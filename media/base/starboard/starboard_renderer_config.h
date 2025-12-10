@@ -15,9 +15,7 @@
 #ifndef MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 #define MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 
-#include <map>
 #include <string>
-#include <variant>
 
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
@@ -26,18 +24,14 @@
 
 namespace media {
 
-using H5vccSettingValue = std::variant<std::string, int64_t>;
-
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
   StarboardRendererConfig();
-  StarboardRendererConfig(
-      const base::UnguessableToken& overlay_plane_id,
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
-      const std::string& max_video_capabilities,
-      const gfx::Size& viewport_size,
-      const std::map<std::string, H5vccSettingValue>& h5vcc_settings);
+  StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,
+                          base::TimeDelta audio_write_duration_local,
+                          base::TimeDelta audio_write_duration_remote,
+                          const std::string& max_video_capabilities,
+                          const gfx::Size& viewport_size);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -46,7 +40,6 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
   gfx::Size viewport_size;
-  std::map<std::string, H5vccSettingValue> h5vcc_settings;
 };
 
 }  // namespace media

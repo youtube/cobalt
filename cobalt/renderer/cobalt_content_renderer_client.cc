@@ -54,6 +54,8 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
      switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
+using H5vccSettingValue = std::variant<std::string, int64_t>;
+
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
 // gets lost with hardcoded MIME string. This can sometimes cause issues. For
@@ -121,7 +123,7 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
 // exists. H5vcc settings are either pass their value to a media switch for code
 // in /media to use, or are given to Starboard Renderer for direct usage.
 bool AppendSettingToSwitch(const std::string& setting_name,
-                           const ::media::H5vccSettingValue& setting_value) {
+                           const H5vccSettingValue& setting_value) {
   auto it = kH5vccSettingToSwitchMap.find(setting_name);
   if (it == kH5vccSettingToSwitchMap.end()) {
     return false;
@@ -144,9 +146,9 @@ bool AppendSettingToSwitch(const std::string& setting_name,
   return true;
 }
 
-std::map<std::string, ::media::H5vccSettingValue> ParseH5vccSettings(
+std::map<std::string, H5vccSettingValue> ParseH5vccSettings(
     cobalt::mojom::SettingsPtr settings) {
-  std::map<std::string, ::media::H5vccSettingValue> h5vcc_settings;
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
   for (auto& [key, value] : settings->settings) {
     if (value->is_string_value()) {
       h5vcc_settings.emplace(key, std::move(value->get_string_value()));
@@ -161,7 +163,7 @@ std::map<std::string, ::media::H5vccSettingValue> ParseH5vccSettings(
 
 template <typename T>
 const T* GetSettingValue(
-    const std::map<std::string, ::media::H5vccSettingValue>& settings,
+    const std::map<std::string, H5vccSettingValue>& settings,
     const std::string& key) {
   auto it = settings.find(key);
   if (it == settings.end()) {
@@ -171,7 +173,7 @@ const T* GetSettingValue(
 }
 
 void ProcessH5vccSettings(
-    const std::map<std::string, ::media::H5vccSettingValue>& settings) {
+    const std::map<std::string, H5vccSettingValue>& settings) {
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaDisableAllocator)) {
     bool disable_allocator = *val != 0;
