@@ -208,9 +208,19 @@ source_set("browsertests_sources") {
   }
 }
 
+static_library("cobalt_shell_switches") {
+  sources = [
+    "common/shell_switches.cc",
+    "common/shell_switches.h",
+  ]
+}
+
 static_library("cobalt_shell_lib") {
   testonly = true
-  public_deps = [ ":cobalt_shell_lib_deps" ]
+  public_deps = [
+    ":cobalt_shell_lib_deps",
+    ":cobalt_shell_switches",
+  ]
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
@@ -245,8 +255,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_web_contents_view_delegate_creator.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
-    "common/shell_switches.cc",
-    "common/shell_switches.h",
     "common/url_constants.h",
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",

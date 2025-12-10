@@ -93,7 +93,6 @@ source_set("browser") {
 }
 
 source_set("features") {
-  testonly = true
   sources = [
     "features.cc",
     "features.h",
@@ -102,8 +101,6 @@ source_set("features") {
 }
 
 source_set("switches") {
-  testonly = true
-
   sources = [
     "switches.cc",
     "switches.h",
@@ -111,7 +108,7 @@ source_set("switches") {
 
   deps = [
     "//base",
-    "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/shell:cobalt_shell_switches",
   ]
 }
 
@@ -133,10 +130,6 @@ action("embed_polyfilled_javascript") {
 }
 
 source_set("global_features") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # being depended-on by :browser above.
-  testonly = true
-
   sources = [
     "experiments/experiment_config_manager.cc",
     "experiments/experiment_config_manager.h",
@@ -156,10 +149,6 @@ source_set("global_features") {
 }
 
 source_set("metrics") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # being depended-on by :browser above.
-  testonly = true
-
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
@@ -172,7 +161,6 @@ source_set("metrics") {
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
-    "//cobalt/shell:cobalt_shell_lib",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
