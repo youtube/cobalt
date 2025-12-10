@@ -213,6 +213,9 @@ static const char kAllTracingCategories[] = "*";
   // UIView that will contain the video rendered by SbPlayer. The non-tvOS code
   // path renders the video as an underlay, so add it before the web contents
   // view. Each video will be rendered as a subview of this view.
+  // Note that the actual size and and position of this view are irrelevant at
+  // this point: it will be changed in starboard's
+  // AVSBVideoRenderer::SetBounds() when necessary.
   UIView* playerContainerView = [[UIView alloc] init];
   playerContainerView.accessibilityIdentifier = @"Player Container";
   [_contentView addSubview:playerContainerView];
