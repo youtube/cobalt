@@ -70,8 +70,6 @@ class MediaCodecBridge {
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
   private MediaCodec.Callback mCallback;
-  private boolean mFlushed;
-  private long mLastPresentationTimeUs;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
   private final boolean mIsTunnelingPlayback;
@@ -283,8 +281,6 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mLastPresentationTimeUs = 0;
-    mFlushed = true;
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -671,7 +667,6 @@ class MediaCodecBridge {
   @CalledByNative
   private int flush() {
     try {
-      mFlushed = true;
       mMediaCodec.get().flush();
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
@@ -748,7 +743,6 @@ class MediaCodecBridge {
   @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
-    resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       if (isDecodeOnlyFlagEnabled()
           && isDecodeOnly
@@ -777,7 +771,6 @@ class MediaCodecBridge {
       int blocksToSkip,
       long presentationTimeUs,
       boolean isDecodeOnly) {
-    resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
@@ -1032,14 +1025,6 @@ class MediaCodecBridge {
       Log.e(TAG, "Cannot configure the audio codec", e);
     }
     return false;
-  }
-
-  private void resetLastPresentationTimeIfNeeded(long presentationTimeUs) {
-    if (mFlushed) {
-      mLastPresentationTimeUs =
-          Math.max(presentationTimeUs - MAX_PRESENTATION_TIMESTAMP_SHIFT_US, 0);
-      mFlushed = false;
-    }
   }
 
   @SuppressWarnings("deprecation")
