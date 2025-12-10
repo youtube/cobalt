@@ -143,46 +143,6 @@ void ParamTraits<media::EncryptionPattern>::Log(const param_type& p,
                                                 std::string* l) {
   l->append(base::StringPrintf("<EncryptionPattern>"));
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void ParamTraits<media::H5vccSettingValue>::Write(base::Pickle* m,
-                                                  const param_type& p) {
-  WriteParam(m, static_cast<int>(p.index()));
-  std::visit([m](auto&& arg) { WriteParam(m, arg); }, p);
-}
-
-bool ParamTraits<media::H5vccSettingValue>::Read(const base::Pickle* m,
-                                                 base::PickleIterator* iter,
-                                                 param_type* r) {
-  int index;
-  if (!ReadParam(m, iter, &index))
-    return false;
-  switch (index) {
-    case 0: {
-      std::string value;
-      if (!ReadParam(m, iter, &value))
-        return false;
-      *r = std::move(value);
-      return true;
-    }
-    case 1: {
-      int64_t value;
-      if (!ReadParam(m, iter, &value))
-        return false;
-      *r = value;
-      return true;
-    }
-    default:
-      return false;
-  }
-}
-
-void ParamTraits<media::H5vccSettingValue>::Log(const param_type& p,
-                                                std::string* l) {
-  std::visit([l](auto&& arg) { LogParam(arg, l); }, p);
-}
-#endif
-
 }  // namespace IPC
 
 // Generate param traits write methods.

@@ -15,7 +15,6 @@
 #ifndef MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_
 
-#include <map>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -74,7 +73,6 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
-  const std::map<std::string, H5vccSettingValue> h5vcc_settings_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 
