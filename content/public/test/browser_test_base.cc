@@ -35,12 +35,15 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_run_loop_timeout.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
+#include "base/check_is_test.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "build/chromeos_buildflags.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "components/tracing/common/tracing_switches.h"
@@ -319,6 +322,7 @@ BrowserTestBase::~BrowserTestBase() {
 }
 
 void BrowserTestBase::SetUp() {
+  base::test::AllowCheckIsTestForTesting();
   set_up_called_ = true;
 
   if (!UseProductionQuotaSettings()) {
@@ -517,6 +521,23 @@ void BrowserTestBase::SetUp() {
   // Need to wipe feature list clean, since BrowserMain calls
   // FeatureList::SetInstance, which expects no instance to exist.
   base::FeatureList::ClearInstanceForTesting();
+
+  // Temporarily initialize a ScopedFeatureList to ensure it's valid during
+  // early browser process setup, which might access it before the true
+  // FeatureList is established by the test harness. This bridges the gap
+  // between ClearInstanceForTesting() and the actual FeatureList setup.
+  const bool feature_list_present = base::FeatureList::GetInstance();
+  base::test::ScopedFeatureList scoped_feature_list_for_testing;
+  if (!feature_list_present) {
+    // Browser tests clear and reset the global FeatureList (via
+    // ClearInstanceForTesting()); production code always has a
+    // FeatureList, even if it's empty (which it never is, since
+    // at the very least it has the process type, 'browser').
+    CHECK_IS_TEST();
+    // If in testing, initialize a bogus FeatureList for
+    // GpuDataManagerImpl to be access, otherwise it crashes :(
+    scoped_feature_list_for_testing.InitWithEmptyFeatureAndFieldTrialLists();
+  }
 
   auto created_main_parts_closure = base::BindOnce(
       &BrowserTestBase::CreatedBrowserMainPartsImpl, base::Unretained(this));

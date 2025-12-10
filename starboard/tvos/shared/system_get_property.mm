@@ -153,32 +153,17 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         // functionality is clear in Chrobalt.
         SB_NOTIMPLEMENTED();
         return false;
-
-      case kSbSystemPropertyAdvertisingId: {
-        NSString* advertisingId = [[ASIdentifierManager sharedManager]
-                                       .advertisingIdentifier UUIDString];
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          [advertisingId UTF8String]);
-      }
+      case kSbSystemPropertyAdvertisingId:
       case kSbSystemPropertyLimitAdTracking: {
-        // The assumption is we will limit ad tracking if the status from OS is
-        // not explicitly authorized (including if the API is not present on
-        // older OS versions).
-        bool limitAdTracking = true;
-        if (@available(tvOS 14.0, *)) {
-          ATTrackingManagerAuthorizationStatus status =
-              [ATTrackingManager trackingAuthorizationStatus];
-          if (status == ATTrackingManagerAuthorizationStatusAuthorized) {
-            limitAdTracking = false;
-          }
-        }
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          limitAdTracking ? "1" : "0");
+        SB_LOG(INFO) << "IFA is not supported via Starboard.";
+        return false;
       }
-
       case kSbSystemPropertyDeviceType:
         return CopyStringAndTestIfSuccess(
             out_value, value_length, starboard::kSystemDeviceTypeOverTheTopBox);
+      default:
+        SB_NOTIMPLEMENTED();
+        return false;
     }
   }
 
