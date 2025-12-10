@@ -62,11 +62,6 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
 
 /**
- *  @brief Enables Starboard to partially implement the EGL API.
- */
-@property(nonatomic, readonly) SBDEglAdapter* eglAdapter;
-
-/**
  *  @brief Called when Starboard requests the application to be suspended.
  */
 - (void)suspendApplication;

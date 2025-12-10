@@ -21,7 +21,6 @@
 #include "starboard/window.h"
 
 @class SBDApplication;
-@class SBDEglSurface;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -50,12 +49,6 @@ NS_ASSUME_NONNULL_BEGIN
  *  @brief If the window is full screen or not.
  */
 @property(nonatomic, readonly) BOOL windowed;
-
-/**
- *  @brief Attach an EGL surface so it is displayed with this window.
- *  @param surface The EGL surface to be displayed.
- */
-- (void)attachSurface:(SBDEglSurface*)surface;
 
 /**
  *  @brief Attach a player's view so it is displayed with this window.

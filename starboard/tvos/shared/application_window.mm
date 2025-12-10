@@ -14,8 +14,6 @@
 
 #import "starboard/tvos/shared/application_window.h"
 
-#import <GLKit/GLKit.h>
-
 #include <unordered_set>
 
 #include "starboard/event.h"
@@ -24,7 +22,6 @@
 #import "starboard/tvos/shared/defines.h"
 #import "starboard/tvos/shared/keyboard_input_device.h"
 #import "starboard/tvos/shared/media/application_player.h"
-#import "starboard/tvos/shared/media/egl_surface.h"
 #import "starboard/tvos/shared/starboard_application.h"
 #import "starboard/tvos/shared/window_manager.h"
 
@@ -355,17 +352,6 @@ static const NSDictionary<NSString*, NSNumber*>* keyCommandToSbKey = @{
   }
   self.hidden = YES;
   self.windowLevel = -1;
-}
-
-- (void)attachSurface:(SBDEglSurface*)surface {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    // Display surfaces are not interactable.
-    UIView* view = surface.view;
-    view.userInteractionEnabled = NO;
-    [self->_viewController.applicationView.interfaceContainer addSubview:view];
-    [self->_viewController.applicationView.interfaceContainer
-        sendSubviewToBack:view];
-  });
 }
 
 - (void)attachPlayerView:(UIView*)playerView {
