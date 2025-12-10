@@ -62,11 +62,6 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
 
 /**
- *  @brief Returns display refresh rate.
- */
-@property(nonatomic, readonly) double displayRefreshRate;
-
-/**
  *  @brief Called when Starboard requests the application to be suspended.
  */
 - (void)suspendApplication;
