@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Starboard configuration for a stub implementation designed to be
-// built on Desktop Linux. Other devices will have real Starboard
-// implementations.
+// This header provides shared settings across all architectures supported
+// on tvOS. Architecture-specific headers include this one.
 
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
