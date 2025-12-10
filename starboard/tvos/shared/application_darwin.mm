@@ -46,11 +46,11 @@
   return self;
 }
 
-- (void)setPlayerContainerView:(UIView *)view {
+- (void)setPlayerContainerView:(UIView*)view {
   _playerContainerView = view;
 }
 
-- (void)attachPlayerView:(UIView *)subView {
+- (void)attachPlayerView:(UIView*)subView {
   [_playerContainerView addSubview:subView];
 }
 
