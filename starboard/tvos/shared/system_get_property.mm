@@ -20,8 +20,11 @@
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/keyboxes/tvos/system_properties.h"
 #include "starboard/system.h"
+
+#if defined(INTERNAL_BUILD)
+#include "starboard/keyboxes/tvos/system_properties.h"
+#endif
 
 namespace {
 struct AppleTVDevice {
@@ -146,11 +149,10 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           kPlatformName);
       case kSbSystemPropertyCertificationScope:
-        if (kCertificationScope[0] == '\0') {
-          return false;
-        }
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kCertificationScope);
+        // TODO: b/460479616, b/464200271 - Reenable once the expected
+        // functionality is clear in Chrobalt.
+        SB_NOTIMPLEMENTED();
+        return false;
       case kSbSystemPropertyAdvertisingId:
       case kSbSystemPropertyLimitAdTracking: {
         SB_LOG(INFO) << "IFA is not supported via Starboard.";
