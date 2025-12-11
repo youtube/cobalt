@@ -660,8 +660,7 @@ public abstract class CobaltActivity extends Activity {
     }
     mWindowAndroid.destroy();
     if (mWebContentsObserver != null) {
-      mWebContentsObserver.observe(null);
-      mWebContentsObserver = null;
+      mWebContentsObserver.destroy();
     }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
