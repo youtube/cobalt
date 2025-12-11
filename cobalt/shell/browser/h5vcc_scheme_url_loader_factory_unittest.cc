@@ -21,7 +21,6 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/test/browser_task_environment.h"
@@ -127,7 +126,7 @@ class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
  public:
   H5vccSchemeURLLoaderFactoryTest()
       : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP),
-        browser_context_(std::make_unique<ShellBrowserContext>(false, false)),
+        browser_context_(std::make_unique<TestBrowserContext>()),
         factory_(browser_context_.get()) {}
 
   void SetUp() override {
@@ -143,7 +142,7 @@ class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-  std::unique_ptr<ShellBrowserContext> browser_context_;
+  std::unique_ptr<TestBrowserContext> browser_context_;
   H5vccSchemeURLLoaderFactory factory_;
   GeneratedResourceMap test_resource_map_;
 };

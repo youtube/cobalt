@@ -19,10 +19,10 @@
 
 #include "base/base64.h"
 #include "base/strings/string_util.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -154,7 +154,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   H5vccSchemeURLLoader(
       const network::ResourceRequest& request,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
-      ShellBrowserContext* browser_context,
+      BrowserContext* browser_context,
       const GeneratedResourceMap* resource_map_test)
       : client_(std::move(client)),
         url_(request.url),
@@ -342,7 +342,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
-  ShellBrowserContext* browser_context_;
+  BrowserContext* browser_context_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
   std::string content_;
   std::unique_ptr<BlobReader> blob_reader_;
@@ -351,7 +351,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 };
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
-    ShellBrowserContext* browser_context)
+    BrowserContext* browser_context)
     : browser_context_(browser_context) {}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
