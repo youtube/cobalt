@@ -248,7 +248,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsSafeWhenCrashStreakHighAndNotExpired) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
 
   base::Value::Dict feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
@@ -265,7 +265,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyWhenSafeConfigIsExpired) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
 
   base::Value::Dict feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
@@ -287,7 +287,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyWhenCrashStreakVeryHigh) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakEmptyConfigThreshold);
+                                    kDefaultCrashStreakEmptyConfigThreshold);
 
   // Set up a non-expired config.
   pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
@@ -307,21 +307,21 @@ TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeReturnsRegular) {
 
 TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeReturnsSafe) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
 }
 
 TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeReturnsEmpty) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakEmptyConfigThreshold);
+                                    kDefaultCrashStreakEmptyConfigThreshold);
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 }
 
 TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForSafeConfig) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
 
   experiment_config_manager_->StoreSafeConfig();
   task_environment_.RunUntilIdle();
@@ -355,7 +355,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForEmptyConfig) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakEmptyConfigThreshold);
+                                    kDefaultCrashStreakEmptyConfigThreshold);
 
   experiment_config_manager_->StoreSafeConfig();
   task_environment_.RunUntilIdle();
@@ -397,7 +397,7 @@ TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeIgnoresCrashStreakInExperimentPrefs) {
   // Set a high crash streak in the experiment prefs (which should be ignored).
   pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                            kCrashStreakSafeConfigThreshold);
+                            kDefaultCrashStreakSafeConfigThreshold);
 
   // Set a safe crash streak in the metrics prefs (which should be used).
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
@@ -438,7 +438,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyOnSafeConfigRollback) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
   pref_service_->SetString(kSafeConfigMinVersion, "99.lts.0");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
@@ -447,7 +447,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsSafeWhenVersionMatches) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
   pref_service_->SetString(kSafeConfigMinVersion, COBALT_VERSION);
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
@@ -456,7 +456,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsSafeWhenVersionIsOlder) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
   pref_service_->SetString(kSafeConfigMinVersion, "0.lts.0");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
@@ -474,7 +474,7 @@ TEST_F(ExperimentConfigManagerTest,
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsSafeWhenMinVersionIsEmpty) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    kCrashStreakSafeConfigThreshold);
+                                    kDefaultCrashStreakSafeConfigThreshold);
   pref_service_->SetString(kSafeConfigMinVersion, "");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
@@ -518,6 +518,7 @@ TEST_F(ExperimentConfigManagerTest,
   // Recorded version is one minor version ahead of the current version.
   std::string future_version = GetModifiedVersionString(0, 1);
   pref_service_->SetString(kExperimentConfigMinVersion, future_version);
+
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 }
@@ -600,6 +601,42 @@ TEST_F(ExperimentConfigManagerTest, CompareVersions) {
             ExperimentConfigManager::CompareVersions("9.lts.0", "9.0"));
   histogram_tester_.ExpectBucketCount("Cobalt.Finch.VersionComparisonIsValid",
                                       false, 4);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeUsesServerConfiguredThresholds) {
+  base::Value::Dict finch_params;
+  finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
+  finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
+  pref_service_->SetDict(kFinchParameters, std::move(finch_params));
+
+  // Crash streak is 4, which is less than the server-configured safe threshold
+  // of 5. Expect kRegularConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    4);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+
+  // Crash streak is 5, which is equal to the server-configured safe threshold.
+  // Expect kSafeConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    5);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+
+  // Crash streak is 9, which is between the safe and empty thresholds.
+  // Expect kSafeConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    9);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+
+  // Crash streak is 10, which is equal to the server-configured empty
+  // threshold. Expect kEmptyConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    10);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
 }
 
 }  // namespace cobalt
