@@ -59,17 +59,13 @@
 #include "content/public/browser/browser_url_handler.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/navigation_controller.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/common/url_constants.h"
-#include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
@@ -2000,50 +1996,6 @@ struct NewWebContentsData {
 
   std::unique_ptr<WebContents> new_web_contents;
   std::unique_ptr<TestNavigationManager> manager;
-};
-
-class CreateWebContentsOnCrashObserver : public NotificationObserver {
- public:
-  CreateWebContentsOnCrashObserver(const GURL& url,
-                                   WebContents* first_web_contents)
-      : url_(url), first_web_contents_(first_web_contents) {}
-
-  CreateWebContentsOnCrashObserver(const CreateWebContentsOnCrashObserver&) =
-      delete;
-  CreateWebContentsOnCrashObserver& operator=(
-      const CreateWebContentsOnCrashObserver&) = delete;
-
-  void Observe(int type,
-               const NotificationSource& source,
-               const NotificationDetails& details) override {
-    EXPECT_EQ(content::NOTIFICATION_RENDERER_PROCESS_CLOSED, type);
-
-    // Only do this once in the test.
-    if (observed_) {
-      return;
-    }
-    observed_ = true;
-
-    WebContents::CreateParams new_contents_params(
-        first_web_contents_->GetBrowserContext(),
-        first_web_contents_->GetSiteInstance());
-    data_.new_web_contents = WebContents::Create(new_contents_params);
-    data_.manager = std::make_unique<TestNavigationManager>(
-        data_.new_web_contents.get(), url_);
-    NavigationController::LoadURLParams load_params(url_);
-    data_.new_web_contents->GetController().LoadURLWithParams(load_params);
-  }
-
-  NewWebContentsData TakeNewWebContentsData() { return std::move(data_); }
-
- private:
-  NewWebContentsData data_;
-  bool observed_ = false;
-
-  GURL url_;
-  raw_ptr<WebContents> first_web_contents_;
-
-  ScopedAllowRendererCrashes scoped_allow_renderer_crashes_;
 };
 
 // Test NavigationRequest::CheckAboutSrcDoc()
@@ -6506,37 +6458,6 @@ IN_PROC_BROWSER_TEST_F(
   histograms.ExpectUniqueSample(
       "Navigation.SuddenTerminationDisabler.SameOrigin",
       RenderFrameHostImpl::NavigationSuddenTerminationDisablerType::kMainFrame,
-      1);
-}
-
-// Test that we record when the navigation involves restoring from BFCache.
-// This is tested because the code path for a navigation involving activation
-// is different from one involving a pageload.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaActivation) {
-  ASSERT_TRUE(NavigateToURL(
-      shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
-
-  ASSERT_TRUE(NavigateToURL(
-      shell(), embedded_test_server()->GetURL("b.com", "/title1.html")));
-
-  // Set up the unload handler in the b.com page.
-  AddUnloadHandler(current_frame_host());
-  // Navigate the main frame and capture histograms.
-  base::HistogramTester histograms;
-  ASSERT_TRUE(HistoryGoBack(web_contents()));
-
-  histograms.ExpectUniqueSample(
-      "Navigation.SuddenTerminationDisabler.AllOrigins",
-      RenderFrameHostImpl::NavigationSuddenTerminationDisablerType::kMainFrame |
-          RenderFrameHostImpl::NavigationSuddenTerminationDisablerType::kUnload,
-      1);
-  histograms.ExpectUniqueSample(
-      "Navigation.SuddenTerminationDisabler.SameOrigin",
-      RenderFrameHostImpl::NavigationSuddenTerminationDisablerType::kMainFrame |
-          RenderFrameHostImpl::NavigationSuddenTerminationDisablerType::kUnload,
       1);
 }
 

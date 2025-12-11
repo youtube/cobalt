@@ -15,6 +15,9 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
+import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.widget.FrameLayout;
 import org.chromium.base.ThreadUtils;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.Visibility;
@@ -29,7 +32,7 @@ import org.jni_zero.NativeMethods;
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
-public class ShellManager {
+public class ShellManager extends FrameLayout {
     private static final String TAG = "cobalt";
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
@@ -42,21 +45,15 @@ public class ShellManager {
     // The target for all content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
-    private Context mContext;
-
     /**
      * Constructor for inflating via XML.
      */
-    public ShellManager(final Context context) {
-        mContext = context;
+    public ShellManager(final Context context, AttributeSet attrs) {
+        super(context, attrs);
         if (sNatives == null) {
             sNatives = ShellManagerJni.get();
         }
         sNatives.init(this);
-    }
-
-    public Context getContext() {
-        return mContext;
     }
 
     /**
@@ -126,7 +123,9 @@ public class ShellManager {
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
-        Shell shellView = new Shell(getContext());
+        LayoutInflater inflater =
+                (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        Shell shellView = (Shell) inflater.inflate(R.layout.shell_view, null);
         shellView.initialize(nativeShellPtr, mWindow);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
@@ -139,10 +138,10 @@ public class ShellManager {
     }
 
     private void showShell(Shell shellView) {
-        if (mActiveShell != null) {
-            mActiveShell.setContentViewRenderView(null);
-        }
         shellView.setContentViewRenderView(mContentViewRenderView);
+        addView(shellView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
@@ -154,7 +153,9 @@ public class ShellManager {
     @CalledByNative
     private void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
+        if (shellView.getParent() == null) return;
         shellView.setContentViewRenderView(null);
+        removeView(shellView);
     }
 
     /**

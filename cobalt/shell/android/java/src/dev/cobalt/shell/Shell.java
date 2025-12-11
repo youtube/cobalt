@@ -43,8 +43,10 @@ import org.jni_zero.NativeMethods;
  *  Cobalt's own Java implementation of Shell. It does not have Shell UI.
  *  Container for the various UI components that make up a shell window.
  */
+import android.util.AttributeSet;
+
 @JNINamespace("content")
-public class Shell {
+public class Shell extends FrameLayout {
     /**
      * Interface for notifying observers of WebContents readiness.
      */
@@ -80,9 +82,17 @@ public class Shell {
     /**
      * Constructor for inflating via XML.
      */
-    public Shell(Context context) {
+    public Shell(Context context, AttributeSet attrs) {
+        super(context, attrs);
         Activity activity = (Activity) context;
         mRootView = activity.findViewById(android.R.id.content);
+    }
+
+    /**
+     * Constructor for inflating via XML.
+     */
+    public Shell(Context context) {
+        this(context, null);
     }
 
     public void setRootViewForTesting(ViewGroup view) {
