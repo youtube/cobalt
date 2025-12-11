@@ -6,6 +6,7 @@
 
 #include <ifaddrs.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "third_party/blink/public/platform/platform.h"
 
@@ -49,6 +50,40 @@ bool IsIPInLocalNetwork(const std::string& target_ip_str) {
 
     freeifaddrs(ifaddr);
     return is_local;
+}
+
+bool IsIPInPrivateRange(const std::string& ip_str) {
+  // For IPv4, the private address range is defined by RFC 1918
+  // available at https://tools.ietf.org/html/rfc1918#section-3.
+  struct in_addr ipv4_addr;
+  if (inet_pton(AF_INET, ip_str.c_str(), &ipv4_addr) == 1) {
+      // Convert to host byte order for easier comparison
+      uint32_t addr = ntohl(ipv4_addr.s_addr);
+
+      // 10.0.0.0/8
+      if ((addr & 0xFF000000) == 0x0A000000) return true;
+
+      // 172.16.0.0/12 (172.16.0.0 to 172.31.255.255)
+      if ((addr & 0xFFF00000) == 0xAC100000) return true;
+
+      // 192.168.0.0/16
+      if ((addr & 0xFFFF0000) == 0xC0A80000) return true;
+
+      return false;
+  }
+
+  // Unique Local Addresses for IPv6 are _effectively_ fd00::/8.
+  // See https://tools.ietf.org/html/rfc4193#section-3 for details.
+  struct in6_addr ipv6_addr;
+  if (inet_pton(AF_INET6, ip_str.c_str(), &ipv6_addr) == 1) {
+    // RFC 4193: fc00::/7 (The first 7 bits must be 1111110)
+    // This covers both fc00::/8 and fd00::/8
+    // We check the first byte: (byte & 11111110) == 11111100
+    return (ipv6_addr.s6_addr[0] & 0xFE) == 0xFC;
+  }
+
+  // Not a valid IPv4 or IPv6 address
+  return false;
 }
 
 }  // namespace blink

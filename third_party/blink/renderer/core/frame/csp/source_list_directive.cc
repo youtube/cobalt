@@ -85,6 +85,12 @@ bool CSPSourceListAllows(
       return IsIPInLocalNetwork(url.Host().Utf8());
     }
   }
+  if (source_list.cobalt_insecure_private_range) {
+    // Allow websocket connection to host ip within the local network.
+    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
+      return IsIPInPrivateRange(url.Host().Utf8());
+    }
+  }
 #endif
   if (source_list.allow_self && CSPSourceMatchesAsSelf(self_source, url)) {
     return true;
@@ -121,7 +127,8 @@ bool CSPSourceListIsNone(
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
 #if BUILDFLAG(IS_COBALT)
-         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network &&
+         !source_list.cobalt_insecure_private_range;
 #else
          !source_list.hashes.size();
 #endif
