@@ -62,7 +62,14 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+<<<<<<< HEAD
 import org.chromium.content_public.browser.WebContents;
+=======
+import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.Visibility;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
+>>>>>>> 95d33e17978 (android: Dismiss network error dialog once connected to Internet (#8244))
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -106,6 +113,7 @@ public abstract class CobaltActivity extends Activity {
   private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
+<<<<<<< HEAD
   private Boolean isKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector cobaltConnectivityDetector;
 
@@ -113,6 +121,11 @@ public abstract class CobaltActivity extends Activity {
   private final Object lock = new Object();
   private Handler mShowAppShellHandler;
   private Runnable mShowAppShellRunnable;
+=======
+  private Boolean mIsKeepScreenOnEnabled = false;
+  private CobaltConnectivityDetector mCobaltConnectivityDetector;
+  private WebContentsObserver mWebContentsObserver;
+>>>>>>> 95d33e17978 (android: Dismiss network error dialog once connected to Internet (#8244))
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -244,6 +257,7 @@ public abstract class CobaltActivity extends Activity {
 
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
+<<<<<<< HEAD
             mShellManager.getAppShell().loadUrl(mStartupUrl);
           }
 
@@ -273,6 +287,31 @@ public abstract class CobaltActivity extends Activity {
                       }
                     };
             mShowAppShellHandler.postDelayed(mShowAppShellRunnable, mSplashTimeoutMs);
+=======
+            mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+            // Initialize and register a WebContentsObserver.
+            mWebContentsObserver =
+              new org.chromium.content_public.browser.WebContentsObserver(getActiveWebContents()) {
+                @Override
+                public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  if (!navigationHandle.isSameDocument()) {
+                    mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
+                  }
+                }
+
+                @Override
+                public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  // The connectivity detector will consider the app has loaded if the navigation has
+                  // committed successfully with a valid internet connection.
+                  if (navigationHandle.hasCommitted()
+                      && !navigationHandle.isErrorPage()
+                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                        mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
+                  }
+                }
+              };
+>>>>>>> 95d33e17978 (android: Dismiss network error dialog once connected to Internet (#8244))
           }
         });
     if (mDisableNativeSplash) {
@@ -482,6 +521,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
+    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     videoSurfaceView = new VideoSurfaceView(this);
@@ -625,6 +665,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (mWebContentsObserver != null) {
+      mWebContentsObserver.observe(null);
+      mWebContentsObserver = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
