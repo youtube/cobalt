@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/buildflags.gni")  # For is_androidtv.
+
 if (is_ios) {
   import("//build/config/apple/mobile_config.gni")
 }
@@ -32,7 +34,7 @@ source_set("h5vcc_accessibility") {
     "//starboard:starboard_group",
   ]
 
-  if (is_android) {
+  if (is_androidtv) {
     sources += [
       "platform_text_to_speech_helper_android.cc",
       "platform_text_to_speech_helper_android.h",
