@@ -324,56 +324,6 @@ bool UsesAudioService(media::RendererType renderer_type) {
   return renderer_type != media::RendererType::kMediaFoundation;
 }
 
-<<<<<<< HEAD
-=======
-WebTimeRanges ConvertToWebTimeRanges(
-    const media::Ranges<base::TimeDelta>& ranges) {
-  WebTimeRanges result(ranges.size());
-  for (size_t i = 0; i < ranges.size(); ++i) {
-    result[i].start = ranges.start(i).InSecondsF();
-    result[i].end = ranges.end(i).InSecondsF();
-  }
-  return result;
-}
-
-WebMediaPlayer::NetworkState PipelineErrorToNetworkState(
-    media::PipelineStatus error) {
-  switch (error.code()) {
-    case media::PIPELINE_ERROR_NETWORK:
-    case media::PIPELINE_ERROR_READ:
-    case media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR:
-      return WebMediaPlayer::kNetworkStateNetworkError;
-
-    case media::PIPELINE_ERROR_INITIALIZATION_FAILED:
-    case media::PIPELINE_ERROR_COULD_NOT_RENDER:
-    case media::PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED:
-    case media::DEMUXER_ERROR_COULD_NOT_OPEN:
-    case media::DEMUXER_ERROR_COULD_NOT_PARSE:
-    case media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
-    case media::DEMUXER_ERROR_DETECTED_HLS:
-    case media::DEMUXER_ERROR_PROGRESSIVE_DISABLED:
-    case media::DECODER_ERROR_NOT_SUPPORTED:
-    case media::DEMUXER_ERROR_BITSTREAM_CONVERSION_FAILED:
-      return WebMediaPlayer::kNetworkStateFormatError;
-
-    case media::PIPELINE_ERROR_DECODE:
-    case media::PIPELINE_ERROR_ABORT:
-    case media::PIPELINE_ERROR_INVALID_STATE:
-    case media::PIPELINE_ERROR_HARDWARE_CONTEXT_RESET:
-    case media::PIPELINE_ERROR_DISCONNECTED:
-    case media::PIPELINE_ERROR_OUT_OF_MEMORY:
-    case media::CHUNK_DEMUXER_ERROR_APPEND_FAILED:
-    case media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR:
-    case media::AUDIO_RENDERER_ERROR:
-      return WebMediaPlayer::kNetworkStateDecodeError;
-
-    case media::PIPELINE_OK:
-      NOTREACHED() << "Unexpected status! " << error;
-  }
-  return WebMediaPlayer::kNetworkStateFormatError;
-}
-
->>>>>>> dd10cf81e71 (Cherry-pick Add PipelineStatusCode DEMUXER_ERROR_PROGRESSIVE_DISABLED (#7827))
 }  // namespace
 
 STATIC_ASSERT_ENUM(WebMediaPlayer::kCorsModeUnspecified,

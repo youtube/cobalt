@@ -104,6 +104,7 @@ WebMediaPlayer::NetworkState PipelineErrorToNetworkState(
     case media::DEMUXER_ERROR_COULD_NOT_PARSE:
     case media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
     case media::DEMUXER_ERROR_DETECTED_HLS:
+    case media::DEMUXER_ERROR_PROGRESSIVE_DISABLED:
     case media::DECODER_ERROR_NOT_SUPPORTED:
       return WebMediaPlayer::kNetworkStateFormatError;
 
