@@ -431,10 +431,6 @@ public abstract class CobaltActivity extends Activity {
   private void initializeJavaBridge() {
     Log.i(TAG, "initializeJavaBridge");
 
-    if (mShellManager == null || mShellManager.getAppShell() == null) {
-      throw new RuntimeException(
-          "mShellManager or mAppShell is null in initializeJavaBridge. This should never happen.");
-    }
     WebContents webContents = getAppWebContents();
     if (webContents == null) {
       throw new RuntimeException(
