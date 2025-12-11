@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
-#define COBALT_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#ifndef COBALT_SHELL_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#define COBALT_SHELL_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
 
 #include <atomic>
 #include <memory>
@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
-#include "cobalt/browser/migrate_storage_record/storage.pb.h"
+#include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "net/cookies/canonical_cookie.h"
@@ -59,4 +59,4 @@ class MigrationManager {
 }  // namespace migrate_storage_record
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#endif  // COBALT_SHELL_BROWSER_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_

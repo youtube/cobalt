@@ -59,11 +59,13 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -96,6 +98,7 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
+  private WebContentsObserver mWebContentsObserver;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -215,6 +218,28 @@ public abstract class CobaltActivity extends Activity {
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+            // Initialize and register a WebContentsObserver.
+            mWebContentsObserver =
+              new org.chromium.content_public.browser.WebContentsObserver(getActiveWebContents()) {
+                @Override
+                public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  if (!navigationHandle.isSameDocument()) {
+                    mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
+                  }
+                }
+
+                @Override
+                public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  // The connectivity detector will consider the app has loaded if the navigation has
+                  // committed successfully with a valid internet connection.
+                  if (navigationHandle.hasCommitted()
+                      && !navigationHandle.isErrorPage()
+                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                        mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
+                  }
+                }
+              };
           }
         });
   }
@@ -330,6 +355,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
+    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     mVideoSurfaceView = new VideoSurfaceView(this);
@@ -466,6 +492,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (mWebContentsObserver != null) {
+      mWebContentsObserver.observe(null);
+      mWebContentsObserver = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
