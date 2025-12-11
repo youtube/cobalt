@@ -101,7 +101,7 @@ public class ShellManager {
     /**
      * @return The current Splash shell.
      */
-    public Shell getSplashShell() {
+    public Shell getSplashAppShell() {
         return mSplashShell;
     }
 
