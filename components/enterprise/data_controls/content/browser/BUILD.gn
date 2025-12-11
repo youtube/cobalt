@@ -1,0 +1,40 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//components/enterprise/buildflags/buildflags.gni")
+
+assert(enterprise_data_controls)
+
+source_set("browser") {
+  sources = [
+    "last_replaced_clipboard_data.cc",
+    "last_replaced_clipboard_data.h",
+  ]
+  deps = [
+    "//components/enterprise/data_controls/core/browser",
+    "//components/enterprise/data_controls/core/browser:features",
+    "//components/prefs",
+    "//content/public/browser/",
+    "//ui/base/clipboard",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "last_replaced_clipboard_data_unittest.cc" ]
+
+  deps = [
+    ":browser",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+    "//ui/base/clipboard:clipboard_test_support",
+    "//ui/gfx:test_support",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}

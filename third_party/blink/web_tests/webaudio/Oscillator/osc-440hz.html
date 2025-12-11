@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Custom 440 Hz Oscillator
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+
+      // Minimum allowed SNR between the actual oscillator and the expected
+      // result.  Experimentally determined.
+      const snrThreshold = 59.280;
+      // Max absolute difference between actual and expected oscillator
+      // outputs.  Experimentally determined.
+      const maxDiffThreshold = 1.5640e-3;
+
+      promise_test(t => {
+        // 3-channel context: channel 0 = actual output; channel 1 = expected
+        // output, channel 2 = difference between channels 0 and 1.
+        const context = new OfflineAudioContext(3, sampleRate, sampleRate);
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Create a 440 Hz oscillator in following way.  Use a PeriodicWave with
+        // a single harmonic value of 440 and use that in an oscillator with
+        // fundamental frequency of 1 Hz.  This should produce a 440 Hz sine
+        // wave.  This is the test signal.
+        const imag = new Float32Array(512);
+        imag[440] = 1;
+        const wave440 =
+            new PeriodicWave(context, {imag: imag, disableNormalization: true});
+
+        const oscTest =
+            new OscillatorNode(context, {frequency: 1, periodicWave: wave440});
+
+        // Create a 440 Hz oscillator by specifying a frequency of 440 Hz.  We
+        // use a periodicWave for this so we can disable normalization.
+        const oscRef = new OscillatorNode(context, {
+          frequency: 440,
+          periodicWave: new PeriodicWave(
+              context,
+              {imag: new Float32Array([0, 1]), disableNormalization: true}),
+        });
+
+        oscTest.connect(merger, 0, 0);
+        oscRef.connect(merger, 0, 1);
+
+        // Compute the difference of the two signals
+        const neg = new GainNode(context, {gain: -1});
+        neg.connect(merger, 0, 2);
+
+        oscTest.connect(merger, 0, 2);
+        oscRef.connect(neg);
+
+        oscTest.start();
+        oscRef.start();
+
+        return context.startRendering().then(result => {
+          const actual = result.getChannelData(0);
+          const ref = result.getChannelData(1);
+
+          // The actual and reference signals should be close, and the SNR
+          // should be high.
+          assert_array_equal_within_eps(
+              actual, ref, {absoluteThreshold: maxDiffThreshold},
+              'Test oscillator output');
+
+          const snr = 10 * Math.log10(computeSNR(actual, ref));
+          assert_greater_than_equal(snr, snrThreshold, 'SNR');
+        });
+      }, '440 Hz Osc: custom and reference oscillators match within tolerance');
+    </script>
+  </body>
+</html>

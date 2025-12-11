@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test PeriodicWave Lengths at Different Sample Rates</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      // Test PeriodicWave objects with varying number of coefficients at
+      // different sample rates. Basically, verify that the coefficients are
+      // used at the appropriate sample rates.  This is done by comparing the
+      // outputs of two periodic waves used in oscillators.  The output should
+      // either be exactly zero or not depending on whether the coefficients
+      // were used.
+
+      // Duration of audio rendering in seconds.
+      const renderLength = 1;
+
+      // Generate a string prefix describing the comparison.
+      function generatePrefix(sampleRate, bigLength, smallLength) {
+        return `At ${sampleRate / 1000} kHz, PeriodicWave with ${bigLength} ` +
+            `coefficients vs ${smallLength} `;
+      }
+
+      // Returns a function that verifies the result is zero.
+      function resultShouldBeZero(sampleRate, bigLength, smallLength) {
+        return buffer => {
+          const prefix = generatePrefix(sampleRate, bigLength, smallLength);
+          assert_equals(
+              isBufferZero(buffer),
+              true,
+              `${prefix} are identical`
+          );
+        };
+      }
+
+      // Returns a function that verifies the result is non-zero.
+      function resultShouldBeNonZero(sampleRate, bigLength, smallLength) {
+        return buffer => {
+          const prefix = generatePrefix(sampleRate, bigLength, smallLength);
+          assert_equals(
+              !isBufferZero(buffer),
+              true,
+              `${prefix} are different`
+          );
+        };
+      }
+
+      // Check if the AudioBuffer contains only zeroes.
+      function isBufferZero(buffer) {
+        return !buffer.getChannelData(0).some(x => x !== 0);
+      }
+
+      // Build the audio processing graph.
+      function createAudioGraph(
+          sampleRate, bigPeriodicWaveLength, smallPeriodicWaveLength) {
+            const context = new OfflineAudioContext(
+                1,
+                renderLength * sampleRate,
+                sampleRate
+            );
+
+            const smallWaveRealCoef = new Float32Array(smallPeriodicWaveLength);
+            const smallWaveImagCoef = new Float32Array(smallPeriodicWaveLength);
+            const bigWaveRealCoef = new Float32Array(bigPeriodicWaveLength);
+            const bigWaveImagCoef = new Float32Array(bigPeriodicWaveLength);
+
+            // Fill in imaginary coefficients for a sawtooth waveform.
+            bigWaveImagCoef[0] = 0;
+            for (let k = 1; k < bigPeriodicWaveLength; ++k) {
+              const piFactor = 2 / (Math.PI * k);
+              bigWaveImagCoef[k] = piFactor * (k % 2 === 0 ? -1 : 1);
+              if (k < smallPeriodicWaveLength) {
+                smallWaveImagCoef[k] = bigWaveImagCoef[k];
+              }
+            }
+
+            const smallPeriodicWave = new PeriodicWave(
+                context,
+                { real: smallWaveRealCoef, imag: smallWaveImagCoef }
+            );
+            const bigPeriodicWave = new PeriodicWave(
+                context,
+                { real: bigWaveRealCoef, imag: bigWaveImagCoef }
+            );
+
+            const smallOscillator = context.createOscillator();
+            const bigOscillator = context.createOscillator();
+
+            smallOscillator.setPeriodicWave(smallPeriodicWave);
+            bigOscillator.setPeriodicWave(bigPeriodicWave);
+
+            smallOscillator.frequency.value = 1;
+            bigOscillator.frequency.value = 1;
+
+            const gain = context.createGain();
+            gain.gain.value = -1;
+
+            smallOscillator.connect(gain);
+            gain.connect(context.destination);
+            bigOscillator.connect(context.destination);
+
+            smallOscillator.start();
+            bigOscillator.start();
+
+            return context;
+      }
+
+      // Run a test for the given wave sizes and sample rate.
+      function runWaveCoefficientTest(
+          sampleRate, bigLength, smallLength, verifier, name) {
+            promise_test(t => {
+              const context = createAudioGraph(
+                  sampleRate, bigLength, smallLength);
+              return context.startRendering().then(
+                  verifier(sampleRate, bigLength, smallLength)
+              );
+            }, name);
+      }
+
+      const testSet = [
+        {
+          name: '192kHz uses >2048 coefficients',
+          sampleRate: 192000,
+          bigWave: 8192,
+          smallWave: 2048,
+          verifier: resultShouldBeNonZero
+        },
+        {
+          name: '192kHz uses >=2049 coefficients',
+          sampleRate: 192000,
+          bigWave: 2049,
+          smallWave: 2048,
+          verifier: resultShouldBeNonZero
+        },
+        {
+          name: '192kHz uses all 8192 coefficients',
+          sampleRate: 192000,
+          bigWave: 8192,
+          smallWave: 8191,
+          verifier: resultShouldBeNonZero
+        },
+        {
+          name: '48kHz limited to <=2048 coefficients (test 1)',
+          sampleRate: 48000,
+          bigWave: 8192,
+          smallWave: 2048,
+          verifier: resultShouldBeZero
+        },
+        {
+          name: '48kHz limited to <=2048 coefficients (test 2)',
+          sampleRate: 48000,
+          bigWave: 2049,
+          smallWave: 2048,
+          verifier: resultShouldBeZero
+        },
+        {
+          name: '48kHz limited (floating point test)',
+          sampleRate: 48000,
+          bigWave: (2 + 1 / 64) * 1024,
+          smallWave: 2048,
+          verifier: resultShouldBeZero
+        },
+        {
+          name: '48kHz uses >=2048 coefficients',
+          sampleRate: 48000,
+          bigWave: 2048,
+          smallWave: 2046,
+          verifier: resultShouldBeNonZero
+        },
+        {
+          name: '24kHz limited to <=1024 coefficients (test 1)',
+          sampleRate: 24000,
+          bigWave: 8192,
+          smallWave: 1024,
+          verifier: resultShouldBeZero
+        },
+        {
+          name: '24kHz limited to <=1024 coefficients (test 2)',
+          sampleRate: 24000,
+          bigWave: 1025,
+          smallWave: 1024,
+          verifier: resultShouldBeZero
+        },
+        {
+          name: '24kHz uses >=1024 coefficients',
+          sampleRate: 24000,
+          bigWave: 1024,
+          smallWave: 1022,
+          verifier: resultShouldBeNonZero
+        }
+      ];
+
+      for (let i = 0; i < testSet.length; ++i) {
+        const { name, sampleRate, bigWave, smallWave, verifier } = testSet[i];
+        runWaveCoefficientTest(
+            sampleRate,
+            bigWave,
+            smallWave,
+            verifier,
+            `${i}: ${name}`
+        );
+      }
+    </script>
+  </body>
+</html>

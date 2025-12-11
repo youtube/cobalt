@@ -1,0 +1,11 @@
+EMAIL_ADDRESS | emailAddress | Email Address |  | emailAddress_1
+UNKNOWN_TYPE | password | Password |  | -default
+UNKNOWN_TYPE | passwordNew | Password |  | emailAddress_1
+UNKNOWN_TYPE | passwordConfirm | Password (confirm) |  | emailAddress_1
+NAME_FULL | name | Full Name |  | emailAddress_1
+ADDRESS_HOME_COUNTRY | country | Country | 0 | emailAddress_1
+
+EMAIL_ADDRESS | emailAddress | Email Address |  | emailAddress_1
+UNKNOWN_TYPE | password | Password |  | emailAddress_1
+
+UNKNOWN_TYPE | q | deviantARTBrowse ArtPrints ShopT-Shirts & GearFind More ArtDaily DeviationsDiscover |  | q_1

@@ -1,0 +1,23 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "fuchsia"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "PrintingBackgroundGraphicsDefault": "enabled"
+        },
+        "prefs": {
+          "printing.background_graphics_default": {
+            "value": 1
+          }
+        }
+      }
+    ]
+  }
+]

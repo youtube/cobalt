@@ -1,0 +1,63 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chrome_build.gni")
+import("//third_party/protobuf/proto_library.gni")
+
+assert(is_win)
+
+# Note: Most of the files in this directory are directly added as source files
+#       to the //chrome/browser target (chrome/browser/BUILD.gn).
+
+source_set("module_info") {
+  sources = [
+    "module_info.cc",
+    "module_info.h",
+    "module_info_util.cc",
+    "module_info_util.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//content/public/common",
+  ]
+
+  deps = [ "//base:i18n" ]
+
+  libs = [ "crypt32.lib" ]
+}
+
+loadable_module("conflicts_dll") {
+  testonly = true
+  sources = [ "test/conflicts_dll.cc" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "enumerate_input_method_editors_unittest.cc",
+    "enumerate_shell_extensions_unittest.cc",
+    "inspection_results_cache_unittest.cc",
+    "module_database_unittest.cc",
+    "module_info_unittest.cc",
+    "module_info_util_unittest.cc",
+    "module_inspector_unittest.cc",
+  ]
+
+  deps = [
+    ":conflicts_dll",
+    ":module_info",
+    "//base",
+    "//chrome/browser",
+    "//chrome/services/util_win:lib",
+    "//chrome/test:test_support",
+    "//content/test:test_support",
+    "//services/service_manager/public/cpp/test:test_support",
+    "//testing/gtest",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}

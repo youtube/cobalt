@@ -1,0 +1,55 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# Allowlist of classes that can be shadowed (by @Shadow).
+# Please do not add to this list. See:
+# https://chromium.googlesource.com/chromium/src/+/main/styleguide/java/java.md#testing
+
+# TODO(https://crbug.com/341267427): Reduce this list.
++org.chromium.base.task.AsyncTask
++org.chromium.base.task.PostTask
++org.chromium.chrome.browser.dragdrop.ChromeDragAndDropBrowserDelegate$ClipDataItemBuilder
++org.chromium.chrome.browser.firstrun.FirstRunUtils
++org.chromium.chrome.browser.init.ChromeBrowserInitializer
++org.chromium.chrome.browser.multiwindow.MultiInstanceManagerApi31
++org.chromium.chrome.browser.night_mode.WebContentsDarkModeController
++org.chromium.chrome.browser.omnibox.UrlBarData
++org.chromium.chrome.browser.omnibox.geo.VisibleNetworksTracker
++org.chromium.chrome.browser.partnercustomizations.CustomizationProviderDelegateUpstreamImpl
++org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations
++org.chromium.chrome.browser.profiles.Profile
++org.chromium.chrome.browser.profiles.ProfileManager
++org.chromium.chrome.browser.profiles.ProfileManagerUtils
++org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory
++org.chromium.chrome.browser.searchwidget.SearchActivityUtils
++org.chromium.chrome.browser.share.link_to_text.LinkToTextCoordinator
++org.chromium.chrome.browser.share.long_screenshots.LongScreenshotsCoordinator
++org.chromium.chrome.browser.share.qrcode.QrCodeDialog
++org.chromium.chrome.browser.share.ShareHelper$ChooserActionHelper
++org.chromium.chrome.browser.tab.SadTab
++org.chromium.chrome.browser.tab.TabBrowserControlsOffsetHelper
++org.chromium.chrome.browser.tab.TabBuilder
++org.chromium.chrome.browser.tab.TabUtils
++org.chromium.chrome.browser.toolbar.adaptive.OptionalNewTabButtonController$Delegate
++org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory
++org.chromium.chrome.browser.ui.hats.MessageSurveyUiDelegate
++org.chromium.chrome.browser.webapps.WebApkShareTargetUtil
++org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider
++org.chromium.components.browser_ui.styles.SemanticColorUtils
++org.chromium.components.browser_ui.widget.ContextMenuDialog
++org.chromium.components.embedder_support.util.UrlUtilities
++org.chromium.components.media_router.caf.CastMediaSource
++org.chromium.components.url_formatter.UrlFormatter
++org.chromium.ui.InsetsRectProvider$BoundingRectHelper
++org.chromium.ui.base.MimeTypeUtils
++org.chromium.ui.display.DisplayAndroid
++org.chromium.ui.display.DisplayAndroidManager
++org.chromium.ui.resources.dynamics.CaptureUtils
++org.chromium.ui.insets.WindowInsetsUtils
++org.chromium.ui.widget.AnchoredPopupWindow
++org.chromium.webapk.shell_apk.LaunchHostBrowserSelector
+
+# Disallow new shadows of chrome-authored code.
+-com.google.android.apps.chrome
+-org.chromium

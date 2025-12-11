@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test ConverNode Does Not Modify its Buffer
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Arbitrary sample rate
+      const sampleRate = 48000;
+
+      // We're not going to render anything from the offline context, so make it
+      // short.
+      const renderFrames = RENDER_QUANTUM_FRAMES;
+
+      test(() => {
+        const context = new OfflineAudioContext({
+          length: renderFrames,
+          sampleRate,
+        });
+
+        // Let the impulse response be a sine wave with a frequency of
+        // 1234.5678 Hz.  No particular reason for this frequency except
+        // that we know this will cause the convolver to modify its
+        // response if it hasn't been fixed not to do that.
+        const responseData = new Float32Array(500);
+        const omega = 2 * Math.PI / sampleRate * 1234.5678;
+        for (let k = 0; k < responseData.length; ++k) {
+          responseData[k] = Math.sin(omega * k);
+        }
+
+        const response = new AudioBuffer({
+          length: responseData.length,
+          sampleRate: context.sampleRate,
+        });
+
+        response.copyToChannel(responseData, 0);
+
+        // Create the convolver node with the desired response buffer.
+        // Explicitly enable normalization.
+        const node = new ConvolverNode(
+            context, {buffer: response, disableNormalization: false});
+
+        const output = response.getChannelData(0);
+
+        // After constructing the ConvolverNode, the response better had
+        // better be unmodified.
+        assert_array_equals(
+            output, responseData, 'Convolver response after construction');
+      }, 'Convolver buffer is unchanged');
+    </script>
+  </body>
+</html>

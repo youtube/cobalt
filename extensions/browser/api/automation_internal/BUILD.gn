@@ -1,0 +1,45 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ui.gni")
+import("//extensions/buildflags/buildflags.gni")
+
+assert(enable_extensions,
+       "Cannot depend on extensions because enable_extensions=false.")
+
+source_set("automation_internal") {
+  sources = [
+    "automation_event_router.cc",
+    "automation_event_router.h",
+    "automation_event_router_interface.h",
+    "automation_internal_api.cc",
+    "automation_internal_api.h",
+    "automation_internal_api_delegate.cc",
+    "automation_internal_api_delegate.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [
+    "//base",
+    "//content/public/browser",
+    "//extensions/browser:browser_sources",
+    "//extensions/browser/api:extensions_api_client",
+    "//extensions/browser/api/app_runtime",
+    "//extensions/common",
+    "//extensions/common:mojom",
+    "//extensions/common/api",
+    "//services/accessibility/public/mojom:automation",
+    "//ui/accessibility:ax_base",
+  ]
+
+  deps = [
+    "//build:chromeos_buildflags",
+    "//third_party/blink/public/common",
+  ]
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
+}

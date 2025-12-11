@@ -1,0 +1,5 @@
+android.webkit.WebView focusable focused
+++android.widget.Button clickable focusable interesting name='Regular button'
+++android.widget.ToggleButton checkable clickable focusable interesting name='Toggle button'
+++android.widget.ToggleButton checkable clickable focusable interesting name='Toggle button' checked=1
+++android.widget.ToggleButton checkable clickable focusable interesting name='Toggle button' checked=2

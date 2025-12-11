@@ -1,0 +1,3 @@
+Test for bug 14968: document.open() erroneously returns void instead of the new Document.
+
+SUCCESS

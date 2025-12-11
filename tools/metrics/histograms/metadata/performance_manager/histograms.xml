@@ -1,0 +1,426 @@
+<!--
+Copyright 2022 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+This file is used to generate a comprehensive list of histograms owned
+by the Performance Manager team along with a detailed description for
+each histogram.
+-->
+
+<histogram-configuration>
+
+<histograms>
+
+<variants name="CoreType">
+  <variant name="Balanced"/>
+  <variant name="Efficiency"/>
+  <variant name="Performance"/>
+</variants>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskMigrated" enum="Boolean"
+    expires_after="2025-03-10">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    True if the CPU estimation task was running on a different CPU at the end of
+    the assembly loop than it was at the beginning.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskQueuedTime.{CoreType}"
+    units="microseconds" expires_after="2025-07-13">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The time in microseconds during which the CPU estimation task was queued
+    before running.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskThreadTime.{CoreType}"
+    units="microseconds" expires_after="2025-05-11">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The thread time in microseconds it took to fully execute the CPU estimation
+    task.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskTotalTime.{CoreType}"
+    units="microseconds" expires_after="2025-05-11">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The time in microseconds it took to fully execute the CPU estimation task,
+    that is its queued time + the wall time elapsed before the task finished.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskWallTime.{CoreType}"
+    units="microseconds" expires_after="2025-05-11">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The wall time in microseconds it took to fully execute the CPU estimation
+    task.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationThreadTimePercent.{CoreType}"
+    units="%" expires_after="2026-05-24">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The ratio of thread time vs wall time of the CPU estimation task's
+    &quot;running&quot; portion, i.e. the thread time of the assembly loop
+    divided by its wall time.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram
+    name="CPU.Experimental.EstimatedFrequencyAsPercentOfLimit.{CoreType}"
+    units="%" expires_after="2026-04-05">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The CPU frequency as a percentage of the estimated current frequency (see
+    base::EstimateCpuFrequency) over the max frequency of the fastest CPU, as
+    reported by base::GetCpuMhzLimit.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.EstimatedFrequencyAsPercentOfMax.{CoreType}"
+    units="%" expires_after="2026-03-29">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The CPU frequency as a percentage of the estimated current frequency (see
+    base::EstimateCpuFrequency) over the max frequency of the fastest CPU, as
+    reported by base::GetCpuMaxMhz.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="PerformanceManager.ChildScenarioMappingResult"
+    enum="ChildScenarioMappingResult" expires_after="2025-12-31">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The result of an attempt to map the shared memory for performance scenarios
+    in a child process. Recorded when a child process receives a shared memory
+    region from the browser process to map. If the result is kSystemError,
+    PerformanceManager.ChildScenarioMappingSystemError is also logged.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.ChildScenarioMappingSystemError"
+    units="system error code" expires_after="2025-12-31">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The system error code when PerformanceManager.ChildScenarioMappingResult is
+    kSystemError.
+  </summary>
+</histogram>
+
+<histogram
+    name="PerformanceManager.CPUMonitorMemoryUse.{ResourceContextType}.{ResourceContextState}"
+    units="KB" expires_after="2025-09-07">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The estimated size of CPUMeasurementMonitor's result cache. Recorded at the
+    same time as the Memory.Browser.PrivateMemoryFootprint. This slice is the
+    memory used to store {ResourceContextType} that are {ResourceContextState}.
+  </summary>
+  <token key="ResourceContextType">
+    <variant name="AllContexts" summary="all ResourceContexts"/>
+    <variant name="FrameContexts"/>
+    <variant name="OriginInBrowsingInstanceContext"/>
+    <variant name="PageContexts"/>
+    <variant name="ProcessContexts"/>
+    <variant name="WorkerContexts"/>
+  </token>
+  <token key="ResourceContextState">
+    <variant name="Dead"
+        summary="associated with a resource that no longer exists"/>
+    <variant name="Live" summary="associated with an existing resource"/>
+    <variant name="Total" summary="in any state"/>
+  </token>
+</histogram>
+
+<histogram name="PerformanceManager.CreateScenarioMemoryResult"
+    enum="CreateScenarioMemoryResult" expires_after="2025-12-31">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The result of an attempt to create the shared memory for performance
+    scenarios in the browser process. Recorded when a PerformanceScenarioData is
+    created for a process, shortly after the process starts. If the result is
+    kSystemError, PerformanceManager.CreateScenarioMemorySystemError is also
+    logged.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.CreateScenarioMemorySystemError"
+    units="system error code" expires_after="2025-12-31">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The system error code when PerformanceManager.CreateScenarioMemoryResult is
+    kSystemError.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.DiskStats.UserDataDirFreeSpaceMb"
+    units="MB" expires_after="2025-08-24">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The amount of available space in megabytes on the disk that hosts the
+    current user data directory as reported by
+    SysInfo::AmountOfFreeDiskSpace(user_data_dir). Warning: this histogram was
+    expired from 2025-02-16 to 2025-03-20; data may be missing.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.DiskStats.UserDataDirFreeSpacePercent"
+    units="%" expires_after="2026-05-03">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The percentage of available space on the disk that hosts the current user
+    data directory as reported by SysInfo::AmountOfFreeDiskSpace(user_data_dir)
+    / capacity.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.Experimental.AccessibilityModeFlag"
+    enum="AccessibilityModeFlagEnum" expires_after="2026-05-24">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Whether individual accessibility mode flags are set. Recorded with every UMA
+    report to attempt to slice other metrics based on which a11y flags are set.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.Experimental.HasAccessibilityModeFlag"
+    enum="Boolean" expires_after="2026-05-24">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Whether any accessibility mode flags are set. Recorded with every UMA report
+    to attempt to slice other metrics based on whether a11y is active.
+  </summary>
+</histogram>
+
+<histogram
+    name="PerformanceManager.InitializeChildProcessCoordination.RequestCount"
+    units="count" expires_after="2025-12-31">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The number of times a child process has requested to initialize its
+    coordination with the browser process. Logged just after the process starts.
+  </summary>
+</histogram>
+
+<histogram
+    name="PerformanceManager.InitializeChildProcessCoordination.ResponseCount"
+    units="count" expires_after="2025-12-31">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The number of times a child process has received a response from the browser
+    process after requesting to initialize its coordination. The difference
+    between this and
+    PerformanceManager.InitializeChildProcessCoordination.RequestCount is the
+    number of requests that did not receive a response.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.InputScenarioChanges{InputScenario}"
+    enum="InputScenarioUpdateReason" expires_after="2026-04-07">
+  <owner>kraskevich@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged whenever the Performance Manager input scenario changes away from
+    {InputScenario}, with the reason for the change.
+  </summary>
+<!-- LINT.IfChange(InputScenarioSuffix) -->
+
+  <token key="InputScenario">
+    <variant name="" summary="all scenarios"/>
+    <variant name=".NoInput" summary="InputScenario::kNoInput"/>
+    <variant name=".Scroll" summary="InputScenario::kScroll"/>
+    <variant name=".Tap" summary="InputScenario::kTap"/>
+    <variant name=".Typing" summary="InputScenario::kTyping"/>
+  </token>
+<!-- LINT.ThenChange(/components/performance_manager/decorators/frame_input_state_decorator.cc:InputScenarioSuffix) -->
+
+</histogram>
+
+<histogram
+    name="PerformanceManager.RegistryStats.FrontEndHeapDebugOptionsOutcome"
+    enum="FrontEndHeapDebugOptionsOutcome" expires_after="2026-04-05">
+  <owner>fdoray@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The outcome of attempting to read the value of the HKEY_LOCAL_MACHINE :
+    Software\Microsoft\Windows NT\CurrentVersion\Image File :
+    FrontEndHeapDebugOptions registry key. Emitted when UMA requests information
+    about the current session (see
+    metrics::MetricsProvider::ProvideCurrentSessionData).
+  </summary>
+</histogram>
+
+<histogram
+    name="PerformanceManager.RegistryStats.FrontEndHeapDebugOptionsValue"
+    units="bitfield" expires_after="2025-09-30">
+  <owner>fdoray@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The value of the HKEY_LOCAL_MACHINE : Software\Microsoft\Windows
+    NT\CurrentVersion\Image File : FrontEndHeapDebugOptions registry key.
+    Emitted every time kSuccess is reported to
+    PerformanceManager.RegistryStats.FrontEndHeapDebugOptionsOutcome.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.ResourceQueryTime.{Function}"
+    units="microseconds" expires_after="2026-04-12">
+  <owner>joenotcharles@google.com</owner>
+  <owner>olivierli@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The time it takes for a single Resource Attribution query to return results.
+    This slice of the metric covers the {Function} function.
+  </summary>
+  <token key="Function">
+    <variant name="CPUMeasurementMonitor"
+        summary="CPUMeasurementMonitor::UpdateAndGetCPUMeasurements"/>
+    <variant name="MemoryMeasurementProvider"
+        summary="MemoryMeasurementProvider::OnMemorySummary"/>
+    <variant name="OnResultsReceived"
+        summary="QueryScheduler::OnResultsReceived"/>
+    <variant name="RequestResults" summary="QueryScheduler::RequestResults"/>
+  </token>
+</histogram>
+
+<histogram name="PerformanceManager.TabRevisitTracker.TimeToClose2"
+    units="seconds" expires_after="2025-02-16">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged everytime a background tab is closed. Records the time in seconds
+    that the tab has spent in the background since it was last active.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.TabRevisitTracker.TimeToRevisit2"
+    units="seconds" expires_after="2025-04-20">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged everytime a background tab is revisited. Records the time in seconds
+    that the tab has spent in the background since it was last active.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.TransientKeepAlive.Result"
+    enum="TransientKeepAliveResult" expires_after="2026-10-16">
+  <owner>aattar@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Recorded when a renderer process's transient keep-alive is resolved. This
+    tracks the final state of the keep-alive attempt, corresponding to the
+    TransientKeepAliveResult enum (e.g., successful reuse, eviction, or
+    timeout).
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.TransientKeepAlive.TimeToReuse" units="ms"
+    expires_after="2026-10-16">
+  <owner>aattar@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Recorded only when a process kept alive by the TransientKeepAlivePolicy was
+    successfully reused (i.e., when TransientKeepAliveResult::kReused is
+    recorded in the .Result histogram). Measures the time delta from when the
+    process became empty (and the keep-alive timer started) to when it was
+    reused for a new navigation.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.UserTuning.BatterySaverModeEnabledPercent"
+    units="%" expires_after="2026-04-26">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Recorded every UMA upload, this histogram represents the percentage of the
+    interval since the last upload that was spent with Battery Saver enabled.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.UserTuning.EfficiencyMode"
+    enum="EfficiencyMode" expires_after="2026-04-05">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged on each UMA upload to represent which user-controllable Efficiency
+    Mode setting the browser is in during the reported window. If the mode was
+    changed between uploads, MIXED will be reported for that interval.
+
+    This histogram is used internally to filter other histograms by efficiency
+    mode.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.UserTuning.MemorySaverModeEnabledPercent"
+    units="%" expires_after="2026-04-26">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Recorded every UMA upload, this histogram represents the percentage of the
+    interval since the last upload that was spent with Memory Saver enabled.
+  </summary>
+</histogram>
+
+</histograms>
+
+</histogram-configuration>

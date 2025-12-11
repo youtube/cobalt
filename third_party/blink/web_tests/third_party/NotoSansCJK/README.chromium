@@ -1,0 +1,28 @@
+Name: Noto Sans CJK Font
+License: OFL-1.1
+License File: LICENSE_OFL.txt
+Shipped: no
+URL: https://github.com/googlei18n/noto-cjk
+Version: 1.004
+Update Mechanism: Manual
+Security Critical: no
+
+Description:
+Noto Sans CJK Font for testing.
+Firstly, it's used for fast/forms/text/text-font-height-mismatch.html.
+Noto CJK 1.004 or later has unique metrics.  If we request font-size:16px,
+resultant FontMetrics::height() is 24.  The imported font is helpful to test
+such cases.  See crbug.com/519331 for the details.
+Secondly, it's used in fast/ruby/ruby-position-modern-japanese-fonts.html to
+test Ruby positioning.
+Last, it's used blink's ShapeResultBloberizerTest.SupplementaryMultiRunNG
+unit test (from blink_platform_unittests test suite).
+
+Local modifications:
+To combine required glyphs for those two tests, use this command to generate the
+subsetted font (generated from Version 1.004 of the font):
+$ pyftsubset NotoSansCJKjp-Regular.otf\
+   --text="いうかきくしじせちってにゃやゅょよわん㘵和天定弱強折晴洋焼肉衷過雨食〫𠜎𠜱𠝹𠱓𠱸𠲖𠳏𠳕"\
+   --output-file=NotoSansCJKjp-Regular-subset.otf
+
+where pyftsubset comes from https://github.com/fonttools/fonttools

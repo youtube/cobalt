@@ -1,0 +1,9 @@
+include_rules = [
+  "+components/keyed_service/core",
+  "+components/omnibox/browser",
+  "+components/search_engines",
+  "+net",
+  "+services/data_decoder/public",
+  "+services/network/public",
+  "+services/network/test",
+]

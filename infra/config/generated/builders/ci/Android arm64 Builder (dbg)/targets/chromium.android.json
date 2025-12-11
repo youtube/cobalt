@@ -1,0 +1,7 @@
+{
+  "Android arm64 Builder (dbg)": {
+    "additional_compile_targets": [
+      "android_lint"
+    ]
+  }
+}

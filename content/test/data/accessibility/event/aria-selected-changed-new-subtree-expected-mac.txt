@@ -1,0 +1,6 @@
+AXSelectedRowsChanged on AXTable
+AXTitleChanged on AXRow AXTitle='Grid, GridCell1 Grid, GridCell2 Grid, GridCell3'
+=== Start Continuation ===
+AXValueChanged on AXPopUpButton AXValue='Select, Option3'
+=== Start Continuation ===
+AXSelectedChildrenChanged on AXList

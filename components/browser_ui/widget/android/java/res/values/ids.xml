@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+Copyright 2019 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<resources>
+    <!-- DualControlLayout button ids -->
+    <item type="id" name="button_primary" />
+    <item type="id" name="button_secondary" />
+
+    <!-- ViewHighlighter tags -->
+    <item type="id" name="highlight_state" />
+    <item type="id" name="highlight_drawable" />
+    <item type="id" name="highlight_view_rect_provider" />
+    <item type="id" name="highlight_drawable_overlay_added" />
+
+    <!-- App Menu -->
+    <item type="id" name="app_menu_footer" />
+
+    <!-- ChipView -->
+    <item type="id" name="chip_view_text_wrapper" />
+    <item type="id" name="chip_view_primary_text" />
+    <item type="id" name="chip_view_secondary_text" />
+    <item type="id" name="chip_view_start_icon" />
+    <item type="id" name="chip_view_loading_view" />
+    <item type="id" name="chip_view_end_icon" />
+</resources>

@@ -1,0 +1,77 @@
+/* 
+ * Additonal style sheet used to render HTML pages in quirks mode.
+ *
+ * Copyright (C) 2000-2003 Lars Knoll (knoll@kde.org)
+ * Copyright (C) 2004, 2006, 2007 Apple Inc. All rights reserved.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Library General Public License for more details.
+ *
+ * You should have received a copy of the GNU Library General Public License
+ * along with this library; see the file COPYING.LIB.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA.
+ *
+ */
+
+/* This sheet is appended to html.css before parsing which means the selectors
+   below are in the default html namespace:
+
+   @namespace "http://www.w3.org/1999/xhtml"
+*/
+
+/* Give floated images margins of 3px */
+img[align="left" i] {
+    margin-right: 3px;
+}
+img[align="right" i] {
+    margin-left: 3px;
+}
+
+/* Tables reset both line-height and white-space in quirks mode. */
+/* Compatible with WinIE. Note that font-family is *not* reset. */
+table {
+    white-space: normal;
+    line-height: normal;
+    font-weight: normal;
+    font-size: medium;
+    font-variant: normal;
+    font-style: normal;
+    color: -internal-quirk-inherit;
+    text-align: start;
+}
+
+/* This will apply only to text fields, since all other inputs already use border box sizing */
+input:not([type=image i]), textarea {
+    box-sizing: border-box;
+}
+
+/* Set margin-bottom for form element in quirks mode. */
+/* Compatible with Gecko. (Doing this only for quirks mode is a fix for bug 17696.) */
+form {
+    margin-block-end: 1em
+}
+
+/* https://html.spec.whatwg.org/multipage/rendering.html#lists */
+li { list-style-position: inside; }
+
+/* Expand `:is()` in the rightmost position because otherwise they hit
+  `DCHECK(default_html_quirks_style_->UniversalRules().empty())` */
+/* li :is(dir, menu, ol, ul) { list-style-position: outside; } */
+li dir, li menu, li ol, li ul { list-style-position: outside; }
+
+/* :is(dir, menu, ol, ul) :is(dir, menu, ol, ul, li) { */
+:is(dir, menu, ol, ul) dir,
+:is(dir, menu, ol, ul) menu,
+:is(dir, menu, ol, ul) ol,
+:is(dir, menu, ol, ul) ul,
+:is(dir, menu, ol, ul) li {
+    list-style-position: unset;
+}

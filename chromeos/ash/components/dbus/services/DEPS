@@ -1,0 +1,8 @@
+noparent = True
+
+include_rules = [
+  "+base",
+  "+dbus",
+  "+testing",
+  "+third_party/cros_system_api",
+]

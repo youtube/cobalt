@@ -1,0 +1,3 @@
+Document
+++Group LocalizedControlType='article'
+++++Text Name='This is an article element.'

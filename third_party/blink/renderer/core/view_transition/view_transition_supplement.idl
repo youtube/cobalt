@@ -1,0 +1,13 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+[
+    ImplementedAs=ViewTransitionSupplement
+] partial interface Document {
+    [MeasureAs=ViewTransition, CallWith=ScriptState, RaisesException] ViewTransition startViewTransition();
+    [MeasureAs=ViewTransition, CallWith=ScriptState, RaisesException] ViewTransition startViewTransition(ViewTransitionCallback update);
+    [MeasureAs=ViewTransition, CallWith=ScriptState, RaisesException] ViewTransition startViewTransition(ViewTransitionOptions opts);
+
+    [MeasureAs=ViewTransition, RuntimeEnabled=DocumentActiveViewTransition] readonly attribute ViewTransition? activeViewTransition;
+};

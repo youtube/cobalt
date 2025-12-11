@@ -1,0 +1,96 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("model") {
+  sources = [
+    "data_sharing_service_factory.h",
+    "data_sharing_service_factory.mm",
+  ]
+  public_deps = [
+    "//base",
+    "//third_party/abseil-cpp:absl",
+  ]
+  deps = [
+    ":context",
+    "//components/data_sharing/internal",
+    "//components/data_sharing/public",
+    "//ios/chrome/app:tests_hook",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/sync/model:data_type_store_service_factory",
+    "//ios/chrome/common",
+    "//ios/web/public",
+    "//services/network/public/cpp",
+  ]
+  frameworks = [ "Foundation.framework" ]
+}
+
+source_set("sdk_delegate") {
+  sources = [
+    "data_sharing_sdk_delegate_ios.h",
+    "data_sharing_sdk_delegate_ios.mm",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    "//components/data_sharing/public",
+    "//ios/chrome/browser/share_kit/model",
+  ]
+  frameworks = [ "Foundation.framework" ]
+}
+
+source_set("ui_delegate") {
+  sources = [
+    "data_sharing_ui_delegate_ios.h",
+    "data_sharing_ui_delegate_ios.mm",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    ":context",
+    "//components/collaboration/public",
+    "//components/data_sharing/public",
+    "//ios/chrome/browser/collaboration/model:collaboration_delegate",
+    "//ios/chrome/browser/share_kit/model",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/browser",
+    "//url",
+  ]
+  frameworks = [ "Foundation.framework" ]
+}
+
+source_set("context") {
+  sources = [
+    "ios_share_url_interception_context.h",
+    "ios_share_url_interception_context.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/data_sharing/public",
+    "//ios/chrome/browser/shared/model/browser",
+  ]
+}
+
+source_set("observer_bridge") {
+  sources = [
+    "data_sharing_service_observer_bridge.h",
+    "data_sharing_service_observer_bridge.mm",
+  ]
+  deps = [ "//components/data_sharing/public" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "data_sharing_service_factory_unittest.mm" ]
+  deps = [
+    ":model",
+    "//base/test:test_support",
+    "//components/data_sharing/public",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/web/public/test",
+    "//testing/gtest",
+  ]
+}

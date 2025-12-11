@@ -1,0 +1,74 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//third_party/protobuf/proto_library.gni")
+
+static_library("web_ui") {
+  sources = [
+    "safe_browsing_ui.cc",
+    "safe_browsing_ui.h",
+    "safe_browsing_ui_handler.cc",
+    "safe_browsing_ui_handler.h",
+    "web_ui_content_info_singleton.cc",
+    "web_ui_content_info_singleton.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    "//base",
+    "//components/enterprise/common/proto:connectors_proto",
+    "//components/enterprise/common/proto:connectors_proto_extras",
+    "//components/os_crypt/async/browser",
+    "//components/password_manager/core/browser:hash_password_manager",
+    "//components/resources:components_resources_grit",
+    "//components/resources:components_scaled_resources_grit",
+    "//components/safe_browsing:buildflags",
+    "//components/safe_browsing/content/browser:safe_browsing_service",
+    "//components/safe_browsing/core/browser",
+    "//components/safe_browsing/core/browser:download_check_result",
+    "//components/safe_browsing/core/browser:referrer_chain_provider",
+    "//components/safe_browsing/core/browser/db:hit_report",
+    "//components/safe_browsing/core/browser/db:v4_local_database_manager",
+    "//components/safe_browsing/core/browser/hashprefix_realtime:hash_realtime_service",
+    "//components/safe_browsing/core/browser/realtime:url_lookup_service_base",
+    "//components/safe_browsing/core/browser/web_ui:event_observer",
+    "//components/safe_browsing/core/browser/web_ui:event_observer_impl",
+    "//components/safe_browsing/core/browser/web_ui:info_singleton",
+    "//components/safe_browsing/core/browser/web_ui:local_state_delegate",
+    "//components/safe_browsing/core/browser/web_ui:util",
+    "//components/safe_browsing/core/common",
+    "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safe_browsing/core/common/proto:csd_proto",
+    "//components/safe_browsing/core/common/proto:csd_proto_extras",
+    "//components/safe_browsing/core/common/proto:realtimeapi_proto",
+    "//components/safe_browsing/core/common/proto:realtimeapi_proto_extras",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto_extras",
+    "//components/strings:components_strings_grit",
+    "//components/sync/protocol",
+    "//components/user_prefs",
+    "//components/webui/safe_browsing/resources:resources_grit",
+    "//content/public/browser",
+    "//net",
+    "//url",
+  ]
+
+  public_deps = [ "//components/safe_browsing/core/common/proto:webui_proto" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "safe_browsing_ui_unittest.cc" ]
+
+  deps = [
+    ":web_ui",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/browser:test_support",
+    "//components/safe_browsing/core/browser/web_ui:event_observer",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

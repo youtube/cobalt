@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2018 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item
+        android:left="@dimen/download_manager_progress_bar_background_margin"
+        android:top="@dimen/download_manager_progress_bar_background_margin"
+        android:right="@dimen/download_manager_progress_bar_background_margin"
+        android:bottom="@dimen/download_manager_progress_bar_background_margin">
+        <shape
+            android:shape="oval">
+            <solid android:color="@android:color/white"  />
+            <size android:width="@dimen/download_manager_progress_bar_background_size"
+                android:height="@dimen/download_manager_progress_bar_background_size" />
+        </shape>
+    </item>
+    <item android:drawable="@drawable/circular_progress_bar_selector_large" />
+</layer-list>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audiobuffersource-late-start.html
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const renderQuantum = 128;
+
+      const sampleRate = 44100;
+      const renderDuration = 0.25;
+      const startTime = 0.5 * renderDuration;
+
+      // Calculate the index for actual start time.
+      function getStartIndex(time) {
+        let startIndex = time * sampleRate;
+        startIndex = renderQuantum *
+            Math.floor((startIndex + renderQuantum - 1) / renderQuantum);
+        return startIndex;
+      }
+
+      // Get the index of value change.
+      function getValueChangeIndex(array, targetValue) {
+        return array.findIndex(element => element === targetValue);
+      }
+
+      promise_test(async () => {
+        const context =
+            new OfflineAudioContext(1, renderDuration * sampleRate, sampleRate);
+        const dcOffsetbuffer = createConstantBuffer(context, 1, 1.0);
+        const source = new AudioBufferSourceNode(
+            context, {buffer: dcOffsetbuffer, loop: true});
+        source.connect(context.destination);
+
+        // Schedule source.start(0) at 0.01 second. The specified timing of
+        // start() call is already passed in terms of the context time. So the
+        // argument |0| will be clamped to the current context time.
+        //
+        // With the sample rate of 44100, 0.01 second is 441 samples. Rounding
+        // it down to the render quantum gives 384 samples. This is clearly
+        // larger than a single render quantum.
+        //
+        // See issue: crbug.com/462167
+        context.suspend(startTime).then(() => {
+          source.start(0);
+          context.resume();
+        });
+
+        // Start rendering and verify result: this verifies if 1) the rendered
+        // buffer contains at least one non-zero value and 2) the non-zero value
+        // is found later than the first output sample.
+        const resultBuffer = await context.startRendering();
+        const channelData = resultBuffer.getChannelData(0);
+        const startIndex = getStartIndex(startTime);
+        const nonZeroValueIndex = getValueChangeIndex(channelData, 1.0);
+
+        // The output should contain both 0 and 1.
+        assert_true(
+            channelData.includes(0) && channelData.includes(1),
+            'The output contains 0 and 1');
+        assert_equals(
+            nonZeroValueIndex, startIndex, 'The index of value change');
+        assert_not_equals(
+            nonZeroValueIndex, 0,
+            'The index of the first non-zero sample is not 0');
+      }, 'test-late-start: AudioBufferSourceNode late start');
+    </script>
+  </body>
+</html>

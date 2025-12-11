@@ -1,0 +1,12 @@
+// https://github.com/mikewest/origin-api/
+[Exposed=*]
+interface Origin {
+  constructor();
+
+  static Origin from(any value);
+
+  readonly attribute boolean opaque;
+
+  boolean isSameOrigin(Origin other);
+  boolean isSameSite(Origin other);
+};

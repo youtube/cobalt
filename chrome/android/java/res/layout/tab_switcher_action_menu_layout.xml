@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2019 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:paddingTop="@dimen/tab_switcher_menu_vertical_padding"
+    android:paddingBottom="@dimen/tab_switcher_menu_vertical_padding"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <org.chromium.components.browser_ui.widget.list_view.TouchTrackingListView
+        android:id="@+id/tab_group_action_menu_list"
+        android:defaultFocusHighlightEnabled="false"
+        android:listSelector="?attr/listChoiceBackgroundIndicator"
+        android:divider="@android:color/transparent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

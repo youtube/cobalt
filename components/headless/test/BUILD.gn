@@ -1,0 +1,88 @@
+# Copyright 2023 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//pdf/features.gni")
+import("//printing/buildflags/buildflags.gni")
+
+source_set("test") {
+  sources = [
+    "bitmap_utils.cc",
+    "bitmap_utils.h",
+    "capture_std_stream.cc",
+    "capture_std_stream.h",
+  ]
+
+  if (enable_printing && enable_pdf) {
+    sources += [
+      "pdf_utils.cc",
+      "pdf_utils.h",
+    ]
+  }
+
+  deps = [
+    "//base",
+    "//pdf:buildflags",
+    "//printing/buildflags",
+  ]
+
+  public_deps = [
+    "//skia",
+    "//ui/gfx",
+  ]
+
+  if (enable_printing) {
+    deps += [ "//printing" ]
+
+    if (enable_pdf) {
+      deps += [ "//pdf" ]
+    }
+  }
+}
+
+source_set("meta_info") {
+  sources = [
+    "test_meta_info.cc",
+    "test_meta_info.h",
+  ]
+
+  deps = [
+    "//base",
+    "//third_party/re2",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("shared_test") {
+  sources = [
+    "shared_test_util.cc",
+    "shared_test_util.h",
+  ]
+
+  deps = [
+    ":meta_info",
+    "//base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "bitmap_utils_unittest.cc",
+    "shared_test_util_unittest.cc",
+    "test_meta_info_unittest.cc",
+  ]
+
+  deps = [
+    ":meta_info",
+    ":shared_test",
+    ":test",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

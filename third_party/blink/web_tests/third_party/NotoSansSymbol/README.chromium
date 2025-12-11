@@ -1,0 +1,23 @@
+Name: Noto Sans Symbol Font Subset
+Short Name: NotoSansSymbol
+URL: https://www.google.com/get/noto/
+Version: 1.050
+Update Mechanism: Static (https://crbug.com/422924157)
+License: Apache-2.0
+License File: LICENSE.txt
+Security Critical: no
+Shipped: no
+Package Excluded: yes
+
+1. Source Origin
+https://www.google.com/get/noto/
+
+2. LICENSE AND OPENSOURCE
+	For license information, see the LICENSE.txt file
+
+3. Reason:
+Testing linebreak behavior of test cases with non BMP unicode character, one number-type and one non-number and non-letter category char.
+Command to generate subset font:
+$ pyftsubset NotoSansSymbols-Regular.ttf --unicodes=1d49e,1f1ef
+
+where pyftsubset comes from https://github.com/behdad/fonttools

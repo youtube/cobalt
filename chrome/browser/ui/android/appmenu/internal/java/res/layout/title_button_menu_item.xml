@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2014 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!-- Represents a menu item that can display any of the following options:
+     * [text label]
+     * [text label] [checkbox indicating that it is enabled or disabled]
+     * [text label] [icon]
+     * [icon] [text label]
+     * [icon] [text label] [checkbox indicating that it is enabled or disabled]
+     * [icon] [text label] [icon]
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical">
+    <ViewStub android:id="@+id/menu_item_container_stub"
+        android:inflatedId="@+id/menu_item_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@id/action_icon_container" />
+
+    <FrameLayout
+        android:id="@+id/action_icon_container"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_alignTop="@id/menu_item_container"
+        android:layout_alignBottom="@id/menu_item_container"
+        android:layout_alignParentEnd="true">
+
+        <!-- Checkbox.  Paddings account for built-in padding from the Android resource. -->
+        <org.chromium.chrome.browser.ui.appmenu.AppMenuItemIcon
+            android:id="@+id/checkbox"
+            android:layout_width="?attr/minInteractTargetSize"
+            android:layout_height="match_parent"
+            android:src="?android:attr/listChoiceIndicatorMultiple"
+            android:background="?attr/listChoiceBackgroundIndicator"
+            android:scaleType="fitCenter"
+            android:paddingHorizontal="?attr/listItemControlPadding"
+            android:layout_marginEnd="4dp" />
+
+        <!-- Displays an icon. -->
+        <!-- TODO(twellington): Consider setting a default tint that adjusts when the item is disabled.
+             currently there are no menu items with icons that are visible but disabled so this behavior
+             is currently unused. -->
+        <org.chromium.ui.widget.ChromeImageButton
+            android:id="@+id/button"
+            android:layout_width="?attr/minInteractTargetSize"
+            android:layout_height="match_parent"
+            android:background="?attr/listChoiceBackgroundIndicator"
+            android:scaleType="fitCenter"
+            android:paddingHorizontal="?attr/listItemIconPadding"
+            android:layout_marginEnd="4dp" />
+    </FrameLayout>
+</RelativeLayout>

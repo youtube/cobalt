@@ -1,0 +1,65 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/sanitizers/sanitizers.gni")
+import("//media/gpu/args.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom("gl") {
+  sources = [
+    "context_lost_reason.mojom",
+    "gpu_host.mojom",
+    "gpu_logging.mojom",
+    "gpu_service.mojom",
+  ]
+
+  parser_deps = [ "//components/viz/common:buildflags" ]
+
+  public_deps = [
+    "//components/persistent_cache/mojom",
+    "//gpu/ipc/common:interfaces",
+    "//gpu/ipc/common:surface_handle",
+    "//media/mojo/mojom",
+    "//services/webnn/public/mojom",
+    "//third_party/blink/public/mojom/tokens",
+    "//ui/gfx/geometry/mojom",
+    "//ui/gfx/mojom",
+    "//ui/gl/mojom",
+    "//url/mojom:url_mojom_gurl",
+  ]
+  if (is_chromeos) {
+    public_deps += [
+      "//chromeos/ash/experiences/arc/mojom:media",
+      "//components/chromeos_camera/common",
+    ]
+  }
+
+  if (is_win) {
+    sources += [ "info_collection_gpu_service.mojom" ]
+    public_deps += [ "//ui/gfx/mojom:dxgi_info" ]
+  }
+
+  enabled_features = []
+  if (use_clang_profiling_inside_sandbox) {
+    enabled_features += [ "use_clang_profiling_inside_sandbox" ]
+  }
+
+  if (is_chromeos && use_linux_video_acceleration) {
+    enabled_features += [ "enable_arc_media" ]
+  }
+
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "viz.mojom.ContextLostReason"
+          cpp = "::gpu::error::ContextLostReason"
+        },
+      ]
+      traits_headers =
+          [ "//services/viz/privileged/cpp/context_lost_reason_traits.h" ]
+      traits_public_deps = [ "//gpu/command_buffer/common" ]
+    },
+  ]
+}

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2019 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!-- We used nested LinearLayouts here because it was harder to align the text vertically with
+     the center of the image using a single RelativeLayout. A ConstraintLayout could be a better
+     choice here, but it isn't available to us, yet. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingHorizontal="@dimen/context_menu_padding">
+
+    <FrameLayout
+        android:id="@+id/menu_header_image_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/context_menu_padding">
+
+        <!-- Circle background for when we have a favicon or monogram -->
+        <View
+            android:id="@+id/circle_background"
+            android:background="@drawable/oval_shape"
+            android:backgroundTint="@color/context_menu_header_circle_bg_color"
+            android:layout_width="@dimen/context_menu_header_circle_bg_diameter"
+            android:layout_height="@dimen/context_menu_header_circle_bg_diameter"
+            android:layout_margin="@dimen/context_menu_header_circle_bg_margin"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/menu_header_image"
+            android:layout_width="@dimen/context_menu_header_image_max_size"
+            android:layout_height="@dimen/context_menu_header_image_max_size"
+            android:scaleType="centerInside"
+            android:importantForAccessibility="no"
+            android:src="@color/thumbnail_placeholder_on_primary_bg" />
+    </FrameLayout>
+
+    <include
+        android:id="@+id/title_and_url"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        layout="@layout/context_menu_header_text"/>
+</LinearLayout>

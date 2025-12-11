@@ -1,0 +1,3 @@
+sub2.example.test
+
+PASSED: Navigation succeeded.

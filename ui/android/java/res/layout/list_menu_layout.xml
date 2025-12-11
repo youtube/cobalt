@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2023 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/list_menu_background"
+    android:clipToOutline="true"
+    android:elevation="@dimen/list_menu_elevation">
+
+    <org.chromium.ui.listmenu.KeyboardAccessibleListView
+        android:id="@+id/menu_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    <View
+        android:id="@+id/menu_header_bottom_hairline"
+        android:layout_height="@dimen/divider_height"
+        android:visibility="invisible"
+        android:focusable="false"
+        android:screenReaderFocusable="false"
+        style="@style/HorizontalDivider"/>
+    <org.chromium.ui.listmenu.KeyboardAccessibleListView
+        android:id="@+id/menu_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

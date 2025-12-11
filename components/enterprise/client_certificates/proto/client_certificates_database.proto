@@ -1,0 +1,39 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto3";
+
+package client_certificates_pb;
+
+option optimize_for = LITE_RUNTIME;
+
+message PrivateKey {
+  enum PrivateKeySource {
+    // Unspecified.
+    PRIVATE_KEY_SOURCE_UNSPECIFIED = 0;
+    // Chrome Browser with the key stored in the device hardware.
+    PRIVATE_UNEXPORTABLE_KEY = 1;
+    // Chrome Browser with the key stored at OS level.
+    PRIVATE_SOFTWARE_KEY = 2;
+    // Chrome Browser with the key stored in OS key storage.
+    PRIVATE_OS_SOFTWARE_KEY = 3;
+    // Chrome Browser with the key stored in Android StrongBox.
+    PRIVATE_ANDROID_KEY = 4;
+  }
+
+  // Represents the source of the private key, which will dictate how
+  // to deal with `wrapped_key`.
+  optional PrivateKeySource source = 1;
+
+  // Bytes of a wrapped private key.
+  optional bytes wrapped_key = 2;
+}
+
+message ClientIdentity {
+  // X.509 Certificate encoded using base::Pickle.
+  optional bytes certificate = 1;
+
+  // Private key for the current identity.
+  optional PrivateKey private_key = 2;
+}

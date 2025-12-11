@@ -1,0 +1,85 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module media.mojom;
+
+import "media/mojo/mojom/media_types.mojom";
+import "mojo/public/mojom/base/time.mojom";
+import "mojo/public/mojom/base/unguessable_token.mojom";
+import "ui/gfx/geometry/mojom/geometry.mojom";
+
+[EnableIf=is_win]
+import "ui/gfx/mojom/buffer_types.mojom";
+
+// Extension of the mojo::RendererClient communication layer for media flinging,
+// a.k.a RemotePlayback, when playing media on a remote Cast device.
+// This allows the Browser side to call back into the Renderer side.
+// Concretely, the FlingingRenderer uses these methods to propagate events it
+// raises to the FlingingRendererClient, which lives in the Renderer process.
+interface FlingingRendererClientExtension {
+  // Called when the play state of a casted device goes out of sync with WMPI's
+  // play state (e.g. when another phone play/pauses a cast device on the same
+  // network).
+  OnRemotePlayStateChange(MediaStatusState state);
+};
+
+[EnableIf=is_win]
+struct FrameTextureInfo {
+  gfx.mojom.GpuMemoryBufferHandle texture_handle;
+  mojo_base.mojom.UnguessableToken token;
+};
+
+[EnableIf=is_win]
+struct FramePoolInitializationParameters {
+  array<FrameTextureInfo> frame_textures;
+  gfx.mojom.Size texture_size;
+};
+
+[EnableIf=is_win]
+// Extension of the mojo::Renderer communication layer for MediaFoundation-based
+// Renderer.
+// This allows the MediaFoundationRendererClient in the render process to call
+// into the MediaFoundationRenderer in the MediaFoundationService (utility/LPAC)
+// process.
+// Please refer to media/renderers/win/media_foundation_renderer_extension.h
+// for its C++ interface equivalence.
+interface MediaFoundationRendererExtension {
+  // Enables Direct Composition video rendering and gets the token associated
+  // with the Direct Composition surface handle, which can be retrieved later
+  // in the GPU process using the token. Returns a null `token` on failures when
+  // `error` explains the failure reason.
+  GetDCOMPSurface() => (mojo_base.mojom.UnguessableToken? token, string error);
+
+  // Notifies whether video is enabled.
+  SetVideoStreamEnabled(bool enabled);
+
+  // Notifies of output composition parameters. It might fail if
+  // MediaFoundationRenderer runs into error while setting the `rect`
+  // information onto MFMediaEngine. It it fails, the video will be displayed
+  // incorrectly (e.g. a smaller video rendered at the corner of the video
+  // output area.). In case of failure, caller should not use the `rect` for
+  // further operations.
+  SetOutputRect(gfx.mojom.Rect rect) => (bool success);
+};
+
+// This interface is used by the browser to determine if there are any renderers
+// actively using the Media Foundation Renderer. The number of Media Foundation
+// Renderers in use is determined by the number of active connections. The
+// remote lives in the renderer process and the receiver lives in the browser
+// process.
+interface MediaFoundationRendererObserver {
+};
+
+// This interface is used to notify the browser that the renderer is using the
+// Media Foundation Renderer which uses MediaFoundation to render audio
+// directly. Live Caption will not work in this case because Chrome is unable
+// to tap into the audio rendering pipeline. The remote lives in the renderer
+// process and the receiver lives in the browser process.
+interface MediaFoundationRendererNotifier {
+  // Notify the browser than a Media Foundation Renderer has been created. The
+  // browser will use this event to notify the user that some features
+  // incompatible with the Media Foundation Renderer may not work.
+  MediaFoundationRendererCreated(
+    pending_receiver<MediaFoundationRendererObserver> observer);
+};

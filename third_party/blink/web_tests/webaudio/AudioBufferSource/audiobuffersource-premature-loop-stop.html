@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioBufferSourceNode premature loop stop
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Reasonably low sample rate for the optimum test speed.
+      const sampleRate = 8192;
+
+      // Task: Create a buffer with 3 regions filled with constant value of [1,
+      // 2, 3]. Then set a loop range over the second region. Start the loop and
+      // disable it in the middle of looping. Verify the rendered buffer has the
+      // entire content including the looped region.
+      promise_test(async () => {
+        const regionValues = [1, 2, 3];
+
+        // The region length is 2 * render quantum size to be able to suspend
+        // the rendering at the half of the region.
+        const regionLength = 256;
+
+        // The test will repeat the second region 3 times, thus the rendered
+        // audio have the length of 5 * regionLength.
+        const context = new OfflineAudioContext(
+            1, 5 * regionLength, sampleRate);
+
+        // Create 3 constant buffers of [1, 2, 3] and concatenate them together:
+        // | 1 | 2 | 3 |
+        const testBuffer = context.createBuffer(
+            1, 3 * regionLength, sampleRate);
+        const testChannel = testBuffer.getChannelData(0);
+        for (let i = 0; i < regionValues.length; i++) {
+          const region =
+              createConstantBuffer(context, regionLength, regionValues[i]);
+          testChannel.set(region.getChannelData(0), regionLength * i);
+        }
+
+        const source = new AudioBufferSourceNode(context);
+        source.connect(context.destination);
+
+        source.buffer = testBuffer;
+        source.loop = true;
+
+        // Set loop points over the region 2.
+        source.loopStart = regionLength / sampleRate;
+        source.loopEnd = 2 * regionLength / sampleRate;
+
+        source.start();
+
+        // Disengage the loop at |3.5 * regionLength / sampleRate| which is the
+        // end of 7th rendering quantum and also the half of the third iteration
+        // of region #2.
+        context.suspend(3.5 * regionLength / sampleRate).then(() => {
+          source.loop = false;
+          context.resume();
+        });
+
+        const renderedBuffer = await context.startRendering();
+        const channel = renderedBuffer.getChannelData(0);
+        // Verify if the rendered buffer has the following structure:
+        // | 1 | 2 | 2 | 2 | 3 |
+        const region1 = channel.subarray(0, regionLength);
+        const region2 = channel.subarray(
+            regionLength, 4 * regionLength);
+        const region3 = channel.subarray(
+            4 * regionLength, 5 * regionLength);
+
+        assert_array_equals(
+            region1,
+            new Float32Array(region1.length).fill(1),
+            'Region #1');
+        assert_array_equals(
+            region2,
+            new Float32Array(region2.length).fill(2),
+            'Region #2 (looped)');
+        assert_array_equals(
+            region3,
+            new Float32Array(region3.length).fill(3),
+            'Region #3');
+      }, 'premature-loop-stop: AudioBufferSourceNode premature loop stop');
+    </script>
+  </body>
+</html>

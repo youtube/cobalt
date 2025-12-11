@@ -1,0 +1,13 @@
+include_rules = [
+  "+skia/ext/skia_utils_mac.h",
+  "+third_party/skia/include",
+  "+ui/gfx/codec",
+  "+ui/gfx/geometry/rect_f.h",
+  "+ui/gl/gl_switches.h",
+]
+
+specific_include_rules = {
+  "shape_detection_sandbox_hook\.[cc|h]": [
+    "+sandbox/policy/linux",
+  ],
+}

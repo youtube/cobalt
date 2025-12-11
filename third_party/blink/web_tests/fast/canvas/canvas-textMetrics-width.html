@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<body>
+<p>On success, the red text "Hello World" should be tightly contained inside the two thin red lines.</p>
+<canvas id="canvas" width="300" height="50"></canvas>
+<script>
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var text = "Hello World";
+ctx.font = "50px serif";
+ctx.fillStyle = '#FF0000';
+ctx.textBaseline = "top";
+ctx.fillText(text, 1, 0);
+var textMetrics = ctx.measureText(text);
+ctx.fillRect(0, 0, 1, 50);
+ctx.fillRect(Math.ceil(textMetrics.width), 0, 1, 50);
+</script>
+</body>

@@ -1,0 +1,47 @@
+Name: LZMA SDK
+Short Name: lzma
+URL: http://www.7-zip.org/sdk.html
+Version: 25.01
+Date: 2025-08-25
+Update Mechanism: Manual
+License: LZMA-SDK-9.22
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
+CPEPrefix: cpe:2.3:a:7-zip:7-zip:25.01:*:*:*:*:*:*:*
+
+Description:
+This contains a part of LZMA SDK 25.01.
+
+Local Modifications:
+The original code can be found at https://www.7-zip.org/a/lzma2501.7z.
+
+The 7z binaries are installed via a 3pp CIPD package into bin/ if Windows is
+specified as a target OS in the .gclient file. There are two subdirectories in
+bin/: win64/ and host_platform/. win64/ contains 64-bit Windows binaries to be
+packaged in Chromium targets requiring it, and host_platform/ contains binaries
+for the platform of the host where the Chromium source code is checked out and
+built. host_platform/ binaries should be used for build scripts that call 7z
+binaries. Supported platforms are:
+
+* linux-amd64
+* mac-amd64
+* mac-rm64
+* windows-386
+* windows-amd64
+
+7za.exe and 7zr.exe are both standalone command-line utilities to archive and
+extract files. 7zr is "lightweight" and only handles 7zip extensions. 7za can
+handle a few more.
+
+The purposes of the patch in chromium.patch are:
+1. Extend the search range for 7z archive signature to accomodate increased sfx
+   binary size in debug builds.
+2. Fix undefined behavior in CpuArch.h flagged by UBSan caused by invalid
+   pointer casts.
+3. Shorten segment names in Asm/x86/LzmaDecOpt.asm to make the build
+   deterministic.
+4. Remove files irrelevant to Chromium use.
+5. Remove AVX and SSE41 code in LzFind.
+6. Fix compilation when <asm/hwcap.h> is unavailable (on Fuchsia).
+7. Add the ability to suppress CRC hardware acceleration for fuzzing.

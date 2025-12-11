@@ -1,0 +1,53 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("watermark_view_lib") {
+  sources = [
+    "settings.cc",
+    "settings.h",
+    "watermark_features.cc",
+    "watermark_features.h",
+    "watermark_style_policy_handler.cc",
+    "watermark_style_policy_handler.h",
+    "watermark_view.cc",
+    "watermark_view.h",
+  ]
+
+  deps = [
+    "//chrome/common:channel_info",
+    "//components/enterprise/connectors/core",
+    "//components/enterprise/watermarking",
+    "//components/policy/core/browser",
+    "//components/prefs",
+    "//components/strings:components_strings_grit",
+    "//components/version_info",
+    "//ui/views",
+  ]
+}
+
+executable("watermark_app") {
+  testonly = true
+
+  sources = [
+    "example_app.cc",
+    "watermark_example.cc",
+    "watermark_example.h",
+  ]
+
+  deps = [
+    ":watermark_view_lib",
+    "//base",
+    "//base/test:test_support",
+    "//build/win:default_exe_manifest",
+    "//ui/base/metadata",
+    "//ui/color:mixers",
+    "//ui/gfx",
+    "//ui/resources:ui_test_pak",
+    "//ui/views",
+    "//ui/views/examples:views_examples_lib",
+    "//ui/views/examples:views_examples_proc",
+  ]
+
+  defines = [ "VIEWS_EXAMPLES_IMPLEMENTATION" ]
+}

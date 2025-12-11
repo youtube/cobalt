@@ -1,0 +1,11 @@
+CREDIT_CARD_TYPE | addtype |  |  | addtype_1
+CREDIT_CARD_NUMBER | addcardnumber | Card Number: |  | addtype_1
+CREDIT_CARD_EXP_MONTH | addmonth |  |  | addtype_1
+CREDIT_CARD_EXP_4_DIGIT_YEAR | addyear |  |  | addtype_1
+NAME_FIRST | addfirstName | First Name: |  | addfirstName_2
+NAME_LAST | addlastName | Last Name: |  | addfirstName_2
+ADDRESS_HOME_LINE1 | addstreet1 | Address: |  | addfirstName_2
+ADDRESS_HOME_CITY | addcity | City: |  | addfirstName_2
+ADDRESS_HOME_STATE | addstate | State: |  | addfirstName_2
+ADDRESS_HOME_ZIP_PREFIX | addzipcode | ZIP Code: |  | addfirstName_2
+ADDRESS_HOME_ZIP_SUFFIX | addzipcodeExt | Optional |  | addfirstName_2

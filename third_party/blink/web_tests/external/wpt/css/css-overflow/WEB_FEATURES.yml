@@ -1,0 +1,13 @@
+features:
+- name: scrollbar-gutter
+  files:
+  - scrollbar-gutter-*
+- name: overflow-overlay
+  files:
+  - overflow-overlay.html
+- name: overflow-shorthand
+  files:
+  - overflow-*
+  - "!overflow-auto-scrollbar-gutter-intrinsic-*"
+  - "!overflow-scroll-*"
+  - "!overflow-no-interpolation.html" # depends on transition-behavior

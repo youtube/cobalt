@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test PeriodicWave Normalization</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      const sampleRate = 48000;
+      const renderFrames = 6000;
+
+      const testSet = [
+        // Test the default case where the two-arg createPeriodicWave is called.
+        // The waveform should be normalized.
+        {
+          name: 'option-default/normalized',
+          // This option is treated specially; it means that the two-arg
+          // function is called.
+          option: 'NONE',
+          // Somewhat arbitrary except that resulting waveform should have
+          // amplitude greater than 1.  And we don't want a simple sine wave
+          // because that always has max amplitude of 1.
+          realCoef: [0, -1, 1],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        {
+          name: 'option-null/normalized',
+          option: null,
+          // Somewhat arbitrary except that resulting waveform should have
+          // amplitude greater than 1.  And we don't want a simple sine wave
+          // because that always has max amplitude of 1.
+          realCoef: [0, -1, 1],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        // Explicitly set to false.  Waveform should be normalized.
+        {
+          name: 'false/normalized',
+          option: {disableNormalization: false},
+          realCoef: [0, -1, 1],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        // Explicitly disable normalization.  Waveform is not normalized.
+        {
+          name: 'true/unnormalized',
+          option: {disableNormalization: true},
+          // Somewhat arbitrary except that resulting waveform should have
+          // amplitude very clearly greater than 1.
+          realCoef: [0, 10],
+          threshold: 1e-5,
+          expectedMax: 10
+        },
+
+        // Explicitly set to some value that is not false.  Waveform should NOT
+        // be normalized.
+        {
+          name: 'foo/unnormalized',
+          option: {disableNormalization: 'foo'},
+          realCoef: [0, 10],
+          threshold: 1e-5,
+          expectedMax: 10
+        },
+
+        // Explicitly set to null, which is the same as false.  Waveform is
+        // normalized.
+        {
+          name: 'null/unnormalized',
+          option: {disableNormalization: null},
+          realCoef: [0, 1, -1],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        // Pass in a random dictionary not using our key.  Waveform should be
+        // normalized.
+        {
+          name: 'random-key-value/normalized',
+          option: {randomKey: true},
+          realCoef: [0, -1, 1],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        // Set options to several random keys.  Waveform must be normalized.
+        {
+          name: 'more-random-keys/normalized',
+          option: {key1: 'value1', key2: 42},
+          realCoef: [0, 1, -1],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        // Set option to include our key (set to true) amongst a bunch of
+        // others.  Waveform is NOT normalized.
+        {
+          name: 'true-with-random-keys/unnormalized',
+          option: {key1: 'value1', disableNormalization: true},
+          realCoef: [0, 10],
+          threshold: 1e-5,
+          expectedMax: 10
+        },
+
+        // Set option to include our key (set to false) amongst a bunch of
+        // others.  Waveform is normalized.
+        {
+          name: 'false-with-random-keys/normalized',
+          option: {key1: 'value1', disableNormalization: false},
+          realCoef: [0, 10],
+          threshold: 1e-5,
+          expectedMax: 1
+        },
+
+        // Set option to a non-dictionary.  Waveform is normalized.
+        {
+          name: 'non-dict/normalized',
+          option: [1, 2, 3],
+          realCoef: [0, 1, -1],
+          threshold: 1e-5,
+          expectedMax: 1
+        }
+      ];
+
+      /**
+       * Maximum absolute value in a Float32Array.
+       * @param {!Float32Array} array
+       * @return {number}
+       */
+      function arrayMax(array) {
+        return array.reduce(
+            (max, v) => Math.max(max, Math.abs(v)), -1);
+      }
+
+      /**
+       * Build a graph, render it offline, and return a promise of the result.
+       * @param {*} options
+       * @param {!Array<number>} realCoef
+       * @param {!Float32Array} imagCoef
+       * @return {!Promise<!AudioBuffer>}
+       */
+      function createAndRunAudioGraph(options, realCoef, imagCoef) {
+        const context = new OfflineAudioContext(1, renderFrames, sampleRate);
+        const osc = new OscillatorNode(context);
+        const real = new Float32Array(realCoef);
+        const imag = new Float32Array(imagCoef);
+
+        // If options is "NONE", we want to be sure to call the two-arg
+        // createPeriodicWave to make sure the default method works as expected.
+        const wave = (options === 'NONE') ?
+            new PeriodicWave(context, { real, imag }) :
+            new PeriodicWave(context, { real, imag, ...options });
+
+        osc.setPeriodicWave(wave);
+        osc.connect(context.destination);
+        osc.start();
+
+        return context.startRendering();
+      }
+
+      /**
+       * Execute one test case.
+       * @param {!Object} info
+       * @return {!Promise<void>}
+       */
+      async function runTest(info) {
+        const imagCoef = new Float32Array(info.realCoef.length);
+        const buffer = await createAndRunAudioGraph(
+            info.option, info.realCoef, imagCoef);
+        const amplitude = arrayMax(buffer.getChannelData(0));
+        //Convert relative threshold to absolute threshold
+        const absoluteThreshold = info.threshold * info.expectedMax;
+        assert_approx_equals(
+            amplitude, info.expectedMax, absoluteThreshold,
+            'Amplitude for option ' + JSON.stringify(info.option));
+      }
+
+      /* Register each entry in |testSet| as a promise_test(). */
+      testSet.forEach((info, index) => {
+        const name = index + ':' + info.name;
+        promise_test(() => runTest(info), name);
+      });
+    </script>
+  </body>
+</html>

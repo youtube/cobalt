@@ -1,0 +1,8 @@
+set noparent
+jamiewalch@chromium.org
+joedow@chromium.org
+lambroslambrou@chromium.org
+yuweih@chromium.org
+
+# Translation artifacts:
+per-file ....xtb=file://tools/translation/TRANSLATION_OWNERS

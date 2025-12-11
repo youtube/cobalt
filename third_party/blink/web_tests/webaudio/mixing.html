@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<!--
+Create two sources and play them simultaneously. This tests unity-gain
+summing of AudioNode inputs. The result should be some laughing playing
+at the same time as the drumming.
+-->
+<html>
+  <head>
+    <title>Mixing two AudioBufferSources (stereo + mono)</title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="resources/audit-util.js"></script>
+    <script src="resources/buffer-loader.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      const sampleRate = 44100.0;
+      const lengthInSeconds = 2;
+      const audioFilePaths = [
+        // stereo
+        'resources/hyper-reality/br-jam-loop.wav',
+        // mono
+        'resources/hyper-reality/laughter.wav'
+      ];
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(
+          2, sampleRate * lengthInSeconds, sampleRate);
+
+        const bufferList = await loadBuffers(context, audioFilePaths);
+
+        // Thresholds are experimentally determined
+        const testThresholds = [
+          { snrThreshold: Infinity, errorThreshold: 0 },
+          { snrThreshold: Infinity, errorThreshold: 0 }
+        ];
+
+        await runTest(context, bufferList, testThresholds);
+      }, 'Verify mixing of stereo and mono AudioBufferSources ' +
+          ' in an OfflineAudioContext');
+
+      async function runTest(context, bufferList, testThresholds) {
+        assert_equals(bufferList.length, 2, 'Number of decoded files');
+
+        const [stereoBuffer, monoBuffer] = bufferList;
+
+        const source1 = context.createBufferSource();
+        const source2 = context.createBufferSource();
+        source1.buffer = stereoBuffer;
+        source2.buffer = monoBuffer;
+
+        source1.connect(context.destination);
+        source2.connect(context.destination);
+        source1.start(0);
+        source2.start(0);
+
+        // Verify the number of channels in each source and the expected result.
+        assert_equals(stereoBuffer.numberOfChannels, 2,
+            'Number of channels in stereo source');
+        assert_equals(monoBuffer.numberOfChannels, 1,
+            'Number of channels in mono source');
+
+        const renderedBuffer = await context.startRendering();
+        verifyRenderedOutput(renderedBuffer, context, [stereoBuffer,
+            monoBuffer], testThresholds);
+      }
+
+      function verifyRenderedOutput(renderedBuffer, context, bufferList,
+          testThresholds) {
+            assert_equals(renderedBuffer.numberOfChannels, 2,
+                'Number of channels in rendered output');
+
+            // Note: the source lengths may not match the context length.
+            // Create copies of the sources truncated or zero-filled to the
+            // rendering length.
+            const [stereoSource, monoSource] = bufferList.map(buf => {
+              const audioBuf = new AudioBuffer({
+                length: renderedBuffer.length,
+                numberOfChannels: buf.numberOfChannels,
+                sampleRate: context.sampleRate
+              });
+              for (let chan = 0; chan < buf.numberOfChannels; chan++) {
+                audioBuf.copyToChannel(buf.getChannelData(chan), chan);
+              }
+              return audioBuf;
+            });
+
+            // Compute the expected result buffer0 is stereo and buffer1 is mono
+            // The result should be stereo, with the mono source implicitly
+            // upmixed to stereo to produce the expected result.
+            const expectedBuffer = new AudioBuffer({
+              length: renderedBuffer.length,
+              numberOfChannels: 2,
+              sampleRate: context.sampleRate
+            });
+            const monoData = monoSource.getChannelData(0);
+            for (let chan = 0; chan < expectedBuffer.numberOfChannels; chan++) {
+              const expectedData = expectedBuffer.getChannelData(chan);
+              const stereoData = stereoSource.getChannelData(chan);
+              for (let i = 0; i < expectedData.length; i++) {
+                expectedData[i] = stereoData[i] + monoData[i];
+              }
+            }
+
+            for (let chan = 0; chan < renderedBuffer.numberOfChannels; chan++) {
+              const actualData = renderedBuffer.getChannelData(chan);
+              const expectedData = expectedBuffer.getChannelData(chan);
+              const threshold = testThresholds[chan];
+              const snr = 10 * Math.log10(computeSNR(actualData, expectedData));
+
+              assert_greater_than_equal(snr, threshold.snrThreshold,
+                  `SNR for channel ${chan}`);
+              assert_array_approx_equals(actualData, expectedData,
+                  threshold.errorThreshold,
+                  `Rendered audio for channel ${chan} should ` +
+                      `closely match expected`);
+            }
+
+      }
+    </script>
+  </body>
+</html>

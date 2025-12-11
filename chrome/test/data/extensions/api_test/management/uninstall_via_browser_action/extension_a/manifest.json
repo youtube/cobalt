@@ -1,0 +1,11 @@
+{
+  "name": "ExtensionA",
+  "description": "Uninstalls ExtensionB with management.uninstall",
+  "version": "1.0",
+  "manifest_version": 3,
+  "permissions": ["management"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {}
+}

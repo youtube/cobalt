@@ -1,0 +1,16 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://streams.spec.whatwg.org/#byob-reader-class-definition
+[
+    Exposed=*
+] interface ReadableStreamBYOBReader {
+    [CallWith=ScriptState, RaisesException] constructor(ReadableStream stream);
+
+    [CallWith=ScriptState, RaisesException] Promise<ReadableStreamReadResult> read(ArrayBufferView view, optional ReadableStreamBYOBReaderReadOptions options = {});
+
+    [CallWith=ScriptState, RaisesException] void releaseLock();
+};
+
+ReadableStreamBYOBReader includes ReadableStreamGenericReader;

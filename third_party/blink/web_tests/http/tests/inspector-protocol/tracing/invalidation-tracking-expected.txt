@@ -1,0 +1,134 @@
+Tests the data of invalidation tracking trace events
+Recording started
+Tracing complete
+StyleRecalcInvalidationTracking
+Array: [
+	{
+		args: {
+			data: {
+				extraData: string
+				frame: string
+				nodeId: number
+				nodeName: string
+				reason: string
+				stackTrace: [
+					{
+						columnNumber: number
+						functionName: string
+						lineNumber: number
+						scriptId: string
+						url: string
+					}
+				]
+				subtree: boolean
+			}
+		}
+		cat: string
+		name: string
+		ph: string
+		pid: number
+		s: string
+		tid: number
+		ts: number
+	}
+	{
+		args: {
+			data: {
+				extraData: string
+				frame: string
+				nodeId: number
+				nodeName: string
+				reason: string
+				stackTrace: [
+					{
+						columnNumber: number
+						functionName: string
+						lineNumber: number
+						scriptId: string
+						url: string
+					}
+				]
+				subtree: boolean
+			}
+		}
+		cat: string
+		name: string
+		ph: string
+		pid: number
+		s: string
+		tid: number
+		ts: number
+	}
+	{
+		args: {
+			data: {
+				extraData: string
+				frame: string
+				nodeId: number
+				nodeName: string
+				reason: string
+				subtree: boolean
+			}
+		}
+		cat: string
+		name: string
+		ph: string
+		pid: number
+		s: string
+		tid: number
+		ts: number
+	}
+	{
+		args: {
+			data: {
+				extraData: string
+				frame: string
+				nodeId: number
+				nodeName: string
+				reason: string
+				subtree: boolean
+			}
+		}
+		cat: string
+		name: string
+		ph: string
+		pid: number
+		s: string
+		tid: number
+		ts: number
+	}
+]
+LayoutInvalidationTracking
+Object: {
+	args: {
+		data: {
+			frame: string
+			nodeId: number
+			nodeName: string
+			reason: string
+			stackTrace: [
+				{
+					columnNumber: number
+					functionName: string
+					lineNumber: number
+					scriptId: string
+					url: string
+				}
+			]
+		}
+	}
+	cat: string
+	name: string
+	ph: string
+	pid: number
+	s: string
+	tid: number
+	ts: number
+}
+Number of StyleResolver::ResolveStyle events:
+6
+Style recalc initiator:
+forceLayout
+Layout initiator:
+forceLayout
+

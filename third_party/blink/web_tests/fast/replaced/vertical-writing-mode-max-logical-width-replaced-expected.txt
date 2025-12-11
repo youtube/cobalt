@@ -1,0 +1,3 @@
+This test checks that we add the right padding on a replaced element in vertical-writing mode.
+
+PASS

@@ -1,0 +1,96 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("prerender_pref") {
+  public = [ "prerender_pref.h" ]
+}
+
+source_set("model") {
+  sources = [
+    "prerender_browser_agent.h",
+    "prerender_browser_agent.mm",
+    "prerender_browser_agent_delegate.h",
+    "prerender_tab_helper.h",
+    "prerender_tab_helper.mm",
+    "prerender_tab_helper_delegate.h",
+  ]
+  deps = [
+    ":prerender_pref",
+    "//base",
+    "//components/prefs",
+    "//components/prefs/ios",
+    "//components/signin/ios/browser",
+    "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/common",
+    "//ios/chrome/browser/app_launcher/model",
+    "//ios/chrome/browser/crash_report/model:model_internal",
+    "//ios/chrome/browser/download/model:mime_types",
+    "//ios/chrome/browser/geolocation/model",
+    "//ios/chrome/browser/history/model:tab_helper",
+    "//ios/chrome/browser/itunes_urls/model",
+    "//ios/chrome/browser/net/model",
+    "//ios/chrome/browser/ntp/model:util",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/shared/model/utils",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/supervised_user/model",
+    "//ios/chrome/browser/supervised_user/model:capabilities",
+    "//ios/chrome/browser/tabs/model",
+    "//ios/chrome/browser/web/model",
+    "//ui/base",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "prerender_browser_agent_unittest.mm" ]
+  deps = [
+    ":model",
+    ":prerender_pref",
+    "//base",
+    "//base/test:test_support",
+    "//components/prefs",
+    "//components/signin/public/identity_manager",
+    "//components/signin/public/identity_manager:test_support",
+    "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/common:features",
+    "//components/supervised_user/test_support",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/test:test_support",
+    "//ios/web/public/test",
+    "//ios/web/public/test/fakes",
+    "//net:test_support",
+    "//testing/gtest",
+  ]
+}
+
+source_set("eg2_tests") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [ "prerender_egtest.mm" ]
+  deps = [
+    "//build:branding_buildflags",
+    "//components/version_info",
+    "//ios/chrome/browser/content_suggestions/ui_bundled:constants",
+    "//ios/chrome/browser/popup_menu/ui_bundled:constants",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/test/earl_grey:eg_test_support+eg2",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
+    "//ios/web/common:user_agent",
+    "//net:test_support",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}

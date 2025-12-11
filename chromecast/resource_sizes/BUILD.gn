@@ -1,0 +1,17 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/clang/clang.gni")
+import("//build/config/python.gni")
+
+python_library("chromecast_resource_sizes_py") {
+  pydeps_file = "chromecast_resource_sizes.pydeps"
+  data = [
+    "${clang_base_path}/bin/llvm-strip",
+
+    # llvm-objcopy is required since llvm-strip symlinks to it.
+    "${clang_base_path}/bin/llvm-objcopy",
+  ]
+  data_deps = [ "//third_party/catapult/tracing:convert_chart_json" ]
+}

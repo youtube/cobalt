@@ -1,0 +1,101 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/android/rules.gni")
+import("//chrome/common/features.gni")
+import("//third_party/jni_zero/jni_zero.gni")
+import("//tools/grit/grit_rule.gni")
+
+generate_jni("jni") {
+  sources = [
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/AutofillKeyboardAccessoryViewBridge.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponentBridge.java",
+  ]
+}
+
+android_library("internal_java") {
+  deps = [
+    "//base:base_java",
+    "//build/android:build_java",
+    "//components/favicon/android:java",
+    "//third_party/jni_zero:jni_zero_java",
+
+    # TODO(crbug.com/41452318): Cyclic dependency. Depend on public only when ready.
+    "//chrome/android:chrome_java",
+    "//chrome/browser/autofill/android:java",
+    "//chrome/browser/back_press/android:java",
+    "//chrome/browser/feature_engagement:java",
+    "//chrome/browser/flags:java",
+    "//chrome/browser/fullscreen/android:java",
+    "//chrome/browser/keyboard_accessory/android/internal:java",
+    "//chrome/browser/keyboard_accessory/android/internal:java_resources",
+    "//chrome/browser/keyboard_accessory/android/java",
+    "//chrome/browser/password_manager/android:java",
+    "//chrome/browser/profiles/android:java",
+    "//chrome/browser/tab:java",
+    "//chrome/browser/tabmodel:java",
+    "//chrome/browser/ui/android/edge_to_edge:factory_java",
+    "//chrome/browser/ui/android/edge_to_edge:java",
+    "//chrome/browser/ui/android/favicon:java",
+    "//chrome/browser/util:java",
+    "//components/autofill/android:autofill_java",
+    "//components/browser_ui/bottomsheet/android:java",
+    "//components/browser_ui/modaldialog/android:java",
+    "//components/browser_ui/styles/android:java",
+    "//components/browser_ui/util/android:java",
+    "//components/browser_ui/widget/android:java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:util_java",
+    "//components/feature_engagement/public:public_java",
+    "//components/image_fetcher:java",
+    "//components/url_formatter/android:url_formatter_java",
+    "//content/public/android:content_java",
+    "//third_party/android_deps:material_design_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_appcompat_appcompat_java",
+    "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
+    "//third_party/androidx:androidx_browser_browser_java",
+    "//third_party/androidx:androidx_coordinatorlayout_coordinatorlayout_java",
+    "//third_party/androidx:androidx_core_core_java",
+    "//third_party/androidx:androidx_recyclerview_recyclerview_java",
+    "//third_party/androidx:androidx_viewpager_viewpager_java",
+    "//ui/android:ui_java",
+    "//ui/android:ui_utils_java",
+    "//ui/base/ime/mojom:mojom_java",
+    "//ui/edge_to_edge:java",
+    "//url:gurl_java",
+  ]
+  srcjar_deps = [ ":jni" ]
+  sources = [
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/AutofillKeyboardAccessoryViewBridge.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponentBridge.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingCoordinator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingMediator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingState.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingStateCache.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabCoordinator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabItemsModel.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabMediator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabProperties.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabViewBinder.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AddressAccessoryInfoView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AddressAccessorySheetCoordinator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AddressAccessorySheetViewBinder.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/CreditCardAccessoryInfoView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/CreditCardAccessorySheetCoordinator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/CreditCardAccessorySheetViewBinder.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/DynamicInfoViewBottomSpacer.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/IbanAccessoryInfoView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/LoyaltyCardInfoView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/PasswordAccessoryInfoView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/PasswordAccessorySheetCoordinator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/PasswordAccessorySheetMediator.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/PasswordAccessorySheetViewBinder.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/PlusAddressInfoView.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/PromoCodeAccessoryInfoView.java",
+  ]
+
+  resources_package = "org.chromium.chrome.browser.keyboard_accessory"
+}

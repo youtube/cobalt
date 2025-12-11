@@ -1,0 +1,6 @@
+EMAIL_ADDRESS | adobeId | E-Mail AddressThis will be your Adobe ID |  | adobeId_1
+NAME_FIRST | firstName | First Name |  | adobeId_1
+NAME_LAST | lastName | Last Name |  | adobeId_1
+ADDRESS_HOME_COUNTRY | countryCode | Country |  | adobeId_1
+UNKNOWN_TYPE | subscribePass1 | PasswordMust be between 6-12 characters |  | adobeId_1
+UNKNOWN_TYPE | subscribePass2 | Confirm Password |  | adobeId_1

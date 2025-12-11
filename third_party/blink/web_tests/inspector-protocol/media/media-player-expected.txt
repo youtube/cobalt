@@ -1,0 +1,11 @@
+Test video element logging protocol.
+Creating player
+enabling media logging
+Received creation event for 1 player
+The domNodeId received from onPlayerCreated matches the actual node id: true
+All IDs match
+events length: 3
+messages length: 0
+properties length: 3
+errors length: 0
+

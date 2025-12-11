@@ -1,0 +1,10 @@
+include_rules = [
+  "+components/crash/core/common/crash_key.h",
+  "+components/viz/common/resources/shared_image_format.h",
+  "+services/webnn/public/mojom/features.mojom-features.h",
+  "+skia/buildflags.h",
+  "+third_party/dawn/include",
+  "+third_party/microsoft_dxheaders",
+  "+third_party/skia",
+  "+third_party/vulkan_headers/include/vulkan/vulkan.h",
+]

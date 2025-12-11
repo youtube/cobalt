@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2023 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<resources>
+  <style name="TextAppearance.WithoutLeading">
+    <item name="android:textSize">@dimen/text_size_medium</item>
+  </style>
+
+  <style name="TextAppearance.WithLeading" parent="TextAppearance.WithoutLeading">
+    <item name="leading">@dimen/text_size_medium_leading</item>
+  </style>
+
+  <style name="StyleWithLeading" parent="TextAppearance.WithLeading"/>
+
+  <style name="StyleIntoTextAppearance">
+    <item name="android:textAppearance">@style/StyleWithLeading</item>
+  </style>
+
+  <style name="ThemeOverlay.BlackPrimary" parent="">
+    <item name="colorPrimary">@android:color/black</item>
+  </style>
+
+  <style name="ThemeOverlay.WhitePrimary" parent="">
+    <item name="colorPrimary">@android:color/white</item>
+  </style>
+
+  <style name="ThemeOverlay.BluePrimary" parent="">
+    <item name="colorPrimary">@android:color/holo_blue_light</item>
+    <item name="android:textColorHighlight">@android:color/holo_blue_light</item>
+  </style>
+
+  <style name="ThemeOverlay.WhitePrimary.WithTextColor">
+    <item name="android:textColorHighlight">@android:color/white</item>
+  </style>
+
+  <style name="ThemeOverlay.TextLarge.SizeOnly" parent="">
+    <item name="textLargeSize">@dimen/text_size_large</item>
+  </style>
+
+  <style name="ThemeOverlay.TextLarge.Medium" parent="">
+    <item name="textLargeSize">@dimen/text_size_large_desktop</item>
+    <item name="textLargeLeading">@dimen/text_size_large_leading_desktop</item>
+  </style>
+</resources>

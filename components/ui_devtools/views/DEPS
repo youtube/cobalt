@@ -1,0 +1,14 @@
+include_rules = [
+  "+cc/trees/layer_tree_host.h",
+  "+components/viz/common/surfaces",
+  "+extensions/common/image_util.h",
+  "+third_party/skia/include",
+  "+ui",
+]
+
+specific_include_rules = {
+  "server_holder\\.cc": [
+    "+content/public/browser/browser_thread.h",
+    "+content/public/browser/tracing_service.h",
+  ]
+}

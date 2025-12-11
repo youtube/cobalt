@@ -1,0 +1,152 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+import("//printing/buildflags/buildflags.gni")
+
+mojom("mojom") {
+  sources = [
+    "account_manager.mojom",
+    "chrome_app_kiosk_service.mojom",
+    "clipboard_history.mojom",
+    "cros_display_config.mojom",
+    "crosapi.mojom",
+    "desk_profiles.mojom",
+    "diagnostics_service.mojom",
+    "document_scan.mojom",
+    "file_change_service_bridge.mojom",
+    "full_restore.mojom",
+    "guest_os_sk_forwarder.mojom",
+    "identity_manager.mojom",
+    "keystore_error.mojom",
+    "keystore_service.mojom",
+    "launcher_search.mojom",
+    "local_printer.mojom",
+    "magic_boost.mojom",
+    "mahi.mojom",
+    "network_change.mojom",
+    "networking_private.mojom",
+    "nullable_primitives.mojom",
+    "policy_service.mojom",
+    "print_preview_cros.mojom",
+    "probe_service.mojom",
+    "remoting.mojom",
+    "synced_session_client.mojom",
+    "telemetry_diagnostic_routine_service.mojom",
+    "telemetry_event_service.mojom",
+    "telemetry_extension_exception.mojom",
+    "telemetry_keyboard_event.mojom",
+    "telemetry_management_service.mojom",
+    "ui_constants.mojom",
+    "video_conference.mojom",
+    "vpn_service.mojom",
+    "web_app_types.mojom",
+  ]
+  disable_variants = true
+  enable_js_fuzzing = false
+  cpp_only = true
+
+  public_deps = [
+    ":structured_metrics_service",
+    ":video_capture",
+    "//chromeos/components/in_session_auth/mojom",
+    "//chromeos/components/payments/mojom",
+    "//chromeos/components/remote_apps/mojom",
+    "//chromeos/components/sensors/mojom",
+    "//chromeos/services/chromebox_for_meetings/public/mojom",
+    "//chromeos/services/machine_learning/public/mojom",
+    "//chromeos/services/network_health/public/mojom:types",
+    "//components/global_media_controls/public/mojom:device_service",
+    "//components/printing/common:mojo_interfaces",
+    "//components/tab_groups/public/mojom:mojo_bindings",
+    "//media/mojo/mojom:speech_recognition",
+    "//mojo/public/mojom/base",
+    "//printing/backend/mojom",
+    "//printing/mojom",
+    "//remoting/host/mojom",
+    "//services/device/public/mojom",
+    "//services/media_session/public/mojom",
+    "//ui/accessibility:ax_enums_mojo",
+    "//ui/accessibility/mojom",
+    "//ui/base/mojom",
+    "//ui/base/mojom:ui_base_types",
+    "//ui/color:mojom",
+    "//ui/display/mojom",
+    "//ui/events/mojom",
+    "//ui/gfx/geometry/mojom",
+    "//ui/gfx/image/mojom",
+    "//ui/gfx/mojom",
+    "//url/mojom:url_mojom_gurl",
+  ]
+
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "crosapi.mojom.WebAppInstallResultCode"
+          cpp = "::webapps::InstallResultCode"
+        },
+        {
+          mojom = "crosapi.mojom.WebAppUninstallResultCode"
+          cpp = "::webapps::UninstallResultCode"
+        },
+        {
+          mojom = "crosapi.mojom.ResourceScaleFactor"
+          cpp = "::ui::ResourceScaleFactor"
+        },
+      ]
+      traits_headers = [
+        "//chromeos/crosapi/mojom/ui_constants_mojom_traits.h",
+        "//chromeos/crosapi/mojom/web_app_types_mojom_traits.h",
+        "//components/services/app_service/public/cpp/app_launch_util.h",
+        "//components/services/app_service/public/cpp/app_types.h",
+        "//components/services/app_service/public/cpp/shortcut/shortcut.h",
+        "//components/services/app_service/public/cpp/capability_access.h",
+        "//components/services/app_service/public/cpp/icon_types.h",
+        "//components/services/app_service/public/cpp/package_id.h",
+        "//components/services/app_service/public/cpp/permission.h",
+        "//components/services/app_service/public/cpp/preferred_app.h",
+      ]
+      traits_sources = [
+        "//chromeos/crosapi/mojom/ui_constants_mojom_traits.cc",
+        "//chromeos/crosapi/mojom/web_app_types_mojom_traits.cc",
+      ]
+      traits_public_deps = [
+        "//base",
+        "//components/services/app_service/public/cpp:app_types",
+        "//components/services/app_service/public/cpp/shortcut",
+        "//components/tab_groups",
+        "//components/webapps/browser:constants",
+        "//ui/base:ui_data_pack",
+        "//ui/gfx/range",
+      ]
+    },
+  ]
+}
+
+# This needs a separate target, because this is also used
+# by the Video Capture Service in Ash and blink bindings
+# are needed.
+mojom("video_capture") {
+  sources = [ "video_capture.mojom" ]
+  public_deps = [
+    "//media/capture/mojom:image_capture",
+    "//media/capture/mojom:video_capture_types",
+    "//mojo/public/mojom/base",
+    "//ui/gfx/geometry/mojom",
+    "//ui/gfx/mojom",
+  ]
+}
+
+# This needs a separate target, because this is also used
+# by the ChromeOS Camera App in Ash and blink bindings
+# are needed.
+mojom("structured_metrics_service") {
+  sources = [ "structured_metrics_service.mojom" ]
+  public_deps = [
+    "//components/metrics/structured/mojom",
+    "//mojo/public/mojom/base",
+  ]
+  webui_module_path = "/"
+}

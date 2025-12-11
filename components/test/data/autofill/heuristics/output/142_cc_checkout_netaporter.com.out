@@ -1,0 +1,5 @@
+CREDIT_CARD_NUMBER | cardNumber | Card Number* |  | cardNumber_1
+CREDIT_CARD_NAME_FULL | cardHoldersName | Name on card* |  | cardNumber_1
+CREDIT_CARD_VERIFICATION_CODE | cVSNumber | Security Number* |  | cardNumber_1
+CREDIT_CARD_EXP_MONTH | expiryMonth | Expiry Date* |  | cardNumber_1
+CREDIT_CARD_EXP_2_DIGIT_YEAR | expiryYear | Expiry Date* |  | cardNumber_1

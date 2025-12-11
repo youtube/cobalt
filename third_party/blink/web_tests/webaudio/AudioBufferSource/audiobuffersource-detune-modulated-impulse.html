@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audiobuffersource-detune-modulated-impulse.html
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+
+      const sampleRate = 44100;
+
+      // To get an observable change on detune modulation, the minimum
+      // rendering length should greater than the rendering quantum.
+      const renderLength = 256;
+      const half = renderLength / 2;
+
+      // With the detune of 0, the duration of impulse buffer should be 4
+      // samples (which means the interval between impulses is 4). Increasing
+      // detune to 1200 (1 octave) decreases the interval to 2 samples.
+      const impulseLength = 4;
+
+      promise_test(async t => {
+        // Build buffers (this would have been the "build-buffers" task).
+        const context = new OfflineAudioContext(1, renderLength, sampleRate);
+
+        // 4-sample impulse sample.
+        const impulseBuffer = createImpulseBuffer(context, impulseLength);
+
+        // DC offset buffer with values [0, 1200] to modulate .detune.
+        // The first half of the buffer is 0 and the rest is 1200.
+
+        const dcOffsetBuffer = new AudioBuffer({
+          numberOfChannels: 1,
+          length: renderLength,
+          sampleRate: context.sampleRate
+        });
+
+        const data = dcOffsetBuffer.getChannelData(0);
+        for (let i = 0; i < renderLength; ++i) {
+          data[i] = i < half ? 0 : 1200;
+        }
+
+        // Render the actual buffer and compare with the reference
+        // (this would have been the "synthesize-verify" task).
+        const impulse = new AudioBufferSourceNode(context);
+        const dcOffset = new AudioBufferSourceNode(context);
+
+        impulse.buffer = impulseBuffer;
+        dcOffset.buffer = dcOffsetBuffer;
+        impulse.loop = true;
+
+        impulse.connect(context.destination);
+        dcOffset.connect(impulse.detune);
+
+        impulse.start();
+        dcOffset.start();
+
+        const renderedBuffer = await context.startRendering();
+        const channelData = renderedBuffer.getChannelData(0);
+
+        let passed = true;
+        let i = 0;
+        let nextImpulseIndex = 0;
+
+        while (i < renderLength) {
+          if (i === nextImpulseIndex && channelData[i] === 1) {
+            // From 0 to 127th element, the interval between impulses is 4.
+            // From 128th to 255th element, the interval is 2.
+            nextImpulseIndex += (i < half) ? impulseLength : impulseLength / 2;
+          } else if (channelData[i] !== 0) {
+            // If a value is neither 0 nor exactly 1 at the expected index,
+            // fail the test.
+            passed = false;
+            break;
+          }
+          i++;
+        }
+
+        assert_true(
+            passed,
+            passed
+                ? `Increasing detune to 1200 decreased the interval ` +
+                      `between impulses to half.`
+                : `Detune modulation produced the incorrect result ` +
+                      `at index ${i}`);
+      }, `AudioBufferSourceNode.detune modulated by` +
+          ` audio-rate signal halves impulse interval`);
+    </script>
+  </body>
+</html>

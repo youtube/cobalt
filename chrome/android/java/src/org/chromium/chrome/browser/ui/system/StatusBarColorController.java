@@ -1,0 +1,655 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.ui.system;
+
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Build;
+import android.view.View;
+import android.view.Window;
+
+import androidx.annotation.ColorInt;
+import androidx.annotation.VisibleForTesting;
+import androidx.core.content.ContextCompat;
+
+import org.chromium.base.Callback;
+import org.chromium.base.CallbackController;
+import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ActivityTabProvider;
+import org.chromium.chrome.browser.layouts.LayoutManager;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
+import org.chromium.chrome.browser.layouts.LayoutType;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.lifecycle.DestroyObserver;
+import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
+import org.chromium.chrome.browser.ntp.NewTabPage;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
+import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
+import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
+import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownScrollListener;
+import org.chromium.chrome.browser.status_indicator.StatusIndicatorCoordinator;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
+import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
+import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator;
+import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
+import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
+import org.chromium.ui.UiUtils;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
+import org.chromium.ui.util.ColorUtils;
+
+/**
+ * Maintains the status bar color for a {@link Window}.
+ *
+ * <p>TODO(crbug.com/40915553): Prevent initialization of StatusBarColorController for automotive.
+ */
+@NullMarked
+public class StatusBarColorController
+        implements DestroyObserver,
+                StatusIndicatorCoordinator.StatusIndicatorObserver,
+                UrlFocusChangeListener,
+                OmniboxSuggestionsDropdownScrollListener,
+                TopToolbarCoordinator.ToolbarColorObserver,
+                TopResumedActivityChangedObserver {
+    public static final @ColorInt int UNDEFINED_STATUS_BAR_COLOR = Color.TRANSPARENT;
+    public static final @ColorInt int DEFAULT_STATUS_BAR_COLOR = Color.argb(0x01, 0, 0, 0);
+
+    /** Provides the base status bar color. */
+    public interface StatusBarColorProvider {
+        /**
+         * @return The base status bar color to override default colors used in the {@link
+         *     StatusBarColorController}. If this returns {@link #DEFAULT_STATUS_BAR_COLOR}, {@link
+         *     StatusBarColorController} will use the default status bar color. If this returns a
+         *     color other than {@link #UNDEFINED_STATUS_BAR_COLOR} and {@link
+         *     #DEFAULT_STATUS_BAR_COLOR}, the {@link StatusBarColorController} will always use the
+         *     color provided by this method to adjust the status bar color. This color may be used
+         *     as-is or adjusted due to a scrim overlay.
+         */
+        @ColorInt
+        int getBaseStatusBarColor(@Nullable Tab tab);
+    }
+
+    private final Window mWindow;
+    private final boolean mIsTablet;
+    private final Activity mActivity;
+    private @Nullable LayoutStateProvider mLayoutStateProvider;
+    private final StatusBarColorProvider mStatusBarColorProvider;
+    private final ActivityTabProvider.ActivityTabTabObserver mStatusBarColorTabObserver;
+    private final Callback<TabModel> mCurrentTabModelObserver;
+    private final TopUiThemeColorProvider mTopUiThemeColor;
+    private final EdgeToEdgeSystemBarColorHelper mEdgeToEdgeSystemBarColorHelper;
+    private final @ColorInt int mStandardDefaultThemeColor;
+    private final @ColorInt int mIncognitoDefaultThemeColor;
+    private final @ColorInt int mActiveOmniboxDefaultColor;
+    private final @ColorInt int mIncognitoActiveOmniboxColor;
+    private final @ColorInt int mStandardScrolledOmniboxColor;
+    private final @ColorInt int mIncognitoScrolledOmniboxColor;
+    private final ObservableSupplier<Integer> mOverviewColorSupplier;
+    private final Callback<Integer> mOverviewColorObserver = ignored -> updateStatusBarColor();
+    private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
+    private boolean mToolbarColorChanged;
+    private @ColorInt int mToolbarColor;
+    private @ColorInt int mBackgroundColorForNtp;
+    private final @ColorInt int mAdjustedBackgroundColorForNtpWithToolbarExpanding;
+    private final @ColorInt int mAdjustedBackgroundColorForNtpWithToolbarCollapsed;
+
+    private @Nullable TabModelSelector mTabModelSelector;
+    private CallbackController mCallbackController = new CallbackController();
+    private @Nullable Tab mCurrentTab;
+    private boolean mIsIncognitoBranded;
+    private boolean mIsOmniboxFocused;
+    private boolean mAreSuggestionsScrolled;
+
+    private @ColorInt int mScrimColor = ScrimProperties.INVALID_COLOR;
+
+    private boolean mShouldUpdateStatusBarColorForNtp;
+    private @ColorInt int mStatusIndicatorColor;
+    private @ColorInt int mStatusBarColorWithoutStatusIndicator;
+
+    // Tab strip transition states.
+    private boolean mTabStripHiddenOnTablet;
+    private @ColorInt int mTabStripTransitionOverlayColor = ScrimProperties.INVALID_COLOR;
+    private float mTabStripTransitionOverlayAlpha;
+    private boolean mAllowToolbarColorOnTablets;
+
+    // Desktop window states.
+    private boolean mIsTopResumedActivity;
+
+    private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
+
+    private final LayoutStateObserver mLayoutStateObserver =
+            new LayoutStateObserver() {
+                @Override
+                public void onFinishedHiding(@LayoutType int layoutType) {
+                    if (layoutType != LayoutType.TAB_SWITCHER) {
+                        return;
+                    }
+                    updateStatusBarColor();
+                }
+            };
+
+    /**
+     * Constructs a StatusBarColorController.
+     *
+     * @param activity The Activity.
+     * @param isTablet Whether the current context is on a tablet.
+     * @param statusBarColorProvider An implementation of {@link StatusBarColorProvider}.
+     * @param layoutManagerSupplier Supplies the layout manager.
+     * @param activityLifecycleDispatcher Allows observation of the activity lifecycle.
+     * @param tabProvider The {@link ActivityTabProvider} to get current tab of the activity.
+     * @param topUiThemeColorProvider The {@link ThemeColorProvider} for top UI.
+     * @param edgeToEdgeSystemBarColorHelper Draws status bar color for Edge to Edge.
+     * @param desktopWindowStateManager Instance to retrieve desktop window information.
+     * @param overviewColorSupplier Notifies when the overview color changes.
+     */
+    public StatusBarColorController(
+            Activity activity,
+            boolean isTablet,
+            StatusBarColorProvider statusBarColorProvider,
+            ObservableSupplier<LayoutManager> layoutManagerSupplier,
+            ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            ActivityTabProvider tabProvider,
+            TopUiThemeColorProvider topUiThemeColorProvider,
+            EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper,
+            @Nullable DesktopWindowStateManager desktopWindowStateManager,
+            ObservableSupplier<Integer> overviewColorSupplier) {
+        mActivity = activity;
+        mWindow = activity.getWindow();
+        mIsTablet = isTablet;
+        mStatusBarColorProvider = statusBarColorProvider;
+        mAllowToolbarColorOnTablets = false;
+        mOverviewColorSupplier = overviewColorSupplier;
+
+        mStandardDefaultThemeColor =
+                ChromeColors.getDefaultThemeColor(activity, /* isIncognito= */ false);
+        mIncognitoDefaultThemeColor =
+                ChromeColors.getDefaultThemeColor(activity, /* isIncognito= */ true);
+
+        mBackgroundColorForNtp =
+                ContextCompat.getColor(activity, R.color.home_surface_background_color);
+        // In light mode, when toolbar is expending, we want to tint status bar icon color from
+        // white to black, i.e, the same color of the location bar icons. To change icon tint to
+        // black, we need to set the background of status bar as white. In the dark mode, the
+        // background of status bar is set to black.
+        mAdjustedBackgroundColorForNtpWithToolbarExpanding =
+                activity.getColor(
+                        R.color.status_bar_background_color_on_ntp_with_toolbar_expanding);
+        mAdjustedBackgroundColorForNtpWithToolbarCollapsed =
+                activity.getColor(
+                        R.color.status_bar_background_color_on_ntp_with_toolbar_collapsed);
+        mStatusIndicatorColor = UNDEFINED_STATUS_BAR_COLOR;
+
+        // TODO(b/41494931): Share code with LocationBarCoordinator's constructor.
+        mActiveOmniboxDefaultColor =
+                ContextCompat.getColor(activity, R.color.omnibox_suggestion_dropdown_bg);
+
+        mIncognitoActiveOmniboxColor = activity.getColor(R.color.omnibox_dropdown_bg_incognito);
+        // TODO(b/41494931): Share code with ToolbarPhone#getToolbarDefaultColor().
+        mStandardScrolledOmniboxColor =
+                ContextCompat.getColor(activity, R.color.toolbar_text_box_bg_color);
+        mIncognitoScrolledOmniboxColor = activity.getColor(R.color.omnibox_scrolled_bg_incognito);
+
+        mStatusBarColorTabObserver =
+                new ActivityTabProvider.ActivityTabTabObserver(tabProvider) {
+                    @Override
+                    public void onShown(Tab tab, @TabSelectionType int type) {
+                        updateStatusBarColor();
+                    }
+
+                    @Override
+                    public void onDidChangeThemeColor(Tab tab, @ColorInt int color) {
+                        updateStatusBarColor();
+                    }
+
+                    @Override
+                    public void onContentChanged(Tab tab) {
+                        final boolean newShouldUpdateStatusBarColorForNtp = isStandardNtp();
+                        // Also update the status bar color if the content was previously an NTP,
+                        // because an NTP can use a different status bar color than the default
+                        // theme color. In this case, the theme color might not change, and thus
+                        // #onDidChangeThemeColor
+                        // might not get called.
+                        if (mShouldUpdateStatusBarColorForNtp
+                                || newShouldUpdateStatusBarColorForNtp) {
+                            updateStatusBarColor();
+                        }
+                        mShouldUpdateStatusBarColorForNtp = newShouldUpdateStatusBarColorForNtp;
+                    }
+
+                    @Override
+                    public void onActivityAttachmentChanged(
+                            Tab tab, @Nullable WindowAndroid window) {
+                        // Stop referring to the Tab once detached from an activity. Will be
+                        // restored by |onObservingDifferentTab|.
+                        if (window == null) mCurrentTab = null;
+                    }
+
+                    @Override
+                    public void onDestroyed(Tab tab) {
+                        // Make sure that #mCurrentTab is cleared because #onObservingDifferentTab()
+                        // might not be notified early enough when
+                        // #onUrlExpansionPercentageChanged() is
+                        // called.
+                        mCurrentTab = null;
+                        mShouldUpdateStatusBarColorForNtp = false;
+                    }
+
+                    @Override
+                    protected void onObservingDifferentTab(@Nullable Tab tab, boolean hint) {
+                        mCurrentTab = tab;
+                        mShouldUpdateStatusBarColorForNtp = isStandardNtp();
+
+                        // |tab == null| means we're switching tabs - by the tab switcher or by
+                        // swiping on the omnibox. These cases are dealt with differently,
+                        // elsewhere.
+                        if (tab == null) return;
+                        updateStatusBarColor();
+                    }
+                };
+
+        mCurrentTabModelObserver =
+                (tabModel) -> {
+                    mIsIncognitoBranded = tabModel.isIncognitoBranded();
+                    // When opening a new Incognito Tab from a normal Tab (or vice versa), the
+                    // status bar color is updated. However, this update is triggered after the
+                    // animation, so we update here for the duration of the new Tab animation.
+                    // See https://crbug.com/917689.
+                    updateStatusBarColor();
+                };
+
+        if (layoutManagerSupplier != null) {
+            layoutManagerSupplier.addObserver(
+                    mCallbackController.makeCancelable(
+                            layoutManager -> {
+                                assert layoutManager != null;
+                                mLayoutStateProvider = layoutManager;
+                                mLayoutStateProvider.addObserver(mLayoutStateObserver);
+                            }));
+        }
+
+        activityLifecycleDispatcher.register(this);
+        mTopUiThemeColor = topUiThemeColorProvider;
+        mToolbarColorChanged = false;
+        mEdgeToEdgeSystemBarColorHelper = edgeToEdgeSystemBarColorHelper;
+        mDesktopWindowStateManager = desktopWindowStateManager;
+        if (mDesktopWindowStateManager != null) {
+            mIsTopResumedActivity = !mDesktopWindowStateManager.isInUnfocusedDesktopWindow();
+        }
+        mOverviewColorSupplier.addObserver(mOverviewColorObserver);
+    }
+
+    /**
+     * Initializes to support customized NTP's background color if supportEdgeToEdge is true.
+     *
+     * @param context The application context.
+     * @param supportEdgeToEdge Whether to support making NTPs edge-to-edge.
+     */
+    public void maybeInitializeForCustomizedNtp(Context context, boolean supportEdgeToEdge) {
+        if (!supportEdgeToEdge) return;
+
+        var ntpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
+        mBackgroundColorForNtp = ntpCustomizationConfigManager.getBackgroundColor(context);
+
+        mHomepageStateListener =
+                new NtpCustomizationConfigManager.HomepageStateListener() {
+                    @Override
+                    public void onBackgroundColorChanged(
+                            @Nullable NtpThemeColorInfo ntpThemeColorInfo,
+                            @ColorInt int backgroundColor,
+                            boolean fromInitialization,
+                            @NtpBackgroundImageType int oldType,
+                            @NtpBackgroundImageType int newType) {
+                        if (mBackgroundColorForNtp == backgroundColor) return;
+
+                        mBackgroundColorForNtp = backgroundColor;
+                        updateStatusBarColor();
+                    }
+
+                    @Override
+                    public void onBackgroundImageChanged(
+                            Bitmap originalBitmap,
+                            @Nullable BackgroundImageInfo backgroundImageInfo,
+                            boolean fromInitialization,
+                            @NtpBackgroundImageType int oldType,
+                            @NtpBackgroundImageType int newType) {
+                        onBackgroundImageChangedImpl();
+                    }
+                };
+        ntpCustomizationConfigManager.addListener(mHomepageStateListener, context);
+    }
+
+    /** Called when the background image of the NTP has changed. */
+    public void onBackgroundImageChangedImpl() {
+        if (mBackgroundColorForNtp == mAdjustedBackgroundColorForNtpWithToolbarCollapsed) return;
+
+        mBackgroundColorForNtp = mAdjustedBackgroundColorForNtpWithToolbarCollapsed;
+        updateStatusBarColor();
+    }
+
+    // DestroyObserver implementation.
+    @Override
+    @SuppressWarnings("NullAway")
+    public void onDestroy() {
+        mStatusBarColorTabObserver.destroy();
+        if (mLayoutStateProvider != null) {
+            mLayoutStateProvider.removeObserver(mLayoutStateObserver);
+        }
+        if (mTabModelSelector != null) {
+            mTabModelSelector.getCurrentTabModelSupplier().removeObserver(mCurrentTabModelObserver);
+        }
+        if (mCallbackController != null) {
+            mCallbackController.destroy();
+            mCallbackController = null;
+        }
+        mOverviewColorSupplier.removeObserver(mOverviewColorObserver);
+        if (mHomepageStateListener != null) {
+            NtpCustomizationConfigManager.getInstance().removeListener(mHomepageStateListener);
+        }
+    }
+
+    // TopResumedActivityChangedObserver implementation.
+    @Override
+    public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
+        if (!mIsTablet || !AppHeaderUtils.isAppInDesktopWindow(mDesktopWindowStateManager)) return;
+        mIsTopResumedActivity = isTopResumedActivity;
+        updateStatusBarColor();
+    }
+
+    // TopToolbarCoordinator.ToolbarColorObserver implementation.
+    @Override
+    public void onToolbarColorChanged(@ColorInt int color) {
+        // Status bar color on tablets could change when the tab strip transition is enabled,
+        // where it might be required for the status bar color to match the toolbar color when the
+        // tab strip is hidden.
+        if (mIsTablet && !mAllowToolbarColorOnTablets) return;
+
+        // Set mToolbarColorChanged to true as an extra check to prevent rendering status bar with
+        // default color if toolbar never changes, for example, in dark mode.
+        mToolbarColorChanged = true;
+        mToolbarColor = color;
+        updateStatusBarColor();
+    }
+
+    @Override
+    public void onToolbarExpandingOnNtp(boolean isToolbarExpanding) {
+        if (isToolbarExpanding) {
+            mBackgroundColorForNtp = mAdjustedBackgroundColorForNtpWithToolbarExpanding;
+        } else {
+            mBackgroundColorForNtp = mAdjustedBackgroundColorForNtpWithToolbarCollapsed;
+        }
+        updateStatusBarColor();
+    }
+
+    // StatusIndicatorCoordinator.StatusIndicatorObserver implementation.
+    @Override
+    public void onStatusIndicatorColorChanged(@ColorInt int newColor) {
+        mStatusIndicatorColor = newColor;
+        updateStatusBarColor();
+    }
+
+    @Override
+    public void onUrlFocusChange(boolean hasFocus) {
+        mIsOmniboxFocused = hasFocus;
+        updateStatusBarColor();
+    }
+
+    @Override
+    public void onSuggestionDropdownScroll() {
+        mAreSuggestionsScrolled = true;
+        updateStatusBarColor();
+    }
+
+    @Override
+    public void onSuggestionDropdownOverscrolledToTop() {
+        mAreSuggestionsScrolled = false;
+        updateStatusBarColor();
+    }
+
+    /**
+     * Update the scrim color on the status bar.
+     *
+     * @param scrimColor The scrim color int.
+     */
+    public void setScrimColor(@ColorInt int scrimColor) {
+        mScrimColor = scrimColor;
+        updateStatusBarColor();
+    }
+
+    /**
+     * @return The current scrim color for the status bar.
+     */
+    public @ColorInt int getScrimColorForTesting() {
+        return mScrimColor;
+    }
+
+    /**
+     * Add the tab strip transition scrim overlay on the status bar during a tab strip transition.
+     *
+     * @param overlayColor The overlay color.
+     * @param overlayAlpha The alpha that |overlayColor| should have on the status bar color.
+     */
+    public void setTabStripColorOverlay(@ColorInt int overlayColor, float overlayAlpha) {
+        assert mIsTablet;
+        if (!mAllowToolbarColorOnTablets) return;
+        mTabStripTransitionOverlayColor = overlayColor;
+        mTabStripTransitionOverlayAlpha = overlayAlpha;
+        updateStatusBarColor();
+    }
+
+    /**
+     * @param tabModelSelector The {@link TabModelSelector} to check whether incognito model is
+     *     selected.
+     */
+    public void setTabModelSelector(TabModelSelector tabModelSelector) {
+        assert mTabModelSelector == null : "mTabModelSelector should only be set once.";
+        mTabModelSelector = tabModelSelector;
+        if (mTabModelSelector != null) {
+            mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
+            mIsIncognitoBranded = mTabModelSelector.isIncognitoBrandedModelSelected();
+            updateStatusBarColor();
+        }
+    }
+
+    /** Calculate and update the status bar's color. */
+    public void updateStatusBarColor() {
+        @ColorInt int statusBarColor = calculateFinalStatusBarColor();
+        setStatusBarColor(mEdgeToEdgeSystemBarColorHelper, mActivity, statusBarColor);
+    }
+
+    /**
+     * Set whether the tab strip is hidden or visible on a tablet. This state will be used to
+     * determine the base status bar color on a tablet.
+     *
+     * @param tabStripHiddenOnTablet Whether the tab strip is hidden or visible on a tablet.
+     */
+    public void setTabStripHiddenOnTablet(boolean tabStripHiddenOnTablet) {
+        assert mIsTablet;
+        if (!mAllowToolbarColorOnTablets) return;
+        mTabStripHiddenOnTablet = tabStripHiddenOnTablet;
+    }
+
+    /**
+     * @return The status bar color without the status indicator's color taken into consideration.
+     *         However, scrimming isn't included since it's managed completely by this class.
+     */
+    public @ColorInt int getStatusBarColorWithoutStatusIndicator() {
+        return mStatusBarColorWithoutStatusIndicator;
+    }
+
+    @VisibleForTesting
+    @ColorInt
+    int calculateFinalStatusBarColor() {
+        mStatusBarColorWithoutStatusIndicator = calculateBaseStatusBarColor();
+        @ColorInt
+        int statusBarColor = applyStatusBarIndicatorColor(mStatusBarColorWithoutStatusIndicator);
+        statusBarColor = applyTabStripOverlay(statusBarColor);
+        statusBarColor = ColorUtils.overlayColor(statusBarColor, mOverviewColorSupplier.get());
+        statusBarColor = applyCurrentScrimToColor(statusBarColor);
+        return statusBarColor;
+    }
+
+    private @ColorInt int calculateBaseStatusBarColor() {
+        // Return overridden status bar color from StatusBarColorProvider if specified.
+        @ColorInt
+        int baseStatusBarColor = mStatusBarColorProvider.getBaseStatusBarColor(mCurrentTab);
+        if (baseStatusBarColor == DEFAULT_STATUS_BAR_COLOR) {
+            return calculateDefaultStatusBarColor();
+        }
+        if (baseStatusBarColor != UNDEFINED_STATUS_BAR_COLOR) {
+            return baseStatusBarColor;
+        }
+
+        if (mIsTablet) {
+            return mTabStripHiddenOnTablet
+                    ? mToolbarColor
+                    : TabUiThemeUtil.getTabStripBackgroundColor(
+                            mWindow.getContext(),
+                            mIsIncognitoBranded,
+                            AppHeaderUtils.isAppInDesktopWindow(mDesktopWindowStateManager),
+                            mIsTopResumedActivity);
+        }
+
+        // When Omnibox gains focus, we want to clear the status bar theme color.
+        // The theme should be restored when Omnibox focus clears.
+        if (mIsOmniboxFocused) {
+            // If the flag is enabled, we will use the toolbar color.
+            if (mToolbarColorChanged) return mToolbarColor;
+            return calculateDefaultStatusBarColor();
+        }
+
+        // Return New Tab Page background color in New Tab Page.
+        if (isStandardNtp()) {
+            return mBackgroundColorForNtp;
+        }
+
+        // Return status bar color to match the toolbar.
+        // If the flag is enabled, we will use the toolbar color.
+        if (mToolbarColorChanged) return mToolbarColor;
+        return mTopUiThemeColor.getThemeColorOrFallback(
+                mCurrentTab, calculateDefaultStatusBarColor());
+    }
+
+    /** Calculates the default status bar color based on the incognito state. */
+    private @ColorInt int calculateDefaultStatusBarColor() {
+        if (!mIsOmniboxFocused) {
+            return mIsIncognitoBranded ? mIncognitoDefaultThemeColor : mStandardDefaultThemeColor;
+        }
+
+        if (mAreSuggestionsScrolled) {
+            return mIsIncognitoBranded
+                    ? mIncognitoScrolledOmniboxColor
+                    : mStandardScrolledOmniboxColor;
+        } else {
+            return mIsIncognitoBranded ? mIncognitoActiveOmniboxColor : mActiveOmniboxDefaultColor;
+        }
+    }
+
+    /**
+     * Set device status bar to a given color. Also, set the status bar icons to a dark color if
+     * needed.
+     *
+     * @param edgeToEdgeSystemBarColorHelper The interface that draws system bar color for Edge to
+     *     Edge.
+     * @param activity The current Activity.
+     * @param color The color that the status bar should be set to.
+     */
+    public static void setStatusBarColor(
+            @Nullable EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper,
+            Activity activity,
+            @ColorInt int color) {
+        Window window = activity.getWindow();
+        final View root = window.getDecorView().getRootView();
+        boolean needsDarkStatusBarIcons = !ColorUtils.shouldUseLightForegroundOnBackground(color);
+        if (EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()
+                && edgeToEdgeSystemBarColorHelper != null) {
+            edgeToEdgeSystemBarColorHelper.setStatusBarColor(color);
+        } else {
+            UiUtils.setStatusBarIconColor(root, needsDarkStatusBarIcons);
+            UiUtils.setStatusBarColor(window, color);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            var taskDescription =
+                    new ActivityManager.TaskDescription.Builder().setStatusBarColor(color).build();
+            activity.setTaskDescription(taskDescription);
+        }
+    }
+
+    /**
+     * Takes status bar indicator into account in status bar color computation.
+     *
+     * @param darkenedBaseColor The status bar color without the status indicator's color taken into
+     *     consideration. (as specified in {@link getStatusBarColorWithoutStatusIndicator()}).
+     * @return The resulting color.
+     */
+    private @ColorInt int applyStatusBarIndicatorColor(@ColorInt int darkenedBaseColor) {
+        if (mStatusIndicatorColor == UNDEFINED_STATUS_BAR_COLOR) return darkenedBaseColor;
+
+        return mStatusIndicatorColor;
+    }
+
+    /**
+     * Get the scrim applied color if the scrim is showing. Otherwise, return the original color.
+     *
+     * @param color Color to maybe apply scrim to.
+     * @return The resulting color.
+     */
+    private @ColorInt int applyCurrentScrimToColor(@ColorInt int color) {
+        return ColorUtils.overlayColor(color, mScrimColor);
+    }
+
+    /**
+     * Apply and get the tab strip overlay applied color if the strip transition scrim is showing.
+     *
+     * @param color Base color to apply the overlay to.
+     */
+    private @ColorInt int applyTabStripOverlay(@ColorInt int color) {
+        // If the tab strip is transitioning on a tablet, apply the strip overlay on the status bar.
+        if (mIsTablet && mTabStripTransitionOverlayAlpha > 0) {
+            return ColorUtils.getColorWithOverlay(
+                    color, mTabStripTransitionOverlayColor, mTabStripTransitionOverlayAlpha);
+        }
+        return color;
+    }
+
+    /**
+     * Determines whether the status bar color could use the toolbar color on tablets when certain
+     * conditions are met. This is currently supported on ChromeTabbedActivity's only.
+     *
+     * @param allowToolbarColorOnTablets Whether the status bar color could use the toolbar color.
+     */
+    // TODO(crbug.com/324313724): Support this for other activities.
+    public void setAllowToolbarColorOnTablets(boolean allowToolbarColorOnTablets) {
+        mAllowToolbarColorOnTablets = allowToolbarColorOnTablets;
+    }
+
+    /**
+     * @return Whether or not the current tab is a new tab page in standard mode.
+     */
+    private boolean isStandardNtp() {
+        return mCurrentTab != null && mCurrentTab.getNativePage() instanceof NewTabPage;
+    }
+
+    @ColorInt
+    int getBackgroundColorForNtpForTesting() {
+        return mBackgroundColorForNtp;
+    }
+}

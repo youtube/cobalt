@@ -1,0 +1,33 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_chromeos)
+
+source_set("browser_instance") {
+  sources = [
+    "web_contents_instance_id_utils.cc",
+    "web_contents_instance_id_utils.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/web_applications",
+    "//chrome/browser/web_applications",
+    "//chrome/browser/web_applications/mojom:mojom_web_apps_enum",
+    "//chrome/browser/web_applications/proto",
+    "//components/webapps/common",
+    "//content/public/browser",
+    "//extensions/browser",
+    "//extensions/common",
+
+    # For circular includes from.
+    "//chrome/browser/ui/ash/shelf",
+  ]
+
+  # TODO(crbug.com/1402145): Remove circular dependencies.
+  allow_circular_includes_from = [ "//chrome/browser/ui/ash/shelf" ]
+}

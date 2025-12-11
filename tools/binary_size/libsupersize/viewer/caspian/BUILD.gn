@@ -1,0 +1,92 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//testing/test.gni")
+
+declare_args() {
+  enable_caspian = false
+}
+assert(is_linux || is_chromeos || is_wasm)
+
+source_set("caspian-lib") {
+  sources = [
+    "diff.cc",
+    "diff.h",
+    "file_format.cc",
+    "file_format.h",
+    "function_signature.cc",
+    "function_signature.h",
+    "grouped_path.cc",
+    "grouped_path.h",
+    "lens.cc",
+    "lens.h",
+    "model.cc",
+    "model.h",
+    "tree_builder.cc",
+    "tree_builder.h",
+  ]
+  deps = [
+    "//third_party/re2",
+    "//third_party/zlib",
+    "//third_party/zlib/google:compression_utils_portable",
+  ]
+  public_deps = [ "//third_party/jsoncpp" ]
+  configs -= [ "//build/config/compiler:default_optimization" ]
+  configs += [ "//build/config/compiler:optimize_speed" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+test("caspian_unittests") {
+  sources = [
+    "diff_test.cc",
+    "function_signature_test.cc",
+    "grouped_path_test.cc",
+    "lens_test.cc",
+    "tree_builder_test.cc",
+  ]
+  deps = [
+    ":caspian-lib",
+    "//base",
+    "//testing/gtest",
+    "//testing/gtest:gtest_main",
+    "//third_party/re2",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+executable("caspian_cli") {
+  sources = [ "cli.cc" ]
+  deps = [ ":caspian-lib" ]
+  cflags = [ "-Wall" ]
+}
+
+if (enable_caspian) {
+  if (is_wasm) {
+    executable("caspian_web") {
+      sources = [ "caspian_web.cc" ]
+      deps = [
+        ":caspian-lib",
+        "//third_party/re2",
+      ]
+      ldflags = [
+        "-s",
+        "EXPORTED_FUNCTIONS=['_BuildTree','_GetMetadata','_LoadBeforeSizeFile','_LoadSizeFile','_Open','_QueryAncestryById','_QueryProperty','_free','_malloc']",
+        "-s",
+        "EXPORTED_RUNTIME_METHODS=['HEAPU8','ccall','cwrap','UTF8ToString']",
+        "-s",
+        "MAXIMUM_MEMORY=4GB",
+      ]
+    }
+  } else {
+    group("caspian_web") {
+      public_deps = [ ":caspian_web(//build/toolchain/wasm)" ]
+    }
+  }
+}

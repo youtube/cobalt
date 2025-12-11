@@ -1,0 +1,43 @@
+caption: Enable or disable the <ph name="USER_AGENT_REDUCTION_FEATURE_NAME">User-Agent
+  Reduction</ph>.
+default: 0
+deprecated: true
+desc: "The <ph name=\"USER_AGENT_HEADER_NAME\">User-Agent</ph> HTTP request header\
+  \ had been reduced by default since Chrome 110 and deprecaton trial ended after\
+  \ Chrome 113. In order to continue receiving detailed plaform information, please\
+  \ migrate to User-Agent Client Hints which serve as a replacement for deprecated\
+  \ detailed User-Agent header: https://web.dev/articles/migrate-to-ua-ch\n\
+  \      "
+example_value: 0
+features:
+  dynamic_refresh: true
+  per_profile: true
+future_on:
+- fuchsia
+items:
+- caption: Reduced User Agent.
+  name: Default
+  value: 0
+- caption: Full (legacy) User Agent.
+  name: ForceDisabled
+  value: 1
+- caption: Reduced User Agent.
+  name: ForceEnabled
+  value: 2
+owners:
+- abeyad@chromium.org
+- aarontag@chromium.org
+- miketaylr@chromium.org
+schema:
+  enum:
+  - 0
+  - 1
+  - 2
+  type: integer
+supported_on:
+- chrome_os:98-
+- chrome.*:98-
+- android:98-
+tags:
+- website-sharing
+type: int-enum

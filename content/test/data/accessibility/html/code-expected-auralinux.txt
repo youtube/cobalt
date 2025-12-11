@@ -1,0 +1,4 @@
+[document web]
+++[section]
+++++[static]
+++++++[static] name='A piece of computer code'

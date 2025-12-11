@@ -1,0 +1,25 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// This should match the DialogButton enum in browser_protocol.pdl
+enum DialogButton {
+  "ConfirmIdpLoginContinue",
+  "ErrorGotIt",
+  "ErrorMoreDetails",
+};
+
+dictionary FedCmTitleAndSubtitle {
+  required DOMString title;
+  DOMString subtitle;
+};
+
+[
+  ImplementedAs=InternalsFedCm
+] partial interface Internals {
+  [CallWith=ScriptState] Promise<DOMString> getFedCmDialogType();
+  [CallWith=ScriptState] Promise<FedCmTitleAndSubtitle> getFedCmTitleAndSubtitle();
+  [CallWith=ScriptState, RaisesException] Promise<undefined> selectFedCmAccount(long accountIndex);
+  [CallWith=ScriptState] Promise<undefined> dismissFedCmDialog();
+  [CallWith=ScriptState] Promise<undefined> clickFedCmDialogButton(DialogButton dialogButton);
+};

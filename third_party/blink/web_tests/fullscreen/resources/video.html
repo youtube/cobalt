@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script>
+let video;
+function framePainted() {
+    parent.postMessage("Video frame painted.", "*");
+}
+
+function fullscreenChanged() {
+    parent.postMessage("SUCCEED - entered full screen!", "*");
+}
+
+onload = function() {
+    video = document.getElementById('video');
+    var mediaFile = "../../media/content/test.ogv";
+    video.addEventListener('webkitfullscreenchange', fullscreenChanged);
+    video.requestVideoFrameCallback(framePainted);
+    video.onclick = function(event) {
+        video.webkitRequestFullscreen();
+        // cancel the activation behavior (click to play/pause)
+        event.preventDefault();
+    };
+    video.src = mediaFile;
+}
+</script>
+<video id="video" width="320" height="240"></video>

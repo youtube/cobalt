@@ -1,0 +1,11 @@
+Tests setting breakpoint when main thread blocks.
+
+
+Running: testSetBreakpoint
+blocking-main-thread-worker.php:line 9:   Atomics.store(sharedArray, i, 1);
+Page reloaded.
+Script execution paused.
+blocking-main-thread-worker.php:line 9:   Atomics.store(sharedArray, i, 1);
+blocking-main-thread.php:line 6:   worker.postMessage(sab);
+Script execution resumed.
+

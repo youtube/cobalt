@@ -1,0 +1,32 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module paint_preview.mojom;
+
+import "mojo/public/mojom/base/big_buffer.mojom";
+import "mojo/public/mojom/base/file.mojom";
+
+// Corresponds to |paint_preview::RecordingPersistence| in
+// components/paint_preview/common/serialized_recording.h
+enum RecordingPersistence {
+  kFileSystem,
+  kMemoryBuffer,
+};
+
+// Choices of renderer-computed coordinates, for use during capture.
+enum ClipCoordOverride {
+  // Not overridden.
+  kNone,
+  // A coordinate centered around the scroll offset (given `clip_rect`'s size).
+  kCenterOnScrollOffset,
+  // A coordinate placed at the scroll offset.
+  kScrollOffset,
+};
+
+// Corresponds to |paint_preview::SerializedRecording| in
+// components/paint_preview/common/serialized_recording.h
+union SerializedRecording {
+  mojo_base.mojom.File file;
+  mojo_base.mojom.BigBuffer buffer;
+};

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ScriptProcessorNode basic behavior test</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100.0;
+      const outputChannels = 6;
+      let playbackTime = 0.0;
+
+      // For the current implementation of ScriptProcessorNode, when it works
+      // with OfflineAudioContext (which runs much faster than real-time) the
+      // event.inputBuffer might be overwrite again before onaudioprocess ever
+      // get chance to be called.  We carefully arrange the renderLengthInFrames
+      // and bufferSize to have exactly the same value to avoid this issue.
+      const renderLengthInFrames = 512;
+      const bufferSize = 512;
+
+      let context;
+
+      function createBuffer(context, length) {
+        const audioBuffer = context.createBuffer(2, length, sampleRate);
+        const n = audioBuffer.length;
+        const dataL = audioBuffer.getChannelData(0);
+        const dataR = audioBuffer.getChannelData(1);
+
+        for (let i = 0; i < n; ++i) {
+          dataL[i] = -1;
+          dataR[i] = 1;
+        }
+
+        return audioBuffer;
+      }
+
+      function processAudioData(event) {
+        playbackTime = event.playbackTime;
+        const expectedTime =
+            context.currentTime + (bufferSize / context.sampleRate);
+        const allowedTimeGap = 0.0000001;
+
+        // There may be a little time gap which is from different thread
+        // operation between currentTime when main thread fires onaudioprocess()
+        // and currentTime when read in JS since currentTime is continuously
+        // increasing on audio thread.
+        assert_approx_equals(
+            playbackTime, expectedTime, allowedTimeGap,
+            'playbackTime must be close to expected time');
+
+        const outputBuffer = event.outputBuffer;
+        assert_equals(outputBuffer.numberOfChannels, outputChannels,
+            'Number of output channels');
+        assert_equals(outputBuffer.length, bufferSize, 'Length of buffer');
+
+        const inputBuffer = event.inputBuffer;
+        const bufferDataL = inputBuffer.getChannelData(0);
+        const bufferDataR = inputBuffer.getChannelData(1);
+
+        assert_array_constant_value(
+              bufferDataL, -1, 'Left channel should be constant -1');
+        assert_array_constant_value(
+              bufferDataR,  1, 'Right channel should be constant 1');
+      }
+
+      promise_test(async () => {
+        context = new OfflineAudioContext(2, renderLengthInFrames, sampleRate);
+
+        assert_throws_dom(
+            'IndexSizeError',
+            () => context.createScriptProcessor(512, 0, 0),
+            'createScriptProcessor(512, 0, 0) must throw IndexSizeError');
+
+        context.createScriptProcessor(512, 1, 0);
+        context.createScriptProcessor(512, 2, 0);
+        context.createScriptProcessor(512, 0, 1);
+        context.createScriptProcessor(512, 0, 2);
+
+        assert_throws_dom(
+            'IndexSizeError',
+            () => context.createScriptProcessor(511, 1, 1),
+            'context.createScriptProcessor(511, 1, 1) must ' +
+                'throw IndexSizeError');
+
+        context.createScriptProcessor(256, 1, 1);
+        context.createScriptProcessor(512, 1, 1);
+        context.createScriptProcessor(1024, 1, 1);
+        context.createScriptProcessor(2048, 1, 1);
+        context.createScriptProcessor(4096, 1, 1);
+        context.createScriptProcessor(8192, 1, 1);
+        context.createScriptProcessor(16384, 1, 1);
+
+        const sourceBuffer = createBuffer(context, renderLengthInFrames);
+
+        const bufferSource = context.createBufferSource();
+        bufferSource.buffer = sourceBuffer;
+
+        const jsnode =
+            context.createScriptProcessor(bufferSize, 2, outputChannels);
+
+        bufferSource.connect(jsnode);
+        jsnode.connect(context.destination);
+        jsnode.onaudioprocess = event => {
+          processAudioData(event);
+        };
+
+        bufferSource.start(0);
+        await context.startRendering();
+      }, 'ScriptProcessorNode: basic creation and audio processing behavior');
+    </script>
+  </body>
+</html>

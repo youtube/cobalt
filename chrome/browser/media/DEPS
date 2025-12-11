@@ -1,0 +1,24 @@
+include_rules = [
+  "+chrome/android/features/media_router/jni_headers",
+  "+components/cdm/common",
+  "+components/webrtc",
+  "+media/audio",
+  "+media/base",
+  "+media/cast",
+  "+media/cdm",
+  "+media/media_buildflags.h",
+  "+media/mojo/mojom",
+  "+services/data_decoder/public",
+]
+
+specific_include_rules = {
+  "cast_mirroring_performance_browsertest\.cc": [
+    "+third_party/openscreen/src/platform/base/error.h"
+  ],
+  "cast_remoting_connector\.cc": [
+    "+chrome/browser/ui/views/media_router/media_remoting_dialog_view.h",
+  ],
+  "output_protection_proxy\.h": [
+    "+ash/display/output_protection_delegate.h",
+  ],
+}

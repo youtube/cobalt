@@ -1,0 +1,26 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://gpuweb.github.io/gpuweb/
+
+[
+    Exposed=(Window, Worker),
+    SecureContext
+] interface GPUAdapterInfo {
+  readonly attribute DOMString vendor;
+  readonly attribute DOMString architecture;
+  readonly attribute DOMString device;
+  readonly attribute DOMString description;
+  readonly attribute unsigned long subgroupMinSize;
+  readonly attribute unsigned long subgroupMaxSize;
+  readonly attribute boolean isFallbackAdapter;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString driver;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString backend;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString type;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute FrozenArray<GPUMemoryHeapInfo> memoryHeaps;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute unsigned long? d3dShaderModel;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute unsigned long? vkDriverVersion;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString powerPreference;
+  [RuntimeEnabled=WebGPUExperimentalFeatures] readonly attribute FrozenArray<GPUSubgroupMatrixConfig> subgroupMatrixConfigs;
+};

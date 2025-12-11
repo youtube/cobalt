@@ -1,0 +1,11 @@
+include_rules = [
+  "+google_apis/gaia",
+]
+
+specific_include_rules = {
+  '.*test\.cc': [
+    "+chrome/utility",
+    "+skia",
+    "+components/user_data_importer/content",
+  ],
+}

@@ -1,0 +1,22 @@
+Name: OpenH264
+Short Name: openh264
+URL: http://www.openh264.org/
+Version: N/A
+Revision: DEPS
+Update Mechanism: Manual
+CPEPrefix: cpe:/a:cisco:openh264:2.6.0
+(Cut at 652bdb7719f30b52b08e506645a7322ff1b2cc6f)
+License: BSD-2-Clause
+License File: src/LICENSE
+Security Critical: yes
+Shipped: yes
+
+Description:
+Cisco's H.264 video codec implementation.
+
+  Important:
+  While the OpenH264 source code is under BSD license, other license(s) also
+  apply for builds (MPEG-LA patent), see www.openh264.org for more information.
+
+Local Modifications:
+N/A

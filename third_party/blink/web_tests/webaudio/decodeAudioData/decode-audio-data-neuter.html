@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Neutering by decodeAudioData
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Any valid sample rate will do.
+      const sampleRate = 44100;
+
+      promise_test(async t => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+
+        // The encoded audio file that we want to decode.
+        const arrayBuffer =
+            await loadFileFromUrl('../resources/hyper-reality/laughter.wav');
+
+        // Decode the audio file and verify that it neuters the array, so that
+        // it can't be transferred somewhere else.
+        const decodingPromise = context.decodeAudioData(arrayBuffer);
+
+        assert_throws_dom('DataCloneError', () => {
+          postMessage('', '*', [arrayBuffer]);
+        }, 'Transfer of audio buffer');
+
+        await decodingPromise;
+
+        // Any non-empty ArrayBuffer will work. We're going to transfer that
+        // array before calling decodeAudioData.
+        const arrayBuffer2 = new ArrayBuffer(1000);
+
+        postMessage('', '*', [arrayBuffer2]);
+
+        await promise_rejects_dom(
+            t,
+            'DataCloneError',
+            context.decodeAudioData(arrayBuffer2),
+            'decodeAudioData on neutered buffer');
+
+        // The ArrayBuffer and any views of the ArrayBuffer must be neutered.
+        const arrayBuffer3 = new ArrayBuffer(1000);
+        const arrayView3 = new Uint32Array(arrayBuffer3);
+
+        context.decodeAudioData(arrayBuffer3);
+
+        // Now buffer and view should be neutered.
+        assert_equals(arrayBuffer3.byteLength, 0, 'buffer.byteLength');
+        assert_equals(arrayView3.length, 0, 'view.length');
+      }, 'decodeAudioData neutering behaviour');
+    </script>
+  </body>
+</html>

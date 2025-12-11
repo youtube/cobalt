@@ -1,0 +1,70 @@
+# Copyright 2018 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//ui/webui/resources/tools/build_webui.gni")
+
+build_webui("build") {
+  grd_prefix = "bluetooth_internals"
+
+  static_files = [
+    "bluetooth_internals.css",
+    "bluetooth_internals.html",
+    "menu.svg",
+  ]
+
+  web_component_files = [
+    "characteristic_list_item.ts",
+    "descriptor_list_item.ts",
+    "device_table.ts",
+    "expandable_list.ts",
+    "expandable_list_item.ts",
+    "object_fieldset.ts",
+    "service_list_item.ts",
+    "snackbar.ts",
+    "value_control.ts",
+  ]
+
+  ts_files = [
+    "adapter_broker.ts",
+    "adapter_page.ts",
+    "bluetooth_internals.ts",
+    "characteristic_list.ts",
+    "debug_log_page.ts",
+    "descriptor_list.ts",
+    "device_broker.ts",
+    "device_collection.ts",
+    "device_details_page.ts",
+    "device_utils.ts",
+    "devices_page.ts",
+    "main.ts",
+    "page.ts",
+    "page_manager.ts",
+    "service_list.ts",
+    "sidebar.ts",
+  ]
+
+  mojo_files_deps = [
+    "//chrome/browser/ui/webui/bluetooth_internals:mojo_bindings_ts__generator",
+    "//device/bluetooth/public/mojom:deprecated_experimental_interfaces_ts__generator",
+    "//device/bluetooth/public/mojom:mojom_ts__generator",
+  ]
+  mojo_files = [
+    "$root_gen_dir/chrome/browser/ui/webui/bluetooth_internals/bluetooth_internals.mojom-webui.ts",
+    "$root_gen_dir/device/bluetooth/public/mojom/adapter.mojom-webui.ts",
+    "$root_gen_dir/device/bluetooth/public/mojom/device.mojom-webui.ts",
+    "$root_gen_dir/device/bluetooth/public/mojom/gatt_characteristic_permissions.mojom-webui.ts",
+    "$root_gen_dir/device/bluetooth/public/mojom/gatt_characteristic_properties.mojom-webui.ts",
+    "$root_gen_dir/device/bluetooth/public/mojom/gatt_service_error_code.mojom-webui.ts",
+    "$root_gen_dir/device/bluetooth/public/mojom/uuid.mojom-webui.ts",
+  ]
+
+  ts_composite = true
+  ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]
+  ts_deps = [
+    "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
+  ]
+
+  webui_context_type = "trusted"
+}

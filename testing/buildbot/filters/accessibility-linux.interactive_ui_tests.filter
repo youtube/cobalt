@@ -1,0 +1,12 @@
+# These tests require that accessibility is disabled at startup, or that there
+# is some other AXMode during the test, which will not be the case when
+# --force-renderer-accessibility is used.
+-*CaptionBubbleControllerViewsTest.AccessibleTextIsFocusableInScreenReaderMode*
+
+# These tests fail because WebUITabStripContainerView is nullptr.
+# The reason why is that WebUITabStripContainerView::UseTouchableTabStrip()
+# returns false when a screen reader is active. Until that changes, these
+# tests are irrelevant on this bot.
+-WebUITabStripInteractiveTest.CanTypeInOmniboxAfterTabStripClose
+-WebUITabStripInteractiveTest.EventInContainerDoesNotClose
+-WebUITabStripInteractiveTest.EventInTabContentClosesContainer

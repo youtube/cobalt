@@ -1,0 +1,58 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("ui_bundled") {
+  sources = [
+    "background_tab_animation_view.h",
+    "background_tab_animation_view.mm",
+    "foreground_tab_animation_view.h",
+    "foreground_tab_animation_view.mm",
+    "switch_to_tab_animation_view.h",
+    "switch_to_tab_animation_view.mm",
+  ]
+  public_deps = [ "//ios/chrome/browser/tabs/model" ]
+  deps = [
+    "//base",
+    "//components/bookmarks/browser",
+    "//components/bookmarks/common",
+    "//components/favicon/ios",
+    "//components/feature_engagement/public",
+    "//components/prefs",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/drag_and_drop/model",
+    "//ios/chrome/browser/feature_engagement/model",
+    "//ios/chrome/browser/fullscreen/ui_bundled",
+    "//ios/chrome/browser/menu/ui_bundled",
+    "//ios/chrome/browser/ntp/model:util",
+    "//ios/chrome/browser/popup_menu/ui_bundled/public",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/shared/ui/elements",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/shared/ui/util:util_swift",
+    "//ios/chrome/browser/shared/ui/util/image",
+    "//ios/chrome/browser/snapshots/model",
+    "//ios/chrome/browser/tab_switcher/ui_bundled:utils",
+    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu:tab_item",
+    "//ios/chrome/browser/tabs/ui_bundled/resources",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/chrome/common",
+    "//ios/chrome/common/ui/colors",
+    "//ios/chrome/common/ui/elements",
+    "//ios/chrome/common/ui/resources",
+    "//ios/chrome/common/ui/util",
+    "//ios/public/provider/chrome/browser/fullscreen:fullscreen_api",
+    "//ios/web/public",
+    "//ui/base",
+    "//ui/gfx",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}

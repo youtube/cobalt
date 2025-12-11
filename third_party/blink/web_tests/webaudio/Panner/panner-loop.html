@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      panner-loop: PannerNode handling of feedback loops
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+    <script src="../resources/panner-model-testing.js"></script>
+  </head>
+  <body>
+    <script>
+      // See crbug.com/331446.
+
+      // Create a simple feedback loop and make sure the panner node processes
+      // it correctly.
+
+      promise_test(async () => {
+        const sampleRate = 44100;
+        const renderLengthSeconds = 1;
+
+        // Create offline audio context.
+        const context = new OfflineAudioContext(
+            2, sampleRate * renderLengthSeconds, sampleRate);
+
+        // Create nodes in graph. This is based on the test given in
+        // crbug.com/331446.
+        const source = new AudioBufferSourceNode(context,
+            {buffer: createImpulseBuffer(context,
+                sampleRate * renderLengthSeconds)});
+        const activateNode = new GainNode(context);
+        const dry = new GainNode(context, {gain: 1});
+        const wet = new GainNode(context, {gain: 0.5});
+        const filter = new BiquadFilterNode(context, {frequency: 20000});
+        const delay = new DelayNode(context, {delayTime: 0.1});
+        const feedbackNode = new GainNode(context, {gain: 0.45});
+        const output = new GainNode(context);
+
+        source.connect(activateNode);
+        activateNode.connect(delay);
+        activateNode.connect(dry);
+        delay.connect(filter);
+        filter.connect(feedbackNode);
+        feedbackNode.connect(delay);
+        feedbackNode.connect(wet);
+        wet.connect(output);
+        dry.connect(output);
+
+        const panner = new PannerNode(context, {
+          coneOuterGain: 0.1,
+          coneOuterAngle: 180,
+          coneInnerAngle: 0,
+        });
+
+        panner.connect(context.destination);
+
+        output.connect(panner);
+
+        // Render.  We don't care what the output is, though.
+        await context.startRendering();
+      }, 'test: PannerNode handling of feedback loops');
+    </script>
+  </body>
+</html>

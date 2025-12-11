@@ -1,0 +1,12 @@
+include_rules = [
+  "+components/crash",
+  "+content/public/browser",
+  "+content/public/common",
+  "+gpu/config",
+]
+
+specific_include_rules = {
+  "content_stability_metrics_provider_browsertest\.cc": [
+    "+sandbox"
+  ]
+}

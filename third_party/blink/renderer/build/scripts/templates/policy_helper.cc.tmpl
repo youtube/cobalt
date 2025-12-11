@@ -1,0 +1,183 @@
+{% from 'templates/macros.tmpl' import license, source_files_for_generated_file %}
+{{license()}}
+
+{{source_files_for_generated_file(template_file, input_files)}}
+
+#include "third_party/blink/renderer/core/permissions_policy/policy_helper.h"
+
+#include "third_party/blink/public/mojom/permissions_policy/document_policy_feature.mojom-blink.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/inspector/protocol/page.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+
+namespace blink {
+namespace {
+
+{% for feature in permissions_policy_features %}
+const char k{{feature.name}}PolicyName[] = "{{feature.permissions_policy_name}}";
+{% endfor %}
+
+}  // namespace
+
+// Features which depend on a flag also have the same flag controlling whether
+// they are in this map. Features which are shipping as part of an origin trial
+// add their feature names to this map unconditionally, as the trial token could
+// be added after the HTTP header needs to be parsed. This also means that
+// top-level documents which simply want to embed another page which uses an
+// origin trial feature, without using the feature themselves, can use
+// permissions policy to allow use of the feature in subframes (The framed
+// document will still require a valid origin trial token to use the feature in
+// this scenario).
+const FeatureNameMap& GetDefaultFeatureNameMap(bool is_isolated_context) {
+  DEFINE_STATIC_LOCAL(FeatureNameMap, isolated_default_feature_name_map, ());
+  DEFINE_STATIC_LOCAL(FeatureNameMap, non_isolated_default_feature_name_map, ());
+
+  FeatureNameMap& default_feature_name_map = is_isolated_context ?
+    isolated_default_feature_name_map : non_isolated_default_feature_name_map;
+
+  // If we've already computed the map, return it.
+  if (default_feature_name_map.size() > 0) {
+    return default_feature_name_map;
+  }
+
+  // Build the map for the first time.
+  default_feature_name_map.ReserveCapacityForSize({{ permissions_policy_features|length }});
+
+  {% for feature in permissions_policy_features %}
+  {% if not feature.depends_on or feature.name in pp_origin_trial_dependency_map %}
+  {% if feature.visibility == "All" %}
+  default_feature_name_map.Set(
+      k{{feature.name}}PolicyName,
+      network::mojom::PermissionsPolicyFeature::k{{feature.name}});
+  {% elif feature.visibility == "IsolatedContext" %}
+  if (is_isolated_context) {
+    default_feature_name_map.Set(
+        k{{feature.name}}PolicyName,
+        network::mojom::PermissionsPolicyFeature::k{{feature.name}});
+  }
+  {% endif %}
+  {% endif %}
+  {% endfor %}
+  {% for runtime_feature_name, dependent_features in runtime_to_permissions_policy_map.items() | sort %}
+  if (RuntimeEnabledFeatures::{{runtime_feature_name}}Enabled()) {
+    {% for feature in dependent_features %}
+    {% if name_to_permissions_policy_map[feature].visibility == "All" %}
+    default_feature_name_map.Set(k{{feature}}PolicyName,
+                                 network::mojom::PermissionsPolicyFeature::k{{feature}});
+    {% elif name_to_permissions_policy_map[feature].visibility == "IsolatedContext" %}
+    if (is_isolated_context) {
+      default_feature_name_map.Set(
+          k{{feature}}PolicyName,
+          network::mojom::PermissionsPolicyFeature::k{{feature}});
+    }
+    {% endif %}
+    {% endfor %}
+  }
+  {% endfor %}
+
+  return default_feature_name_map;
+}
+
+
+DocumentPolicyFeatureSet& GetAvailableDocumentPolicyFeaturesInternal() {
+  DEFINE_STATIC_LOCAL(DocumentPolicyFeatureSet, features, ());
+  return features;
+}
+
+
+void ResetAvailableDocumentPolicyFeaturesForTest() {
+  GetAvailableDocumentPolicyFeaturesInternal().clear();
+}
+
+bool IsPrivacySensitiveFeature(network::mojom::blink::PermissionsPolicyFeature feature) {
+  switch (feature) {
+    {% for feature in permissions_policy_features %}
+    {% if feature.privacy_sensitive %}
+    case network::mojom::PermissionsPolicyFeature::k{{feature.name}}:
+      return true;
+    {% endif %}
+    {% endfor %}
+    default:
+      return false;
+  }
+  NOTREACHED();
+}
+
+const DocumentPolicyFeatureSet& GetAvailableDocumentPolicyFeatures() {
+  DocumentPolicyFeatureSet& features = GetAvailableDocumentPolicyFeaturesInternal();
+  if (features.empty()) {
+    {% for feature in document_policy_features %}
+    {% if not feature.depends_on or feature.name in dp_origin_trial_dependency_map %}
+    features.insert(mojom::DocumentPolicyFeature::k{{feature.name}});
+    {% endif %}
+    {% endfor %}
+    {% for runtime_feature_name, dependent_features in runtime_to_document_policy_map.items() | sort %}
+    if (RuntimeEnabledFeatures::{{runtime_feature_name}}Enabled()) {
+      {% for feature in dependent_features %}
+      features.insert(mojom::DocumentPolicyFeature::k{{feature}});
+      {% endfor %}
+    }
+    {% endfor %}
+  }
+  return features;
+}
+
+// If any of the origin trial runtime feature is enabled, returns false,
+// i.e. the feature is considered enabled by origin trial.
+bool DisabledByOriginTrial(const String& feature_name,
+                           FeatureContext* feature_context) {
+  {% for feature_name, dependencies in pp_origin_trial_dependency_map.items() | sort %}
+  if (feature_name == k{{feature_name}}PolicyName) {
+    return
+    {%- for dependency in dependencies %}
+    {%- if not loop.first %} &&{% endif %}
+ !RuntimeEnabledFeatures::{{dependency}}Enabled(feature_context)
+    {%- endfor %};
+  }
+  {% endfor %}
+  return false;
+}
+
+bool DisabledByOriginTrial(mojom::blink::DocumentPolicyFeature feature,
+                           FeatureContext* feature_context) {
+  {% for feature_name, dependencies in dp_origin_trial_dependency_map.items() | sort %}
+  if (feature == mojom::DocumentPolicyFeature::k{{feature_name}}) {
+    return
+    {%- for dependency in dependencies %}
+    {%- if not loop.first %} &&{% endif %}
+ !RuntimeEnabledFeatures::{{dependency}}Enabled(feature_context)
+    {%- endfor %};
+  }
+  {% endfor %}
+  return false;
+}
+
+String PermissionsPolicyFeatureToProtocol(network::mojom::PermissionsPolicyFeature feature, ExecutionContext* execution_context) {
+  if (execution_context && execution_context->IsIsolatedContext()) {
+    switch (feature) {
+      {% for feature in permissions_policy_features %}
+      {% if feature.visibility == "IsolatedContext" %}
+      case network::mojom::PermissionsPolicyFeature::k{{feature.name}}:
+        return protocol::Page::PermissionsPolicyFeatureEnum::{{feature.devtools_enum_name}};
+      {% endif %}
+      {% endfor %}
+      default:
+        break;
+    }
+  }
+  switch (feature) {
+    {% for feature in permissions_policy_features %}
+    {% if feature.visibility == "All" %}
+    case network::mojom::PermissionsPolicyFeature::k{{feature.name}}:
+      return protocol::Page::PermissionsPolicyFeatureEnum::{{feature.devtools_enum_name}};
+    {% endif %}
+    {% endfor %}
+    default:
+      // This default case also handles the mojom entry for
+      // network::mojom::PermissionsPolicyFeature::kNotFound.
+      NOTREACHED();
+  }
+}
+
+}  // namespace blink

@@ -1,0 +1,224 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+load("@chromium-luci//builder_config.star", "builder_config")
+load("@chromium-luci//builders.star", "builders", "cpu", "os")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//gn_args.star", "gn_args")
+load("@chromium-luci//try.star", "try_")
+load("//lib/siso.star", "siso")
+
+try_.defaults.set(
+    bucket = "try",
+    executable = "recipe:angle_chromium_trybot",
+    builder_group = "tryserver.chromium.swangle",
+    pool = "luci.chromium.gpu.try",
+    builderless = True,
+    os = os.LINUX_DEFAULT,
+    cpu = cpu.X86_64,
+    ssd = None,
+    build_numbers = True,
+    cq_group = "cq",
+    execution_timeout = 2 * time.hour,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
+    # Max. pending time for builds. CQ considers builds pending >2h as timed
+    # out: http://shortn/_8PaHsdYmlq. Keep this in sync.
+    expiration_timeout = 2 * time.hour,
+    max_concurrent_builds = 1,
+    service_account = "chromium-try-gpu-builder@chops-service-accounts.iam.gserviceaccount.com",
+    siso_project = siso.project.DEFAULT_UNTRUSTED,
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+    subproject_list_view = "luci.chromium.try",
+    task_template_canary_percentage = 5,
+)
+
+consoles.list_view(
+    name = "tryserver.chromium.swangle",
+)
+
+def swangle_linux_builder(*, name, **kwargs):
+    kwargs.setdefault("cores", 8)
+    kwargs.setdefault("os", os.LINUX_DEFAULT)
+    return try_.builder(name = name, **kwargs)
+
+def swangle_mac_builder(*, name, **kwargs):
+    kwargs.setdefault("os", os.MAC_ANY)
+    kwargs.setdefault("cpu", None)
+    return try_.builder(name = name, **kwargs)
+
+def swangle_windows_builder(*, name, **kwargs):
+    kwargs.setdefault("cores", 8)
+    kwargs.setdefault("os", os.WINDOWS_DEFAULT)
+    kwargs.setdefault("ssd", builders.with_expiration(True, expiration = 5 * time.minute))
+    return try_.builder(name = name, **kwargs)
+
+swangle_linux_builder(
+    name = "linux-swangle-chromium-try-x64",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/linux-swangle-chromium-x64",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/linux-swangle-chromium-x64",
+            "no_symbols",
+        ],
+    ),
+    execution_timeout = 6 * time.hour,
+)
+
+swangle_linux_builder(
+    name = "linux-swangle-chromium-try-x64-exp",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/linux-swangle-chromium-x64-exp",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/linux-swangle-chromium-x64-exp",
+            "no_symbols",
+        ],
+    ),
+    execution_timeout = 6 * time.hour,
+)
+
+swangle_linux_builder(
+    name = "linux-swangle-try-tot-swiftshader-x64",
+    mirrors = [
+        "ci/linux-swangle-tot-swiftshader-x64",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = "ci/linux-swangle-tot-swiftshader-x64",
+    max_concurrent_builds = 2,
+)
+
+swangle_linux_builder(
+    name = "linux-swangle-try-x64",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/linux-swangle-x64",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = "ci/linux-swangle-x64",
+    max_concurrent_builds = 2,
+)
+
+swangle_linux_builder(
+    name = "linux-swangle-try-x64-exp",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/linux-swangle-x64-exp",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = "ci/linux-swangle-x64-exp",
+)
+
+swangle_mac_builder(
+    name = "mac-swangle-chromium-try-x64",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/mac-swangle-chromium-x64",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/mac-swangle-chromium-x64",
+            "no_symbols",
+        ],
+    ),
+    execution_timeout = 6 * time.hour,
+)
+
+swangle_windows_builder(
+    name = "win-swangle-chromium-try-x86",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/win-swangle-chromium-x86",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/win-swangle-chromium-x86",
+            "no_symbols",
+        ],
+    ),
+    execution_timeout = 6 * time.hour,
+)
+
+swangle_windows_builder(
+    name = "win-swangle-try-tot-swiftshader-x64",
+    mirrors = [
+        "ci/win-swangle-tot-swiftshader-x64",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = "ci/win-swangle-tot-swiftshader-x64",
+    max_concurrent_builds = 2,
+)
+
+swangle_windows_builder(
+    name = "win-swangle-try-tot-swiftshader-x86",
+    mirrors = [
+        "ci/win-swangle-tot-swiftshader-x86",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/win-swangle-tot-swiftshader-x86",
+            "no_symbols",
+        ],
+    ),
+    max_concurrent_builds = 2,
+)
+
+swangle_windows_builder(
+    name = "win-swangle-try-x64",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/win-swangle-x64",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = "ci/win-swangle-x64",
+)
+
+swangle_windows_builder(
+    name = "win-swangle-try-x86",
+    executable = "recipe:chromium_trybot",
+    mirrors = [
+        "ci/win-swangle-x86",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/win-swangle-x86",
+            "no_symbols",
+        ],
+    ),
+    max_concurrent_builds = 2,
+)

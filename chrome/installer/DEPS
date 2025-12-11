@@ -1,0 +1,6 @@
+include_rules = [
+  "+components/crash",
+  "+components/variations",
+  "+rlz",
+  "+third_party/lzma_sdk",
+]

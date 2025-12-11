@@ -1,0 +1,13 @@
+include_rules = [
+  "+chromeos/ash/components/mojo_service_manager",
+  "+chromeos/dbus",
+  "+components/device_event_log",
+  "+mojo/public/cpp",
+  "+third_party/libyuv",
+]
+
+specific_include_rules = {
+  "video_capture_device_client_unittest.cc": [
+    "+components/viz/test/test_context_provider.h",
+  ],
+}

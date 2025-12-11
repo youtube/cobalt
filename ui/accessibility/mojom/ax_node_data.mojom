@@ -1,0 +1,36 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module ax.mojom;
+
+import "ui/accessibility/ax_enums.mojom";
+import "ui/accessibility/mojom/ax_relative_bounds.mojom";
+
+[Stable, Uuid="88b0e7cb-5a53-4993-9967-d33fb50b484b"]
+struct AXBitsetData {
+  uint32 set_bits;
+  uint32 values;
+};
+
+// See ui::AXNodeData for comments / explanations of these fields.
+struct AXNodeData {
+  int32 id;
+  ax.mojom.Role role;
+  uint32 state;
+  uint64 actions;
+  map<ax.mojom.StringAttribute, string> string_attributes;
+  map<ax.mojom.IntAttribute, int32> int_attributes;
+  map<ax.mojom.FloatAttribute, float> float_attributes;
+  // If bool_attributes_data is present, bool_attributes will be ignored.
+  // TODO: crbug.com/422234724 - Deprecate when the AXBitset experiment is over.
+  map<ax.mojom.BoolAttribute, bool>? bool_attributes;
+  map<ax.mojom.IntListAttribute, array<int32>>
+      intlist_attributes;
+  map<ax.mojom.StringListAttribute, array<string>>
+      stringlist_attributes;
+  map<string, string> html_attributes;
+  array<int32> child_ids;
+  ax.mojom.AXRelativeBounds relative_bounds;
+  AXBitsetData? bool_attributes_data;
+};

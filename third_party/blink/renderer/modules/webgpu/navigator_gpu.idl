@@ -1,0 +1,13 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://gpuweb.github.io/gpuweb/#navigator-gpu
+
+[
+    ImplementedAs=GPU
+] interface mixin NavigatorGPU {
+    [SameObject, SecureContext] readonly attribute GPU gpu;
+};
+Navigator includes NavigatorGPU;
+WorkerNavigator includes NavigatorGPU;

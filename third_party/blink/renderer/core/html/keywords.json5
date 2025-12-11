@@ -1,0 +1,267 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+{
+  metadata: {
+    namespace: "keywords",
+    export: "CORE_EXPORT",
+    allowDuplicates: true,
+  },
+
+  data: [
+    // as attribute / Potential destination
+    // https://fetch.spec.whatwg.org/#concept-potential-destination
+    "script",
+    "style",
+    "image",
+    "track",
+    "font",
+    "fetch",
+
+    // autocomplete attribute of <form>.
+    // https://html.spec.whatwg.org/C/#attr-form-autocomplete
+    "on",
+    "off",
+
+    // crossorigin attribute / CORS setting attribute
+    // https://html.spec.whatwg.org/C/#cors-settings-attribute
+    "anonymous",
+    "use-credentials",
+
+    // decoding attribute / Image decoding hint
+    // https://html.spec.whatwg.org/C/#image-decoding-hint
+    "async",
+    "sync",
+    "auto",
+
+    // enterkeyhint attribute
+    // https://html.spec.whatwg.org/C/#attr-enterkeyhint
+    "enter",
+    "done",
+    "go",
+    "next",
+    "previous",
+    "search",
+    "send",
+
+    // fetchpriority attribute / Priority Hints
+    // https://wicg.github.io/priority-hints/#solution
+    "high",
+    "low",
+    "auto",
+
+    // inputmode attribute
+    // https://html.spec.whatwg.org/C/#attr-inputmode
+    "none",
+    "text",
+    "tel",
+    "url",
+    "email",
+    "numeric",
+    "decimal",
+    "search",
+
+    // invisible attribute
+    // https://github.com/rakina/searchable-invisible-dom
+    "static",
+    "invisible",
+
+    // command attribute
+    // https://open-ui.org/components/invokers.explainer/
+    "auto",
+    // command for popovers
+    "toggle-popover",
+    "hide-popover",
+    "show-popover",
+    // command for dialog
+    "show-modal",
+    "close",
+    "request-close",
+    // command for details
+    "toggle",
+    "close",
+    "open",
+    // command for input and select
+    "show-picker",
+    // command for number input
+    "step-up",
+    "step-down",
+    // command for fullscreen
+    "toggle-fullscreen",
+    "request-fullscreen",
+    "exit-fullscreen",
+    // command for audio and video
+    "play-pause",
+    "pause",
+    "play",
+    "toggle-muted",
+    // command for menu elements
+    "toggle-menu",
+    "hide-menu",
+    "show-menu",
+    // command for scroll
+    {name: "page-up", Symbol: "kPage_Up"},
+    {name: "page-down", Symbol: "kPage_Down"},
+    "page-left",
+    "page-right",
+    "page-block-start",
+    "page-block-end",
+    "page-inline-start",
+    "page-inline-end",
+
+    // loading attribute
+    // https://github.com/scott-little/lazyload#ways-the-loading-attribute-can-be-used
+    "lazy",
+    "eager",
+    "auto",
+
+    // popover attribute
+    // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
+    "auto",
+    "manual",
+    // Experimental popover=hint value
+    // https://open-ui.org/components/popover-hint.research.explainer/
+    "hint",
+
+    // popovertargetaction attribute
+    // https://html.spec.whatwg.org/C/#attr-popovertargetaction
+    "toggle",
+    "show",
+    "hide",
+
+    // Experimental fieldset attribute for the menu elements proposal.
+    // https://open-ui.org/components/menu.explainer/.
+    "single",
+    "multiple",
+
+    // hidden=until-found attribute
+    // https://html.spec.whatwg.org/#the-hidden-attribute
+    "until-found",
+
+    // dialog closedby attribute
+    // See https://github.com/whatwg/html/pull/10737.
+    "any",
+    "closerequest",
+    "none",
+
+    // referrerpolicy attribute
+    // https://w3c.github.io/webappsec-referrer-policy/#referrer-policies
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    "origin",
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url",
+
+    // scope attribute
+    // https://html.spec.whatwg.org/C/#attr-th-scope
+    "row",
+    "col",
+    "rowgroup",
+    "colgroup",
+
+    // This mode corresponds to virtualkeyboardpolicy
+    // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/master/VirtualKeyboardPolicy/explainer.md
+    "auto",
+    "manual",
+
+    // shadowrootmode attribute
+    // https://github.com/whatwg/html/pull/5465
+    "open",
+    "closed",
+
+    // visibilityState
+    // https://w3c.github.io/page-visibility/#visibilitystate-enum
+    "hidden",
+    "visible",
+
+    // Blocking attributes
+    // https://html.spec.whatwg.org/C/#blocking-attribute
+    "render",
+    "full-frame-rate",
+
+    // dropEffect IDL attribute
+    // https://html.spec.whatwg.org/C/#dom-datatransfer-dropeffect
+    "none",
+
+    // Various Aria attribute values
+    // https://www.w3.org/TR/wai-aria-1.1/#valuetype_true-false
+    "false",
+    "true",
+
+    // ol[type] https://html.spec.whatwg.org/C/#attr-ol-type and
+    // symbolic predefined counter style
+    // https://drafts.csswg.org/css-counter-styles-3/#simple-symbolic
+    "decimal",
+    "lower-roman",
+    "upper-roman",
+    "lower-alpha",
+    "upper-alpha",
+    "disc",
+    "circle",
+    "square",
+    "disclosure-open",
+    "disclosure-closed",
+
+    // contenteditable content/IDL attribute
+    // https://html.spec.whatwg.org/C/#attr-contenteditable
+    // https://html.spec.whatwg.org/C/#dom-contenteditable
+    "true",
+    "plaintext-only",
+    "false",
+    "inherit",
+
+    // controlslist attribute
+    // https://wicg.github.io/controls-list/html-output/multipage/embedded-content.html#attr-media-controlslist
+    "nodownload",
+    "nofullscreen",
+    "noplaybackrate",
+    "noremoteplayback",
+
+    // <meta> name attribute
+    // https://html.spec.whatwg.org/C/#standard-metadata-names
+    "color-scheme",
+    "responsive-embedded-sizing",
+
+    // Some values of KeyboardEvent.key.
+    // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "End",
+    "Home",
+    "PageDown",
+    "PageUp",
+    {name: "Enter", Symbol: "kCapitalEnter"},
+    "Escape",
+    "Tab",
+
+    // common media types
+    "text/html",
+    "application/xml",
+
+    // Internal-only identifiers on the `id` attribute. These may appear
+    // multiple times in the same page.
+    "-internal-print-header",
+    "-internal-print-footer",
+    "-internal-print-page-number",
+
+    // ElementInternals.type
+    // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ElementInternalsType/explainer.md
+    "button",
+    "reset",
+    "submit",
+
+    // <style> type attribute
+    // Note that "text/css" is obsolete but not going away any time soon and "module"
+    // is still being specified.
+    // https://html.spec.whatwg.org/#obsolete-but-conforming-features:attr-style-type
+    // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ShadowDOM/explainer.md
+    "text/css",
+    "module",
+  ],
+}

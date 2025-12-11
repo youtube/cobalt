@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Copyright 2012 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+set -e
+
+VAR_DIR="/var/lib/chrome-remote-desktop"
+HASHES_FILE="$VAR_DIR/hashes"
+
+save_hash() {
+  if [ -f "$1" ]; then
+    mkdir -p "$VAR_DIR"
+    md5sum "$1" >> "$HASHES_FILE"
+  fi
+}
+
+if [[ "$1" == "install" || "$1" == "upgrade" ]]; then
+  rm -f "$HASHES_FILE"
+  save_hash /opt/google/chrome-remote-desktop
+
+  if [[ "$1" == "install" ]]; then
+    # Create defaults file.
+    DEFAULTS_FILE="/etc/default/chrome-remote-desktop"
+    if [ ! -e "$DEFAULTS_FILE" ]; then
+      echo 'repo_add_once="true"' > "$DEFAULTS_FILE"
+      echo 'repo_reenable_on_distupgrade="true"' >> "$DEFAULTS_FILE"
+    fi
+  fi
+fi
+
+#DEBHELPER#

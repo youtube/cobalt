@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<body>
+<title>Focus navigation between sub-fields in input[type=date]</title>
+<link rel="help" href="https://issues.chromium.org/issues/442293382">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  assert_true(window.internals != null, 'This test requires internals object');
+  internals.runtimeFlags.langAttributeAwareFormControlUIEnabled = true;
+
+  const input = document.createElement('input');
+  input.lang = 'ja-jp';
+  input.type = 'date';
+  input.min = '2013-02-01';
+  input.max = '2013-03-30';
+  document.body.appendChild(input);
+
+  input.focus();
+  assert_equals(
+    internals.shadowPseudoId(internals.shadowRoot(input).activeElement),
+    '-webkit-datetime-edit-year-field');
+  eventSender.keyDown('\t');
+  assert_equals(
+    internals.shadowPseudoId(internals.shadowRoot(input).activeElement),
+    '-webkit-datetime-edit-month-field');
+  eventSender.keyDown('\t');
+  assert_equals(
+    internals.shadowPseudoId(internals.shadowRoot(input).activeElement),
+    '-webkit-datetime-edit-day-field');
+});
+</script>
+</body>

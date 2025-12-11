@@ -1,0 +1,132 @@
+// Copyright 2013 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+/**
+ * @fileoverview App install/launch splash screen implementation.
+ */
+
+import '//resources/js/action_link.js';
+import '../../components/throbber_notice.js';
+
+import {assert} from '//resources/js/assert.js';
+import type {PolymerElementProperties} from '//resources/polymer/v3_0/polymer/interfaces.js';
+import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+
+import {OobeUiState} from '../../components/display_manager_types.js';
+import {LoginScreenMixin} from '../../components/mixins/login_screen_mixin.js';
+import {OobeI18nMixin} from '../../components/mixins/oobe_i18n_mixin.js';
+
+import {getTemplate} from './app_launch_splash.html.js';
+
+const AppLaunchSplashBase = LoginScreenMixin(OobeI18nMixin(PolymerElement));
+
+interface AppData {
+  name: string;
+  iconURL: string;
+  url: string;
+}
+
+interface AppLaunchSplashScreenData {
+  shortcutEnabled: boolean;
+  appInfo: AppData;
+}
+
+class AppLaunchSplash extends AppLaunchSplashBase {
+  static get is() {
+    return 'app-launch-splash-element' as const;
+  }
+
+  static get template(): HTMLTemplateElement {
+    return getTemplate();
+  }
+
+  static get properties(): PolymerElementProperties {
+    return {
+      appName: {
+        type: String,
+        value: '',
+      },
+      appUrl: {
+        type: String,
+        value: '',
+      },
+      launchText: {
+        type: String,
+        value: '',
+      },
+      showThrobber: {
+        type: Boolean,
+        value: true,
+      },
+    };
+  }
+
+  private appName: string;
+  private appUrl: string;
+  private launchText: string;
+  private showThrobber: boolean;
+
+  override get EXTERNAL_API(): string[] {
+    return ['setAppData', 'updateMessage', 'hideThrobber'];
+  }
+
+  override ready(): void {
+    super.ready();
+    this.initializeLoginScreen('AppLaunchSplashScreen');
+  }
+
+  /** Initial UI State for screen */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  override getOobeUIInitialState(): OobeUiState {
+    return OobeUiState.KIOSK;
+  }
+
+  /**
+   * Event handler that is invoked just before the frame is shown.
+   * @param data Screen init payload.
+   */
+  override onBeforeShow(data?: AppLaunchSplashScreenData): void {
+    super.onBeforeShow(data);
+    assert(this.shadowRoot);
+    // If the screen is reshown from the ErrorScreen using the default callback
+    // data might be undefined.
+    if (data) {
+      this.setAppData(data);
+    }
+    this.showThrobber = true;
+  }
+
+  setAppData(data: AppLaunchSplashScreenData): void {
+    const appInfo: AppData = data['appInfo'];
+    this.appName = appInfo.name;
+    this.appUrl = appInfo.url;
+    const header = this.shadowRoot!.getElementById('header');
+    assert(header instanceof HTMLElement);
+    header.style.backgroundImage = 'url(' + appInfo.iconURL + ')';
+
+    const shortcutInfo = this.shadowRoot!.getElementById('shortcutInfo');
+    assert(shortcutInfo instanceof HTMLElement);
+    shortcutInfo.hidden = !data['shortcutEnabled'];
+  }
+
+  /**
+   * Updates the message for the current launch state.
+   * @param message Description for current launch state.
+   */
+  updateMessage(message: string): void {
+    this.launchText = message;
+  }
+
+  hideThrobber(): void {
+    this.showThrobber = false;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    [AppLaunchSplash.is]: AppLaunchSplash;
+  }
+}
+
+customElements.define(AppLaunchSplash.is, AppLaunchSplash);

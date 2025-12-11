@@ -1,0 +1,23 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef MEDIA_BASE_MEDIA_PLAYER_LOGGING_ID_H_
+#define MEDIA_BASE_MEDIA_PLAYER_LOGGING_ID_H_
+
+#include <stdint.h>
+
+#include "base/atomic_sequence_num.h"
+#include "base/types/id_type.h"
+#include "media/base/media_export.h"
+
+namespace media {
+
+// alias the name for readability
+using MediaPlayerLoggingID = base::IdTypeU64<class MediaPlayerLoggingIDTag>;
+
+MEDIA_EXPORT MediaPlayerLoggingID GetNextMediaPlayerLoggingID();
+
+}  // namespace media
+
+#endif  // MEDIA_BASE_MEDIA_PLAYER_LOGGING_ID_H_

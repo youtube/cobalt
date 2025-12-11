@@ -1,0 +1,18 @@
+set noparent
+ahaas@chromium.org
+cbruni@chromium.org
+haraken@chromium.org
+hpayer@chromium.org
+jbroman@chromium.org
+leszeks@chromium.org
+mlippautz@chromium.org
+
+# For adding JS/Wasm feature kill-switches.
+
+# For ThreadIsolation related changes.
+
+# For PartitionAlloc related changes.
+per-file array_buffer.cc=file://base/allocator/partition_allocator/OWNERS
+
+# New users of gin::Wrappable can pick a new tag by themselves.
+per-file public/wrappable_pointer_tags.h=*

@@ -1,0 +1,19 @@
+Name: Adobe Variable Font Prototype
+Short Name: AdobeVF
+URL: https://github.com/adobe-fonts/adobe-variable-font-prototype
+Version: 1.003
+Update Mechanism: Manual
+License: OFL-1.1
+License File: LICENSE.md
+Security Critical: no
+Shipped: no
+Package Excluded: yes
+
+1. Source Origin
+https://github.com/adobe-fonts/adobe-variable-font-prototype
+
+2. License
+For license information, see the LICENSE.md file.
+
+3. Reason
+Used for LayoutTest'ing cross platform CFF2 font outline support.

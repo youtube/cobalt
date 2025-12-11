@@ -1,0 +1,38 @@
+include_rules = [
+  # Existing dependencies within //chrome. There is an active effort to
+  # refactor //chrome/browser/ash to break these dependencies; see b/332804822.
+  # Whenever possible, avoid adding new //chrome dependencies to this list.
+  #
+  # Files residing in certain directories (e.g., //chrome/browser) are listed
+  # individually. Other dependencies within //chrome are listed on a per-
+  # directory basis. See //tools/chromeos/gen_deps.sh for details.
+  "+chrome/browser/media",
+  "+chrome/browser/profiles",
+
+  # Run
+  #
+  #   buildtools/checkdeps/checkdeps.py chrome/browser/ash/policy
+  #
+  # to test.
+  # Allow includes for shell-encryption and private_membership third_party libs.
+  "+third_party/private_membership",
+
+  # Allow includes for remoting events reporting.
+  "+remoting/host/chromeos",
+  "+remoting/host/mojom",
+
+  # Allow includes for security curtain shown in remoting sessions.
+  "+remoting/host/curtain_mode_chromeos.h",
+
+  # Allow includes for error codes.
+  "+remoting/base/errors.h",
+]
+
+specific_include_rules = {
+  "child_status_collector_browsertest\\.cc": [
+    "+mojo/core/embedder/embedder.h",
+  ],
+  "device_status_collector_browsertest\\.cc": [
+    "+mojo/core/embedder/embedder.h",
+  ],
+}

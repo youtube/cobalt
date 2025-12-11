@@ -1,0 +1,16 @@
+include_rules = [
+  "+components/viz/common/resources/shared_image_format.h",
+  "+chromeos",
+  "+third_party/skia",
+  "+ui/base",
+  "+ui/events/devices",
+  "+ui/events/platform_event.h",
+  "+ui/ozone/public/ozone_switches.h",
+  "+ui/strings",
+]
+
+specific_include_rules = {
+  "display_change_observer_unittest.cc": [
+    "+cc/base/math_util.h",
+  ]
+}

@@ -1,0 +1,10 @@
+include_rules = [
+  "+ash/constants",
+  "+components/prefs",
+  "+components/version_info",
+  "+net/base",
+  "+net/http",
+  "+net/traffic_annotation",
+  "+services/network/public/cpp",
+  "+services/network/public/mojom",
+]

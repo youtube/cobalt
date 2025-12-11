@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test setTargetAtTime Approach to Limit
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+    <script src="../resources/audioparam-testing.js"></script>
+    <script src="../resources/audio-param.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+
+
+      function findLimitTime(v0, v1, timeConstant, eps) {
+        // Find the time at which the setTargetAtTime is close enough to the
+        // target value |v1| where we can consider the curve to have reached its
+        // limiting value.
+        //
+        // If v1 = 0, |eps| is the absolute error between the actual value and
+        // |v1|.  Otherwise, |eps| is the relative error between the actual
+        // value and |v1|.
+        //
+        // The curve is
+        //
+        //   v(t) = v1 - (v1 - v0) * exp(-t/timeConstant)
+        //
+        // If v1 = 0,
+        //
+        //   v(t) = v0 * exp(-t/timeConstant)
+        //
+        // Solve this for when |v(t)| <= eps:
+        //
+        //   t >= timeConstant * log(v0/eps)
+        //
+        // For v1 not zero, we want |v(t) - v1|/|v1| <= eps:
+        //
+        //   t >= timeConstant * log(abs(v1-v0)/eps/v1)
+
+        if (v1) {
+          return timeConstant *
+              Math.log(Math.abs(v1 - v0) / eps / v1);
+        }
+        return timeConstant * Math.log(v0 / eps);
+      }
+
+      function runTest(options) {
+        const renderLength = 1;
+
+        const context = new OfflineAudioContext(
+          1,
+          renderLength * options.sampleRate,
+          options.sampleRate);
+
+        const source = new AudioBufferSourceNode(context);
+        source.buffer = createConstantBuffer(context, 1, 1);
+        source.loop = true;
+
+        const gain = new GainNode(context);
+        gain.gain.setValueAtTime(options.v0, 0);
+        gain.gain.setTargetAtTime(
+          options.v1, 0, options.timeConstant);
+
+        source.connect(gain).connect(context.destination);
+        source.start();
+
+        return context.startRendering().then(buffer => {
+          const actual = buffer.getChannelData(0);
+          const expected = createExponentialApproachArray(
+            0,
+            renderLength,
+            options.v0,
+            options.v1,
+            options.sampleRate,
+            options.timeConstant);
+
+          const message = 'setTargetAtTime(' + options.v1 +
+              ', 0, ' + options.timeConstant + ')';
+
+          const tailTime = findLimitTime(
+            options.v0,
+            options.v1,
+            options.timeConstant,
+            options.eps);
+          const tailFrame = Math.ceil(tailTime * options.sampleRate);
+
+          assert_array_approx_equals(
+            actual.slice(0, tailFrame),
+            expected.slice(0, tailFrame),
+            options.threshold,
+            'Initial ' + tailFrame + ' samples for ' + message);
+
+          assert_array_approx_equals(
+            actual.slice(tailFrame),
+            expected.slice(tailFrame),
+            options.tailThreshold,
+            'Tail samples for ' + message);
+        });
+      }
+
+
+      // A really short time constant so that setTargetAtTime approaches the
+      // limiting value well before the end of the test.
+
+      const timeConstant = 0.001;
+
+      // Find the time where setTargetAtTime is close enough to the limit.
+      // Since we're approaching 1, use a value of eps smaller than
+      // the target 1 threshold (1.5e-6).  This is to
+      // account for round-off in the actual implementation (which uses a
+      // filter and not the formula.)
+
+      const limitThreshold = 1e-6;
+
+      promise_test(async () => {
+        await runTest({
+          sampleRate: 48000,
+          v0: 0,
+          v1: 1,
+          timeConstant: timeConstant,
+          eps: limitThreshold,
+          threshold: 2.4e-5,
+          tailThreshold: 9.8234e-7
+        });
+      }, 'approach 1');
+
+      // Find the time where setTargetAtTime is close enough to the limit.
+      // Since we're approaching 0, use a value of eps smaller than
+      // the target zero threshold (1e-20).  This is
+      // to account for round-off in the actual implementation (which uses a
+      // filter and not the formula.)
+
+      // Use the equation for setTargetAtTime to figure out when we are close
+      // to 0:
+      //
+      //   v(t) = exp(-t/tau)
+      //
+      // So find t such that exp(-t/tau) <= eps.  Thus t >= - tau * log(eps).
+      //
+      // For eps, use exp(-10).
+
+      const limitThreshold2 = Math.exp(-10);
+
+      promise_test(async () => {
+        await runTest({
+          sampleRate: 48000,
+          v0: 1,
+          v1: 0,
+          timeConstant: timeConstant,
+          eps: limitThreshold2,
+          // Experimentally determined
+          threshold: 1.2591e-7,
+          tailThreshold: 2.3310e-5
+        });
+      }, 'approach 0');
+
+      promise_test(async () => {
+        const sampleRate = 8000;
+        const duration = 8;
+
+        const context = new OfflineAudioContext({
+          length: duration * sampleRate,
+          sampleRate
+        });
+
+        const source = new ConstantSourceNode(context);
+        const gain = new GainNode(context);
+        source.connect(gain).connect(context.destination);
+
+        gain.gain.setValueAtTime(0, 0);
+        gain.gain.setTargetAtTime(0.8, 0, 2);
+        source.start();
+
+        const rendered = await context.startRendering();
+        const actual = rendered.getChannelData(0);
+        const expected = createExponentialApproachArray(
+          0,
+          duration,
+          0,
+          0.8,
+          sampleRate,
+          2);
+
+        assert_array_approx_equals(
+          actual,
+          expected,
+          5.0098e-6,
+          'Output for crbug.com/835294');
+      }, 'crbug.com/835294');
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,84 @@
+/* Copyright 2014 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+.serviceworker-summary {
+  background-color: var(--google-blue-50);
+  border-top: var(--cr-separator-line);
+  font-weight: bold;
+  margin-bottom: 6px;
+  margin-top: 12px;
+  padding: 3px;
+}
+
+.serviceworker-item {
+  background-color: var(--cr-card-background-color);
+  border-radius: var(--cr-card-border-radius);
+  box-shadow: var(--cr-card-shadow);
+  margin-bottom: 15px;
+  margin-top: 6px;
+  padding: 12px;
+  position: relative;
+}
+
+.serviceworker-registration {
+  padding: 5px;
+}
+
+.serviceworker-scope {
+  color: var(--cr-link-color);
+  display: inline-block;
+  padding-bottom: 1px;
+  padding-top: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.serviceworker-version {
+  padding-bottom: 3px;
+  padding-inline-start: 10px;
+}
+
+.serviceworker-client {
+  padding-bottom: 3px;
+  padding-inline-start: 10px;
+}
+
+.serviceworker-storage-key {
+  padding-bottom: 3px;
+  padding-inline-start: 10px;
+}
+
+.serviceworker-storage-key-wrapper {
+  color: var(--cr-link-color);
+  white-space: nowrap;
+}
+
+textarea {
+  box-sizing: border-box;
+  resize: vertical;
+  width: 100%;
+}
+
+input,
+textarea {
+  background-color: var(--cr-card-background-color);
+  border: var(--cr-separator-line);
+  color: var(--cr-primary-text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: var(--md-background-color);
+    color: var(--cr-primary-text-color);
+  }
+
+  .serviceworker-summary {
+    background-color: var(--google-grey-800);
+  }
+
+  input,
+  textarea {
+    background-color: var(--md-background-color);
+  }
+}

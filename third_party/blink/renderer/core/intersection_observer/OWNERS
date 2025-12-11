@@ -1,0 +1,5 @@
+# OWNERS specializing in intersection-observer code.
+
+szager@chromium.org
+tcaptan@chromium.org
+pdr@chromium.org

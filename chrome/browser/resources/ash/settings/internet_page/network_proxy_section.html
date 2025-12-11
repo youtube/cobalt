@@ -1,0 +1,113 @@
+<style include="internet-shared cr-hidden-style iron-flex
+    iron-flex-alignment">
+  cr-policy-network-indicator-mojo {
+    margin-inline-end: 10px;
+  }
+
+  extension-controlled-indicator {
+    margin-inline-start: 0;
+    width: 100%;
+  }
+
+  .settings-box:first-of-type {
+    border-top: none;
+  }
+</style>
+
+<!-- Override policy indicator. -->
+<template is="dom-if"
+    if="[[shouldShowOverridePolicyIndicator_(
+      managedProperties,
+      hasProxyOverrideRules_)]]">
+  <div class="settings-box" id="overrideRulesPolicy">
+    <div class="layout horizontal center">
+      <cr-policy-network-indicator-mojo
+          property="[[getProxyOverrideSettingsTypeProperty_()]]"
+          no-extension-indicator>
+      </cr-policy-network-indicator-mojo>
+      <div>$i18n{networkProxyOverrideEnforcedPolicy}</div>
+    </div>
+  </div>
+</template>
+
+<!-- Policy indicator. -->
+<template is="dom-if"
+    if="[[shouldShowNetworkPolicyIndicator_(
+      managedProperties,
+      hasProxyOverrideRules_)]]">
+  <div class="settings-box" id="networkPolicy">
+    <div class="layout horizontal center">
+      <cr-policy-network-indicator-mojo
+          property="[[managedProperties.proxySettings.type]]"
+          no-extension-indicator>
+      </cr-policy-network-indicator-mojo>
+      <div>$i18n{networkProxyEnforcedPolicy}</div>
+    </div>
+  </div>
+</template>
+
+<!-- Combined policy indicator, only shown when both the proxy
+ settings and override rules are set by a policy. -->
+<template is="dom-if"
+    if="[[shouldShowCombinedNetworkPolicyIndicator_(
+      managedProperties,
+      hasProxyOverrideRules_)]]">
+  <div class="settings-box" id="combinedPolicies">
+    <div class="layout horizontal center">
+      <cr-policy-network-indicator-mojo
+          property="[[managedProperties.proxySettings.type]]"
+          no-extension-indicator>
+      </cr-policy-network-indicator-mojo>
+      <div>$i18n{networkProxyEnforcedCombinedPolicies}</div>
+    </div>
+  </div>
+</template>
+
+<template is="dom-if" if="[[isProxySetByExtension_(managedProperties)]]">
+  <div class="settings-box">
+    <extension-controlled-indicator
+        extension-id="[[extensionInfo_.id]]"
+        extension-name="[[extensionInfo_.name]]"
+        extension-can-be-disabled="[[extensionInfo_.canBeDisabled]]">
+    </extension-controlled-indicator>
+  </div>
+</template>
+
+<!-- Allow shared proxies -->
+<settings-toggle-button id="allowShared" class="indented"
+    hidden$="[[!shouldShowAllowShared_(managedProperties.source)]]"
+    pref="{{prefs.settings.use_shared_proxies}}"
+    label="$i18n{networkProxyAllowShared}"
+    on-settings-boolean-control-change="onAllowSharedProxiesChange_"
+    no-set-pref
+    disabled="[[disabled]]">
+</settings-toggle-button>
+
+<div class="settings-box single-column stretch continuation indented">
+  <network-proxy editable="[[!disabled]]"
+      managed-properties="[[managedProperties]]"
+      use-shared-proxies="[[useSharedProxies_]]">
+  </network-proxy>
+</div>
+
+<!-- Confirm Allow shared proxies dialog -->
+<cr-dialog id="confirmAllowSharedDialog"
+    close-text="$i18n{close}" on-cancel="onAllowSharedDialogCancel_"
+    on-close="onAllowSharedDialogClose_">
+  <div slot="title">
+    [[getAllowSharedDialogTitle_(prefs.settings.use_shared_proxies.value)]]
+  </div>
+  <div slot="body">
+    $i18n{networkProxyAllowSharedWarningMessage}
+  </div>
+  <div slot="button-container">
+    <cr-button class="cancel-button"
+        on-click="onAllowSharedDialogCancel_">
+      $i18n{cancel}
+    </cr-button>
+    <cr-button class="action-button"
+        on-click="onAllowSharedDialogConfirm_">
+      $i18n{confirm}
+    </cr-button>
+  </div>
+</cr-dialog>

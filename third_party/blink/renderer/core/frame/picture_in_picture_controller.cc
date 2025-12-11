@@ -1,0 +1,82 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "third_party/blink/renderer/core/frame/picture_in_picture_controller.h"
+
+#include "third_party/blink/renderer/core/core_initializer.h"
+#include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+
+namespace blink {
+
+PictureInPictureController::PictureInPictureController(Document& document)
+    : document_(document) {}
+
+// static
+PictureInPictureController& PictureInPictureController::From(
+    Document& document) {
+  PictureInPictureController* controller =
+      document.GetPictureInPictureController();
+  if (!controller) {
+    controller =
+        CoreInitializer::GetInstance().CreatePictureInPictureController(
+            document);
+    document.SetPictureInPictureController(controller);
+  }
+  return *controller;
+}
+
+// static
+bool PictureInPictureController::IsElementInPictureInPicture(
+    const Element* element) {
+  DCHECK(element);
+  Document& document = element->GetDocument();
+  PictureInPictureController* controller =
+      document.GetPictureInPictureController();
+  return controller && controller->IsPictureInPictureElement(element);
+}
+
+// static
+bool PictureInPictureController::IsInDocumentPictureInPicture(
+    const Element* element) {
+  DCHECK(element);
+  Document& document = element->GetDocument();
+
+  if (!document.domWindow()) {
+    return false;
+  }
+
+  return document.domWindow()->IsPictureInPictureWindow();
+}
+
+// static
+LocalDOMWindow* PictureInPictureController::GetDocumentPictureInPictureWindow(
+    const Document& document) {
+#if !BUILDFLAG(TARGET_OS_IS_ANDROID)
+  PictureInPictureController* controller =
+      document.GetPictureInPictureController();
+  return controller ? controller->GetDocumentPictureInPictureWindow() : nullptr;
+#else
+  return nullptr;
+#endif  // !BUILDFLAG(TARGET_OS_IS_ANDROID)
+}
+
+// static
+LocalDOMWindow* PictureInPictureController::GetDocumentPictureInPictureOwner(
+    const Document& document) {
+#if !BUILDFLAG(TARGET_OS_IS_ANDROID)
+  PictureInPictureController* controller =
+      document.GetPictureInPictureController();
+  return controller ? controller->GetDocumentPictureInPictureOwner() : nullptr;
+#else
+  return nullptr;
+#endif  // !BUILDFLAG(TARGET_OS_IS_ANDROID)
+}
+
+void PictureInPictureController::Trace(Visitor* visitor) const {
+  visitor->Trace(document_);
+}
+
+}  // namespace blink

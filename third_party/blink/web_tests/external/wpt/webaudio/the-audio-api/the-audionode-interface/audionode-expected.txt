@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] Basic tests for AudioNode API.
+  assert_equals: AudioContext.destination.numberOfOutputs expected 1 but got 0
+Harness: the test ran to completion.
+

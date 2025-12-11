@@ -1,0 +1,122 @@
+// Copyright 2016 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+{%- from 'cpp_macros.tmpl' import
+  namespace_begin, namespace_end, include_guard %}
+
+{%- set header_guard = include_guard("SHARED", module.path) %}
+
+#ifndef {{header_guard}}
+#define {{header_guard}}
+
+#include <stdint.h>
+
+#include <functional>
+#include <iosfwd>
+#include <type_traits>
+#include <utility>
+
+{%- if structs|length or unions|length %}
+#include "mojo/public/cpp/bindings/array_data_view.h"
+#include "mojo/public/cpp/bindings/map_data_view.h"
+#include "mojo/public/cpp/bindings/string_data_view.h"
+#include "mojo/public/cpp/system/message_pipe.h"
+{%- endif %}
+
+#include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
+
+#include "{{module.path}}-shared-internal.h"
+{%- for import in imports %}
+#include "{{import.path}}-shared.h"
+{%- endfor %}
+
+{#- Avoid transitive includes of interface headers if possible. #}
+{% if not disallow_interfaces and uses_interfaces -%}
+#include "mojo/public/cpp/bindings/lib/interface_serialization.h"
+#include "mojo/public/cpp/system/data_pipe.h"
+{%- endif %}
+
+{% if not disallow_native_types and uses_native_types %}
+#include "mojo/public/cpp/bindings/native_enum.h"
+#include "mojo/public/cpp/bindings/lib/native_struct_serialization.h"
+{%- endif %}
+
+#include "{{module.path}}-data-view.h"
+
+
+{%- for send_validation_module in send_validation_modules %}
+#include "{{send_validation_module.path}}-send-validation.h"
+{%- endfor %}
+
+{%- if export_header %}
+#include "{{export_header}}"
+{%- endif %}
+
+{% if enable_kythe_annotations -%}
+#ifdef KYTHE_IS_RUNNING
+#pragma kythe_inline_metadata "Metadata comment"
+#endif
+{%- endif %}
+
+
+namespace std {
+
+{%- from "enum_macros.tmpl" import enum_hash %}
+{%- for enum in all_enums %}
+{%-   if not enum|is_native_only_kind %}
+{{enum_hash(enum)}}
+{%-   endif %}
+{%- endfor %}
+
+}  // namespace std
+
+namespace mojo {
+
+{#--- Enum Serialization Helpers -#}
+{%- for enum in all_enums %}
+{%-   if not enum|is_native_only_kind %}
+{%      include "enum_serialization_declaration.tmpl" %}
+{%-   endif %}
+{%- endfor %}
+
+{#--- Struct Serialization Helpers -#}
+{%  for struct in structs %}
+{%-   if not struct|is_native_only_kind %}
+{%      include "struct_serialization_declaration.tmpl" %}
+{%-   endif %}
+{%- endfor %}
+
+{#--- Union Serialization Helpers -#}
+{%  if unions %}
+{%-   for union in unions %}
+{%      include "union_serialization_declaration.tmpl" %}
+{%-   endfor %}
+{%- endif %}
+
+}  // namespace mojo
+
+{{namespace_begin(namespaces_as_array)}}
+
+{%- for struct in structs %}
+{%-   if not struct|is_native_only_kind %}
+{%      include "struct_data_view_definition.tmpl" %}
+{%-   endif %}
+{%- endfor %}
+
+{%- for union in unions %}
+{%    include "union_data_view_definition.tmpl" %}
+{%- endfor %}
+
+{{namespace_end(namespaces_as_array)}}
+
+// Declare TraceFormatTraits for enums, which should be defined in ::perfetto
+// namespace.
+{%- from "enum_macros.tmpl" import enum_trace_format_traits_decl with context %}
+{%- for enum in all_enums %}
+{%-   if not enum|is_native_only_kind %}
+{{enum_trace_format_traits_decl(enum, export_attribute)}}
+{%-   endif %}
+{%- endfor %}
+
+#endif  // {{header_guard}}

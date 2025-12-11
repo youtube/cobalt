@@ -1,0 +1,310 @@
+// Copyright 2013 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef IOS_CHROME_BROWSER_SIGNIN_MODEL_AUTHENTICATION_SERVICE_H_
+#define IOS_CHROME_BROWSER_SIGNIN_MODEL_AUTHENTICATION_SERVICE_H_
+
+#import <string>
+#import <vector>
+
+#import "base/functional/callback_helpers.h"
+#import "base/ios/block_types.h"
+#import "base/memory/raw_ptr.h"
+#import "base/memory/weak_ptr.h"
+#import "base/scoped_observation.h"
+#import "components/keyed_service/core/keyed_service.h"
+#import "components/pref_registry/pref_registry_syncable.h"
+#import "components/signin/public/base/consent_level.h"
+#import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
+#import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
+
+namespace syncer {
+class SyncService;
+}
+
+class AuthenticationServiceDelegate;
+class AuthenticationServiceObserver;
+class FakeAuthenticationService;
+class PrefService;
+@protocol RefreshAccessTokenError;
+@protocol SystemIdentity;
+
+// AuthenticationService handles sign-in/sign-out operations, including various
+// related state (prefs) and observing the SigninAllowed and BrowserSignin
+// policies.
+class AuthenticationService : public KeyedService,
+                              public signin::IdentityManager::Observer,
+                              public ChromeAccountManagerService::Observer {
+ public:
+  // The service status for AuthenticationService.
+  enum class ServiceStatus {
+    // Sign-in forced by enterprise policy.
+    SigninForcedByPolicy = 0,
+    // Sign-in is possible.
+    SigninAllowed = 1,
+    // Sign-in disabled by user.
+    SigninDisabledByUser = 2,
+    // Sign-in disabled by enterprise policy.
+    SigninDisabledByPolicy = 3,
+    // Sign-in disabled for internal reason (probably running Chromium).
+    SigninDisabledByInternal = 4,
+  };
+
+  // All passed-in services must not be null, and must outlive this service.
+  AuthenticationService(PrefService* pref_service,
+                        ChromeAccountManagerService* account_manager_service,
+                        signin::IdentityManager* identity_manager,
+                        syncer::SyncService* sync_service);
+
+  AuthenticationService(const AuthenticationService&) = delete;
+  AuthenticationService& operator=(const AuthenticationService&) = delete;
+
+  ~AuthenticationService() override;
+
+  // Registers the preferences used by AuthenticationService.
+  static void RegisterPrefs(user_prefs::PrefRegistrySyncable* registry);
+
+  // Returns whether the AuthenticationService has been initialized. It is
+  // a fatal error to invoke any method on this object except Initialize()
+  // if this method returns false.
+  bool initialized() const { return initialized_; }
+
+  // Initializes the AuthenticationService.
+  void Initialize(std::unique_ptr<AuthenticationServiceDelegate> delegate);
+
+  // KeyedService implementation.
+  void Shutdown() override;
+
+  // Adds and removes observers.
+  void AddObserver(AuthenticationServiceObserver* observer);
+  void RemoveObserver(AuthenticationServiceObserver* observer);
+
+  // Returns the service status, see ServiceStatus. This value can be observed
+  // using AuthenticationServiceObserver::OnServiceStatusChanged().
+  ServiceStatus GetServiceStatus() const;
+
+  // Reauth prompt tracking
+
+  // Reminds user to Sign in and sync to Chrome when a new tab is opened.
+  void SetReauthPromptForSignInAndSync();
+
+  // Clears the reminder to Sign in and sync to Chrome when a new tab is opened.
+  void ResetReauthPromptForSignInAndSync();
+
+  // Returns whether user should be prompted to Sign in and sync to Chrome.
+  bool ShouldReauthPromptForSignInAndSync() const;
+
+  // SystemIdentity management
+
+  // Returns true if the user is signed in.
+  // While the AuthenticationService is in background, this will reload the
+  // credentials to ensure the value is up to date.
+  bool HasPrimaryIdentity(signin::ConsentLevel consent_level) const;
+
+  // Returns true if the user is signed in and the identity is considered
+  // managed.
+  // Virtual for testing.
+  virtual bool HasPrimaryIdentityManaged(
+      signin::ConsentLevel consent_level) const;
+
+  // Returns true if data from the signed-in period should be cleared on
+  // sign-out.
+  virtual bool ShouldClearDataForSignedInPeriodOnSignOut() const;
+
+  // Retrieves the identity of the currently authenticated user or `nil` if
+  // the user is not authenticated.
+  // Virtual for testing.
+  virtual id<SystemIdentity> GetPrimaryIdentity(
+      signin::ConsentLevel consent_level) const;
+
+  // Grants signin::ConsentLevel::kSignin to `identity` and records the signin
+  // at `access_point`. Virtual for testing.
+  virtual void SignIn(id<SystemIdentity> identity,
+                      signin_metrics::AccessPoint access_point);
+
+  // Signs the authenticated user out of Chrome and clears the browsing
+  // data if the account is managed.
+  // Sync consent is automatically removed from all signed-out accounts.
+  // `completion` is then executed asynchronously.
+  // Virtual for testing.
+  virtual void SignOut(signin_metrics::ProfileSignout signout_source,
+                       ProceduralBlock completion);
+
+  // Returns whether there is a cached associated MDM error for `identity`.
+  bool HasCachedMDMErrorForIdentity(id<SystemIdentity> identity);
+
+  // Shows the MDM Error dialog for `identity` if it has an associated MDM
+  // error. Returns true if `identity` had an associated error, false otherwise.
+  bool ShowMDMErrorDialogForIdentity(id<SystemIdentity> identity);
+
+  // Returns a weak pointer of this.
+  base::WeakPtr<AuthenticationService> GetWeakPtr();
+
+  // This needs to be invoked when the application enters foreground to
+  // sync the accounts between the IdentityManager and the SSO library.
+  void OnApplicationWillEnterForeground();
+
+  // Whether the sign-in is not disabled.
+  bool SigninEnabled() const;
+
+ private:
+  friend class AuthenticationServiceTestBase;
+  friend class FakeAuthenticationService;
+
+  // LINT.IfChange(IOSProfileInitializationOutcome)
+  enum class ProfileInitializationOutcome {
+    // Test-only code path.
+    kNoneForTesting = 0,
+
+    // Good / expected cases:
+
+    // The multi-profile feature was disabled, so no action taken.
+    kFeatureDisabledAlreadyInitialized = 1,
+    kFeatureDisabledNewlyInitialized = 2,
+
+    // This is the personal profile, so no action was necessary.
+    kPersonalProfileAlreadyInitialized = 3,
+    kPersonalProfileNewlyInitialized = 4,
+    // This is a managed profile, and it was already initialized (i.e. already
+    // signed in).
+    kManagedProfileAlreadyInitialized = 5,
+    // This is a managed profile, and it was newly initialized (and signed in).
+    kManagedProfileNewlyInitialized = 6,
+
+    // Bad / unexpected cases:
+
+    // This is a managed profile which was newly initialized, but it was somehow
+    // already signed in. This most likely means the "IsFullyInitialized" flag
+    // wasn't properly set.
+    kManagedProfileNewlyInitializedButAlreadySignedIn = 7,
+    // This is a managed profile which was already initialized, but not signed
+    // in yet. It was signed in (again). This means that either signin failed
+    // previously, or the managed profile somehow got signed out.
+    kManagedProfileAlreadyInitializedButNewlySignedIn = 8,
+    // This is a managed profile, but it had no available accounts and so could
+    // not be signed in. This likely indicates some issue with
+    // AccountProfileMapper.
+    kManagedProfileAlreadyInitializedNoAccounts = 9,
+    kManagedProfileNewlyInitializedNoAccounts = 10,
+    // This is a managed profile, which somehow had multiple accounts available.
+    // This likely indicates some issue with AccountProfileMapper.
+    kManagedProfileAlreadyInitializedMultipleAccountsAndNewlySignedIn = 11,
+    kManagedProfileNewlyInitializedMultipleAccounts = 12,
+
+    kMaxValue = kManagedProfileNewlyInitializedMultipleAccounts
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:IOSProfileInitializationOutcome)
+
+  // Performs any necessary first-time setup (notably, signing in the assigned
+  // managed account to a managed profile), and then marks the profile as
+  // initialized.
+  ProfileInitializationOutcome PerformProfileInitializationIfNecessary();
+
+  // Returns the cached MDM errors associated with `identity`. If the cache
+  // is stale for `identity`, the entry might be removed.
+  id<RefreshAccessTokenError> GetCachedMDMError(id<SystemIdentity> identity);
+
+  // Handles an MDM error `error` associated with `identity`.
+  // Returns whether the notification associated with `user_info` was fully
+  // handled.
+  bool HandleMDMError(id<SystemIdentity> identity,
+                      id<RefreshAccessTokenError> error);
+
+  // Invoked when the MDM error associated with `identity` has been handled.
+  void MDMErrorHandled(id<SystemIdentity> identity, bool is_blocked);
+
+  // Verifies that the authenticated user is still associated with a valid
+  // SystemIdentity. This method must only be called when the user is
+  // authenticated with the shared authentication library. If there is no valid
+  // SystemIdentity associated with the currently authenticated user, or the
+  // identity is `invalid_identity`, this method will sign the user out.
+  //
+  // `invalid_identity` is an additional identity to consider invalid. It can be
+  // nil if there is no such additional identity to ignore.
+  //
+  // `device_restore` should be true only when called from `Initialize()` and
+  // Chrome is started after a device restore.
+  void HandleForgottenIdentity(id<SystemIdentity> invalid_identity,
+                               bool device_restore);
+
+  // Checks if the authenticated identity was removed by calling
+  // `HandleForgottenIdentity`. Reloads the OAuth2 token service accounts if the
+  // authenticated identity is still present.
+  void ReloadCredentialsFromIdentities();
+
+  // signin::IdentityManager::Observer implementation.
+  void OnPrimaryAccountChanged(
+      const signin::PrimaryAccountChangeEvent& event_details) override;
+
+  // ChromeAccountManagerService::Observer implementation.
+  void OnIdentitiesInProfileChanged() override;
+  void OnRefreshTokenUpdated(id<SystemIdentity> identity) override;
+  void OnAccessTokenRefreshFailed(id<SystemIdentity> identity,
+                                  id<RefreshAccessTokenError> error,
+                                  const std::set<std::string>& scopes) override;
+
+  // Fires `OnPrimaryAccountRestricted` on all observers.
+  void FirePrimaryAccountRestricted();
+
+  // Notification for prefs::kSigninAllowed.
+  void OnSigninAllowedChanged(const std::string& name);
+
+  // Notification for prefs::kSigninAllowedOnDevice.
+  void OnSigninAllowedOnDeviceChanged(const std::string& name);
+
+  // Notification for prefs::kBrowserSigninPolicy.
+  void OnBrowserSigninPolicyChanged(const std::string& name);
+
+  // Fires `OnServiceStatusChanged` on all observers.
+  void FireServiceStatusNotification();
+
+  // Clears the account settings prefs of all removed accounts from device.
+  void ClearAccountSettingsPrefsOfRemovedAccounts();
+
+  // Returns the active identities for MDM.
+  NSArray<id<SystemIdentity>>* ActiveIdentities();
+
+  // The delegate for this AuthenticationService. It is invalid to call any
+  // method on this object except Initialize() or Shutdown() if this pointer
+  // is null.
+  std::unique_ptr<AuthenticationServiceDelegate> delegate_;
+
+  // Pointer to the KeyedServices used by AuthenticationService.
+  raw_ptr<PrefService> pref_service_ = nullptr;
+  raw_ptr<ChromeAccountManagerService> account_manager_service_ = nullptr;
+  raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
+  raw_ptr<syncer::SyncService> sync_service_ = nullptr;
+  base::ObserverList<AuthenticationServiceObserver, true> observer_list_;
+  // Whether Initialize() has been called.
+  bool initialized_ = false;
+
+  // Whether the AuthenticationService is currently reloading credentials, used
+  // to avoid an infinite reloading loop.
+  bool is_reloading_credentials_ = false;
+
+  // Whether the primary account was logged out because it became restricted.
+  // It is used to respond to late observers.
+  bool primary_account_was_restricted_ = false;
+
+  // Map between account IDs and their associated MDM error.
+  std::map<CoreAccountId, id<RefreshAccessTokenError>> cached_mdm_errors_;
+
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observation_{this};
+
+  base::ScopedObservation<ChromeAccountManagerService,
+                          ChromeAccountManagerService::Observer>
+      account_manager_service_observation_{this};
+
+  // Registrar for prefs::kSigninAllowed.
+  PrefChangeRegistrar pref_change_registrar_;
+  // Registrar for prefs::kBrowserSigninPolicy and kSigninAllowedOnDevice.
+  PrefChangeRegistrar local_pref_change_registrar_;
+
+  base::WeakPtrFactory<AuthenticationService> weak_pointer_factory_;
+};
+
+#endif  // IOS_CHROME_BROWSER_SIGNIN_MODEL_AUTHENTICATION_SERVICE_H_

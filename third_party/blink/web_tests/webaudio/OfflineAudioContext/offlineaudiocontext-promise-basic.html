@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      OfflineAudioContext.startRendering Promise
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+      const renderSeconds = 1;
+      const renderFrames = sampleRate * renderSeconds;
+      const contextChannels = 2;
+
+      promise_test(async t => {
+        // Create a context and verify that calling startRendering more than
+        // once causes a rejected promise.
+        const context =
+            new OfflineAudioContext(contextChannels, renderFrames, sampleRate);
+        context.startRendering();
+        await promise_rejects_dom(
+            t,
+            'InvalidStateError',
+            context.startRendering(),
+            'Promise from calling startRendering twice'
+        );
+      }, 'reject-promise');
+
+      promise_test(async () => {
+        // Create an offline context and verify that buffer returned by the
+        // promise matches the expected results.
+        const context =
+            new OfflineAudioContext(contextChannels, renderFrames, sampleRate);
+
+        const buffer = new AudioBuffer({
+          numberOfChannels: contextChannels,
+          length: renderFrames,
+          sampleRate
+        });
+
+        for (let k = 0; k < renderFrames; ++k) {
+          buffer.getChannelData(0)[k] = 1;
+          buffer.getChannelData(1)[k] = 2;
+        }
+
+        const source = new AudioBufferSourceNode(context, { buffer });
+        source.connect(context.destination);
+        source.start();
+
+        const renderedData = await context.startRendering();
+        handlePromise(context, renderedData);
+      }, 'promise-results');
+
+      const handlePromise = (context, renderedData) => {
+        assert_equals(context.state, 'closed', 'context.state');
+        assert_equals(
+            renderedData.numberOfChannels,
+            contextChannels,
+            'renderedData.numberOfChannels');
+        assert_equals(renderedData.length, renderFrames, 'renderedData.length');
+        for (let channel = 0; channel < renderedData.numberOfChannels;
+             ++channel) {
+          const data = renderedData.getChannelData(channel);
+          const expected = new Float32Array(renderFrames).fill(channel + 1);
+          assert_array_equals(
+              data,
+              expected,
+              `Output channel ${channel} is constant ${channel + 1}`);
+        }
+      }
+    </script>
+  </body>
+</html>

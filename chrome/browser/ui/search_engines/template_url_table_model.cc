@@ -1,0 +1,287 @@
+// Copyright 2012 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/ui/search_engines/template_url_table_model.h"
+
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <utility>
+
+#include "base/containers/contains.h"
+#include "base/functional/bind.h"
+#include "base/i18n/rtl.h"
+#include "base/strings/string_util.h"
+#include "chrome/grit/generated_resources.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
+#include "components/search_engines/template_url.h"
+#include "components/search_engines/template_url_data.h"
+#include "components/search_engines/template_url_service.h"
+#include "components/search_engines/template_url_starter_pack_data.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/i18n/unicode/coll.h"
+#include "third_party/icu/source/i18n/unicode/ucol.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/table_model_observer.h"
+
+namespace internal {
+
+OrderByManagedAndAlphabetically::OrderByManagedAndAlphabetically() {
+  UErrorCode error_code = U_ZERO_ERROR;
+  collator_.reset(
+      icu::Collator::createInstance(icu::Locale::getDefault(), error_code));
+  if (!U_SUCCESS(error_code)) {
+    collator_.reset();
+  }
+  if (collator_) {
+    // Case-insensitive, ignoring diacriticals.
+    collator_->setStrength(icu::Collator::PRIMARY);
+  }
+}
+
+OrderByManagedAndAlphabetically::OrderByManagedAndAlphabetically(
+    const OrderByManagedAndAlphabetically& other)
+    : collator_(other.collator_->clone()) {}
+
+OrderByManagedAndAlphabetically::~OrderByManagedAndAlphabetically() = default;
+
+bool OrderByManagedAndAlphabetically::operator()(const TemplateURL* lhs,
+                                                 const TemplateURL* rhs) const {
+  auto get_sort_key = [this](const TemplateURL* engine) {
+    return std::make_tuple(
+        // Enterprise search engines are shown before other engines.
+        !engine->CreatedByNonDefaultSearchProviderPolicy(),
+        // Try to compare short names ignoring case and diacriticals.
+        collator_ ? GetShortNameSortKey(engine->short_name()) : std::string(),
+        // If a collator is not available, fallback to regular string
+        // comparison.
+        engine->short_name(),
+        // If short name is the same, fallback to keyword.
+        engine->keyword());
+  };
+  return get_sort_key(lhs) < get_sort_key(rhs);
+}
+
+std::string OrderByManagedAndAlphabetically::GetShortNameSortKey(
+    const std::u16string& short_name) const {
+  CHECK(collator_);
+
+  constexpr int32_t kBufferSize = 1000;
+  uint8_t buffer[kBufferSize];
+  icu::UnicodeString icu_str(short_name.c_str(), short_name.length());
+
+  int32_t sort_key_length = collator_->getSortKey(icu_str, buffer, kBufferSize);
+
+  // If the sort key is too long for our buffer, trim the original string
+  // for comparison to avoid buffer overflow.
+  if (sort_key_length >= kBufferSize) {
+    buffer[kBufferSize - 1] = 0;
+    sort_key_length = kBufferSize;
+  }
+
+  // getSortKey returns the length including null terminator, but we want
+  // to exclude it from the string to avoid issues with string comparison.
+  if (sort_key_length > 0) {
+    sort_key_length--;
+  }
+
+  return std::string(reinterpret_cast<const char*>(buffer), sort_key_length);
+}
+
+}  // namespace internal
+
+TemplateURLTableModel::TemplateURLTableModel(
+    TemplateURLService* template_url_service,
+    bool ai_mode_enabled)
+    : observer_(nullptr),
+      template_url_service_(template_url_service),
+      ai_mode_enabled_(ai_mode_enabled) {
+  DCHECK(template_url_service);
+  template_url_service_->AddObserver(this);
+  template_url_service_->Load();
+  Reload();
+}
+
+TemplateURLTableModel::~TemplateURLTableModel() {
+  template_url_service_->RemoveObserver(this);
+}
+
+void TemplateURLTableModel::Reload() {
+  TemplateURL::TemplateURLVector urls =
+      template_url_service_->GetTemplateURLs();
+
+  TemplateURL::TemplateURLVector default_entries, active_entries, other_entries,
+      extension_entries;
+  // Keywords that can be made the default first.
+  for (TemplateURL* template_url : urls) {
+    // Skip @gemini if feature disabled.
+    if (template_url->starter_pack_id() ==
+            template_url_starter_pack_data::kGemini &&
+        !OmniboxFieldTrial::IsStarterPackExpansionEnabled()) {
+      continue;
+    }
+    // Skip @page if feature disabled.
+    if (template_url->starter_pack_id() ==
+            template_url_starter_pack_data::kPage &&
+        !omnibox_feature_configs::ContextualSearch::Get().starter_pack_page) {
+      continue;
+    }
+    // Skip @aimode if feature disabled.
+    if (template_url->starter_pack_id() ==
+            template_url_starter_pack_data::kAiMode &&
+        !ai_mode_enabled_) {
+      continue;
+    }
+
+    if (template_url_service_->ShowInDefaultList(template_url)) {
+      default_entries.push_back(template_url);
+    } else if (!template_url_service_->HiddenFromLists(template_url)) {
+      if (template_url->type() == TemplateURL::OMNIBOX_API_EXTENSION) {
+        extension_entries.push_back(template_url);
+      } else if (template_url_service_->ShowInActivesList(template_url)) {
+        active_entries.push_back(template_url);
+      } else {
+        other_entries.push_back(template_url);
+      }
+    }
+  }
+
+  std::ranges::sort(active_entries,
+                    internal::OrderByManagedAndAlphabetically());
+  std::ranges::sort(other_entries, internal::OrderByManagedAndAlphabetically());
+
+  last_search_engine_index_ = default_entries.size();
+  last_active_engine_index_ = last_search_engine_index_ + active_entries.size();
+  last_other_engine_index_ = last_active_engine_index_ + other_entries.size();
+
+  entries_.clear();
+  std::move(default_entries.begin(), default_entries.end(),
+            std::back_inserter(entries_));
+
+  std::move(active_entries.begin(), active_entries.end(),
+            std::back_inserter(entries_));
+
+  std::move(other_entries.begin(), other_entries.end(),
+            std::back_inserter(entries_));
+
+  std::move(extension_entries.begin(), extension_entries.end(),
+            std::back_inserter(entries_));
+
+  if (observer_) {
+    observer_->OnModelChanged();
+  }
+}
+
+size_t TemplateURLTableModel::RowCount() {
+  return entries_.size();
+}
+
+std::u16string TemplateURLTableModel::GetText(size_t row, int col_id) {
+  DCHECK(row < RowCount());
+  const TemplateURL* url = entries_[row];
+  if (col_id == IDS_SEARCH_ENGINES_EDITOR_DESCRIPTION_COLUMN) {
+    std::u16string url_short_name = url->short_name();
+    // TODO(xji): Consider adding a special case if the short name is a URL,
+    // since those should always be displayed LTR. Please refer to
+    // http://crbug.com/6726 for more information.
+    base::i18n::AdjustStringForLocaleDirection(&url_short_name);
+    return (template_url_service_->GetDefaultSearchProvider() == url)
+               ? l10n_util::GetStringFUTF16(
+                     IDS_SEARCH_ENGINES_EDITOR_DEFAULT_ENGINE, url_short_name)
+               : url_short_name;
+  }
+
+  DCHECK_EQ(IDS_SEARCH_ENGINES_EDITOR_KEYWORD_COLUMN, col_id);
+  // Keyword should be domain name. Force it to have LTR directionality.
+  return base::i18n::GetDisplayStringInLTRDirectionality(url->keyword());
+}
+
+void TemplateURLTableModel::SetObserver(ui::TableModelObserver* observer) {
+  observer_ = observer;
+}
+
+void TemplateURLTableModel::Remove(size_t index) {
+  TemplateURL* template_url = GetTemplateURL(index);
+  template_url_service_->Remove(template_url);
+}
+
+void TemplateURLTableModel::Add(size_t index,
+                                const std::u16string& short_name,
+                                const std::u16string& keyword,
+                                const std::string& url) {
+  DCHECK(index <= RowCount());
+  DCHECK(!url.empty());
+  TemplateURLData data;
+  data.SetShortName(short_name);
+  data.SetKeyword(keyword);
+  data.SetURL(url);
+  data.is_active = TemplateURLData::ActiveStatus::kTrue;
+  template_url_service_->Add(std::make_unique<TemplateURL>(data));
+}
+
+void TemplateURLTableModel::ModifyTemplateURL(size_t index,
+                                              const std::u16string& title,
+                                              const std::u16string& keyword,
+                                              const std::string& url) {
+  DCHECK(index <= RowCount());
+  DCHECK(!url.empty());
+  TemplateURL* template_url = GetTemplateURL(index);
+
+  // The default search provider should support replacement.
+  DCHECK(template_url_service_->GetDefaultSearchProvider() != template_url ||
+         template_url->SupportsReplacement(
+             template_url_service_->search_terms_data()));
+  template_url_service_->ResetTemplateURL(template_url, title, keyword, url);
+}
+
+TemplateURL* TemplateURLTableModel::GetTemplateURL(size_t index) {
+  // Sanity checks for https://crbug.com/781703.
+  CHECK_LT(index, entries_.size());
+  CHECK(
+      base::Contains(template_url_service_->GetTemplateURLs(), entries_[index]))
+      << "TemplateURLTableModel is returning a pointer to a TemplateURL "
+         "that has already been freed by TemplateURLService.";
+
+  return entries_[index];
+}
+
+std::optional<size_t> TemplateURLTableModel::IndexOfTemplateURL(
+    const TemplateURL* template_url) {
+  for (auto i = entries_.begin(); i != entries_.end(); ++i) {
+    if (*i == template_url) {
+      return static_cast<size_t>(i - entries_.begin());
+    }
+  }
+  return std::nullopt;
+}
+
+void TemplateURLTableModel::MakeDefaultTemplateURL(
+    size_t index,
+    search_engines::ChoiceMadeLocation choice_location) {
+  DCHECK_LT(index, RowCount());
+
+  TemplateURL* keyword = GetTemplateURL(index);
+  const TemplateURL* current_default =
+      template_url_service_->GetDefaultSearchProvider();
+  if (current_default == keyword) {
+    return;
+  }
+
+  template_url_service_->SetUserSelectedDefaultSearchProvider(keyword,
+                                                              choice_location);
+}
+
+void TemplateURLTableModel::SetIsActiveTemplateURL(size_t index,
+                                                   bool is_active) {
+  DCHECK(index <= RowCount());
+  TemplateURL* keyword = GetTemplateURL(index);
+
+  template_url_service_->SetIsActiveTemplateURL(keyword, is_active);
+}
+
+void TemplateURLTableModel::OnTemplateURLServiceChanged() {
+  Reload();
+}

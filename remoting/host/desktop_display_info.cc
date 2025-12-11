@@ -1,0 +1,273 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "remoting/host/desktop_display_info.h"
+
+#include <algorithm>
+
+#include "base/check.h"
+#include "build/build_config.h"
+#include "remoting/base/constants.h"
+#include "remoting/base/logging.h"
+#include "remoting/proto/control.pb.h"
+#include "remoting/protocol/coordinate_conversion.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
+
+namespace remoting {
+
+DisplayGeometry::DisplayGeometry() = default;
+DisplayGeometry::DisplayGeometry(webrtc::ScreenId id,
+                                 int32_t x,
+                                 int32_t y,
+                                 uint32_t width,
+                                 uint32_t height,
+                                 uint32_t dpi,
+                                 uint32_t bpp,
+                                 bool is_default,
+                                 const std::string& display_name)
+    : id(id),
+      x(x),
+      y(y),
+      width(width),
+      height(height),
+      dpi(dpi),
+      bpp(bpp),
+      is_default(is_default),
+      display_name(display_name) {}
+
+DisplayGeometry::DisplayGeometry(const DisplayGeometry&) = default;
+DisplayGeometry& DisplayGeometry::operator=(const DisplayGeometry&) = default;
+DisplayGeometry::~DisplayGeometry() = default;
+
+bool DisplayGeometry::Contains(
+    const webrtc::DesktopVector& global_absolute_coordinate) const {
+  return global_absolute_coordinate.x() >= x &&
+         global_absolute_coordinate.x() < static_cast<int>(x + width) &&
+         global_absolute_coordinate.y() >= y &&
+         global_absolute_coordinate.y() < static_cast<int>(y + height);
+}
+
+DesktopDisplayInfo::DesktopDisplayInfo() = default;
+DesktopDisplayInfo::DesktopDisplayInfo(DesktopDisplayInfo&&) = default;
+DesktopDisplayInfo& DesktopDisplayInfo::operator=(DesktopDisplayInfo&&) =
+    default;
+DesktopDisplayInfo::~DesktopDisplayInfo() = default;
+
+bool DesktopDisplayInfo::operator==(const DesktopDisplayInfo& other) const {
+  if (other.displays_.size() == displays_.size()) {
+    for (size_t display = 0; display < displays_.size(); display++) {
+      const DisplayGeometry& this_display = displays_[display];
+      const DisplayGeometry& other_display = other.displays_[display];
+      if (this_display.id != other_display.id ||
+          this_display.x != other_display.x ||
+          this_display.y != other_display.y ||
+          this_display.width != other_display.width ||
+          this_display.height != other_display.height ||
+          this_display.dpi != other_display.dpi ||
+          this_display.bpp != other_display.bpp ||
+          this_display.is_default != other_display.is_default ||
+          this_display.display_name != other_display.display_name) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+bool DesktopDisplayInfo::operator!=(const DesktopDisplayInfo& other) const {
+  return !(*this == other);
+}
+
+/* static */
+webrtc::DesktopSize DesktopDisplayInfo::CalcSizeDips(webrtc::DesktopSize size,
+                                                     int dpi_x,
+                                                     int dpi_y) {
+  // Guard against invalid input.
+  // TODO: Replace with a DCHECK, once crbug.com/938648 is fixed.
+  if (dpi_x == 0) {
+    dpi_x = kDefaultDpi;
+  }
+  if (dpi_y == 0) {
+    dpi_y = kDefaultDpi;
+  }
+
+  webrtc::DesktopSize size_dips(size.width() * kDefaultDpi / dpi_x,
+                                size.height() * kDefaultDpi / dpi_y);
+  return size_dips;
+}
+
+void DesktopDisplayInfo::Reset() {
+  displays_.clear();
+}
+
+int DesktopDisplayInfo::NumDisplays() const {
+  return displays_.size();
+}
+
+const DisplayGeometry* DesktopDisplayInfo::GetDisplayInfo(
+    unsigned int id) const {
+  if (id < 0 || id >= displays_.size()) {
+    return nullptr;
+  }
+  return &displays_[id];
+}
+
+// Calculate the offset from the origin of the desktop to the origin of the
+// specified display.
+//
+// For Mac and ChromeOS, the origin of the desktop is the origin of the default
+// display.
+//
+// For Windows/Linux, the origin of the desktop is the upper-left of the
+// entire desktop region.
+//
+// x         b-----------+            ---
+//           |           |             |  y-offset to c
+// a---------+           |             |
+// |         +-------c---+-------+    ---
+// |         |       |           |
+// +---------+       |           |
+//                   +-----------+
+//
+// |-----------------|
+//    x-offset to c
+//
+// x = upper left of desktop
+// a,b,c = origin of display A,B,C
+webrtc::DesktopVector DesktopDisplayInfo::CalcDisplayOffset(
+    webrtc::ScreenId disp_id) const {
+  bool full_desktop = (disp_id == webrtc::kFullDesktopScreenId);
+  unsigned int disp_index = disp_id;
+
+  if (full_desktop) {
+#if BUILDFLAG(IS_APPLE)
+    // For Mac, we need to calculate the offset relative to the default
+    // display.
+    disp_index = 0;
+#else
+    // For other platforms, the origin for full desktop is 0,0.
+    return webrtc::DesktopVector();
+#endif  // !BUILDFLAG(IS_APPLE)
+  }
+
+  if (displays_.size() == 0) {
+    LOG(INFO) << "No display info available";
+    return webrtc::DesktopVector();
+  }
+  if (disp_index >= displays_.size()) {
+    LOG(INFO) << "Invalid display id for CalcDisplayOffset: " << disp_index;
+    return webrtc::DesktopVector();
+  }
+
+  const DisplayGeometry& disp_info = displays_[disp_index];
+  webrtc::DesktopVector origin(disp_info.x, disp_info.y);
+
+  // Find topleft-most display coordinate. This is the topleft of the desktop.
+  int dx = 0;
+  int dy = 0;
+  for (const auto& display : displays_) {
+    if (display.x < dx) {
+      dx = display.x;
+    }
+    if (display.y < dy) {
+      dy = display.y;
+    }
+  }
+  webrtc::DesktopVector topleft(dx, dy);
+
+#if BUILDFLAG(IS_APPLE)
+  // Mac display offsets need to be relative to the main display's origin.
+  if (full_desktop) {
+    // For full desktop, this is the offset to the topleft display coord.
+    return topleft;
+  } else {
+    // For single displays, this offset is stored in the DisplayGeometry
+    // x,y values.
+    return origin;
+  }
+#elif BUILDFLAG(IS_CHROMEOS)
+  // ChromeOS display offsets need to be relative to the main display's origin,
+  // which is stored in the DisplayGeometry x,y values.
+  return origin;
+#else
+  // Return offset to this screen, relative to topleft.
+  return origin.subtract(topleft);
+#endif  // BUILDFLAG(IS_APPLE)
+}
+
+void DesktopDisplayInfo::AddDisplay(const DisplayGeometry& display) {
+  displays_.push_back(display);
+}
+
+void DesktopDisplayInfo::AddDisplayFrom(
+    const protocol::VideoTrackLayout& track) {
+  DisplayGeometry display;
+  displays_.emplace_back(track.screen_id(), track.position_x(),
+                         track.position_y(), track.width(), track.height(),
+                         /* dpi */ track.x_dpi(),
+                         /* bpp */ 24,
+                         /* is_default */ false, track.display_name());
+}
+
+std::optional<protocol::FractionalCoordinate>
+DesktopDisplayInfo::ToFractionalCoordinate(
+    const webrtc::DesktopVector& global_absolute_coordinate) const {
+  auto it = std::find_if(
+      displays_.begin(), displays_.end(),
+      [&global_absolute_coordinate](const DisplayGeometry& display) {
+        return display.Contains(global_absolute_coordinate);
+      });
+  if (it == displays_.end()) {
+    return std::nullopt;
+  }
+  return protocol::ToFractionalCoordinate(
+      it->id, {static_cast<int>(it->width), static_cast<int>(it->height)},
+      {global_absolute_coordinate.x() - it->x,
+       global_absolute_coordinate.y() - it->y});
+}
+
+std::unique_ptr<protocol::VideoLayout> DesktopDisplayInfo::GetVideoLayoutProto()
+    const {
+  auto layout = std::make_unique<protocol::VideoLayout>();
+  for (const auto& display : displays()) {
+    protocol::VideoTrackLayout* track = layout->add_video_track();
+    track->set_position_x(display.x);
+    track->set_position_y(display.y);
+    track->set_width(display.width);
+    track->set_height(display.height);
+    track->set_x_dpi(display.dpi);
+    track->set_y_dpi(display.dpi);
+    track->set_screen_id(display.id);
+    track->set_display_name(display.display_name);
+    if (display.is_default) {
+      if (layout->has_primary_screen_id()) {
+        LOG(WARNING) << "Multiple primary displays found";
+      }
+      layout->set_primary_screen_id(display.id);
+    }
+  }
+  if (pixel_type_.has_value()) {
+    switch (*pixel_type_) {
+      case PixelType::LOGICAL:
+        layout->set_pixel_type(
+            protocol::VideoLayout::PixelType::VideoLayout_PixelType_LOGICAL);
+        break;
+      case PixelType::PHYSICAL:
+        layout->set_pixel_type(
+            protocol::VideoLayout::PixelType::VideoLayout_PixelType_PHYSICAL);
+        break;
+    }
+  }
+  return layout;
+}
+
+std::ostream& operator<<(std::ostream& out, const DisplayGeometry& geo) {
+  out << "Display " << geo.id << (geo.is_default ? " (primary)" : "") << ": "
+      << geo.x << "+" << geo.y << "-" << geo.width << "x" << geo.height << " @ "
+      << geo.dpi << " - " << geo.display_name;
+  return out;
+}
+
+}  // namespace remoting

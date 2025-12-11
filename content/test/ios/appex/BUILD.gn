@@ -1,0 +1,20 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//content/test/ios/appex/extensions.gni")
+
+browserkit_extension("gpu_process") {
+  testonly = true
+  bundle_identifier = "$shared_bundle_id_for_test_apps.GPUProcessExtension"
+}
+
+browserkit_extension("network_process") {
+  testonly = true
+  bundle_identifier = "$shared_bundle_id_for_test_apps.NetworkProcessExtension"
+}
+
+browserkit_extension("content_process") {
+  testonly = true
+  bundle_identifier = "$shared_bundle_id_for_test_apps.ContentProcessExtension"
+}

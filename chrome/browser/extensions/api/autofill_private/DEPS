@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/wallet/core/browser",
+  "+third_party/libaddressinput/src/cpp/include/libaddressinput",
+]

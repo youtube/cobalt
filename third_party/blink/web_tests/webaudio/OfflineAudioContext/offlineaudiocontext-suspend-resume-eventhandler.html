@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      OfflineAudioContext: Validate Suspend/Resume Event Flow
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const renderQuantum = 128;
+
+      // The sample rate is multiple of the rendering quantum, so suspension
+      // times in the test will fall on the render quantum boundary. Although
+      // this is not necessary, it is easier to understand the test.
+      const sampleRate = renderQuantum * 100;
+
+      const renderDuration = 2;
+
+      // With the sample rate setting above, this ensures suspension time fall
+      // in to the render quantum boundary.
+      const suspendInterval = 0.25;
+
+      promise_test((t) => new Promise((resolve) => {
+        const context = new OfflineAudioContext(
+            1, sampleRate * renderDuration, sampleRate);
+        let scheduledSuspendTime = 0;
+        let rejectedSuspensionPromise = Promise.resolve();
+
+        context.onstatechange = () => {
+          if (context.state === 'suspended' &&
+              context.currentTime === scheduledSuspendTime) {
+            assert_equals(
+                context.state, 'suspended',
+                'onstatechange event handler: context should be suspended');
+            assert_equals(
+                context.currentTime, scheduledSuspendTime,
+                'onstatechange event handler: suspend should happen at ' +
+                    scheduledSuspendTime + ' second(s)');
+            scheduledSuspendTime = context.currentTime + suspendInterval;
+
+            if (scheduledSuspendTime < renderDuration) {
+              try {
+                // Scheduling a suspend before the render duration should pass.
+                context.suspend(scheduledSuspendTime);
+              } catch (e) {
+                assert_unreached(
+                    'onstatechange event handler: context is suspended at ' +
+                        scheduledSuspendTime + ' second(s)');
+              }
+            } else if (scheduledSuspendTime === renderDuration) {
+              // Scheduling a suspend exactly at the render duration
+              // should be rejected.
+              rejectedSuspensionPromise = promise_rejects_dom(
+                  t, 'InvalidStateError',
+                  context.suspend(scheduledSuspendTime),
+                  'Scheduling at ' + renderDuration + ' seconds should reject');
+            }
+
+            context.resume();
+          }
+        };
+
+        // This test is for verifying all the event handlers on OAC and that
+        // is why 'oncomplete' is used here.
+        context.oncomplete = () => {
+          assert_equals(
+              context.state, 'closed',
+              'oncomplete event handler: context.state');
+          rejectedSuspensionPromise.then(resolve);
+        };
+
+        // Schedule the first suspension.
+        try {
+          context.suspend(scheduledSuspendTime);
+        } catch (error) {
+          assert_unreached(
+              'A new suspend has been scheduled at ' + scheduledSuspendTime +
+                  ' second(s) threw: ' + error);
+        }
+
+        context.startRendering();
+      }), `Test event handler from resume() and suspend()`);
+    </script>
+  </body>
+</html>

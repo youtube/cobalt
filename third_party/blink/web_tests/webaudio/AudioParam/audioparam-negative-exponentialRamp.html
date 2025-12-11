@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Negative AudioParam.exponentialRampToValueAtTime
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      const sampleRate = 48000;
+
+      /*
+       * Create context with two channels.  Channel 0 contains the
+       * positive-valued exponential and channel 1 contains the
+       * negative-valued exponential.  We'll compare the two channels to
+       * verify that they're the same, as they should be.
+       */
+      promise_test(async t => {
+        let renderDuration = 0.125;
+
+        let context = new OfflineAudioContext(
+            2, renderDuration * sampleRate, sampleRate);
+        let source = context.createBufferSource();
+        source.buffer = createConstantBuffer(context, 1, 1);
+        source.loop = true;
+
+        // Gain node gp is for the positive-valued exponential ramp, and gn is
+        // for the negative-valued exponential ramp.
+        let gp = context.createGain();
+        let gn = context.createGain();
+        let merger = context.createChannelMerger(2);
+
+        source.connect(gp).connect(merger, 0, 0);
+        source.connect(gn).connect(merger, 0, 1);
+        merger.connect(context.destination);
+
+        gp.gain.setValueAtTime(1, 0);
+        gp.gain.exponentialRampToValueAtTime(2, renderDuration);
+
+        gn.gain.setValueAtTime(-1, 0);
+        gn.gain.exponentialRampToValueAtTime(-2, renderDuration);
+
+        source.start();
+
+        const resultBuffer = await context.startRendering();
+
+        // Verify that channels have the same values, except for the sign.
+        let expected = resultBuffer.getChannelData(0);
+        let actual = resultBuffer.getChannelData(1);
+        let inverted = expected.map(
+            sample => -sample);
+
+        assert_array_equal_within_eps(
+            actual, inverted, 1e-7,
+            "Negative exponential ramp from -1 to -2");
+      }, "both negative values");
+
+      // Positive start value and negative end value should just do nothing.
+      promise_test(async t => {
+        let renderDuration = 0.125;
+        let context = new OfflineAudioContext(
+            1, renderDuration * sampleRate, sampleRate);
+        let source = context.createBufferSource();
+        source.buffer = createConstantBuffer(context, 1, 1);
+        source.loop = true;
+
+        // Gain node gp is for the positive-valued exponential ramp,
+        // and gn is for the negative-valued exponential ramp.
+        let g = context.createGain();
+
+        g.gain.setValueAtTime(2, 0);
+        g.gain.exponentialRampToValueAtTime(-1, renderDuration);
+
+        source.connect(g).connect(context.destination);
+
+        source.start();
+
+        const resultBuffer = await context.startRendering();
+        let actual = resultBuffer.getChannelData(0);
+
+        assert_array_constant_value(
+            actual, 2, "Exponential ramp from 2 to -1");
+      }, "negative-end");
+
+      // Negative start value and positive end value should
+      // just do nothing.
+      promise_test(async t => {
+        let renderDuration = 0.125;
+        let context = new OfflineAudioContext(
+            1, renderDuration * sampleRate, sampleRate);
+        let source = context.createBufferSource();
+        source.buffer = createConstantBuffer(context, 1, 1);
+        source.loop = true;
+
+        let g = context.createGain();
+
+        g.gain.setValueAtTime(-1, 0);
+        g.gain.exponentialRampToValueAtTime(1, renderDuration);
+
+        source.connect(g).connect(context.destination);
+        source.start();
+
+        const resultBuffer = await context.startRendering();
+        let actual = resultBuffer.getChannelData(0);
+
+        assert_array_constant_value(
+            actual, -1, "Exponential ramp from -1 to 1");
+      }, "positive-end");
+
+      /*
+       * Test propagation of ramp if the exponential ramp start
+       * and end values have opposite sign.
+       */
+      promise_test(async t => {
+        let renderDuration = 0.125;
+        let linearRampEnd = renderDuration / 4;
+        let exponentialRampEnd = renderDuration / 2;
+
+        let context = new OfflineAudioContext(
+            1, renderDuration * sampleRate, sampleRate);
+        let source = context.createBufferSource();
+        source.buffer = createConstantBuffer(context, 1, 1);
+        source.loop = true;
+
+        let g = context.createGain();
+
+        g.gain.setValueAtTime(2, 0);
+        g.gain.linearRampToValueAtTime(-1, linearRampEnd);
+        g.gain.exponentialRampToValueAtTime(1, exponentialRampEnd);
+
+        source.connect(g).connect(context.destination);
+        source.start();
+
+        const resultBuffer = await context.startRendering();
+        let actual = resultBuffer.getChannelData(0);
+
+        // Since the start value of the exponential ramp is -1 and the end value
+        // is 1, the ramp should just propagate -1 to the end of the exponential
+        // ramp, and then propagate the exponential ramp value "forever"
+        // afterwards.
+        const linearEndFrame = Math.ceil(linearRampEnd * sampleRate);
+        const expoEndFrame = Math.ceil(exponentialRampEnd * sampleRate);
+        assert_array_constant_value(
+            actual.slice(linearEndFrame, expoEndFrame),
+            -1,
+            "Exponential ramp from -1 to 1 after the end of the linear ramp"
+        );
+        assert_array_constant_value(
+            actual.slice(expoEndFrame),
+            1,
+            "Exponential ramp after end of ramp"
+        );
+      }, "propagate");
+    </script>
+  </body>
+</html>

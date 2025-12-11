@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Sampling for SetTargetAtTime
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      // Some slow sample rate, but otherwise arbitrary.
+      const sampleRate = 12800;
+
+      // Time constant for setTargetValue. Make it short, but is otherwise
+      // arbitrary.
+      const timeConstant = 10 / sampleRate;
+
+      // Default initial gain for test. Arbitrary, but we want it large so the
+      // changes look large, even if the relative change isn't.
+      const initialGain = 10000;
+
+      // Test sampling of setTargetAtTime that starts at |startFrame|.  A gain
+      // node is used for testing.  |initializeGainFunction| initializes the
+      // gain value.
+      async function doTest(
+          testName, message, startFrame, relThreshold, initializeGainFunction) {
+        promise_test(async () => {
+          const context = new OfflineAudioContext(1, 256, sampleRate);
+          const gain = new GainNode(context);
+
+          // Initialize the value of the gain node appropriately.
+          initializeGainFunction(gain);
+          // Fix: Set target to 0, not initialGain
+          gain.gain.setTargetAtTime(
+              0, startFrame / sampleRate, timeConstant);
+
+          const source = new AudioBufferSourceNode(context);
+          const b = new AudioBuffer({
+            length: 1,
+            numberOfChannels: 1,
+            sampleRate: sampleRate
+          });
+          b.getChannelData(0)[0] = 1;
+          source.buffer = b;
+          source.loop = true;
+
+          source.connect(gain);
+          gain.connect(context.destination);
+
+          source.start();
+
+          const resultBuffer = await context.startRendering();
+
+          // Verify that the sampling of the setTargetAtTime automation was done
+          // correctly. We just look at the sample just past the start of the
+          // automation.
+          const resultData = resultBuffer.getChannelData(0);
+          // Compute the true result at the frame just past startFrame and
+          // verify that the actual rendered result is within |threshold| of the
+          // expected value.
+          const frame = Math.ceil(startFrame);
+          const timeDiff = (frame / sampleRate) - (startFrame / sampleRate);
+          const expected = initialGain * Math.exp(-timeDiff / timeConstant);
+
+          // Convert the relative |relThreshold| into an absolute delta.
+          const absTol =
+              relThreshold === 0 ? 0 : Math.abs(expected) * relThreshold;
+
+          assert_approx_equals(
+              resultData[frame], expected, absTol,
+              `${message}: Target value at frame ${frame}`);
+        }, testName);
+      }
+
+      function initializeGainBySetter(g) {
+        g.gain.value = initialGain;
+      }
+
+      function initializeGainBySetValue(g) {
+        g.gain.setValueAtTime(initialGain, 0);
+      }
+
+      const tests = [
+        {
+          name: 'setValue;128.1',
+          message: 'Initialize by setValueAtTime',
+          startFrame: 128.1,
+          relThreshold: 3.6029e-8,
+          initializeGainFunction: initializeGainBySetValue,
+        },
+        {
+          name: 'setValue;0.1',
+          message: 'Initialize by setValueAtTime',
+          startFrame: 0.1,
+          relThreshold: 3.6029e-8,
+          initializeGainFunction: initializeGainBySetValue,
+        },
+        {
+          name: 'setValue;0.0',
+          message: 'Initialize by setValueAtTime',
+          startFrame: 0,
+          relThreshold: 3.6029e-8,
+          initializeGainFunction: initializeGainBySetValue,
+        },
+        {
+          name: 'setter;128.1',
+          message: 'Initialize by setter',
+          startFrame: 128.1,
+          relThreshold: 3.6029e-8,
+          initializeGainFunction: initializeGainBySetter,
+        },
+        {
+          name: 'setter;0.1',
+          message: 'Initialize by setter',
+          startFrame: 0.1,
+          relThreshold: 3.6029e-8,
+          initializeGainFunction: initializeGainBySetter,
+        },
+        {
+          name: 'setter;0.0',
+          message: 'Initialize by setter',
+          startFrame: 0,
+          relThreshold: 0,
+          initializeGainFunction: initializeGainBySetter,
+        },
+      ];
+
+      for (const {
+        name,
+        message,
+        startFrame,
+        relThreshold,
+        initializeGainFunction,
+      } of tests) {
+        doTest(name, message, startFrame, relThreshold, initializeGainFunction);
+      }
+    </script>
+  </body>
+</html>

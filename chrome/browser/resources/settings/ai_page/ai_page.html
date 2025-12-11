@@ -1,0 +1,47 @@
+<style include="cr-shared-style settings-shared"></style>
+
+<!-- TODO(crbug.com/362225975): Remove V2 suffixes. -->
+<settings-section page-title="$i18n{aiInnovationsPageTitle}">
+  <div>
+    <cr-link-row id="passwordChangeRowV2" class="hr"
+        hidden="[[!showPasswordChangeControl_]]"
+        start-icon="cr20:password"
+        label="$i18n{passwordChangeSettingLabel}"
+        sub-label="$i18n{passwordChangeSettingSubLabel}"
+        on-click="onPasswordChangeRowClick_" external>
+    </cr-link-row>
+    <cr-link-row id="historySearchRowV2" class="hr"
+        hidden="[[!showHistorySearchControl_]]"
+        start-icon="settings20:search-spark"
+        label="$i18n{historySearchSettingLabel}"
+        sub-label="[[getHistorySearchSublabel_(
+          prefs.optimization_guide.history_search_setting_state.value)]]"
+        role-description="$i18n{subpageArrowRoleDescription}"
+        on-click="onHistorySearchRowClick_">
+    </cr-link-row>
+    <cr-link-row id="compareRowV2" class="hr"
+        hidden="[[!showCompareControl_]]"
+        start-icon="settings20:table-chart-organize"
+        label="$i18n{aiCompareLabel}"
+        sub-label="$i18n{aiCompareSublabel}"
+        role-description="$i18n{subpageArrowRoleDescription}"
+        on-click="onCompareRowClick_">
+    </cr-link-row>
+    <cr-link-row id="composeRowV2" class="hr"
+        hidden="[[!showComposeControl_]]"
+        start-icon="settings20:pen-spark"
+        label="$i18n{aiComposeLabel}"
+        sub-label="$i18n{aiComposeSublabelV2}"
+        role-description="$i18n{subpageArrowRoleDescription}"
+        on-click="onComposeRowClick_">
+    </cr-link-row>
+    <cr-link-row id="tabOrganizationRowV2" class="hr"
+        hidden="[[!showTabOrganizationControl_]]"
+        start-icon="settings20:auto-tab-group"
+        label="$i18n{tabOrganizationSettingLabel}"
+        sub-label="$i18n{tabOrganizationSettingSublabelV2}"
+        role-description="$i18n{subpageArrowRoleDescription}"
+        on-click="onTabOrganizationRowClick_">
+    </cr-link-row>
+  </div>
+</settings-section>

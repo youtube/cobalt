@@ -1,0 +1,85 @@
+Tests Application Panel's handling of storages in iframes.
+
+Initial tree...
+
+Storage
+ Local storage
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Session storage
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Extension storage
+ IndexedDB
+  Database-iframe
+   Database-iframe
+  Database-main-frame
+ Cookies
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Private state tokens
+ Interest groups
+ Shared storage
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Cache storage
+ Storage buckets
+Frames
+ top
+  indexeddb-in-iframe.html
+   indexeddb-in-iframe.html
+  inspected-page.html
+
+Remove iframe from page...
+
+Storage
+ Local storage
+  http://127.0.0.1:8000
+ Session storage
+  http://127.0.0.1:8000
+ Extension storage
+ IndexedDB
+  Database-main-frame
+ Cookies
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Private state tokens
+ Interest groups
+ Shared storage
+  http://127.0.0.1:8000
+ Cache storage
+ Storage buckets
+Frames
+ top
+  inspected-page.html
+
+Add iframe to page again...
+
+Storage
+ Local storage
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Session storage
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Extension storage
+ IndexedDB
+  Database-main-frame
+  Database-iframe
+   Database-iframe
+ Cookies
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Private state tokens
+ Interest groups
+ Shared storage
+  http://127.0.0.1:8000
+  http://devtools.oopif.test:8000
+ Cache storage
+ Storage buckets
+Frames
+ top
+  indexeddb-in-iframe.html
+   indexeddb-in-iframe.html
+  inspected-page.html
+

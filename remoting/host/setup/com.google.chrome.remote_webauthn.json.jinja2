@@ -1,0 +1,11 @@
+{
+  "name": "com.google.chrome.remote_webauthn",
+  "description": "{{ REMOTE_WEBAUTHN_DESCRIPTION }}",
+  "type": "stdio",
+  "path": "{{ REMOTE_WEBAUTHN_PATH }}",
+  "allowed_origins": [
+    {%- for id in COMPANION_EXTENSION_IDS + SECURITY_KEY_EXTENSION_IDS %}
+      "chrome-extension://{{ id }}/"{% if not loop.last %},{% endif %}
+    {%- endfor %}
+  ]
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+table {
+    border-collapse: collapse;
+}
+tr {
+    break-inside: avoid;
+}
+#cell { color: blue; }
+</style>
+<p>crbug.com/621258: Don't let repeating headers overlap on pages that contain two tables.</p>
+<div style="columns:3; line-height: 20px; column-fill: auto; gap:0; width:450px; height:190px;">
+    <table>
+        <thead>
+            <tr>
+                <th colspan="2"><div>Col 1</div></th>
+            </tr>
+        </thead>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th colspan="2">Col 2</th>
+            </tr>
+        </thead>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td>Te</td><td>xt</td></tr>
+        <tr><td id="cell" data-total-x="150" data-total-y="0">Te</td><td>xt</td></tr>
+    </table>
+</div>
+<div id="console"></div>
+<script src="../resources/check-layout.js"></script>
+<script>
+checkLayout("#cell", document.getElementById("console"));
+</script>

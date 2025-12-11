@@ -1,0 +1,81 @@
+include_rules = [
+  "+chromeos/ash/components/scheduler_config",
+
+  # Existing dependencies within //chrome. There is an active effort to
+  # refactor //chrome/browser/ash to break these dependencies; see b/332804822.
+  # Whenever possible, avoid adding new //chrome dependencies to this list.
+  #
+  # Files residing in certain directories (e.g., //chrome/browser) are listed
+  # individually. Other dependencies within //chrome are listed on a per-
+  # directory basis. See //tools/chromeos/gen_deps.sh for details.
+  "+chrome/browser/app_mode",
+  "+chrome/browser/apps/app_service",
+  "+chrome/browser/apps/platform_apps",
+  "+chrome/browser/ash/app_list/arc",
+  "+chrome/browser/ash/arc",
+  "+chrome/browser/ash/floating_workspace",
+  "+chrome/browser/ash/login/session",
+  "+chrome/browser/ash/login/users",
+  "+chrome/browser/ash/policy/scheduled_task_handler",
+  "+chrome/browser/ash/profiles",
+  "+chrome/browser/ash/system_web_apps",
+  "+chrome/browser/first_run",
+  "+chrome/browser/lifetime",
+  "+chrome/browser/notifications",
+  "+chrome/browser/policy",
+  "+chrome/browser/prefs",
+  "+chrome/browser/profiles",
+  "+chrome/browser/sessions",
+  "+chrome/browser/signin",
+  "+chrome/browser/ui/ash",
+  "+chrome/browser/ui/ash/desks",
+  "+chrome/browser/ui/ash/shelf",
+  "+chrome/browser/ui/ash/system_web_apps",
+  "+chrome/browser/ui/startup",
+  "+chrome/browser/ui/webui/ash/settings",
+  "+chrome/browser/web_applications/web_app_install_info.h",
+  "+chrome/browser/web_applications/web_app_utils.h",
+  "+chrome/common/buildflags.h",
+  "+chrome/common/chrome_features.h",
+  "+chrome/common/chrome_switches.h",
+  "+chrome/common/pref_names.h",
+  "+chrome/common/webui_url_constants.h",
+  "+chrome/grit",
+]
+
+specific_include_rules = {
+  "app_restore_arc_task_handler_factory\\.cc": [
+    "+chrome/browser/browser_process.h",
+    "+chrome/browser/browser_process_platform_part.h",
+  ],
+
+  # Handles web browser restoring so depending on //chrome.
+  "browser_restore_observer\\.cc": [
+    "+chrome/browser/custom_handlers/protocol_handler_registry_factory.h",
+    "+chrome/browser/ui/browser.h",
+    "+chrome/browser/ui/browser_finder.h",
+    "+chrome/browser/ui/browser_list.h",
+    "+chrome/browser/ui/browser_navigator.h",
+    "+chrome/browser/ui/browser_navigator_params.h",
+    "+chrome/browser/ui/browser_window.h",
+    "+chrome/browser/ui/tabs/tab_enums.h",
+  ],
+  "browser_restore_observer\\.h": [
+    "+chrome/browser/ui/browser_list_observer.h",
+  ],
+
+  ".*test\\.cc": [
+    "+chrome/browser/browser_process.h",
+    "+chrome/browser/ui/browser.h",
+    "+chrome/browser/ui/browser_finder.h",
+    "+chrome/browser/ui/browser_list.h",
+    "+chrome/browser/ui/browser_tabstrip.h",
+    "+chrome/browser/ui/browser_window.h",
+    "+chrome/browser/ui/browser_window/public",
+    "+chrome/browser/ui/settings_window_manager_chromeos.h",
+    "+chrome/browser/ui/web_applications/test",
+    "+chrome/browser/web_applications/test",
+    "+chrome/test/base",
+    "+chrome/test/views",
+  ],
+}

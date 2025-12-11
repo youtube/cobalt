@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] 'calc(1 * min(NaN * 2px, NaN * 4em))' as a specified value should serialize as 'calc(NaN * 1px)'.
+  assert_equals: 'calc(1 * min(NaN * 2px, NaN * 4em))' and 'calc(NaN * 1px)' should serialize the same in specified values. expected "calc(NaN * 1px)" but got "min(NaN * 1px, NaN * 1em)"
+Harness: the test ran to completion.
+

@@ -1,0 +1,16 @@
+include_rules = [
+  "+ios/chrome/browser/fullscreen/ui_bundled",
+  "+ios/chrome/browser/overscroll_actions/ui_bundled",
+  "+ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h",
+  "+ios/chrome/browser/web/model/sad_tab_tab_helper.h",
+  "+ios/chrome/browser/web/model/sad_tab_tab_helper_delegate.h",
+  "+ios/chrome/browser/web/model/web_navigation_browser_agent.h",
+]
+
+specific_include_rules = {
+  # web::HttpServer is deprecated in favor of net::EmbeddedTestServer.
+  # TODO:(crbug.com/891834) Remove this exception.
+  "sad_tab_view_egtest\.mm": [
+    "+ios/web/public/test/http_server",
+  ],
+}

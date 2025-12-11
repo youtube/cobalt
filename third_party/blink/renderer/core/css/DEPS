@@ -1,0 +1,5 @@
+include_rules = [
+    "+base/cpu.h",
+    "+ui/base/mojom/window_show_state.mojom-blink.h",
+    "+ui/base/mojom/window_show_state.mojom-blink-forward.h",
+]

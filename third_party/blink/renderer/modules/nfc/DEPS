@@ -1,0 +1,15 @@
+include_rules = [
+    "+services/device/public/mojom/nfc.mojom-blink.h",
+    "+services/device/public/mojom/nfc.mojom-blink-forward.h",
+]
+
+specific_include_rules = {
+  "nfc_parser_ios.mm": [
+    "+base/apple/foundation_util.h",
+    "+services/device/public/cpp/nfc/nfc_utils.h"
+  ],
+  "nfc_proxy_test\.cc": [
+    "+base/run_loop.h",
+    "+base/test/bind.h",
+  ],
+}

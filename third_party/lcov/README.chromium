@@ -1,0 +1,19 @@
+Name: LCOV - the LTP GCOV extension
+Short Name: lcov
+URL: http://ltp.sourceforge.net/coverage/lcov.php
+Version: 1.10
+Update Mechanism: Manual
+License: GPL-2.0
+License File: COPYING
+Security Critical: no
+Shipped: no
+
+Description:
+This directory contains a stock lcov-1.10 with the following changes:
+
+- Added bin/mcov, an assembly script derived from lcov which is
+ particularly useful for dealing with Mac Xcode build paths.
+- Added LICENSE file which symlinks to COPYING
+
+N.B.: This code will not be shipped with Chrome.
+      It is only part of the build/test infrastructure.

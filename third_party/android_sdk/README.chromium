@@ -1,0 +1,39 @@
+Name: Android SDK
+URL: http://developer.android.com/sdk/index.html
+Version: 36
+  Android SDK Build-Tools 36.0.0
+  Android SDK Command-line Tools (auto-rolled)
+  Android SDK Emulator 31.2.10
+  Android SDK Platform-Tools 36.0.0
+  Android SDK Platform API 36
+Update Mechanism: Manual
+Security Critical: no
+Shipped: yes
+License: Apache-2.0
+License File: LICENSE
+
+Description:
+The Android SDK provide API libraries and developer tools necessary to
+build, test and debug for Android.
+
+Update Instructions:
+* Update //infra/config/subprojects/chromium/ci/chromium.infra.star to have the new package versions be packaged
+  * Trigger: https://ci.chromium.org/p/chromium/builders/ci/android-sdk-packager
+* Update //clank/third_party/android_system_sdk/public/3pp/3pp.pb to have the system SDK be packaged
+  * Trigger internal 3pp bot
+* Update //DEPS with new instance IDs from the triggered bots
+* Run `gclient sync` to fetch the updated files.
+* Update version-related variables in //build/config/android/config.gni
+* Update version variable in build/android/pylib/constants/__init__.py
+* Updating versions in this file (overall Version == Platform API version)
+* Updating version in this //third_party/android_system_sdk/README.chromium
+
+Adding new sdk packages:
+* Find available ones here:
+  * public/cmdline-tools/latest/bin/sdkmanager --list
+    * Note the 'Available Updates:' section of the output.
+* Prepare the CIPD yaml files for packages in the cipd/ directory.
+* Add them to android-sdk-packager buildbucket configuation file:
+  infra/config/subprojects/chromium/ci/chromium.infra.star
+* Submit the changes into gerrit (See crrev.com/c/2241994 as a reference)
+* Follow the update instructions to get a build from the CI builder.

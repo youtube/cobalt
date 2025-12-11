@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      AudioBufferSourceNode PlaybackRate Modulation Verification
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+    <script src="../resources/audiobuffersource-testing.js"></script>
+    <script src="../resources/buffer-loader.js"></script>
+    <script src="../resources/audio-file-utils.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100;
+      const duration = 0.25;
+
+      // Single merged test to ensure deterministic behavior.
+      promise_test(async () => {
+        // Create an OfflineAudioContext for the test.
+        const context =
+            new OfflineAudioContext(1, sampleRate * duration, sampleRate);
+
+        const [referenceBuffer] = await loadBuffers(context, [
+          'resources/' +
+              'audiobuffersource-playbackrate-modulation-expected.wav'
+        ]);
+        assert_true(true, 'Loaded reference file');
+
+        // With this setting, the playback rate will be changing continuously
+        // and repeatedly within the range of [0, 200] around 100Hz, based on
+        // the input from the oscillator.
+        createSawtoothWithModulation(context, 'playbackRate', 100, 100);
+
+        // Render the actual buffer and compare with the reference.
+        const renderedBuffer = await context.startRendering();
+        const actual = renderedBuffer.getChannelData(0);
+        const expected = referenceBuffer.getChannelData(0);
+
+        // Compare two buffers with arbitrary (yet reasonable) constraints.
+        // These parameters are determined by try bot experiments.
+        compareBuffersWithConstraints_W3CTH(actual, expected, {
+          prefix: 'Verify',
+          thresholdSNR: 93.272,
+          thresholdDiffULP: 1.0519,
+          thresholdDiffCount: 0,
+          bitDepth: 16,
+        });
+
+        // Optionally save the rendered buffer for debugging or regeneration.
+        const filename =
+            'resources/audiobuffersource-playbackrate-modulation-actual.wav';
+        if (downloadAudioBuffer(renderedBuffer, filename)) {
+          assert_true(true, `Saved reference file ${filename}`);
+        }
+      }, 'Render and verify the output');
+    </script>
+  </body>
+</html>

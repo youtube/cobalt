@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Clamping of Automations
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      promise_test(async () => {
+        // Some arbitrary sample rate for the offline context.
+        const sampleRate = 48000;
+
+        // Duration of test (fairly arbitrary).
+        const renderDuration = 1;
+        const renderFrames = renderDuration * sampleRate;
+
+        // Test clamping of automations.  Most AudioParam limits are essentially
+        // unbounded, so clamping doesn't happen.  For most other AudioParams,
+        // the behavior is sufficiently complicated with complicated outputs
+        // that testing them is hard.  However the output behavior of the
+        // frequency parameter for a BiquadFilter is relatively simple.  Use
+        // that as the test.
+        const context = new OfflineAudioContext(1, renderFrames, sampleRate);
+
+        const source = new AudioBufferSourceNode(context);
+        source.buffer = createConstantBuffer(context, 1, 1);
+        source.loop = true;
+
+        const filter = new BiquadFilterNode(context, {type: 'lowpass'});
+
+
+        source.connect(filter);
+        filter.connect(context.destination);
+
+        const V0 = 880;
+        const T0 = 0;
+        filter.frequency.setValueAtTime(V0, T0);
+
+        const V1 = -1000;
+        const T1 = renderDuration / 4;
+        filter.frequency.linearRampToValueAtTime(V1, T1);
+
+        const V2 = 880;
+        const T2 = renderDuration / 2;
+        filter.frequency.linearRampToValueAtTime(V2, T2);
+
+        source.start();
+
+        const buffer = await context.startRendering();
+        const result = buffer.getChannelData(0);
+
+        // When the cutoff frequency of a lowpass filter is 0, nothing
+        // gets through.  Hence the output of the filter between the
+        // clamping period should be exactly zero. This tests passes if
+        // the output is 0 during the expected range.
+        //
+        // Compute when the frequency value of the biquad goes to 0.  In
+        // general, t = (T0*V1 -T1*V0)/(V1-V0) (using the notation from
+        // the spec.)
+        const clampStartTime = solveLinearRamp(0, V0, T0, V1, T1);
+        const clampEndTime = solveLinearRamp(0, V1, T1, V2, T2);
+
+        const clampStartFrame = Math.ceil(clampStartTime * sampleRate);
+        const clampEndFrame = Math.floor(clampEndTime * sampleRate);
+
+        const clampedSignal = result.slice(clampStartFrame, clampEndFrame + 1);
+        const expectedSignal = new Float32Array(clampedSignal.length);
+
+        // Output should be zero.
+        assert_array_approx_equals(
+            clampedSignal,
+            expectedSignal,
+            0,
+            `Clamped signal in frame range [${clampStartFrame}, ` +
+                `${clampEndFrame}]`);
+
+        // Find the actual clamp range based on the output values.
+        const actualClampStart = result.findIndex(x => x === 0);
+        const actualClampEnd = actualClampStart +
+            result.slice(actualClampStart).findIndex(x => x !== 0);
+        // Verify that the expected clamping range is a subset of
+        // the actual range.
+        assert_less_than_equal(
+            actualClampStart,
+            clampStartFrame,
+            `Actual clamp start (${actualClampStart}) is before or `+
+                `equal to expected clamp start (${clampStartFrame})`);
+        assert_greater_than_equal(
+            actualClampEnd,
+            clampEndFrame,
+            `Actual clamp end (${actualClampEnd}) is after or equal `+
+                `to expected clamp end (${clampEndFrame})`);
+      }, 'Clamping behavior for frequency automation on BiquadFilterNode');
+
+      function solveLinearRamp(v, v0, t0, v1, t1) {
+        // Solve the linear ramp equation for the time t at which the ramp
+        // reaches the value v.  The linear ramp equation (from the spec) is
+        //
+        //  v(t) = v0 + (v1 - v0) * (t - t0)/(t1 - t0)
+        //
+        // Find t such that
+        //
+        //   v = v0 + (v1 - v0) * (t - t0)/(t1 - t0)
+        //
+        // Then
+        //
+        //   t = (t0 * v1 - t1 * v0 + (t1 - t0) * v) / (v1 - v0)
+        //
+        return (t0 * v1 - t1 * v0 + (t1 - t0) * v) / (v1 - v0);
+      }
+    </script>
+  </body>
+</html>

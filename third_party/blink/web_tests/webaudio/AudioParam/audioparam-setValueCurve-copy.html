@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test setValueCurveAtTime Copies the Curve Data
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+    <script src="../resources/panner-formulas.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+      const renderFrames = 1024;
+      const renderDuration = renderFrames / sampleRate;
+
+      // Test that changing the curve array to setValueCurveAtTime doesn't
+      // change the automation output.
+      promise_test(async () => {
+        // Two-channel context; channel 0 is the test result, and channel 1
+        // is the expected result.
+        const context = new OfflineAudioContext(2, renderFrames, sampleRate);
+        const source = new AudioBufferSourceNode(context, {
+          buffer: createConstantBuffer(context, 1, 1),
+          loop: true,
+        });
+
+        // Create two gain nodes.  gainRef is the reference with the expected
+        // automation results.  gainTest is the test which will have the curve
+        // modified.
+        const gainTest = new GainNode(context);
+        const gainRef = new GainNode(context);
+
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 2});
+
+        // The actual curve data can be anything, but we use this for
+        // simplicity.
+        const curveData = [1, 0];
+        const curveRef = Float32Array.from(curveData);
+        const curveTest = Float32Array.from(curveData);
+
+        // Create the graph.
+        source.connect(gainTest);
+        source.connect(gainRef);
+        gainTest.connect(merger, 0, 0);
+        gainRef.connect(merger, 0, 1);
+        merger.connect(context.destination);
+
+        // Initialize the gains.
+        gainTest.gain.setValueAtTime(0, 0);
+        gainRef.gain.setValueAtTime(0, 0);
+
+        // Set up the value curve.  At this point curveTest and curveRef are the
+        // same.
+        gainTest.gain.setValueCurveAtTime(curveTest, 0, renderDuration);
+        gainRef.gain.setValueCurveAtTime(curveRef, 0, renderDuration);
+
+        // After rendering has started, modify curveTest.
+        context.suspend(128 / sampleRate).then(() => {
+          // Change the values of curve now.  Any transformation is ok as
+          // long as curveTest changes.  We do this to make it really
+          // obvious.
+          for (let k = 0; k < curveTest.length; ++k) {
+            curveTest[k] = 100 * curveTest[k] + 1;
+          }
+          context.resume();
+        });
+
+        // Start the test!
+        source.start();
+
+        const resultBuffer = await context.startRendering();
+
+        const testData = resultBuffer.getChannelData(0);
+        const refData = resultBuffer.getChannelData(1);
+
+        // The test result and the reference should be identical since
+        // changing the curve data should not affect the automation.
+        assert_array_equals(
+            testData,
+            refData,
+            'setValueCurve output should not be affected by ' +
+                'modifying the curve array');
+      }, 'setValueCurveAtTime must copy the curve data');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_chromeos, "Non-ChromeOS builds cannot depend on //chromeos")
+
+component("certificate_provider") {
+  sources = [
+    "certificate_info.cc",
+    "certificate_info.h",
+    "certificate_provider.h",
+    "certificate_requests.cc",
+    "certificate_requests.h",
+    "sign_requests.cc",
+    "sign_requests.h",
+    "thread_safe_certificate_map.cc",
+    "thread_safe_certificate_map.h",
+  ]
+
+  defines = [ "IS_CERTIFICATE_PROVIDER_IMPL" ]
+
+  public_deps = [
+    "//base",
+    "//components/account_id",
+    "//net",
+  ]
+}

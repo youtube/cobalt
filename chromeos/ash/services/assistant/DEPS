@@ -1,0 +1,9 @@
+include_rules = [
+  "+ash/public",
+  "+chromeos/ash/components/assistant",
+  "+media/mojo/mojom",
+  "+mojo/public",
+  "+services/device/public",
+  "+services/media_session/public",
+  "+ui/accessibility/mojom",
+]

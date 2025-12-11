@@ -1,0 +1,7 @@
+NAME_FULL | address.name | * Name (first and last): |  | address.name_1
+ADDRESS_HOME_LINE1 | address.address1 | * Shipping Address: |  | address.name_1
+ADDRESS_HOME_LINE2 | address.address2 | Shipping Address Continued: |  | address.name_1
+ADDRESS_HOME_CITY | address.city | * City: |  | address.name_1
+ADDRESS_HOME_STATE | address.state | * State: |  | address.name_1
+ADDRESS_HOME_ZIP | address.postalCode | * Zip: |  | address.name_1
+PHONE_HOME_CITY_AND_NUMBER | address.phoneNumber | * Phone Number: |  | address.name_1

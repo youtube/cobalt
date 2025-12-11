@@ -1,0 +1,18 @@
+include_rules = [
+  "+base",
+  "+components/viz/common/resources/shared_image_format.h",
+  "+components/viz/common/resources/shared_image_format_utils.h",
+  "+ipc",
+  "+mojo",
+  "+ui/base",
+  "+ui/latency",
+]
+
+specific_include_rules = {
+  "dxgi_helpers.cc": [
+    "+third_party/libyuv/include/libyuv/planar_functions.h",
+  ],
+  "shared_image_metadata_mojom_traits.h": [
+    "+services/viz/public/cpp/compositing/shared_image_format_mojom_traits.h",
+  ],
+}

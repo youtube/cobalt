@@ -1,0 +1,135 @@
+// Copyright 2015 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Put Mojo definitions into their own namespace to avoid collisions with C++
+// definitions.
+// TODO(amistry): Resolve the conflict between these two sets of definitions.
+module proxy_resolver.mojom;
+
+import "sandbox/policy/mojom/sandbox.mojom";
+import "services/network/public/mojom/ip_address.mojom";
+import "services/network/public/mojom/network_anonymization_key.mojom";
+import "services/network/public/mojom/network_param.mojom";
+import "url/mojom/url.mojom";
+
+[EnableIf=is_win]
+import "services/network/public/mojom/proxy_config.mojom";
+
+// Mirror of net::ProxyResolveDnsOperation.
+enum HostResolveOperation {
+  DNS_RESOLVE,
+  DNS_RESOLVE_EX,
+  MY_IP_ADDRESS,
+  MY_IP_ADDRESS_EX,
+};
+
+// Interface for waiting for the result of a HostResolver or myIpAddress()
+// query. Disconnecting the interface cancels the request.
+interface HostResolverRequestClient {
+  // |error| is a value in net::Error.
+  ReportResult(int32 error, array<network.mojom.IPAddress> result);
+};
+
+struct ProxyInfo {
+  array<network.mojom.ProxyChain> proxy_chains;
+};
+
+interface ProxyResolver {
+  // Use a ProxyResolverRequestClient instead of returning a result so we can
+  // cancel in-flight requests by destroying the client.
+  //
+  // |network_anonymization_key| is the NetworkAnonymizationKey used by the DNS cache
+  // to separate requests made in different contexts.
+  GetProxyForUrl(
+    url.mojom.Url url,
+    network.mojom.NetworkAnonymizationKey network_anonymization_key,
+    pending_remote<ProxyResolverRequestClient> client);
+};
+
+interface ProxyResolverRequestClient {
+  ReportResult(int32 error, ProxyInfo proxy_info);
+
+  Alert(string error);
+  OnError(int32 line_number, string error);
+
+  // Does a DNS lookup for |host|, and invokes |client|'s ReportResult() method
+  // with the result.
+  //
+  // |network_anonymization_key| is the NetworkAnonymizationKey used by the DNS cache
+  // to separate requests made in different contexts. An IP address received
+  // from a resolution using one NetworkAnonymizationKey must not be used for a
+  // request made with a different NetworkAnonymizationKey.
+  ResolveDns(
+    string host,
+    HostResolveOperation operation,
+    network.mojom.NetworkAnonymizationKey network_anonymization_key,
+    pending_remote<HostResolverRequestClient> client);
+};
+
+// Creates a ProxyResolver that uses the provided PAC script. The ProxyResolver
+// will remain valid even after the ProxyResolverFactory has been destroyed.
+//
+// Destroying |client| before its ReportResult method is invoked may cancel
+// creation of the ProxyResolverFactory.
+// Note: on Android this lives in the browser process.
+[ServiceSandbox=sandbox.mojom.Sandbox.kService]
+interface ProxyResolverFactory {
+  CreateResolver(string pac_script,
+                 pending_receiver<ProxyResolver> receiver,
+                 pending_remote<ProxyResolverFactoryRequestClient> client);
+};
+
+interface ProxyResolverFactoryRequestClient {
+  ReportResult(int32 error);
+
+  Alert(string error);
+  OnError(int32 line_number, string error);
+
+  ResolveDns(string host,
+             HostResolveOperation operation,
+             network.mojom.NetworkAnonymizationKey network_anonymization_key,
+             pending_remote<HostResolverRequestClient> client);
+};
+
+// Windows-specific system proxy resolution support. Additional platforms can
+// add their own EnableIf-gated enums and populate SystemProxyResolutionStatus
+// to share a common system proxy resolver interface.
+[EnableIf=is_win]
+// LINT.IfChange(WinHttpStatus)
+enum WinHttpStatus {
+  kOk,
+  kAborted,
+  kWinHttpOpenFailed,
+  kWinHttpSetTimeoutsFailed,
+  kWinHttpSetStatusCallbackFailed,
+  kWinHttpGetIEProxyConfigForCurrentUserFailed,
+  kWinHttpCreateProxyResolverFailed,
+  kWinHttpGetProxyForURLExFailed,
+  kStatusCallbackFailed,
+  kWinHttpGetProxyResultFailed,
+  kEmptyProxyList,
+};
+// LINT.ThenChange(//net/proxy_resolution/win/winhttp_status.h:WinHttpStatus)
+
+// Describes the outcome of a system proxy resolution request. Each platform
+// fills in the optional status field guarded by its EnableIf annotation.
+struct SystemProxyResolutionStatus {
+  bool is_success;
+  int32 os_error;
+
+  [EnableIf=is_win] WinHttpStatus? win_http_status;
+};
+
+[EnableIf=is_win, ServiceSandbox=sandbox.mojom.Sandbox.kProxyResolver]
+// Implemented in the Windows utility process to proxy WinHTTP lookups and
+// invoked from the network service (or Chrome) when --use-system-proxy-resolver
+// is enabled so that proxy resolution happens with the OS configuration.
+interface SystemProxyResolver {
+  // Resolves proxies for `url` using the system configuration. On success the
+  // returned proxy list is populated and `status.os_error` is 0. On failure the
+  // proxy list is empty and the platform-specific status plus `os_error`
+  // describe the failure.
+  GetProxyForUrl(url.mojom.Url url) => (network.mojom.ProxyList proxy_list,
+                                        SystemProxyResolutionStatus status);
+};

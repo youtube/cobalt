@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2025 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:autoMirrored="true"
+    android:width="130dp"
+    android:height="130dp"
+    android:viewportWidth="130"
+    android:viewportHeight="130">
+  <path
+      android:pathData="M89.32,26.09C71.86,8.64 43.55,8.64 26.09,26.09C8.64,43.55 8.64,71.86 26.09,89.32L40.68,103.91C58.14,121.36 86.45,121.36 103.91,103.91C121.36,86.45 121.36,58.14 103.91,40.68L89.32,26.09Z"
+      android:fillColor="@color/empty_state_asset_bg_color"/>
+  <path
+      android:pathData="M25,41L76,41A8,8 0,0 1,84 49L84,85A8,8 0,0 1,76 93L25,93A8,8 0,0 1,17 85L17,49A8,8 0,0 1,25 41z"
+      android:fillColor="@color/empty_state_asset_outline_color_primary"/>
+  <path
+      android:pathData="M25,53L76,53A2,2 0,0 1,78 55L78,85A2,2 0,0 1,76 87L25,87A2,2 0,0 1,23 85L23,55A2,2 0,0 1,25 53z"
+      android:fillColor="@color/empty_state_asset_bg_color"/>
+  <path
+      android:pathData="M37,29L88,29A8,8 0,0 1,96 37L96,73A8,8 0,0 1,88 81L37,81A8,8 0,0 1,29 73L29,37A8,8 0,0 1,37 29z"
+      android:fillColor="@color/empty_state_asset_outline_color_primary"/>
+  <path
+      android:pathData="M37,41L88,41A2,2 0,0 1,90 43L90,73A2,2 0,0 1,88 75L37,75A2,2 0,0 1,35 73L35,43A2,2 0,0 1,37 41z"
+      android:fillColor="@color/empty_state_asset_bg_color"/>
+  <path
+      android:pathData="M39,35m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+      android:fillColor="@color/empty_state_asset_bg_color"/>
+  <path
+      android:pathData="M44,34L56,34A1,1 0,0 1,57 35L57,35A1,1 0,0 1,56 36L44,36A1,1 0,0 1,43 35L43,35A1,1 0,0 1,44 34z"
+      android:fillColor="@color/empty_state_asset_bg_color"/>
+  <path
+      android:pathData="M72,79C72,90.6 81.4,100 93,100C104.6,100 114,90.6 114,79C114,67.4 104.6,58 93,58C86.01,58 79.82,61.42 76,66.67"
+      android:strokeLineJoin="round"
+      android:strokeWidth="6"
+      android:fillColor="#00000000"
+      android:strokeColor="@color/empty_state_asset_outline_color_secondary"
+      android:strokeLineCap="round"/>
+  <path
+      android:pathData="M93,79m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0"
+      android:fillColor="@color/empty_state_asset_bg_color"/>
+  <path
+      android:pathData="M75,58V68H85"
+      android:strokeLineJoin="round"
+      android:strokeWidth="6"
+      android:fillColor="#00000000"
+      android:strokeColor="@color/empty_state_asset_outline_color_secondary"
+      android:strokeLineCap="round"/>
+  <path
+      android:pathData="M93,68V79L99.75,86"
+      android:strokeLineJoin="round"
+      android:strokeWidth="6"
+      android:fillColor="#00000000"
+      android:strokeColor="@color/empty_state_asset_outline_color_secondary"
+      android:strokeLineCap="round"/>
+</vector>

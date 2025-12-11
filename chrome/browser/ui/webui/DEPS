@@ -1,0 +1,12 @@
+include_rules = [
+  "+components/browser_ui/share/android",
+  "+components/webapps/isolated_web_apps",
+  "+extensions/strings/grit/extensions_strings.h",
+  "+third_party/boringssl/src/include/openssl",
+]
+
+specific_include_rules = {
+  "inspect_ui\.cc": [
+    "+chrome/browser/ui/views/chrome_browser_main_extra_parts_views.h",
+  ],
+}

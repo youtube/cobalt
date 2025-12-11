@@ -1,0 +1,296 @@
+/* Copyright 2025 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+/* TODO(crbug.com/461801378): Add styling for non-AIM pages. */
+
+:host {
+  --aim-header-height: 66px;
+  --cancel-button-inline-end: 16px;
+  --cancel-button-top: 12px;
+  --composebox-collapsed-height: 90px;
+  --composebox-margin-bottom: 30px;
+  --context-carousel-inline-end-spacing: 24px;
+  --context-carousel-inline-start-spacing: 24px;
+  --composebox-container-height:
+    calc(var(--composebox-height) + var(--composebox-dropdown-height)
+      + var(--composebox-margin-bottom)
+    );
+  /* Max width for tab and side-panel mode (from Figma) */
+  --composebox-container-max-width: 691px;
+  /* Shared sizing between voice cancel and regular cancel buttons. */
+  --composebox-cancel-button-size: 40px;
+  --composebox-icon-menu-bottom: 12px;
+  --composebox-submit-container-size: 48px;
+  --composebox-submit-container-inline-end:
+      var(--composebox-last-icon-inline-end);
+  --composebox-last-icon-inline-end: 12px;
+  --cr-searchbox-height: 52px;
+  --cr-searchbox-min-width: min(calc(100%), 1100px);
+  --icon-menu-spacing: 6px;
+  --icon-menu-icon-size: 24px;
+  --icon-menu-button-size: 40px;
+}
+
+/* Light mode */
+:host(:not([dark-mode])) {
+  --color-composebox-cancel-button: #0a0a0a;
+  --color-composebox-font: #0a0a0a;
+  --color-composebox-font-dark: #0a0a0a;
+  --color-composebox-font-light: #0a0a0a;
+  --color-composebox-hover: #e9ebf0;
+  --color-composebox-lens-button: #0a0a0a;
+  --cr-composebox-background-color: #f3f5f6;
+  --cr-composebox-submit-button-hover-color: #e9ebf01a;
+  --search-background-color: white;
+  --search-background-color-rgb: 255, 255, 255;
+}
+
+/* Dark mode */
+/* TODO(dianaou): Add styling for dark mode. */
+:host([dark-mode]) {
+  --color-composebox-cancel-button: #bfbfbf;
+  --color-composebox-font: #e6e8f0;
+  --color-composebox-font-dark: #e6e8f0;
+  --color-composebox-font-light: #e6e8f0;
+  --color-composebox-hover: #3e3f43;
+  --color-composebox-input-icon: var(--color-searchbox-results-icon);
+  --color-composebox-lens-button: #bfbfbf;
+  --color-searchbox-results-background-hovered: #3c4043;
+  --cr-composebox-background-color: #1d1e26;
+  --cr-composebox-submit-button-hover-color: #3e3f431a;
+  --search-background-color: #101218;
+  --search-background-color-rgb: 36, 36, 36;
+}
+
+/* Composebox default colors are for light mode on AIM results. */
+#composeboxContainer {
+  --color-composebox-scrim-background: var(--search-background-color);
+  --composebox-container-height:
+    calc(var(--composebox-height) + var(--composebox-dropdown-height)
+    + var(--composebox-margin-bottom));
+
+  align-items: center;
+  background: linear-gradient(to top,
+    rgba(var(--search-background-color-rgb), 1)
+    var(--composebox-container-height), transparent);
+  display: flex;
+  flex-direction: column;
+  height: calc(var(--composebox-container-height) + 36px);
+  inset-block-end: 0;
+  justify-content: flex-end;
+  max-width: var(--composebox-container-max-width);
+  min-height: var(--composebox-collapsed-height);
+  /* Do not set pointer-events to none; is inherited by
+   * whole composebox + buttons. Width var taken from parent.
+   */
+  width: var(--composebox-container-width, 100%);
+}
+
+/* When the composebox is focused, make the background color
+ * extend to the top of the screen so that the user can see the full
+ * composebox when it is expanded. */
+:host([is-composebox-focused])
+  #composeboxContainer:has(#composebox[show-dropdown_]) {
+  background: linear-gradient(to top,
+    rgba(var(--search-background-color-rgb), 1) var(--composebox-container-height),
+    rgba(var(--search-background-color-rgb), 0.9) 75vh,
+  transparent);
+  height: 100%;
+  inset-block-start: auto;
+  pointer-events: auto;
+  position: fixed;
+}
+
+#composebox {
+  --composebox-thumbnail-img-chip-size: 52px;
+  --composebox-width: calc(100% - 30px); /* 15px on each side */
+  --expanded-border-radius: 24px;
+  --input-bottom-spacing: 16px;
+  --text-input-left-spacing: 24px;
+  --text-input-top-spacing: 16px;
+
+  box-shadow: none;
+  margin-bottom: var(--composebox-margin-bottom);
+  position: relative;
+  width: var(--composebox-width);
+}
+
+#composebox::part(error-scrim) {
+  display: none;
+}
+
+#composebox::part(g-container) {
+  max-height: 40vh;
+  padding: 0;
+}
+
+#composebox::part(input-container) {
+  transition: padding-top var(--emphasized-curve);
+  transition-duration: var(--collapse-duration);
+}
+
+#composebox[expanding_]::part(input-container) {
+  transition-duration: var(--expand-duration);
+}
+
+#composebox::part(carousel-divider) {
+  display: none;
+}
+
+#composebox::part(carousel-container) {
+  opacity: 0;
+}
+
+#composebox[show-file-carousel_][expanding_]::part(carousel-container) {
+  opacity: 1;
+  transition: var(--icon-entry-transition);
+}
+
+#composebox:not([expanding_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
+  pointer-events: none;
+}
+
+#composebox::part(icon-container) {
+  display: none;
+}
+
+#composebox::part(input) {
+  color: var(--color-composebox-font);
+  padding-inline-start: var(--g-input-left-spacing);
+}
+
+#composebox::part(input)::placeholder {
+  color: revert;
+}
+
+#composebox::part(upload-container) {
+  display: none;
+}
+
+/* Controls cancel and submit buttons. */
+#composebox::part(action-icon) {
+  --cr-icon-button-hover-background-color: var(--color-composebox-hover);
+}
+
+#composebox::part(cancel-icon) {
+  --cr-icon-button-fill-color: var(--color-composebox-cancel-button);
+  /*
+   * Inner icon size of cancel button == cancel button size,
+   * unlike other buttons.
+   */
+  --cr-icon-button-size: var(--composebox-cancel-button-size);
+  display: none;
+  inset-inline-end: var(--cancel-button-inline-end);
+  top: var(--cancel-button-top);
+}
+
+/* Only show when text is in there (when can submit). */
+#composebox[submit-enabled_]::part(cancel-icon) {
+  display: block;
+}
+
+#composebox::part(lens-icon) {
+  --cr-icon-button-fill-color: var(--color-composebox-lens-button);
+  --cr-icon-button-icon-size: var(--icon-menu-icon-size);
+  --cr-icon-button-size: var(--icon-menu-button-size);
+  bottom: var(--composebox-icon-menu-bottom);
+  display: block;
+  inset-inline-end: var(--composebox-last-icon-inline-end);
+  position: absolute;
+}
+
+#composebox[show-submit_][submit-enabled_]::part(lens-icon) {
+ inset-inline-end: calc(var(--composebox-submit-container-size)
+     + var(--icon-menu-spacing)
+     + var(--composebox-submit-container-inline-end));
+}
+
+#composebox:not([expanding_])::part(cancel),
+#composebox:not([expanding_])::part(submit) {
+  pointer-events: none;
+}
+
+#composebox::part(label) {
+  display: none;
+}
+
+/* icon-fade class; applies to submit and cancel. */
+#composebox::part(cancel),
+#composebox::part(submit) {
+  --icon-entry-transition: opacity 100ms linear 40ms;
+  --icon-exit-transition: opacity 100ms
+}
+
+#composebox::part(submit) {
+  /* --cr-icon-button-icon-size changes arrow size;
+   * --cr-icon-button-size here changes
+   * blue part of submit button. Container-size changes
+   * wrapper size around submit button.
+   */
+  --cr-composebox-submit-container-size:
+      var(--composebox-submit-container-size);
+  --cr-icon-button-icon-size: 18px;
+}
+
+#composebox::part(submit-icon),
+#composebox::part(submit-overlay) {
+  /* Inline-end to center the button (+ its overlay)
+   * (icon size: 40px; button size: 48px. 4px on each side.
+   * Bottom 0px since wrapper is aligned at the
+   * bottom with other icons (like voice). This,
+   * to be aligned, must also be at the bottom.)
+   * Position absolute is also from action-icon.
+   */
+  --cr-icon-button-size: 40px;
+  bottom: 0;
+  inset-inline-end: 4px;
+  inset-inline-start: auto;
+  position: absolute;
+  top: auto;
+}
+
+#composebox[show-submit_][submit-enabled_]::part(submit) {
+  bottom: var(--composebox-icon-menu-bottom);
+  display: block;
+  inset-inline-end: var(--composebox-submit-container-inline-end);
+  inset-inline-start: auto;
+  position: absolute;
+  top: auto;
+}
+
+/* TODO(crbug.com/454388827: - Color the tab chips to spec. */
+#composebox::part(context-entrypoint) {
+  transition-delay: 0ms;
+}
+
+#composebox::part(label) {
+  display: none;
+}
+
+#composebox::part(dropdown) {
+  --cr-composebox-match-height: 54px;
+
+  background-color: var(--search-background-color);
+  bottom: 0;
+  flex-direction: column-reverse;
+  /* Stack the dropdown on top of the other elements in the composebox. */
+  order: -1;
+  position: fixed;
+  transform: translateY(calc(-1 * (var(--composebox-height) + var(--composebox-margin-bottom))));
+  width: calc(var(--composebox-width) - 32px);
+  z-index: 4;
+}
+
+/* Hide the dropdown when the dropdown is not enabled, the dropdown is not showable,
+ * or when the composebox is not focused. */
+:host(:not([is-composebox-focused])) #composeboxContainer #composebox::part(dropdown),
+#composeboxContainer:has(#composebox:not([show-dropdown_])) #composebox::part(dropdown) {
+  display: none;
+}

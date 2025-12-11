@@ -1,0 +1,6 @@
+include_rules = [
+  "+components/signin/public",
+  "+content/public/browser",
+  "+content/public/test",
+  "+ui/android",
+]

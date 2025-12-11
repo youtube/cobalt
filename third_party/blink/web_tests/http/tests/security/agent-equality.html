@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<title>Agent Equality Test</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<body>
+<script>
+// This test checks whether the JavaScript agent is created in a proper
+// granularity. See:
+// https://html.spec.whatwg.org/multipage/webappapis.html#integration-with-the-javascript-agent-formalism
+// For details on each test, see the comments of the iframe file.
+
+// See crbug.com/40260067. This test is flaky, with a random extra line inserted
+// into the (otherwise-blank) output of the test. I am trying to troubleshoot
+// that flakiness, because it does not occur for me locally. One hypothesis is
+// that the test runner is preserving the window between tests, and other tests
+// also add 'message' event handlers that add text to the page, e.g. this one:
+// https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/http/tests/security/referrer-policy-window-open.html;l=18;drc=bcb1b4012da416d5783f6fe09fbdcb51058bc505
+// So this function fires a message event with {data:'done'} to try to stop most
+// of those other tests.
+async function debugFlakiness() {
+  let message = {
+    data: 'done',
+  };
+  window.postMessage(message, '*');
+  await new Promise(requestAnimationFrame);
+  await new Promise(requestAnimationFrame);
+}
+
+function runTestCase(filename,testFunction,description) {
+  promise_test(t => new Promise(async resolve => {
+    await debugFlakiness();
+    let iframe = document.createElement('iframe');
+    t.add_cleanup(async () => {
+      iframe.remove();
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+    });
+    iframe.src = 'http://127.0.0.1:8000/security/resources/' + filename;
+
+    window.addEventListener('message', evt => {
+      const sourceFile = evt.data[0].substring(evt.data[0].lastIndexOf('/') + 1);
+      if (sourceFile != filename) {
+        return;
+      }
+      testFunction(evt);
+      resolve();
+    },{signal: t.get_signal()});
+
+    document.body.appendChild(iframe);
+  }), description);
+}
+
+runTestCase('agent-equality-same-origin.html',evt => {
+  assert_equals(evt.data.length, 4);
+  assert_equals(evt.data[1], evt.data[2]);
+  assert_equals(evt.data[1], evt.data[3]);
+}, 'Same-origin documents must share the same agent.');
+
+runTestCase('agent-equality-cross-origin.html',evt => {
+  assert_equals(evt.data.length, 3);
+  assert_not_equals(evt.data[1], evt.data[2]);
+},'Cross-origin documents should receive a different agent.');
+
+runTestCase('agent-equality-skip-level-same-origin.html',evt => {
+  assert_equals(evt.data.length, 3);
+  assert_equals(evt.data[1], evt.data[2]);
+},'Same-origin documents must share the same agent even if opened by cross-origin document.');
+
+// This test got more complicated by default-enabling origin-agent clusters:
+// If Origin-Agent clusters are default disabled - i.e. legacy behaviour -
+// then frames on the same domain but different port should be assigned to the
+// same agent cluster, because document.domain setting might make them
+// quasi same-origin with synchronous access between them. But with OAC
+// default enabled, this is no longer possible and they should receive
+// different clusters. So the desired outcome of this test depends on whether
+// origin-agent clusters are default enabled.
+//
+// We solve this by querying for default enabling first, and then
+// assert_equals or assert_not_equals based on it. We use the origin agent
+// cluster state of the main document - which does not request OAC - as a
+// proxy for whether OAC is default enabled or not.
+const is_the_main_document_origin_agent_clustered = window.originAgentCluster;
+runTestCase('agent-equality-same-origin-different-ports.html',evt => {
+  assert_equals(evt.data.length, 3);
+  if (!is_the_main_document_origin_agent_clustered) {
+    assert_equals(evt.data[1], evt.data[2]);
+  } else {
+    assert_not_equals(evt.data[1], evt.data[2]);
+  }
+},'Documents on same-origin-but-different-ports should receive the same agent (if default OAC disabled).');
+
+runTestCase('agent-equality-different-schemes.html',evt => {
+  assert_equals(evt.data.length, 3);
+  assert_not_equals(evt.data[1], evt.data[2]);
+},'Documents with different schemes (HTTP and HTTPS) should receive different agents.');
+
+runTestCase('agent-equality-data-url.html',evt => {
+  assert_equals(evt.data.length, 3);
+  assert_not_equals(evt.data[1], evt.data[2]);
+},'Frame loaded as data: URL should receive a unique agent that is different from the parent\'s.');
+
+runTestCase('agent-equality-srcdoc.html',evt => {
+  assert_equals(evt.data.length, 3);
+  assert_equals(evt.data[1], evt.data[2]);
+},'srcdoc iframe should receive the same agent as the parent\'s.');
+
+runTestCase('agent-equality-after-detach.html',evt => {
+  assert_equals(evt.data.length, 3);
+  assert_equals(evt.data[1], evt.data[2]);
+},'Same-origin documents must share the same agent even after detaching.');
+</script>

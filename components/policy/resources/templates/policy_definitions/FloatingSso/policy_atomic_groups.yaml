@@ -1,0 +1,7 @@
+FloatingSso:
+  caption: Floating SSO Service settings
+  policies:
+  - FloatingSsoEnabled
+  - FloatingSsoDomainBlocklist
+  - FloatingSsoDomainBlocklistExceptions
+  - FloatingSsoSessionCookiesIncluded

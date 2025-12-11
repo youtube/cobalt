@@ -1,0 +1,52 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://www.w3.org/TR/webxrlayers-1/#xrtexturetype
+enum XRTextureType {
+  "texture",
+  "texture-array"
+};
+
+// https://immersive-web.github.io/layers/#XRWebGLBindingtype
+[
+    SecureContext,
+    Exposed=Window
+] interface XRWebGLBinding {
+  [RaisesException] constructor(XRSession session, XRWebGLRenderingContext context);
+
+  [RuntimeEnabled=WebXRLayers]
+  readonly attribute double nativeProjectionScaleFactor;
+  [RuntimeEnabled=WebXRLayers]
+  readonly attribute boolean usesDepthValues;
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XRProjectionLayer createProjectionLayer(optional XRProjectionLayerInit init = {});
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XRQuadLayer createQuadLayer(XRQuadLayerInit init);
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XRCylinderLayer createCylinderLayer(XRCylinderLayerInit init);
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XREquirectLayer createEquirectLayer(XREquirectLayerInit init);
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XRCubeLayer createCubeLayer(XRCubeLayerInit init);
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XRWebGLSubImage getViewSubImage(XRProjectionLayer layer, XRView view);
+
+  [RuntimeEnabled=WebXRLayers, RaisesException]
+  XRWebGLSubImage getSubImage(XRCompositionLayer layer, XRFrame frame, optional XREye eye = "none");
+
+  [RuntimeEnabled=WebXR, RaisesException, MeasureAs=XRWebGLBindingGetReflectionCubeMap]
+  WebGLTexture? getReflectionCubeMap(XRLightProbe lightProbe);
+
+  [RuntimeEnabled=WebXR, RaisesException, MeasureAs=XRWebGLBindingGetCameraImage]
+  WebGLTexture? getCameraImage(XRCamera camera);
+
+  [RuntimeEnabled=WebXR, RaisesException, MeasureAs=XRWebGLBindingGetDepthInformation]
+  XRWebGLDepthInformation? getDepthInformation(XRView view);
+};

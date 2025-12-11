@@ -1,0 +1,34 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://fedidcg.github.io/FedCM/#dictdef-identityproviderconfig
+
+dictionary IdentityProviderConfig {
+  // URL for the Identity Provider Configuration.
+  required USVString configURL;
+  // Not marked as required to allow implementation of digital credentials.
+  // See crbug.com/1416939.
+  USVString clientId;
+  // The type of Identity Provider that is compatible with the RP.
+  // Used to only use compatible providers.
+  [RuntimeEnabled=FedCmIdPRegistration] DOMString type;
+};
+
+enum IdentityProviderRequestOptionsFormat {
+  "vc+sd-jwt",
+};
+
+dictionary IdentityProviderField {
+  required USVString name;
+};
+
+dictionary IdentityProviderRequestOptions : IdentityProviderConfig {
+  // TODO(crbug.com/441895082): Remove nonce field when FedCmNonceInParams is enabled by default.
+  USVString nonce;
+  DOMString loginHint;
+  DOMString domainHint;
+  sequence<(USVString or IdentityProviderField)> fields;
+  any params;
+  [RuntimeEnabled=FedCmDelegation] IdentityProviderRequestOptionsFormat format;
+};

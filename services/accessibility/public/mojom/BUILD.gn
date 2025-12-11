@@ -1,0 +1,37 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+import("//services/accessibility/buildflags.gni")
+
+mojom("automation") {
+  sources = [ "automation.mojom" ]
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//ui/accessibility/mojom",
+  ]
+}
+
+mojom("automation_client") {
+  sources = [ "automation_client.mojom" ]
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//ui/accessibility/mojom",
+  ]
+}
+
+mojom("assistive_technology_type") {
+  sources = [ "assistive_technology_type.mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
+}
+
+mojom("mojom") {
+  sources = [ "accessibility_service.mojom" ]
+  public_deps = [
+    ":automation",
+    ":automation_client",
+    "//mojo/public/mojom/base",
+    "//sandbox/policy/mojom",
+  ]
+}

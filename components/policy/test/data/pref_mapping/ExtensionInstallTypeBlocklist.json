@@ -1,0 +1,18 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac"
+    ],
+    "simple_policy_pref_mapping_test": {
+      "pref_name": "extensions.extension_install_type_blocklist",
+      "default_value": [],
+      "values_to_test": [
+        [
+          "command_line"
+        ]
+      ]
+    }
+  }
+]

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Event Constructors
+    </title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+
+      test(t => {
+        // Verify that various invalid constructor calls throw.
+        assert_throws_js(
+          TypeError,
+          () => new OfflineAudioCompletionEvent(),
+          'new OfflineAudioCompletionEvent()'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new OfflineAudioCompletionEvent('complete'),
+          'new OfflineAudioCompletionEvent("complete")'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new OfflineAudioCompletionEvent('complete', {}),
+          'new OfflineAudioCompletionEvent("complete", {})'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new OfflineAudioCompletionEvent('complete', {foo: 42}),
+          'new OfflineAudioCompletionEvent("complete", {foo: 42})'
+        );
+
+        // Valid constructor call with a renderedBuffer.
+        const context = new OfflineAudioContext(1, 100, 48000);
+        const buffer = new AudioBuffer(context, {length: 42});
+
+        let event;
+        assert_not_equals(
+          event = new OfflineAudioCompletionEvent('complete', {
+        renderedBuffer: buffer
+          }),
+          undefined,
+          'new OfflineAudioCompletionEvent("complete",' +
+              '{renderedBuffer: buffer}) should not throw'
+        );
+
+        // Confirm the renderedBuffer property was stored correctly.
+        assert_equals(
+          event.renderedBuffer,
+          buffer,
+          'event.renderedBuffer == buffer'
+        );
+      }, 'OfflineAudioCompletionEvent constructor validation');
+
+      test(t => {
+        // Context is only required for constructing AudioBuffers below.
+        const context = new OfflineAudioContext(1, 100, 48000);
+
+        // Arbitrary buffers and playback time.
+        const input  = new AudioBuffer(context, {length: 10});
+        const output = new AudioBuffer(context, {length: 20});
+        const time   = Math.PI;
+
+        // Verify that various invalid constructor calls throw.
+        assert_throws_js(
+          TypeError,
+          () => new AudioProcessingEvent(),
+          'new AudioProcessingEvent()'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new AudioProcessingEvent('proc'),
+          'new AudioProcessingEvent("proc")'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new AudioProcessingEvent('proc', {foo: 99}),
+          'new AudioProcessingEvent("proc", {foo: 99})'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new AudioProcessingEvent(
+        'proc',
+        {inputBuffer: input, outputBuffer: output}
+          ),
+          'new AudioProcessingEvent("proc",' +
+              '{inputBuffer: input, outputBuffer: output})'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new AudioProcessingEvent(
+        'proc',
+        {inputBuffer: input, playbackTime: time}
+          ),
+          'new AudioProcessingEvent("proc", {inputBuffer: ' +
+              'input, playbackTime: time})'
+        );
+
+        assert_throws_js(
+          TypeError,
+          () => new AudioProcessingEvent(
+        'proc',
+        {outputBuffer: output, playbackTime: time}
+          ),
+            'new AudioProcessingEvent("proc", {outputBuffer: output, ' +
+              'playbackTime: time})'
+        );
+
+        // Finally, verify that a valid constructor call succeeds.
+        const event = new AudioProcessingEvent('proc', {
+          inputBuffer: input,
+          outputBuffer: output,
+          playbackTime: time
+        });
+
+        // Property checks.
+        assert_equals(event.playbackTime, time, 'event.playbackTime');
+        assert_equals(event.inputBuffer,  input,  'event.inputBuffer == input');
+        assert_equals(
+            event.outputBuffer, output, 'event.outputBuffer == output');
+            }, 'AudioProcessingEvent constructor validation');
+    </script>
+  </body>
+</html>

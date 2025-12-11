@@ -1,0 +1,112 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("core") {
+  sources = [
+    "bookmark_mediator.h",
+    "bookmark_mediator.mm",
+    "bookmark_navigation_controller.h",
+    "bookmark_navigation_controller.mm",
+    "bookmark_path_cache.h",
+    "bookmark_path_cache.mm",
+  ]
+  deps = [
+    ":utils",
+    "//base",
+    "//components/bookmarks/browser",
+    "//components/pref_registry",
+    "//components/prefs",
+    "//components/sync/service",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/bookmarks/public:constants",
+    "//ios/chrome/browser/default_browser/model:default_browser_interest_signals",
+    "//ios/chrome/browser/ntp/shared/metrics:home_metrics",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/snackbar",
+    "//ios/chrome/browser/shared/ui/table_view",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/shared/ui/util:url_with_title",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/common/ui/colors",
+    "//ui/base",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("utils") {
+  sources = [
+    "bookmark_utils_ios.h",
+    "bookmark_utils_ios.mm",
+    "undo_manager_bridge_observer.h",
+    "undo_manager_bridge_observer.mm",
+    "undo_manager_wrapper.h",
+    "undo_manager_wrapper.mm",
+  ]
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//components/bookmarks/browser",
+    "//components/query_parser",
+    "//components/signin/public/identity_manager",
+    "//components/strings",
+    "//components/sync/base",
+    "//components/sync/service",
+    "//components/undo",
+    "//components/url_formatter",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/ntp/shared/metrics:home_metrics",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/shared/public/snackbar",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/common/ui/colors",
+    "//ui/base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "bookmark_mediator_unittest.mm",
+    "bookmark_path_cache_unittest.mm",
+    "bookmark_utils_ios_unittest.mm",
+  ]
+  deps = [
+    ":core",
+    ":utils",
+    "//base",
+    "//base/test:test_support",
+    "//components/bookmarks/browser",
+    "//components/sync:test_support",
+    "//components/sync/service",
+    "//components/sync_preferences:test_support",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/bookmarks/model:bookmark_storage_type",
+    "//ios/chrome/browser/bookmarks/model:test_support",
+    "//ios/chrome/browser/bookmarks/ui_bundled/home",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/shared/public/snackbar",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/signin/model:fake_system_identity",
+    "//ios/chrome/browser/signin/model:fake_system_identity_manager",
+    "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
+    "//testing/gtest",
+  ]
+}

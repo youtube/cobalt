@@ -1,0 +1,234 @@
+// Copyright 2013 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef MEDIA_BASE_ANDROID_MEDIA_CODEC_BRIDGE_H_
+#define MEDIA_BASE_ANDROID_MEDIA_CODEC_BRIDGE_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
+#include "base/containers/span.h"
+#include "base/time/time.h"
+#include "media/base/decrypt_config.h"
+#include "media/base/encryption_pattern.h"
+#include "media/base/encryption_scheme.h"
+#include "media/base/media_export.h"
+#include "media/base/status.h"
+#include "ui/gfx/color_space.h"
+#include "ui/gfx/geometry/size.h"
+
+namespace media {
+
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.media
+enum class CodecType {
+  kAny,
+  kSecure,    // Note that all secure codecs are HW codecs.
+  kSoftware,  // In some cases hardware codecs could hang the GPU process.
+};
+
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(MediaCodecStatus)
+enum MediaCodecStatus {
+  MEDIA_CODEC_OK = 0,
+  MEDIA_CODEC_TRY_AGAIN_LATER = 1,
+  MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED = 2,
+  MEDIA_CODEC_OUTPUT_FORMAT_CHANGED = 3,
+  MEDIA_CODEC_NO_KEY = 4,
+  MEDIA_CODEC_ERROR = 5,
+  MEDIA_CODEC_KEY_EXPIRED = 6,
+  MEDIA_CODEC_RESOURCE_BUSY = 7,
+  MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION = 8,
+  MEDIA_CODEC_SESSION_NOT_OPENED = 9,
+  MEDIA_CODEC_UNSUPPORTED_OPERATION = 10,
+  MEDIA_CODEC_INSUFFICIENT_SECURITY = 11,
+  MEDIA_CODEC_FRAME_TOO_LARGE = 12,
+  MEDIA_CODEC_LOST_STATE = 13,
+  MEDIA_CODEC_GENERIC_OEM = 14,
+  MEDIA_CODEC_GENERIC_PLUGIN = 15,
+  MEDIA_CODEC_LICENSE_PARSE = 16,
+  MEDIA_CODEC_MEDIA_FRAMEWORK = 17,
+  MEDIA_CODEC_ZERO_SUBSAMPLES = 18,
+  MEDIA_CODEC_UNKNOWN_CIPHER_MODE = 19,
+  MEDIA_CODEC_PATTERN_ENCRYPTION_NOT_SUPPORTED = 20,
+  MEDIA_CODEC_INSUFFICIENT_RESOURCE = 21,
+  MEDIA_CODEC_RECLAIMED = 22,
+  MEDIA_CODEC_INPUT_SLOT_UNAVAILABLE = 23,
+  MEDIA_CODEC_ILLEGAL_STATE = 24,
+  MEDIA_CODEC_UNKNOWN_CRYPTO_EXCEPTION = 25,
+  MEDIA_CODEC_UNKNOWN_MEDIADRM_EXCEPTION = 26,
+  MEDIA_CODEC_UNKNOWN_CODEC_EXCEPTION = 27,
+  MEDIA_CODEC_LINEAR_BLOCK_EXCEPTION = 28,
+  MEDIA_CODEC_CERTIFICATE_MALFORMED = 29,
+  MEDIA_CODEC_CERTIFICATE_MISSING = 30,
+  MEDIA_CODEC_CRYPTO_LIBRARY = 31,
+  MEDIA_CODEC_INIT_DATA = 32,
+  MEDIA_CODEC_KEY_NOT_LOADED = 33,
+  MEDIA_CODEC_LICENSE_POLICY = 34,
+  MEDIA_CODEC_LICENSE_RELEASE = 35,
+  MEDIA_CODEC_LICENSE_REQUEST_REJECTED = 36,
+  MEDIA_CODEC_LICENSE_RESTORE = 37,
+  MEDIA_CODEC_LICENSE_STATE = 38,
+  MEDIA_CODEC_PROVISIONING_CERTIFICATE = 39,
+  MEDIA_CODEC_PROVISIONING_CONFIG = 40,
+  MEDIA_CODEC_PROVISIONING_PARSE = 41,
+  MEDIA_CODEC_PROVISIONING_REQUEST_REJECTED = 42,
+  MEDIA_CODEC_PROVISIONING_RETRY = 43,
+  MEDIA_CODEC_SECURE_STOP_RELEASE = 44,
+  MEDIA_CODEC_STORAGE_READ = 45,
+  MEDIA_CODEC_STORAGE_WRITE = 46,
+
+  MEDIA_CODEC_MAX = MEDIA_CODEC_STORAGE_WRITE,
+};
+// LINT.ThenChange(tools/metrics/histograms/metadata/media/enums.xml:MediaCodecError)
+
+struct MediaCodecResultTraits {
+  enum class Codes : StatusCodeType {
+    kOk,
+    kTryAgainLater,
+    kOutputBuffersChanged,
+    kOutputFormatChanged,
+    kNoKey,
+    kError,
+  };
+  static constexpr StatusGroupType Group() { return "MediaCodecResult"; }
+};
+using MediaCodecResult = TypedStatus<MediaCodecResultTraits>;
+
+// An interface for a bridge to an Android MediaCodec.
+class MEDIA_EXPORT MediaCodecBridge {
+ public:
+  MediaCodecBridge() = default;
+
+  MediaCodecBridge(const MediaCodecBridge&) = delete;
+  MediaCodecBridge& operator=(const MediaCodecBridge&) = delete;
+
+  virtual ~MediaCodecBridge() = default;
+
+  // Calls MediaCodec#stop(). However, due to buggy implementations (b/8125974)
+  // Stop() followed by Start() may not work on some devices. For reliability,
+  // it's recommended to delete the instance and create a new one instead.
+  virtual void Stop() = 0;
+
+  // Calls MediaCodec#flush(). The codec takes ownership of all input and output
+  // buffers previously dequeued when this is called. Returns kError
+  // if an unexpected error happens, or kOk otherwise.
+  virtual MediaCodecResult Flush() = 0;
+
+  // Returns the output size. This is valid after DequeueOutputBuffer()
+  // signals a format change by returning OUTPUT_FORMAT_CHANGED.
+  // Returns kError if an error occurs, or kOk otherwise.
+  virtual MediaCodecResult GetOutputSize(gfx::Size* size) = 0;
+
+  // Gets the sampling rate. This is valid after DequeueOutputBuffer()
+  // signals a format change by returning kOutputFormatChanged.
+  // Returns kError if an error occurs, or kOk otherwise.
+  virtual MediaCodecResult GetOutputSamplingRate(int* sampling_rate) = 0;
+
+  // Fills |channel_count| with the number of audio channels.  This is valid
+  // after DequeueOutputBuffer() signals a format change by returning
+  // kOutputFormatChanged. Returns kError if an error occurs,
+  // or kOk otherwise.
+  virtual MediaCodecResult GetOutputChannelCount(int* channel_count) = 0;
+
+  // Fills in |color_space| with the color space of the decoded video.  This
+  // is valid after DequeueOutputBuffer() signals a format change.  Will return
+  // kOk on success, with |color_space| initialized, or
+  // kError with |color_space| unmodified otherwise.
+  virtual MediaCodecResult GetOutputColorSpace(
+      gfx::ColorSpace* color_space) = 0;
+
+  // Submits a byte array to the given input buffer. Call this after getting an
+  // available buffer from DequeueInputBuffer(). `data` will be copied into the
+  // input buffer.
+  virtual MediaCodecResult QueueInputBuffer(
+      int index,
+      base::span<const uint8_t> data,
+      base::TimeDelta presentation_time) = 0;
+  // Similar to QueueInputBuffer() but submits the input buffer referenced by
+  // `index` assuming it has already been filled.
+  virtual MediaCodecResult QueueFilledInputBuffer(
+      int index,
+      size_t data_size,
+      base::TimeDelta presentation_time) = 0;
+
+  // As above but for encrypted buffers. NULL |subsamples| indicates the
+  // whole buffer is encrypted.
+  virtual MediaCodecResult QueueSecureInputBuffer(
+      int index,
+      base::span<const uint8_t> data,
+      base::TimeDelta presentation_time,
+      const DecryptConfig& decrypt_config) = 0;
+
+  // Submits an empty buffer with the END_OF_STREAM flag set.
+  virtual MediaCodecResult QueueEOS(int input_buffer_index) = 0;
+
+  // Returns:
+  // kOk if an input buffer is ready to be filled with valid data,
+  // kTryAgainLater if no such buffer is available, or
+  // kError if unexpected error happens.
+  virtual MediaCodecResult DequeueInputBuffer(base::TimeDelta timeout,
+                                              int* index) = 0;
+
+  // Dequeues an output buffer, block for up to |timeout|.
+  // Returns the status of this operation. If OK is returned, the output
+  // parameters should be populated. Otherwise, the values of output parameters
+  // should not be used.  Output parameters other than index/offset/size are
+  // optional and only set if not NULL.
+  virtual MediaCodecResult DequeueOutputBuffer(
+      base::TimeDelta timeout,
+      int* index,
+      size_t* offset,
+      size_t* size,
+      base::TimeDelta* presentation_time,
+      bool* end_of_stream,
+      bool* key_frame) = 0;
+
+  // Returns the buffer to the codec. If you previously specified a surface when
+  // configuring this video decoder you can optionally render the buffer.
+  virtual void ReleaseOutputBuffer(int index, bool render) = 0;
+
+  // Returns an input buffer's base pointer and capacity.
+  virtual base::span<uint8_t> GetInputBuffer(int input_buffer_index) = 0;
+
+  // Copies |num| bytes from output buffer |index|'s |offset| into the memory
+  // region pointed to by |dst|. Returns kError if an error occurs, or kOk
+  // otherwise.
+  virtual MediaCodecResult CopyFromOutputBuffer(int index,
+                                                size_t offset,
+                                                base::span<uint8_t> dst) = 0;
+
+  // Gets the component name. Before API level 18 this returns an empty string.
+  virtual std::string GetName() = 0;
+
+  // Returns whether the media codec implementation is software codec.
+  virtual bool IsSoftwareCodec() = 0;
+
+  // Changes the output surface for the MediaCodec. May only be used on API
+  // level 23 and higher (Marshmallow).
+  virtual bool SetSurface(const base::android::JavaRef<jobject>& surface) = 0;
+
+  // When the MediaCodec has been configured in async mode, this is called when
+  // input or output buffers are available.
+  virtual void OnBuffersAvailable(JNIEnv* env) = 0;
+
+  // Returns the CodecType this codec was created with.
+  virtual CodecType GetCodecType() const = 0;
+
+  // Returns the max input size we configured the codec with.
+  virtual size_t GetMaxInputSize() = 0;
+};
+
+}  // namespace media
+
+#endif  // MEDIA_BASE_ANDROID_MEDIA_CODEC_BRIDGE_H_

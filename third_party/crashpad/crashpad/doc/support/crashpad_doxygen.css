@@ -1,0 +1,40 @@
+/* Copyright 2016 The Crashpad Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+:root {
+  --font-family-normal: 'Noto Sans',
+    'Lucida Grande',
+    'Lucida Sans Unicode',
+    Helvetica,
+    Arial,
+    sans-serif;
+  --font-family-nav: var(--font-family-normal);
+  --font-family-title: var(--font-family-normal);
+  --font-family-toc: var(--font-family-normal);
+  --font-family-search: var(--font-family-normal);
+  --font-family-icon: var(--font-family-normal);
+  --font-family-tooltip: var(--font-family-normal);
+
+  --font-family-monospace: 'Source Code Pro',
+    Monaco,
+    'Lucida Console',
+    monospace;
+}
+
+.icon {
+  height: auto;
+}

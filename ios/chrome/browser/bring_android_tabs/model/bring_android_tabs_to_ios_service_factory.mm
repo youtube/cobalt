@@ -1,0 +1,72 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service_factory.h"
+
+#import "base/feature_list.h"
+#import "components/pref_registry/pref_registry_syncable.h"
+#import "components/segmentation_platform/embedder/default_model/device_switcher_result_dispatcher.h"
+#import "components/segmentation_platform/public/features.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
+#import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/sync/model/session_sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+
+// static
+BringAndroidTabsToIOSService*
+BringAndroidTabsToIOSServiceFactory::GetForProfile(ProfileIOS* profile) {
+  DCHECK(!profile->IsOffTheRecord());
+  return GetInstance()->GetServiceForProfileAs<BringAndroidTabsToIOSService>(
+      profile, /*create=*/true);
+}
+
+// static
+BringAndroidTabsToIOSService*
+BringAndroidTabsToIOSServiceFactory::GetForProfileIfExists(
+    ProfileIOS* profile) {
+  return GetInstance()->GetServiceForProfileAs<BringAndroidTabsToIOSService>(
+      profile, /*create=*/false);
+}
+
+// static
+BringAndroidTabsToIOSServiceFactory*
+BringAndroidTabsToIOSServiceFactory::GetInstance() {
+  static base::NoDestructor<BringAndroidTabsToIOSServiceFactory> instance;
+  return instance.get();
+}
+
+BringAndroidTabsToIOSServiceFactory::BringAndroidTabsToIOSServiceFactory()
+    : ProfileKeyedServiceFactoryIOS("BringAndroidTabsToIOSService") {}
+
+BringAndroidTabsToIOSServiceFactory::~BringAndroidTabsToIOSServiceFactory() {
+  DependsOn(
+      segmentation_platform::SegmentationPlatformServiceFactory::GetInstance());
+  DependsOn(SyncServiceFactory::GetInstance());
+  DependsOn(SessionSyncServiceFactory::GetInstance());
+}
+
+void BringAndroidTabsToIOSServiceFactory::RegisterProfilePrefs(
+    user_prefs::PrefRegistrySyncable* registry) {
+  registry->RegisterBooleanPref(prefs::kIosBringAndroidTabsPromptDisplayed,
+                                false);
+}
+
+std::unique_ptr<KeyedService>
+BringAndroidTabsToIOSServiceFactory::BuildServiceInstanceFor(
+    ProfileIOS* profile) const {
+  // SegmentationPlatform is required for BringYourOwnTabsIOS to work.
+  if (!base::FeatureList::IsEnabled(
+          segmentation_platform::features::kSegmentationPlatformFeature)) {
+    return nullptr;
+  }
+
+  PrefService* profile_prefs = profile->GetPrefs();
+  return std::make_unique<BringAndroidTabsToIOSService>(
+      segmentation_platform::SegmentationPlatformServiceFactory::
+          GetDispatcherForProfile(profile),
+      SyncServiceFactory::GetForProfile(profile),
+      SessionSyncServiceFactory::GetForProfile(profile), profile_prefs);
+}

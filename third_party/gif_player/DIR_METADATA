@@ -1,0 +1,4 @@
+os: ANDROID
+buganizer_public: {
+  component_id: 1619272
+}

@@ -1,0 +1,137 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.hub;
+
+import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+import java.util.ArrayDeque;
+import java.util.Queue;
+
+/**
+ * Coordinates transitions between pane {@link LoadHint}s. Transitions are scheduled so as to
+ * minimize jank if notifying of a {@link LoadHint} results in significant work for a Pane. This
+ * class should only be interacted with on the UI thread.
+ */
+@NullMarked
+public class PaneTransitionHelper {
+    /** Information about a transition. */
+    private static class TransitionData {
+        /**
+         * @param paneId The {@link PaneId} of the Pane to update.
+         * @param loadHint The {@link loadHint} to use.
+         */
+        TransitionData(@PaneId int paneId, @LoadHint int loadHint) {
+            this.paneId = paneId;
+            this.loadHint = loadHint;
+        }
+
+        /** The {@link PaneId} to update. */
+        public final @PaneId int paneId;
+
+        /** The {@link LoadHint} to use. */
+        public final @LoadHint int loadHint;
+    }
+
+    private final Queue<TransitionData> mTransitions = new ArrayDeque<>();
+    private final PaneLookup mPaneLookup;
+
+    private boolean mIsRunning;
+    private boolean mIsDestroyed;
+
+    /**
+     * @param paneLookup The {@link PaneLookup} to operate on.
+     */
+    public PaneTransitionHelper(PaneLookup paneLookup) {
+        ThreadUtils.assertOnUiThread();
+        mPaneLookup = paneLookup;
+    }
+
+    /** Destroys and stops any transitions. */
+    public void destroy() {
+        assert !mIsDestroyed;
+        mIsDestroyed = true;
+    }
+
+    /**
+     * Processes a transition immediately. This removes any existing scheduled transition for {@link
+     * PaneId}.
+     *
+     * @param paneId The {@link PaneId} of the pane to transition.
+     * @param loadHint The {@link LoadHint} to set on the pane.
+     */
+    public void processTransition(@PaneId int paneId, @LoadHint int loadHint) {
+        removeTransition(paneId);
+        processTransitionInternal(paneId, loadHint);
+    }
+
+    /**
+     * Queue a transition to happen later on the UI thread. This posts a task to process the next
+     * transition if one is not already posted. If there is an existing transition queued for {@link
+     * PaneId} it will be replaced unless it is for the same {@link LoadHint}.
+     *
+     * @param paneId The {@link PaneId} of the pane to transition.
+     * @param loadHint The {@link LoadHint} to set on the pane.
+     */
+    public void queueTransition(@PaneId int paneId, @LoadHint int loadHint) {
+        ThreadUtils.assertOnUiThread();
+        TransitionData transition = findTransitionForPaneId(paneId);
+        if (transition != null) {
+            if (transition.loadHint == loadHint) return;
+
+            mTransitions.remove(transition);
+        }
+
+        mTransitions.add(new TransitionData(paneId, loadHint));
+
+        if (!mIsRunning) {
+            mIsRunning = true;
+            ThreadUtils.postOnUiThread(this::processNextTransition);
+        }
+    }
+
+    /**
+     * Removes a transition from the deferred transitions if there is one.
+     *
+     * @param paneId The {@link PaneId} of the pane to remove.
+     */
+    public void removeTransition(@PaneId int paneId) {
+        ThreadUtils.assertOnUiThread();
+        TransitionData transition = findTransitionForPaneId(paneId);
+        if (transition != null) {
+            mTransitions.remove(transition);
+        }
+    }
+
+    private @Nullable TransitionData findTransitionForPaneId(@PaneId int paneId) {
+        for (TransitionData data : mTransitions) {
+            if (data.paneId == paneId) {
+                return data;
+            }
+        }
+        return null;
+    }
+
+    private void processNextTransition() {
+        ThreadUtils.assertOnUiThread();
+        if (mIsDestroyed) return;
+
+        TransitionData transition = mTransitions.poll();
+        if (transition != null) {
+            processTransitionInternal(transition.paneId, transition.loadHint);
+            ThreadUtils.postOnUiThread(this::processNextTransition);
+        } else {
+            mIsRunning = false;
+        }
+    }
+
+    private void processTransitionInternal(@PaneId int paneId, @LoadHint int hint) {
+        Pane pane = mPaneLookup.getPaneForId(paneId);
+        if (pane != null) {
+            pane.notifyLoadHint(hint);
+        }
+    }
+}

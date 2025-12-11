@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test if ChannelMerger and MediaStreamAudioDestination survive GC
+    </title>
+    <script src="../../resources/gc.js"></script>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      promise_test(async () => {
+        const context = new AudioContext();
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 4});
+        const mediaStreamDestination =
+            new MediaStreamAudioDestinationNode(context);
+        merger.connect(mediaStreamDestination, 0);
+
+        await asyncGC();
+        // Test passes if we get here because we didn't crash
+        assert_true(true, 'Test survived GC');
+        context.close();
+      }, `Test connection from ChannelMerger to MediaStreamAudioDestination`);
+    </script>
+  </body>
+</html>

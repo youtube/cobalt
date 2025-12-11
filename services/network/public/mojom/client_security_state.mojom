@@ -1,0 +1,66 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module network.mojom;
+
+import "services/network/public/mojom/cross_origin_embedder_policy.mojom";
+import "services/network/public/mojom/document_isolation_policy.mojom";
+import "services/network/public/mojom/ip_address_space.mojom";
+
+// How to treat local network requests.
+//
+// Local network requests are requests from a less-private IP address space
+// to a more-private IP address space. Concretely:
+//
+//  - unknown to private
+//  - unknown to local
+//  - public to private
+//  - public to local
+//  - private to local
+//
+// See the Local Network Access (LNA) Spec at
+// https://wicg.github.io/local-network-access/
+// for more information.
+//
+// The naming of this is a vestige of the old Private Network Access (PNA) spec
+// which predated LNA but is no longer relevant.
+//
+// TODO(crbug.com/394636065): rename enum to LocalNetworkRequestPolicy
+enum PrivateNetworkRequestPolicy {
+  // Allow the requests.
+  kAllow,
+
+  // Allow the requests, and display a warning in DevTools.
+  kWarn,
+
+  // Block the requests with a CORS error.
+  kBlock,
+
+  // Display a warning in devtools when a request will require user permission
+  // in the future when LNA launches.
+  kPermissionWarn,
+
+  // Block requests unless the user explicitly grants permission for the
+  // request to proceed.
+  kPermissionBlock,
+};
+
+struct ClientSecurityState {
+  // See: https://html.spec.whatwg.org/multipage/origin.html#coep
+  CrossOriginEmbedderPolicy cross_origin_embedder_policy;
+
+  // Whether the initiator of the requests is in a web secure context.
+  // See: https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts
+  bool is_web_secure_context = false;
+
+  // The initiator's IP AddressSpace.
+  IPAddressSpace ip_address_space = kUnknown;
+
+  // The policy to apply to private network requests.
+  PrivateNetworkRequestPolicy private_network_request_policy = kAllow;
+
+  // See: https://github.com/explainers-by-googlers/document-isolation-policy
+  DocumentIsolationPolicy document_isolation_policy;
+};
+

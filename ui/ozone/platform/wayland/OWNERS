@@ -1,0 +1,20 @@
+msisov@igalia.com
+nickdiego@igalia.com
+tonikitoo@igalia.com
+adunaev@igalia.com
+fangzhoug@chromium.org
+max@igalia.com
+tluk@chromium.org
+thomasanderson@chromium.org
+
+# For explicit sync, mutter third_party repos, text input, xdg-activation
+orko@igalia.com
+
+# For graphics, synchronization
+edcourtney@chromium.org
+
+# For Keyboard / TextInput (IME)
+hidehiko@chromium.org
+
+# For Events / WindowManagement / Screen Management
+oshima@chromium.org

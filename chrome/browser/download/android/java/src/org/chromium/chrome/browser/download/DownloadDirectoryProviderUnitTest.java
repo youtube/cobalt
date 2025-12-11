@@ -1,0 +1,100 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.download;
+
+import android.annotation.SuppressLint;
+import android.os.Build;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLog;
+import org.robolectric.util.TempDirectory;
+
+import org.chromium.base.PathUtils;
+import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.download.DownloadDirectoryProvider.SecondaryStorageInfo;
+
+import java.nio.file.Path;
+
+/** Unit tests for DownloadDirectoryProvider. It mocks Android API behaviors. */
+@RunWith(BaseRobolectricTestRunner.class)
+@Config(manifest = Config.NONE)
+@SuppressLint("NewApi")
+public class DownloadDirectoryProviderUnitTest {
+    private static final String PRIVATE_DIR_PRIMARY = "private_dir_primary";
+    private static final String PRIVATE_DIR_SECONDARY = "private_dir_secondary";
+
+    private TempDirectory mTempDir;
+    private Path mPrimaryDir;
+    private Path mSecondaryDir;
+
+    @Before
+    public void setUp() {
+        ShadowLog.stream = System.out;
+        mTempDir = new TempDirectory();
+        mPrimaryDir = mTempDir.create(PRIVATE_DIR_PRIMARY);
+        mSecondaryDir = mTempDir.create(PRIVATE_DIR_SECONDARY);
+    }
+
+    @After
+    public void tearDown() {
+        mTempDir.destroy();
+    }
+
+    @Test
+    public void testGetPrimaryDownloadDirectory() {
+        PathUtils.setDownloadsDirectoryForTesting(mPrimaryDir.toFile().getAbsolutePath());
+        Assert.assertEquals(
+                mPrimaryDir.toFile().getAbsolutePath(),
+                DownloadDirectoryProvider.getPrimaryDownloadDirectory().getAbsolutePath());
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.Q)
+    public void testGetSecondaryDownloadDirectoryOnQ() {
+        PathUtils.setAllPrivateDownloadsDirectoriesForTesting(
+                new String[] {
+                    mPrimaryDir.toFile().getAbsolutePath(), mSecondaryDir.toFile().getAbsolutePath()
+                });
+        SecondaryStorageInfo secondaryStorageInfo =
+                DownloadDirectoryProvider.getSecondaryStorageDownloadDirectories();
+        Assert.assertEquals(1, secondaryStorageInfo.directoriesPreR.size());
+        Assert.assertNull(
+                "Pre R the new SD card directory should be null", secondaryStorageInfo.directories);
+        Assert.assertFalse(secondaryStorageInfo.isEmpty());
+
+        // Simulate no SD card on the device.
+        PathUtils.setAllPrivateDownloadsDirectoriesForTesting(
+                new String[] {mPrimaryDir.toFile().getAbsolutePath()});
+        secondaryStorageInfo = DownloadDirectoryProvider.getSecondaryStorageDownloadDirectories();
+        Assert.assertEquals(0, secondaryStorageInfo.directoriesPreR.size());
+        Assert.assertTrue(secondaryStorageInfo.isEmpty());
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.Q)
+    public void testIsDownloadOnSdCardOnQ() {
+        PathUtils.setAllPrivateDownloadsDirectoriesForTesting(
+                new String[] {
+                    mPrimaryDir.toFile().getAbsolutePath(), mSecondaryDir.toFile().getAbsolutePath()
+                });
+        Assert.assertTrue(
+                DownloadDirectoryProvider.isDownloadOnSDCard(
+                        mSecondaryDir.toFile().getAbsolutePath() + "a.png"));
+        Assert.assertFalse(
+                DownloadDirectoryProvider.isDownloadOnSDCard(
+                        mPrimaryDir.toFile().getAbsolutePath() + "a.png"));
+        Assert.assertFalse(DownloadDirectoryProvider.isDownloadOnSDCard("content://something"));
+        Assert.assertFalse(
+                DownloadDirectoryProvider.isDownloadOnSDCard(
+                        mTempDir.create("randomDir").toFile().getAbsolutePath()));
+        Assert.assertFalse(DownloadDirectoryProvider.isDownloadOnSDCard(""));
+        Assert.assertFalse(DownloadDirectoryProvider.isDownloadOnSDCard(null));
+    }
+}

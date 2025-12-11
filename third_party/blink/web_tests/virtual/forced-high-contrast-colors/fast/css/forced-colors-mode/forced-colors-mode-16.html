@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Forced colors mode - search.
+</title>
+<link rel="help" href="https://www.w3.org/TR/css-color-adjust-1/#forced-colors-properties">
+<div>
+  <br id='b1'>AAA
+</div>
+<div>
+  <br id='b2'>AAA
+</div>
+
+<script>
+  function highlightRange(element, start, end, active) {
+    var range = document.createRange();
+    range.setStart(element, start);
+    range.setEnd(element, end);
+    internals.addTextMatchMarker(range, active);
+  }
+
+  if (window.internals) {
+    onload = function() {
+      highlightRange(document.getElementById('b1').nextSibling, 0, 3, 'kInactive');
+      highlightRange(document.getElementById('b2').nextSibling, 0, 3, 'kActive');
+    };
+  }
+</script>

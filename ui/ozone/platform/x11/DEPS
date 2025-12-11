@@ -1,0 +1,14 @@
+include_rules = [
+  "+components/viz/common/resources/shared_image_format.h",
+  "+components/viz/common/resources/shared_image_format_utils.h",
+  "+net/base/network_interfaces.h",
+  "+ui/base/x",
+  "+ui/base",
+  "+ui/linux",
+]
+
+specific_include_rules = {
+  "x11_ozone_ui_controls_test_helper.cc": [
+    "+ui/aura",
+  ]
+}

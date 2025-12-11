@@ -1,0 +1,11 @@
+{
+  "name": "com.google.chrome.remote_desktop",
+  "description": "{{ ME2ME_HOST_DESCRIPTION }}",
+  "type": "stdio",
+  "path": "{{ ME2ME_HOST_PATH }}",
+  "allowed_origins": [
+    {%- for id in COMPANION_EXTENSION_IDS %}
+      "chrome-extension://{{ id }}/"{% if not loop.last %},{% endif %}
+    {%- endfor %}
+  ]
+}

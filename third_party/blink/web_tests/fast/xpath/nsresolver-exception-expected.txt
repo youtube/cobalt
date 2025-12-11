@@ -1,0 +1,2 @@
+CONSOLE ERROR: Uncaught Error: this is an exception
+SUCCESS

@@ -1,0 +1,30 @@
+include_rules = [
+  # Existing dependencies within //chrome. There is an active effort to
+  # refactor //chrome/browser/ash to break these dependencies; see b/332804822.
+  # Whenever possible, avoid adding new //chrome dependencies to this list.
+  #
+  # Files residing in certain directories (e.g., //chrome/browser) are listed
+  # individually. Other dependencies within //chrome are listed on a per-
+  # directory basis. See //tools/chromeos/gen_deps.sh for details.
+  "+chrome/browser/apps/app_service",
+  "+chrome/browser/ash/app_list/arc",
+  "+chrome/browser/ash/arc",
+  "+chrome/browser/ash/fileapi",
+  "+chrome/browser/ash/file_manager",
+  "+chrome/browser/browser_process.h",
+  "+chrome/browser/nearby_sharing",
+  "+chrome/browser/profiles",
+  "+chrome/browser/sharesheet",
+  "+chrome/browser/ui/ash/shelf",
+  "+chrome/browser/ui/settings_window_manager_chromeos.h",
+  "+chrome/browser/webshare",
+  "+chrome/common/chrome_paths_internal.h",
+  "+chrome/test/base",
+]
+
+specific_include_rules = {
+  ".*_unittest\\.cc": [
+    "+chrome/browser/ash/browser_delegate/browser_controller_impl.h",
+    "+chrome/browser/ui/views/chrome_layout_provider.h",
+  ],
+}

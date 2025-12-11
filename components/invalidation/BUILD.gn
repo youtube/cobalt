@@ -1,0 +1,120 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if (is_android) {
+  import("//build/config/android/rules.gni")
+}
+
+static_library("invalidation") {
+  sources = [
+    "invalidation_constants.h",
+    "invalidation_listener.cc",
+    "invalidation_listener.h",
+    "invalidation_listener_impl.cc",
+    "invalidation_listener_impl.h",
+    "profile_invalidation_provider.cc",
+    "profile_invalidation_provider.h",
+  ]
+
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//components/gcm_driver",
+    "//components/invalidation:legacy_topics_cleanup",
+    "//components/keyed_service/core",
+    "//components/pref_registry",
+    "//components/prefs",
+    "//google_apis",
+  ]
+}
+
+static_library("legacy_topics_cleanup") {
+  sources = [
+    "impl/channels_states.h",
+    "impl/per_user_topic_subscription_manager.cc",
+    "impl/per_user_topic_subscription_manager.h",
+    "impl/per_user_topic_subscription_request.cc",
+    "impl/per_user_topic_subscription_request.h",
+    "impl/profile_identity_provider.cc",
+    "impl/profile_identity_provider.h",
+    "impl/status.cc",
+    "impl/status.h",
+    "legacy_topics_cleaner.cc",
+    "legacy_topics_cleaner.h",
+    "public/identity_provider.cc",
+    "public/identity_provider.h",
+    "public/invalidation_util.cc",
+    "public/invalidation_util.h",
+  ]
+
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//components/keyed_service/core",
+    "//components/pref_registry",
+    "//components/prefs",
+    "//components/signin/public/identity_manager",
+    "//google_apis",
+    "//net",
+    "//services/data_decoder/public/cpp",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+  sources = [
+    "test_support/fake_invalidation_listener.cc",
+    "test_support/fake_invalidation_listener.h",
+    "test_support/fake_registration_token_handler.cc",
+    "test_support/fake_registration_token_handler.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/invalidation",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "invalidation_listener_impl_unittest.cc" ]
+  deps = [
+    "//base",
+    "//components/gcm_driver:test_support",
+    "//components/gcm_driver/instance_id:test_support",
+    "//components/invalidation",
+    "//components/invalidation:test_support",
+    "//components/sync_preferences:test_support",
+    "//google_apis:test_support",
+    "//google_apis/gcm",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+source_set("legacy_topics_cleanup_unit_tests") {
+  testonly = true
+  sources = [
+    "impl/per_user_topic_subscription_manager_unittest.cc",
+    "impl/per_user_topic_subscription_request_unittest.cc",
+  ]
+  deps = [
+    ":legacy_topics_cleanup",
+    "//base",
+    "//base/test:test_support",
+    "//components/prefs",
+    "//components/prefs:test_support",
+    "//components/signin/public/identity_manager:test_support",
+    "//google_apis:test_support",
+    "//google_apis/gcm",
+    "//net",
+    "//net:test_support",
+    "//services/data_decoder/public/cpp:test_support",
+    "//services/network:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

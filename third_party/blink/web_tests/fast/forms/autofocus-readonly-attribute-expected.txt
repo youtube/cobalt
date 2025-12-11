@@ -1,0 +1,3 @@
+The text box should have focus console should print PASS
+
+PASS

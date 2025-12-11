@@ -1,0 +1,6 @@
+include_rules = [
+  "+chromeos/dbus/permission_broker/permission_broker_client.h",
+  "+device/gamepad/jni_headers",
+  "+services/device",
+  "+third_party/blink/renderer/platform/wtf/text/string_builder.h"
+]

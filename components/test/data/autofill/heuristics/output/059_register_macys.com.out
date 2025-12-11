@@ -1,0 +1,18 @@
+NAME_FIRST | FirstName | First Name |  | FirstName_1
+NAME_LAST | LastName | Last Name |  | FirstName_1
+ADDRESS_HOME_LINE1 | Address1 | Address |  | FirstName_1
+ADDRESS_HOME_LINE2 | Address2 | P.O. Box/Apt # |  | FirstName_1
+ADDRESS_HOME_ZIP | PostalCode | Zip Code |  | FirstName_1
+EMAIL_ADDRESS | EmailAddress | Email |  | FirstName_1
+EMAIL_ADDRESS | ConfirmEmailAddress | Verify Email |  | FirstName_1
+UNKNOWN_TYPE | Password | Password |  | FirstName_1
+UNKNOWN_TYPE | PasswordConfirm | Verify Password |  | FirstName_1
+UNKNOWN_TYPE | BirthMonth | Birth date | NOSELECTION | FirstName_1
+UNKNOWN_TYPE | BirthDay |  | NOSELECTION | FirstName_1
+UNKNOWN_TYPE | BirthYear |  | NOSELECTION | FirstName_1
+UNKNOWN_TYPE | Gender | Gender | NOSELECTION | FirstName_1
+PHONE_HOME_CITY_CODE_WITH_TRUNK_PREFIX | MobilePhoneAreaCode |  |  | FirstName_1
+PHONE_HOME_NUMBER | MobilePhoneExchangeNbr |  |  | FirstName_1
+PHONE_HOME_CITY_AND_NUMBER | MobilePhoneSubscriberNbr |  |  | FirstName_1
+UNKNOWN_TYPE | MaskedAccountNumber | Macy's Account Number: |  | FirstName_1
+UNKNOWN_TYPE | SSN4 | Last 4 digits of SSN: |  | FirstName_1

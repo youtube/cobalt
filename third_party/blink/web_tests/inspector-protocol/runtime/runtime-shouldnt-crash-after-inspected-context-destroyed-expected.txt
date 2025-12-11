@@ -1,0 +1,11 @@
+Tests that call to console after inspected context was destroyed shouldn't produce crash.
+{
+    id : <number>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+    sessionId : <string>
+}
+

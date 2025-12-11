@@ -1,0 +1,20 @@
+# https://crbug.com/1189284
+# Not applicable to emulator due to not supporting VK_KHR_external_memory_fd
+-CopyType/GLCopyTextureCHROMIUMES3Test.CopyTextureCubeMap/0
+-CopyType/GLCopyTextureCHROMIUMES3Test.CopyTextureLevel/0
+-CopyType/GLCopyTextureCHROMIUMES3Test.FormatCombinations*
+-CopyType/GLCopyTextureCHROMIUMTest.ImmutableTexture/0
+-CopyType/GLCopyTextureCHROMIUMTest.ImmutableTexture/1
+-GLBGRAMipMapTest.GenerateMipmapsSucceeds
+-RasterInProcessCommandBufferTest.AllowedBetweenBeginEndRasterCHROMIUM
+-AHardwareBufferImageBackingFactoryTest.Basic/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.CanHaveMultipleReaders/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.CannotReadWhileWriting/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.CannotWriteWhileReading/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.ConcurrentReadWrite/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.InitialData/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.OnlyOneWriter/GaneshGL
+-AHardwareBufferImageBackingFactoryTest.Overlay/GaneshGL
+
+# BGRA_8888 support is poor in Android emulator.
+-GLTextureImageBackingFactory*/BGRA_8888

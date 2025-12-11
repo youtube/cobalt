@@ -1,0 +1,18 @@
+Name: Google Test
+Short Name: googletest
+URL: https://github.com/google/googletest/
+Version: N/A
+Revision: DEPS
+Update Mechanism: Manual
+License: BSD-3-Clause
+License File: googletest/googletest/LICENSE
+Security Critical: no
+Shipped: no
+
+Description:
+Google Test (Google C++ Testing Framework) is Google’s framework for writing C++
+tests on a variety of platforms. It includes Google Mock, an extension for
+writing and using C++ mock classes.
+
+Local Modifications:
+None

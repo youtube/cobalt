@@ -1,0 +1,5 @@
+file://components/user_education/OWNERS
+
+# For NTP Promo reviews, please add one reviewer from the above list and one
+# from this list.
+per-file browser_ntp_promos.*=file://components/search/OWNERS

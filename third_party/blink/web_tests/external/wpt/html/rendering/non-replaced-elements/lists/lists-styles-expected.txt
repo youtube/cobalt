@@ -1,0 +1,164 @@
+This is a testharness.js-based test.
+Found 80 FAIL, 0 TIMEOUT, 0 NOTRUN.
+[FAIL] <menu>\n   <li> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol>\n   <li> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul>\n   <li> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <dir><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <dir><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <dir><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <dir><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <dir><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <dir><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <dir><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <dir><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <menu><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <menu><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <menu><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <menu><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <menu><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <menu><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <menu><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <menu><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ol><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ol><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ol><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ol><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ol><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ol><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ol><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ol><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ul><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ul><dir>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ul><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ul><menu>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ul><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ul><ol>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <menu> (in <ul><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul> (in <ul><ul>) - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="1"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="1"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="a" class="type-a"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="a" class="type-a"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="A" class="type-A"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="A" class="type-A"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="i" class="type-i"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="i" class="type-i"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="I" class="type-I"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="I" class="type-I"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="none"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="none"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="NONE"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="NONE"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="disc"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="disc"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="DISC"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="DISC"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="circle"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="circle"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="CIRCLE"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="CIRCLE"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="square"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="square"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol type="SQUARE"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ul type="SQUARE"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol>\n    <li value="10"> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <li value="10"> (in <ol>) - counter-set
+  assert_equals: expected "list-item 10" but got "none"
+[FAIL] <li value="10xyz"> (in <ol>) - counter-set
+  assert_equals: expected "list-item 10" but got "none"
+[FAIL] <li value="10e10"> (in <ol>) - counter-set
+  assert_equals: expected "list-item 10" but got "none"
+[FAIL] <ol start="10"><li> - counter-reset
+  assert_equals: expected "list-item 9" but got "none"
+[FAIL] <ol start="10xyz"><li> - counter-reset
+  assert_equals: expected "list-item 9" but got "none"
+[FAIL] <ol start="10e10"><li> - counter-reset
+  assert_equals: expected "list-item 9" but got "none"
+[FAIL] <ol start="xyz"><li> - counter-reset
+  assert_equals: expected "list-item 0" but got "none"
+[FAIL] <ol reversed="" start="20"><li> - counter-reset
+  assert_equals: expected "reversed(list-item) 21" but got "none"
+[FAIL] <ol reversed="" start="20xyz"><li> - counter-reset
+  assert_equals: expected "reversed(list-item) 21" but got "none"
+[FAIL] <ol reversed="" start="20e10"><li> - counter-reset
+  assert_equals: expected "reversed(list-item) 21" but got "none"
+Harness: the test ran to completion.
+

@@ -1,0 +1,10 @@
+specific_include_rules = {
+  ".*_browsertest\\.cc": [
+    "+chrome/browser/browser_process.h",
+    "+chrome/test/base",
+    "+content/public/test",
+  ],
+  "display_gpu_crash_browsertest\\.cc": [
+     "+cc/trees",
+  ],
+}

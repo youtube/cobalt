@@ -1,0 +1,46 @@
+owners:
+- phao@chromium.org
+- chrome-product-security@google.com
+
+caption: Specifies whether to apply restrictions to requests to more-private
+  network endpoints
+
+deprecated: true
+
+desc: |-
+  When this policy is set to Enabled, any time when a warning is supposed to be
+  displayed in <ph name="CHROME_DEVTOOLS_NAME">Chrome DevTools</ph> due to <ph
+  name="PRIVATE_NETWORK_ACCESS">Private Network Access</ph> checks failing, the
+  main request will be blocked instead.
+
+  When this policy is set to Disabled or unset, all <ph
+  name="PRIVATE_NETWORK_ACCESS">Private Network Access</ph> warnings will not
+  be enforced and the requests will not be blocked.
+
+  See https://wicg.github.io/private-network-access/ for <ph
+  name="PRIVATE_NETWORK_ACCESS">Private Network Access</ph> restrictions.
+
+supported_on:
+- chrome.*:120-137
+- chrome_os:120-137
+- android:120-137
+
+features:
+  dynamic_refresh: true
+  per_profile: false
+
+type: main
+
+schema:
+  type: boolean
+
+items:
+- caption: Apply restrictions to requests to more-private network endpoints
+  value: true
+- caption: Use default behavior when determining if websites can make requests
+    to network endpoints
+  value: false
+
+example_value: true
+
+tags: []

@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+<head>
+<script src="../../../resources/js-test.js"></script>
+</head>
+<body>
+<script>
+description("createDocument tests modelled after mozilla's testing");
+
+function ExpectedNotEnoughArgumentsMessage(num) {
+    return "\"TypeError: Failed to execute 'createDocumentType' on 'DOMImplementation': 3 arguments required, but only " + num + " present.\"";
+}
+
+shouldThrow("document.implementation.createDocumentType('foo')", ExpectedNotEnoughArgumentsMessage(1));
+shouldThrow("document.implementation.createDocumentType('foo', null)", ExpectedNotEnoughArgumentsMessage(2));
+shouldThrow("document.implementation.createDocumentType(undefined, undefined)", ExpectedNotEnoughArgumentsMessage(2));
+shouldThrow("document.implementation.createDocumentType(null, undefined)", ExpectedNotEnoughArgumentsMessage(2));
+shouldThrow("document.implementation.createDocumentType(undefined, null)", ExpectedNotEnoughArgumentsMessage(2));
+shouldNotThrow("document.implementation.createDocumentType(undefined, undefined, null)");
+shouldThrow("document.implementation.createDocumentType(null, null)", ExpectedNotEnoughArgumentsMessage(2));
+shouldThrow("document.implementation.createDocumentType(null, '')", ExpectedNotEnoughArgumentsMessage(2));
+shouldThrow("document.implementation.createDocumentType('', null)", ExpectedNotEnoughArgumentsMessage(2));
+shouldThrow("document.implementation.createDocumentType('', '')", ExpectedNotEnoughArgumentsMessage(2));
+shouldNotThrow("document.implementation.createDocumentType('a:', null, null)");
+shouldNotThrow("document.implementation.createDocumentType(':foo', null, null)");
+shouldNotThrow("document.implementation.createDocumentType(':', null, null)");
+shouldNotThrow("document.implementation.createDocumentType('foo', null, null)");
+shouldNotThrow("document.implementation.createDocumentType('foo:bar', null, null)");
+shouldNotThrow("document.implementation.createDocumentType('foo::bar', null, null)");
+shouldThrow("document.implementation.createDocumentType('\t:bar', null, null)", `"InvalidCharacterError: Failed to execute 'createDocumentType' on 'DOMImplementation': The provided doctype name ('\t:bar') contains an invalid character."`);
+shouldThrow("document.implementation.createDocumentType('foo:\t', null, null)", `"InvalidCharacterError: Failed to execute 'createDocumentType' on 'DOMImplementation': The provided doctype name ('foo:\t') contains an invalid character."`);
+shouldThrow("document.implementation.createDocumentType('foo :bar', null, null)", `"InvalidCharacterError: Failed to execute 'createDocumentType' on 'DOMImplementation': The provided doctype name ('foo :bar') contains an invalid character."`);
+shouldThrow("document.implementation.createDocumentType('foo: bar', null, null)", `"InvalidCharacterError: Failed to execute 'createDocumentType' on 'DOMImplementation': The provided doctype name ('foo: bar') contains an invalid character."`);
+shouldNotThrow("document.implementation.createDocumentType('a:b:c', null, null)");
+
+</script>
+</body>
+</html>

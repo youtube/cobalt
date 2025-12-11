@@ -1,0 +1,48 @@
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://w3c.github.io/clipboard-apis/#clipboard-interface
+
+dictionary ClipboardReadOptions {
+  // https://chromestatus.com/feature/5203433409871872
+  // If types is provided, only the specified MIME types will be fetched.
+  // If `types` is an empty sequence (e.g. []), no clipboard read operation will be
+  // performed. If `types` is undefined, all available MIME types will be
+  // read.
+  [RuntimeEnabled=SelectiveClipboardFormatRead] sequence<DOMString>? types;
+  sequence<DOMString> unsanitized;
+};
+
+[
+    SecureContext,
+    Exposed=Window
+] interface Clipboard : EventTarget {
+    [MeasureAs=AsyncClipboardAPIRead,
+     CallWith=ScriptState,
+     RaisesException
+    ] Promise<sequence<ClipboardItem>> read();
+
+    [MeasureAs=AsyncClipboardAPIUnsanitizedRead,
+     CallWith=ScriptState,
+     RaisesException
+    ] Promise<sequence<ClipboardItem>> read(ClipboardReadOptions options);
+
+    [MeasureAs=AsyncClipboardAPIReadText,
+     CallWith=ScriptState,
+     RaisesException
+    ] Promise<DOMString> readText();
+
+
+    [MeasureAs=AsyncClipboardAPIWrite,
+     CallWith=ScriptState,
+     RaisesException
+    ] Promise<undefined> write(sequence<ClipboardItem> data);
+
+    [MeasureAs=AsyncClipboardAPIWriteText,
+     CallWith=ScriptState,
+     RaisesException
+    ] Promise<undefined> writeText(DOMString data);
+
+    [RuntimeEnabled=ClipboardChangeEvent] attribute EventHandler onclipboardchange;
+};

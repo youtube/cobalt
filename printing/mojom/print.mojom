@@ -1,0 +1,248 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module printing.mojom;
+
+// Print job color mode values.
+enum ColorModel {
+  kUnknownColorModel,
+  kGray,
+  kColor,
+  kCMYK,
+  kCMY,
+  kKCMY,
+  kCMYPlusK,  // kCMYPlusK represents CMY+K.
+  kBlack,
+  kGrayscale,
+  kRGB,
+  kRGB16,
+  kRGBA,
+  kColorModeColor,              // Used in Samsung printer PPDs.
+  kColorModeMonochrome,         // Used in Samsung printer PPDs.
+  kHPColorColor,                // Used in HP color printer PPDs.
+  kHPColorBlack,                // Used in HP color printer PPDs.
+  kPrintoutModeNormal,          // Used in Foomatic PPDs.
+  kPrintoutModeNormalGray,      // Used in Foomatic PPDs.
+  kProcessColorModelCMYK,       // Used in Canon printer PPDs.
+  kProcessColorModelGreyscale,  // Used in Canon printer PPDs.
+  kProcessColorModelRGB,        // Used in Canon printer PPDs
+  kBrotherCUPSColor,            // Used in Brother color laser printer PPDs.
+  kBrotherCUPSMono,             // Used in Brother color laser printer PPDs.
+  kBrotherBRScript3Color,       // Used in Brother BRScript3 color printer PPDs.
+  kBrotherBRScript3Black,       // Used in Brother BRScript3 color printer PPDs.
+  kEpsonInkColor,               // Used in Epson printer PPDs.
+  kEpsonInkMono,                // Used in Epson printer PPDs.
+  kSharpARCModeCMColor,         // Used in Sharp printer PPDs.
+  kSharpARCModeCMBW,            // Used in Sharp printer PPDs.
+  kXeroxXRXColorAutomatic,      // Used in Xerox printer PPDs.
+  kXeroxXRXColorBW,             // Used in Xerox printer PPDs.
+  kCanonCNColorModeColor,       // Used in Canon printer PPDs.
+  kCanonCNColorModeMono,        // Used in Canon printer PPDs.
+  kCanonCNIJGrayScaleOne,       // Used in Canon printer PPDs.
+  kCanonCNIJGrayScaleZero,      // Used in Canon printer PPDs.
+  // Used in Konica Minolta printer PPDs.
+  kKonicaMinoltaSelectColorColor,
+  kKonicaMinoltaSelectColorGrayscale,
+  kOkiOKControlColor,           // Used in Oki printer PPDs.
+  kOkiOKControlGray,            // Used in Oki printer PPDs.
+  // Used in Xerox printer PPDs.
+  kXeroxXROutputColorPrintAsColor,
+  kXeroxXROutputColorPrintAsGrayscale,
+  kHpPjlColorAsGrayNo,   // Used in HP printer PPDs.
+  kHpPjlColorAsGrayYes,  // Used in HP printer PPDs.
+};
+
+// Print job quality values (from rfc8011).
+[EnableIf=is_chromeos]
+enum Quality {
+  kUnknownQuality = -1,
+  kDraft = 3,
+  kNormal = 4,
+  kHigh = 5
+};
+
+// Print job duplex mode values.
+enum DuplexMode {
+  kUnknownDuplexMode = -1,
+  kSimplex,
+  kLongEdge,
+  kShortEdge,
+};
+
+// Print job print scaling values.
+[EnableIf=is_chromeos]
+enum PrintScalingType {
+  kUnknownPrintScalingType = -1,
+  kAuto,
+  kAutoFit,
+  kFit,
+  kFill,
+  kNone,
+};
+
+// Struct that holds margin and content area sizes of a page. Units are
+// arbitrary and can be chosen by the programmer.
+struct PageSizeMargins {
+  double content_width;
+  double content_height;
+  double margin_top;
+  double margin_right;
+  double margin_bottom;
+  double margin_left;
+};
+
+// CSS @page page-orientation descriptor values.
+enum PageOrientation { kUpright, kRotateLeft, kRotateRight };
+
+// Describes whether to reduce/enlarge/retain the print contents to fit the
+// printable area.
+enum PrintScalingOption {
+  // Prints the upper left of a page without scaling. Crop the page contents
+  // that don't fit on the paper.
+  kNone,
+  // Reduces or enlarges each page to fit the printable area of the selected
+  // printer paper size.
+  kFitToPrintableArea,
+  // Print output page size is same as the actual source page size. Do not
+  // scale/center/fit to printable area.
+  kSourceSize,
+  // Reduces or enlarges each page to fit the selected printer paper size.
+  kFitToPaper,
+  // Center each page on paper. If the page is larger than the selected printer
+  // paper size, it will be scaled down to fit. Note that the page will never be
+  // scaled *up*. If it's not larger than the paper, it will just be centered.
+  kCenterShrinkToFitPaper,
+};
+
+// Document type that Skia graphics library generates.
+enum SkiaDocumentType {
+  // PDF document type.
+  kPDF,
+  // MultiPictureDocument type
+  kMSKP,
+  // XPS document type.
+  [EnableIf=is_win]
+  kXPS,
+};
+
+// Metafile data type encapsulated by a player.
+enum MetafileDataType {
+  kPDF,
+  [EnableIf=is_win]
+  kEMF,
+  [EnableIf=is_win]
+  kPostScriptEmf,
+};
+
+// What kind of document outline to generate.
+enum GenerateDocumentOutline {
+  kNone,
+  kFromAccessibilityTreeHeaders,
+};
+
+// What kind of margins to use.
+enum MarginType {
+  // Default varies depending on headers being enabled or not
+  kDefaultMargins,
+  kNoMargins,
+  kPrintableAreaMargins,
+  // Margins that are only used for document pre-rendering.
+  kCustomMargins,
+  // This margin type must only be set when the margins are not part of print
+  // preview logic (as `kCustomMargins` is), since normally margins are ONLY
+  // applied to the pre-rendered document. By default, when a document is sent
+  // to the printing backend, it uses the default margins based on the printer's
+  // capabilities. For example, if US letter size is selected, the backend will
+  // determine the printable area and supported margins for that specific
+  // printer. However, there is a special case that ONLY applies to the
+  // chrome.printing API. This API allows extensions to send documents to the
+  // printer while maximizing the use of the printer's capabilities. In this
+  // case, the supplied margins must be used for the actual print job (i.e.,
+  // sent to the backend). All other use cases should not use this type if they
+  // are using margins for document pre-rendering.
+  [EnableIf=is_chromeos]
+  kPrecomputedMarginsForBackend,
+};
+
+// Allowed printing modes as a bitmask.
+// This is used in pref file and should never change.
+[EnableIf=is_chromeos]
+enum ColorModeRestriction {
+  kUnset = 0x0,
+  kMonochrome = 0x1,
+  kColor = 0x2,
+};
+
+// Allowed duplex modes as a bitmask.
+// This is used in pref file and should never change.
+[EnableIf=is_chromeos]
+enum DuplexModeRestriction {
+  kUnset = 0x0,
+  kSimplex = 0x1,
+  kLongEdge = 0x2,
+  kShortEdge = 0x4,
+  kDuplex = 0x6,
+};
+
+// Allowed PIN printing modes.
+// This is used in pref file and should never change.
+[EnableIf=is_chromeos]
+enum PinModeRestriction {
+  kUnset = 0,
+  kPin = 1,
+  kNoPin = 2,
+};
+
+// Result codes distilled from system error codes.
+enum ResultCode {
+  kSuccess,
+  // Generic code for uncategorized errors.
+  kFailed,
+  // Insufficient permissions to perform the operation.
+  kAccessDenied,
+  // Operation was canceled.
+  kCanceled,
+};
+
+// Matches print_preview.PrinterType in:
+// chrome/browser/resources/print_preview/data/destination.ts and
+// chrome/browser/resources/ash/print_preview/data/destination_cros.ts
+enum PrinterType {
+  kExtension,
+  kPdf,
+  kLocal,
+};
+
+[EnableIf=is_win]
+enum PrinterLanguageType {
+  kNone = 0,
+  kTextOnly,
+  kXps,
+  kPostscriptLevel2,
+  kPostscriptLevel3,
+};
+
+// Corresponds to `printing::PageRange` in printing/page_range.h.
+struct PageRange {
+  uint32 from;
+  uint32 to;
+};
+
+// Corresponds to the 'client-info' IPP attribute.
+// For optional fields, missing values correspond to the 'no-value' IPP
+// out-of-band value.
+[EnableIf=is_chromeos]
+struct IppClientInfo {
+  enum ClientType {
+    kApplication = 3,
+    kOperatingSystem = 4,
+    kDriver = 5,
+    kOther = 6,
+  };
+  ClientType client_type;
+  string client_name;
+  string? client_patches;
+  string client_string_version;
+  string? client_version;
+};

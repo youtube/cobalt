@@ -1,0 +1,163 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ui.gni")
+import("//testing/test.gni")
+
+component("native_theme") {
+  sources = [
+    "caption_style.cc",
+    "caption_style.h",
+    "native_theme.cc",
+    "native_theme.h",
+    "native_theme_base.cc",
+    "native_theme_base.h",
+    "native_theme_fluent.cc",
+    "native_theme_fluent.h",
+    "native_theme_observer.cc",
+    "native_theme_observer.h",
+    "os_settings_provider.cc",
+    "os_settings_provider.h",
+    "overlay_scrollbar_constants.cc",
+    "overlay_scrollbar_constants.h",
+  ]
+
+  defines = [ "IS_NATIVE_THEME_IMPL" ]
+
+  public_deps = [
+    "features",
+    "//skia",
+  ]
+
+  deps = [
+    "//base",
+    "//cc/paint",
+    "//ui/base",
+    "//ui/color",
+
+    # http://crbug.com/730719 - No !is_android to work around gn --check.
+    "//ui/color:mixers",
+    "//ui/display",
+    "//ui/gfx",
+    "//ui/gfx/animation/keyframe",
+    "//ui/gfx/geometry",
+    "//ui/resources",
+  ]
+
+  if (is_android) {
+    sources += [
+      "os_settings_provider_android.cc",
+      "os_settings_provider_android.h",
+    ]
+
+    deps += [ "//ui/accessibility:ax_base_android" ]
+  }
+
+  if (is_android || is_ios) {
+    sources += [
+      "native_theme_mobile.cc",
+      "native_theme_mobile.h",
+    ]
+  }
+
+  if (is_chromeos) {
+    sources += [
+      "os_settings_provider_ash.cc",
+      "os_settings_provider_ash.h",
+    ]
+  }
+
+  if (is_mac) {
+    frameworks = [
+      "Accessibility.framework",
+      "AppKit.framework",
+      "CoreGraphics.framework",
+      "MediaAccessibility.framework",
+    ]
+    sources += [
+      "caption_style_mac.mm",
+      "native_theme_mac.h",
+      "native_theme_mac.mm",
+      "os_settings_provider_mac.h",
+      "os_settings_provider_mac.mm",
+      "scrollbar_animator_mac.cc",
+      "scrollbar_animator_mac.h",
+    ]
+  }
+
+  if (is_win) {
+    sources += [
+      "caption_style_win.cc",
+      "native_theme_win.cc",
+      "native_theme_win.h",
+      "os_settings_provider_win.cc",
+      "os_settings_provider_win.h",
+    ]
+
+    public_deps += [ "//ui/color:accent_color_observer" ]
+
+    libs = [ "uxtheme.lib" ]
+  }
+
+  # Mac uses `NativeThemeAura` for the web instance. That class does not depend
+  # on any other Aura-specific code.
+  if (use_aura || is_mac) {
+    sources += [
+      "native_theme_aura.cc",
+      "native_theme_aura.h",
+    ]
+  }
+}
+
+component("test_support") {
+  testonly = true
+
+  sources = [
+    "mock_os_settings_provider.cc",
+    "mock_os_settings_provider.h",
+  ]
+
+  defines = [ "IS_NATIVE_THEME_IMPL" ]
+
+  deps = [
+    ":native_theme",
+    "//base",
+    "//ui/color:color_provider_key",
+  ]
+}
+
+test("native_theme_unittests") {
+  use_xvfb = use_xvfb_in_this_config
+
+  sources = [
+    "native_theme_base_unittest.cc",
+    "native_theme_fluent_unittest.cc",
+    "native_theme_unittest.cc",
+    "os_settings_provider_unittest.cc",
+  ]
+
+  deps = [
+    ":native_theme",
+    ":test_support",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//skia",
+    "//testing/gtest",
+    "//ui/color",
+    "//ui/gfx:test_support",
+    "//ui/gfx/geometry",
+  ]
+
+  if (is_mac) {
+    sources += [
+      "native_theme_mac_unittest.mm",
+      "scrollbar_animator_mac_unittest.cc",
+    ]
+    deps += [ "//ui/gfx:test_support" ]
+  }
+
+  if (is_win) {
+    sources += [ "caption_style_win_unittest.cc" ]
+  }
+}

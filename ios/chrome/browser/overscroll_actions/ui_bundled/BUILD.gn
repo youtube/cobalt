@@ -1,0 +1,54 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("ui_bundled") {
+  sources = [
+    "overscroll_actions_controller.h",
+    "overscroll_actions_controller.mm",
+    "overscroll_actions_gesture_recognizer.h",
+    "overscroll_actions_gesture_recognizer.mm",
+    "overscroll_actions_view.h",
+    "overscroll_actions_view.mm",
+  ]
+  deps = [
+    "//base",
+    "//build:blink_buildflags",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/app/theme",
+    "//ios/chrome/browser/content_suggestions/ui_bundled:content_suggestions_constant",
+    "//ios/chrome/browser/fullscreen/ui_bundled",
+    "//ios/chrome/browser/ntp/ui_bundled:theme",
+    "//ios/chrome/browser/page_info/ui_bundled:constants",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/side_swipe/ui_bundled",
+    "//ios/chrome/browser/voice/ui_bundled",
+    "//ios/chrome/common:timing",
+    "//ios/chrome/common/ui/colors",
+    "//ios/public/provider/chrome/browser/fullscreen:fullscreen_api",
+    "//ios/web/common",
+    "//ios/web/public",
+    "//ui/base",
+    "//ui/gfx",
+  ]
+  frameworks = [
+    "QuartzCore.framework",
+    "UIKit.framework",
+  ]
+}
+
+source_set("eg2_tests") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [ "overscroll_actions_egtest.mm" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//ios/chrome/test/earl_grey:eg_test_support+eg2",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
+    "//net:test_support",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}

@@ -1,0 +1,3 @@
+Test calling on background-position property specified with calc on computed styles.
+
+calc(10% + 20px) calc(60% - 30px)

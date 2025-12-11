@@ -1,0 +1,9 @@
+# Primary:
+file://storage/OWNERS
+
+# Secondary:
+arichiv@chromium.org
+wanderview@meta.com
+
+per-file *_mojom_traits*.*=set noparent
+per-file *_mojom_traits*.*=file://ipc/SECURITY_OWNERS

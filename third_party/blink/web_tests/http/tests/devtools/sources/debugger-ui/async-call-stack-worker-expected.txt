@@ -1,0 +1,14 @@
+Tests async call stack for workers.
+
+Set timer for test function.
+self.onmessageworker.js:4
+Worker.postMessage
+worker.onmessage
+postMessage
+(anonymous)worker.js:2
+Worker Created
+testFunction
+setTimeout
+scheduleTestFunction
+(anonymous)
+

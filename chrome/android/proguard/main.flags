@@ -1,0 +1,35 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Every fragment must have an empty constructor, so it can be instantiated when
+# restoring its activity's state.
+-keep public class org.chromium.** extends androidx.fragment.app.Fragment {
+  public <init>();
+}
+
+# Keep implementation classes needed for split compat. These will be accessed by
+# reflection.
+-keep,allowobfuscation,allowoptimization,allowaccessmodification public class ** extends org.chromium.chrome.browser.base.SplitCompat*$Impl {
+  public <init>();
+}
+
+# To fix crbug/1017396. This is because AppBarLayout$ScrollingViewBehavior
+# is instantiated via java.lang.reflect.Constructor in CoordinatorLayout.java.
+# Note that AppBarLayout$Behavior is needed to keep the scrolling behavior.
+-keep class com.google.android.material.appbar.AppBarLayout$Behavior {
+    public <init>(android.content.Context, android.util.AttributeSet);
+    public <init>();
+}
+-keep class com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior {
+    public <init>(android.content.Context, android.util.AttributeSet);
+    public <init>();
+}
+
+# @IdentifierNameString, but does not exist due to the module not having any
+# Java code in it (this class is generated and then stripped as unused).
+-dontwarn org.chromium.chrome.modules.stack_unwinder.StackUnwinderModuleContentsImpl
+
+# TODO(crbug.com/430099860): Remove once OnDemandModuleEntryPointsImpl is not
+# removed due to being unused.
+-dontwarn org.chromium.chrome.modules.on_demand.OnDemandModuleEntryPointsImpl

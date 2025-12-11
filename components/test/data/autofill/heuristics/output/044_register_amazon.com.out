@@ -1,0 +1,5 @@
+UNKNOWN_TYPE | userName | First and Last Name: |  | userName_1
+EMAIL_ADDRESS | email | E-mail Address: |  | userName_1
+EMAIL_ADDRESS | emailCheck | Re-type E-mail Address: |  | userName_1
+UNKNOWN_TYPE | password | Password: |  | userName_1
+UNKNOWN_TYPE | passwordCheck | Re-type Password: |  | userName_1

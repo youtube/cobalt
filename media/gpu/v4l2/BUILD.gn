@@ -1,0 +1,269 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ui.gni")
+import("//media/gpu/args.gni")
+import("//media/media_options.gni")
+import("//testing/test.gni")
+import("//ui/gl/features.gni")
+
+assert(use_v4l2_codec)
+
+source_set("v4l2") {
+  defines = [ "MEDIA_GPU_IMPLEMENTATION" ]
+  sources = [
+    "decode_surface_handler.h",
+    "legacy/v4l2_video_decode_accelerator.cc",
+    "legacy/v4l2_video_decode_accelerator.h",
+    "legacy/v4l2_video_decoder_backend_stateful.cc",
+    "legacy/v4l2_video_decoder_backend_stateful.h",
+    "v4l2_decode_surface.cc",
+    "v4l2_decode_surface.h",
+    "v4l2_decode_surface_handler.h",
+    "v4l2_device.cc",
+    "v4l2_device.h",
+    "v4l2_device_poller.cc",
+    "v4l2_device_poller.h",
+    "v4l2_framerate_control.cc",
+    "v4l2_framerate_control.h",
+    "v4l2_image_processor_backend.cc",
+    "v4l2_image_processor_backend.h",
+    "v4l2_queue.cc",
+    "v4l2_queue.h",
+    "v4l2_stateful_video_decoder.cc",
+    "v4l2_stateful_video_decoder.h",
+    "v4l2_utils.cc",
+    "v4l2_utils.h",
+    "v4l2_vda_helpers.cc",
+    "v4l2_vda_helpers.h",
+    "v4l2_video_decoder.cc",
+    "v4l2_video_decoder.h",
+    "v4l2_video_decoder_backend.cc",
+    "v4l2_video_decoder_backend.h",
+    "v4l2_video_decoder_backend_stateless.cc",
+    "v4l2_video_decoder_backend_stateless.h",
+    "v4l2_video_decoder_delegate_h264.cc",
+    "v4l2_video_decoder_delegate_h264.h",
+    "v4l2_video_decoder_delegate_vp8.cc",
+    "v4l2_video_decoder_delegate_vp8.h",
+    "v4l2_video_decoder_delegate_vp9.cc",
+    "v4l2_video_decoder_delegate_vp9.h",
+    "v4l2_vp9_helpers.cc",
+    "v4l2_vp9_helpers.h",
+  ]
+
+  # enable_av1_v4l2_decoder
+  if (use_av1_hw_decoder) {
+    sources += [
+      "v4l2_video_decoder_delegate_av1.cc",
+      "v4l2_video_decoder_delegate_av1.h",
+    ]
+  }
+
+  if (enable_hevc_parser_and_hw_decoder) {
+    sources += [
+      "v4l2_video_decoder_delegate_h265.cc",
+      "v4l2_video_decoder_delegate_h265.h",
+    ]
+  }
+
+  if (current_cpu == "arm" || current_cpu == "arm64") {
+    sources += [
+      "mt21/mt21_decompressor.cc",
+      "mt21/mt21_decompressor.h",
+      "mt21/mt21_util.h",
+    ]
+  }
+
+  if (is_chromeos) {
+    sources += [
+      # TODO(crbug.com/901264): Encoders use hack for passing offset
+      # within a DMA-buf, which is not supported upstream.
+      "v4l2_video_encode_accelerator.cc",
+      "v4l2_video_encode_accelerator.h",
+    ]
+  }
+
+  libs = [
+    "EGL",
+    "GLESv2",
+  ]
+
+  configs += [ "//third_party/libyuv:libyuv_config" ]
+
+  public_deps = [ "//ui/gl" ]
+
+  deps = [
+    ":v4l2_status",
+    "//base",
+    "//build/config/linux/libdrm",
+    "//gpu/command_buffer/service:gles2",
+    "//gpu/ipc/common",
+    "//gpu/ipc/service",
+    "//media",
+    "//media/gpu:buildflags",
+    "//media/gpu:command_buffer_helper",
+    "//media/gpu:common",
+    "//media/gpu:video_frame_mapper_common",
+    "//media/gpu/chromeos:common",
+    "//third_party/libgav1:libgav1_parser",
+    "//third_party/libyuv",
+    "//ui/gfx/geometry",
+    "//ui/ozone",
+  ]
+
+  if (is_chromeos) {
+    sources += [
+      "v4l2_jpeg_encode_accelerator.cc",
+      "v4l2_jpeg_encode_accelerator.h",
+      "v4l2_mjpeg_decode_accelerator.cc",
+      "v4l2_mjpeg_decode_accelerator.h",
+    ]
+
+    deps += [
+      "//chromeos/components/cdm_factory_daemon:cdm_factory_daemon_gpu",
+      "//components/chromeos_camera:jpeg_encode_accelerator",
+      "//components/chromeos_camera:mjpeg_decode_accelerator",
+      "//media/gpu:video_frame_mapper_common",
+    ]
+  }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+# The v4l2 status functionality is in its own source set so that it can be
+# depended on without pulling the //media/gpu/v4l2:v4l2 target.
+source_set("v4l2_status") {
+  sources = [ "v4l2_status.h" ]
+
+  visibility = [
+    ":v4l2",
+    "//media/mojo/mojom/stable:*",
+  ]
+
+  deps = [ "//media" ]
+}
+
+source_set("unit_test") {
+  testonly = true
+  sources = [
+    "v4l2_utils_unittest.cc",
+    "v4l2_vp9_helpers_unittest.cc",
+  ]
+  deps = [
+    ":v4l2",
+    "//base",
+    "//media",
+    "//media:test_support",
+    "//testing/gtest",
+    "//ui/gfx:test_support",
+    "//ui/gl",
+  ]
+}
+
+executable("v4l2_stateless_decoder") {
+  testonly = true
+  sources = [
+    "test/h264_decoder.cc",
+    "test/h264_decoder.h",
+    "test/h264_dpb.cc",
+    "test/h264_dpb.h",
+    "test/upstream_pix_fmt.h",
+    "test/v4l2_ioctl_shim.cc",
+    "test/v4l2_ioctl_shim.h",
+    "test/v4l2_stateless_decoder.cc",
+    "test/video_decoder.cc",
+    "test/video_decoder.h",
+    "test/vp8_decoder.cc",
+    "test/vp8_decoder.h",
+    "test/vp9_decoder.cc",
+    "test/vp9_decoder.h",
+  ]
+
+  if (enable_hevc_parser_and_hw_decoder) {
+    sources += [
+      "test/h265_decoder.cc",
+      "test/h265_decoder.h",
+      "test/h265_dpb.cc",
+      "test/h265_dpb.h",
+    ]
+  }
+
+  if (use_av1_hw_decoder) {
+    sources += [
+      "test/av1_decoder.cc",
+      "test/av1_decoder.h",
+    ]
+  }
+
+  deps = [
+    "//base",
+    "//crypto",
+    "//media",
+    "//media:test_support",
+    "//media/gpu:common",
+    "//third_party/libgav1:libgav1_parser",
+    "//third_party/libyuv",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+test("v4l2_unittest") {
+  testonly = true
+  sources = [ "v4l2_unittest.cc" ]
+
+  deps = [
+    ":v4l2",
+    "//base/test:test_support",
+    "//build/config/linux/libdrm",
+    "//media:test_support",
+    "//media/gpu/chromeos",
+    "//testing/gtest",
+    "//ui/gfx/linux:gbm",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+if (current_cpu == "arm" || current_cpu == "arm64") {
+  test("mt21_util_unittest") {
+    testonly = true
+    sources = [
+      "mt21/mt21_util.h",
+      "mt21/mt21_util_unittest.cc",
+    ]
+    deps = [
+      "//base",
+      "//base/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+
+  test("mt21_decompressor_unittest") {
+    testonly = true
+    sources = [
+      "mt21/mt21_decompressor.cc",
+      "mt21/mt21_decompressor.h",
+      "mt21/mt21_decompressor_unittest.cc",
+      "mt21/mt21_util.h",
+    ]
+    deps = [
+      "//base",
+      "//base/test:test_support",
+      "//testing/gtest",
+      "//testing/perf",
+      "//third_party/libyuv",
+      "//ui/gfx/geometry",
+    ]
+
+    deps += [ "//base/test:test_trace_processor" ]
+  }
+}

@@ -1,0 +1,5 @@
+Verifies that ExtraInfo CDP events are generated when navigating from a OOPIF to in-process iframe.
+
+Loaded page-out with OOPIF, setting iframe src to in-process URL.
+In-process iframe loading complete.
+

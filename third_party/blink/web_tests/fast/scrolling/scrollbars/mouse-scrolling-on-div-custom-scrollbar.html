@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<title>Tests mouse interactions on a custom composited div scrollbar.</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/gesture-util.js"></script>
+<script src="../../../resources/scrollbar-util.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<style>
+.appearance {
+  width: 100px;
+  height: 100px;
+  overflow: scroll;
+  border: 1px solid black;
+}
+.customLocation {
+  position: absolute;
+  top: 250px;
+  left: 100px;
+}
+.space {
+  height: 1000px;
+  width: 1000px;
+}
+
+#custom::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+#custom::-webkit-scrollbar-track {
+  background: #ffff00;
+}
+
+#custom::-webkit-scrollbar-thumb {
+  background: #00ffff;
+}
+</style>
+
+<!-- Composited custom scroller -->
+<div id="custom" class="appearance customLocation">
+  <div class="space"></div>
+</div>
+<script>
+const customDivFast = document.getElementById("custom");
+const customRectFast = customDivFast.getBoundingClientRect();
+
+window.onload = () => {
+  promise_test (async () => {
+    // Test the vertical custom scrollbar click.
+    var x = customRectFast.right - 5;
+    var y = customRectFast.top + customRectFast.height / 2;
+
+    await waitForCompositorReady();
+    const scrollPromise = waitForScrollendEvent(customDivFast);
+    const gesturePromise =  new test_driver.Actions()
+        .pointerMove(x, y)
+        .pointerDown()
+        .addTick()
+        .pointerUp()
+        .send();
+
+    return Promise.all([gesturePromise, scrollPromise]).then(() => {
+      assert_true(customDivFast.scrollTop > 0);
+    });
+  }, "Test mouse click on custom composited vertical div scrollbars.");
+
+  promise_test (async () => {
+    // Test the horizontal custom scrollbar click.
+    var x = customRectFast.left + customRectFast.width / 2;
+    var y = customRectFast.bottom - 5;
+
+    await waitForCompositorReady();
+    const scrollPromise = waitForScrollendEvent(customDivFast);
+    const gesturePromise =  new test_driver.Actions()
+        .pointerMove(x, y)
+        .pointerDown()
+        .addTick()
+        .pointerUp()
+        .send();
+
+    return Promise.all([gesturePromise, scrollPromise]).then(() => {
+      assert_true(customDivFast.scrollLeft > 0);
+    });
+  }, "Test mouse click on custom composited hirizontal div scrollbars.");
+}
+</script>

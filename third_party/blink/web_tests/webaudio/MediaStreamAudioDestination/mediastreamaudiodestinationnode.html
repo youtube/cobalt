@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Validation of MediaStreamAudioDestinationNode API</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test(() => {
+        const context = new AudioContext();
+        const mediaStreamDestination =
+            new MediaStreamAudioDestinationNode(context);
+
+        // MediaStreamAudioDestinationNode should inherit AudioNode.
+        assert_true(
+            mediaStreamDestination instanceof AudioNode,
+            'mediaStreamDestination should be an instance of AudioNode');
+
+        // Check the channel count boundary of 8 in constructor.
+        assert_throws_dom(
+            'NotSupportedError',
+            () => new MediaStreamAudioDestinationNode(
+                context, { channelCount: 9 }),
+            'MediaStreamAudioDestinationNode constructor should throw ' +
+                'NotSupportedError when channelCount is greater than 8');
+
+        // Check the channel count boundary of 8 using the setter.
+        assert_throws_dom(
+            'NotSupportedError',
+            () => { mediaStreamDestination.channelCount = 9; },
+            'Setting channelCount to a number greater than 8 ' +
+                'should throw NotSupportedError');
+
+        // Check number of inputs and outputs.
+        assert_equals(mediaStreamDestination.numberOfInputs, 1,
+            'mediaStreamDestination.numberOfInputs should be 1');
+
+        // We should have no outputs
+        assert_equals(mediaStreamDestination.numberOfOutputs, 0,
+            'mediaStreamDestination.numberOfOutputs should be 0');
+
+        // TODO(crbug.com/402714445): add a test where we create a
+        // `PeerConnection` and call `addStream(mediaStreamDestination.stream)`
+      }, 'Validation of MediaStreamAudioDestinationNode API');
+    </script>
+  </body>
+</html>

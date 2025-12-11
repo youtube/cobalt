@@ -1,0 +1,14 @@
+Name: Google Noto Font
+Short Name: Noto
+URL: https://www.google.com/get/noto/
+Version: N/A
+Date: 2019-02-12
+Update Mechanism: Static (https://crbug.com/422061855)
+License: OFL-1.1
+License File: LICENSE_OFL.txt
+Security Critical: no
+Shipped: no
+
+Description:
+Arabic font for testing. Based on fonts/noto/NotoNaskhArabic-regular.woff2
+in the WPT repository.

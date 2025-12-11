@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AudioParam Value Setter Error Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+    <script src="../resources/audioparam-testing.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 16384;
+
+      // Number of frames in a rendering quantum.
+      // Test doesn't need to run for very long.
+      const renderDuration = 0.2;
+      const renderFrames = Math.ceil(renderDuration * sampleRate);
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext({
+          length: renderFrames,
+          sampleRate: sampleRate,
+        });
+
+        const src = new ConstantSourceNode(context);
+        const gain = new GainNode(context);
+
+        src.connect(gain).connect(context.destination);
+
+        const renderQuantumDuration =
+            RENDER_QUANTUM_FRAMES / context.sampleRate;
+
+        // Start and duration of the curve automation.  These are fairly
+        // arbitrary, but the start should be at least 2 render quanta from
+        // the beginning to allow time for testing the value setter before
+        // the curve starts.  The duration should be at least 2 render
+        // quanta to allow us to apply the value setter in the middle
+        // (somewhere) of the curve.
+        const curveStartTime = 3 * renderQuantumDuration;
+        const curveDuration = 4 * renderQuantumDuration;
+
+        // Schedule the value curve. This should not throw.
+        gain.gain.setValueCurveAtTime(
+            new Float32Array([-2, 1]),
+            curveStartTime,
+            curveDuration);
+
+        // Applying the value setter outside the curve automation should not
+        // throw.  The gain value is arbitrary.
+        context.suspend(curveStartTime - renderQuantumDuration).then(() => {
+          gain.gain.value = Math.PI;
+          context.resume();
+        });
+
+        // Applying the value setter inside the curve automation should not
+        // throw.  The gain value is arbitrary.
+        context.suspend(curveStartTime + curveDuration / 2).then(() => {
+          assert_throws_dom(
+              'NotSupportedError',
+              () => gain.gain.value = 0,
+              `Using value setter at time ${context.currentTime} ` +
+                  `in the middle of the curve`);
+          context.resume();
+        });
+
+        src.start();
+
+        await context.startRendering();
+      }, 'Value setter behavior with setValueCurveAtTime automation');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>input[type=time] should update hour field on ArrowUp when value is empty</title>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../resources/common.js"></script>
+<script src="../resources/multiple-fields-value-set-empty.js"></script>
+<body></body>
+<script>
+function getTextContent(input) {
+  const textContent = getUserAgentShadowTextContent(input);
+  return textContent.replace('\u202f', ' ');
+}
+
+test(() => {
+  input = document.createElement('input');
+  input.type = 'time';
+  input.min = '11:23:45';
+  input.step = '60';
+  document.body.appendChild(input);
+
+  assert_equals('--:--:-- --', getTextContent(input));
+  input.value = '';
+  assert_equals('--:--:-- --', getTextContent(input));
+  input.focus();
+  eventSender.keyDown("ArrowUp");
+  assert_equals('01:--:-- --', getTextContent(input));
+  input.value = '';
+  assert_equals('--:--:-- --', getTextContent(input));
+}, 'Pressing ArrowUp updates the hour field when value is empty');
+</script>

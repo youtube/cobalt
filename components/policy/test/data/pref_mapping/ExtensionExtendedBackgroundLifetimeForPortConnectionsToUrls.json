@@ -1,0 +1,20 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos"
+    ],
+    "simple_policy_pref_mapping_test": {
+      "pref_name": "extensions.extended_background_lifetime_urls",
+      "default_value": [],
+      "values_to_test": [
+        [
+          "chrome-extension://abcdefghijklmnopabcdefghijklmnop/",
+          "chrome-extension://bcdefghijklmnopabcdefghijklmnopa/"
+        ]
+      ]
+    }
+  }
+]

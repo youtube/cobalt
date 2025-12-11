@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2018 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+ <LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/navigation_popup_start_padding"
+    android:paddingEnd="@dimen/navigation_popup_end_padding"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:background="?attr/selectableItemBackground">
+
+    <FrameLayout
+      android:layout_width="wrap_content"
+      android:layout_height="match_parent">
+        <ImageView
+          android:id="@+id/favicon_bg"
+          android:layout_width="?attr/minInteractTargetSize"
+          android:layout_height="?attr/minInteractTargetSize"
+          android:layout_gravity="center"
+          android:padding="@dimen/navigation_popup_favicon_padding"
+          android:src="@drawable/oval_shape"
+          android:tint="@color/context_menu_header_circle_bg_color"
+          android:scaleType="fitCenter"
+          android:importantForAccessibility="no" />
+        <ImageView
+          android:id="@+id/favicon_img"
+          android:layout_width="@dimen/default_favicon_size"
+          android:layout_height="@dimen/default_favicon_size"
+          android:layout_gravity="center"
+          tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/entry_title"
+        android:gravity="center_vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/navigation_popup_icon_text_spacing"
+        android:minHeight="?attr/listItemHeightLarge"
+        android:textAppearance="@style/TextAppearance.DensityAdaptive.TextLarge.Primary"
+        android:singleLine="true"/>
+</LinearLayout>

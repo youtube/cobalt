@@ -1,0 +1,50 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Interface exposing additional per-screen information.
+// https://w3c.github.io/window-management/
+[
+  Exposed=Window,
+  SecureContext
+] interface ScreenDetailed : Screen {
+  // Distance from a multi-screen origin (e.g. primary screen top left) to the
+  // left edge of the screen area.
+  [Measure] readonly attribute long left;
+
+  // Distance from a multi-screen origin (e.g. primary screen top left) to the
+  // top edge of the screen area.
+  [Measure] readonly attribute long top;
+
+  // Whether this screen is designated as the 'primary' screen by the OS
+  // (otherwise it is a 'secondary' screen).
+  [Measure] readonly attribute boolean isPrimary;
+
+  // Whether this screen is an 'internal' panel built into the device, like a
+  // laptop display (otherwise it is 'external', like a wired monitor).
+  [Measure] readonly attribute boolean isInternal;
+
+  // Specifies the ratio between physical and logical pixels.
+  [Measure] readonly attribute float devicePixelRatio;
+
+  // A user-friendly label for the screen, determined by the user agent and OS.
+  [Measure] readonly attribute DOMString label;
+
+  // The HDR headroom of the screen. This is the base 2 log of the ratio of peak
+  // luminance to HDR reference white luminance.
+  [RuntimeEnabled=ScreenDetailedHdrHeadroom] readonly attribute float hdrHeadroom;
+
+  // Fired when the hdrHeadroom attribute changes.
+  [RuntimeEnabled=ScreenDetailedHdrHeadroom] attribute EventHandler onhdrheadroomchange;
+
+  // TODO(crbug.com/428357629): Remove obsolete hdr prototype member.
+  [RuntimeEnabled=CanvasHDR] readonly attribute float highDynamicRangeHeadroom;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float redPrimaryX;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float redPrimaryY;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float greenPrimaryX;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float greenPrimaryY;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float bluePrimaryX;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float bluePrimaryY;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float whitePointX;
+  [RuntimeEnabled=CanvasHDR] readonly attribute float whitePointY;
+};

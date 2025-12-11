@@ -1,0 +1,19 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+[
+  Exposed=Window
+] interface HighlightRegistry {
+  maplike<DOMString, Highlight>;
+
+  // Returns the sequence of highlights that intersect with the specified
+  // coordinates, ordered by priority. It also returns highlights inside
+  // shadow trees if the shadow root is passed in as part of the |options|
+  // parameter.
+  [RuntimeEnabled=HighlightsFromPoint]
+  sequence<HighlightHitResult> highlightsFromPoint(
+      float x,
+      float y,
+      optional HighlightsFromPointOptions options = {});
+};

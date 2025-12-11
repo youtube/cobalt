@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test OscillatorNode basic functionality
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+    <script src="../resources/start-stop-exceptions.js"></script>
+  </head>
+  <body>
+    <script>
+      // Create an oscillator of each type and verify that the type
+      // is set correctly.
+      const sampleRate = 44100;
+      const renderLengthSeconds = 0.25;
+
+      const oscTypes = ['sine', 'square', 'sawtooth', 'triangle', 'custom'];
+
+      // Basic oscillator type tests (synchronous).
+      test(() => {
+        // Create offline audio context.
+        const context = new OfflineAudioContext(
+            2, sampleRate * renderLengthSeconds, sampleRate);
+        const osc = new OscillatorNode(context);
+
+        // Set each possible oscillator type (except CUSTOM) and verify that the
+        // type is correct.  Here we're setting the type using WebIDL enum
+        // values which are strings.
+        for (let k = 0; k < oscTypes.length - 1; ++k) {
+          osc.type = oscTypes[k];
+          assert_equals(osc.type, oscTypes[k],
+              `osc.type = "${oscTypes[k]}"`);
+        }
+
+        // Verify that setting a custom type directly does not set the custom
+        // type. This test has to be done before using setPeriodicWave.
+        assert_throws_dom(
+            'InvalidStateError',
+            () => { osc.type = 'custom'; },
+            `osc.type = "custom"`);
+
+        // Now set a custom oscillator
+        const coeffA = new Float32Array([0, 1, 0.5]);
+        const coeffB = new Float32Array([0, 0, 0]);
+        const wave = new PeriodicWave(context, {real: coeffA, imag: coeffB});
+
+        try {
+          osc.setPeriodicWave(wave);
+        } catch (e) {
+          assert_unreached('osc.setPeriodicWave(wave) threw ' + e);
+        }
+        assert_equals(
+            osc.type, 'custom', 'After setting periodicWave, osc.type');
+
+        // Check that numerical values are no longer supported
+        const oldType = osc.type;
+        osc.type = 0;
+        assert_not_equals(osc.type, 0, 'osc.type = 0');
+        assert_equals(osc.type, oldType, 'osc.type');
+      }, 'basic osc tests');
+
+      // Start/stop exceptions test (synchronous).
+      test(() => {
+        const context = new OfflineAudioContext(1, 1, sampleRate);
+        const node = new OscillatorNode(context);
+        testStartStop_W3CTH(node);
+      }, 'start/stop exceptions');
+    </script>
+  </body>
+</html>

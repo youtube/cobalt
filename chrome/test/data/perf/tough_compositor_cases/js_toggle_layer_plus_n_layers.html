@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!--
+Copyright 2018 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<html>
+<head>
+<meta name="viewport" content="width=device-width, minimum-scale=1.0">
+
+<style>
+
+
+.quad{
+  float:left;
+  background: blue;
+  margin: 2px;
+  will-change: transform;
+}
+
+.quad > p {
+  font-family: 'Georgia', serif;
+  font-size: 6px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.padding_quad{
+  float:left;
+  margin: 2px;
+}
+
+</style>
+</head>
+<script type="text/javascript" src="bench.js"></script>
+<script type="text/javascript">
+
+var qs = (function(a) {
+  if (a == "") return {};
+  var b = {};
+  for (var i = 0; i < a.length; ++i)
+  {
+    var p=a[i].split('=', 2);
+    if (p.length == 1)
+      b[p[0]] = "";
+    else
+      b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+  }
+  return b;
+})(window.location.search.substr(1).split('&'));
+
+function init() {
+	var body = document.getElementById('body');
+	var layer_width = 20;
+  var layer_height = 20;
+  var layer_count = qs['layer_count'];
+  var visible_layers = qs['visible_layers'];
+  var testMode = qs['test_mode'] || 'willChange';
+
+	for (var i = 0; i < layer_count; i ++) {
+    if (i == visible_layers) {
+      var div = body.appendChild(document.createElement('div'));
+      div.className = 'padding_quad'
+      div.style.width = '100%';
+      div.style.height = (window.innerHeight * 2) + 'px';
+    }
+		var div = body.appendChild(document.createElement('div'));
+		div.id = 'myDiv' + i;
+		div.className = 'quad';
+		div.style.width = layer_width + 'px'
+		div.style.height= layer_height + 'px'
+		var number = div.appendChild(document.createElement('p'));
+		number.textContent = i + 1;
+		number.style.marginTop = (layer_height/2 - 3) + 'px';
+	}
+
+  bench.run(draw);
+}
+
+  // call init once the document is fully loaded
+  window.addEventListener('load', init, false);
+
+
+function get_random_color_string() {
+  var characters = "0123456789ABCDEF";
+  var color = "#";
+
+  for (var i = 1; i < 7; i++) {
+    color += characters[Math.floor(Math.random() * characters.length)];
+  }
+
+  return color;
+}
+
+var toggle_state = false;
+
+function draw() {
+  var testMode = qs['test_mode'] || 'willChange';
+  var target = document.getElementById("myDiv0");
+  var container = document.body;
+
+  toggle_state = !toggle_state;
+
+  // This switch allows toggling different properties that cause structural
+  // property tree changes based on the 'test_mode' URL parameter.
+  switch (testMode) {
+    // Default case, causes layerization
+    case 'willChange':
+    default:
+      target.style.willChange = toggle_state ? 'transform' : 'unset';
+      break;
+
+    // Transform-Inducing Properties
+    case 'transform': // Direct transform node creation/destruction
+      target.style.transform = toggle_state ? 'translateX(1px)' : 'none';
+      break;
+    case 'transform3d': // Toggles 3D rendering context
+      target.style.transform = toggle_state ? 'translateZ(1px)' : 'translateX(1px)';
+      break;
+    case 'perspective': // Creates a perspective transform node on a container
+      container.style.perspective = toggle_state ? '500px' : 'none';
+      break;
+    case 'positionSticky': // Creates special sticky/paint offset transform nodes
+      target.style.position = toggle_state ? 'sticky' : 'static';
+      target.style.top = toggle_state ? '10px' : 'auto';
+      break;
+
+    // Effect-Inducing Properties
+    case 'opacity': // Toggles effect node creation at the 1.0 boundary
+      target.style.opacity = toggle_state ? '0.99' : '1';
+      break;
+    case 'filter': // Creates an effect node and a RenderSurface
+      target.style.filter = toggle_state ? 'blur(5px)' : 'none';
+      break;
+    case 'mixBlendMode': // Creates an effect node for blending
+      target.style.mixBlendMode = toggle_state ? 'screen' : 'normal';
+      break;
+    case 'shadow': // Toggles a box-shadow, which can affect layerization
+      target.style.boxShadow = toggle_state ? '10px 10px 5px grey' : 'none';
+      break;
+
+    // Clip-Inducing Properties
+    case 'overflow': // Creates an OverflowClip node
+      target.style.overflow = toggle_state ? 'hidden' : 'visible';
+      break;
+    case 'clipPath': // Creates a ClipPathClip node (potentially with effects)
+      target.style.clipPath = toggle_state ? 'circle(50%)' : 'none';
+      break;
+
+    // Fast paths for simple properties, should not induce full property tree updates
+    case 'opacityFast': // Toggles opacity below the effect inducing boundary
+      target.style.opacity = toggle_state ? '0.5' : '0.75';
+      break;
+  }
+};
+</script>
+<body id="body"></body>
+</html>

@@ -1,0 +1,15 @@
+include_rules = [
+  "+chromeos/ash/components/dbus",
+  "+components/keyed_service/content",
+  "+components/metrics",
+  "+components/network_hints/browser",
+  "+components/network_session_configurator/common",
+  "+components/prefs",
+  "+components/origin_trials",
+  "+services/device/public/cpp",
+  "+services/network/public",
+  "+services/service_manager/public/cpp",
+  "+ui/linux",
+  "+ui/ozone/public",
+  "+ui/menus",
+]

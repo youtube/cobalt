@@ -1,0 +1,81 @@
+// Copyright 2015 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/guest_view/chrome_guest_view_manager_delegate.h"
+
+#include "build/build_config.h"
+#include "chrome/browser/task_manager/web_contents_tags.h"
+#include "chrome/common/buildflags.h"
+#include "components/captive_portal/core/buildflags.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
+#include "chrome/browser/ash/app_mode/kiosk_controller.h"
+#include "chrome/browser/ash/app_mode/kiosk_system_session.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/host/guest_util.h"
+#endif
+
+#if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
+#include "chrome/browser/captive_portal/captive_portal_service_factory.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ssl/chrome_security_blocking_page_factory.h"
+#include "components/captive_portal/content/captive_portal_tab_helper.h"
+#endif
+
+namespace extensions {
+
+ChromeGuestViewManagerDelegate::ChromeGuestViewManagerDelegate() = default;
+
+ChromeGuestViewManagerDelegate::~ChromeGuestViewManagerDelegate() = default;
+
+void ChromeGuestViewManagerDelegate::OnGuestAdded(
+    content::WebContents* guest_web_contents) const {
+  ExtensionsGuestViewManagerDelegate::OnGuestAdded(guest_web_contents);
+
+  // Attaches the task-manager-specific tag for the GuestViews to its
+  // `guest_web_contents` so that their corresponding tasks show up in the task
+  // manager.
+  task_manager::WebContentsTags::CreateForGuestContents(guest_web_contents);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Notifies Kiosk controller about the added guest.
+  ash::KioskController::Get().OnGuestAdded(guest_web_contents);
+#endif
+
+#if BUILDFLAG(ENABLE_GLIC)
+  // Check if guest belongs to glic and apply specific customizations if so.
+  glic::OnGuestAdded(guest_web_contents);
+#endif
+
+#if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
+  // Attach Captive Portal helper to the WebView.
+  // TODO(crbug.com/40202416): update CaptivePortalTabHelper to handle MPArch
+  // guest pages.
+  Profile* profile =
+      Profile::FromBrowserContext(guest_web_contents->GetBrowserContext());
+  captive_portal::CaptivePortalTabHelper::CreateForWebContents(
+      guest_web_contents, CaptivePortalServiceFactory::GetForProfile(profile),
+      // tab_focus is false, because opening logging page here happens
+      // without user gesture.
+      base::BindRepeating(&ChromeSecurityBlockingPageFactory::
+                              OpenLoginPageInAnyTabbedBrowserOrCreateOne,
+                          profile, /*tab_focus=*/false));
+#endif
+}
+
+// ExtensionsGuestViewManagerDelegate::IsGuestAvailableToContextWithFeature()
+// will check for the availability of the feature provided by |guest|. If the
+// API feature provided is "controlledFrameInternal", the controlled_frame.cc's
+// AvailabilityCheck will be run to verify the associated RenderFrameHost is
+// isolated and that it's only exposed in the expected schemes / feature modes.
+bool ChromeGuestViewManagerDelegate::IsOwnedByControlledFrameEmbedder(
+    const guest_view::GuestViewBase* guest) {
+  return ExtensionsGuestViewManagerDelegate::
+      IsGuestAvailableToContextWithFeature(guest, "controlledFrameInternal");
+}
+
+}  // namespace extensions

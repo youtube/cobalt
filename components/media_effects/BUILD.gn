@@ -1,0 +1,37 @@
+# Copyright 2023 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("media_effects") {
+  deps = [
+    "//base",
+    "//components/keyed_service/content",
+    "//components/user_prefs",
+    "//components/viz/host",
+    "//content/public/browser",
+    "//services/audio/public/mojom",
+    "//services/video_capture/public/mojom",
+    "//third_party/abseil-cpp:absl",
+  ]
+
+  sources = [
+    "media_device_info.cc",
+    "media_device_info.h",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  deps = [
+    ":media_effects",
+    "//base",
+    "//build:buildflag_header_h",
+    "//components/media_effects/test:test_support",
+    "//components/user_prefs/test:test_support",
+    "//content/test:test_support",
+    "//testing/gtest",
+    "//third_party/mediapipe",
+  ]
+
+  sources = [ "media_device_info_unittest.cc" ]
+}

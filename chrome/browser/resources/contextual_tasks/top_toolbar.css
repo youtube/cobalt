@@ -1,0 +1,103 @@
+/* Copyright 2025 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=chrome://resources/cr_elements/cr_icons_lit.css.js
+ * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #include=cr-icons-lit
+ * #css_wrapper_metadata_end */
+
+:host {
+  align-items: center;
+  background-color: var(--cr-fallback-color-surface);
+  display: flex;
+  height: 48px;
+  justify-content: space-between;
+}
+
+.leftSide {
+  display: flex;
+  align-items: center;
+}
+
+.toolbarLogo {
+  background-image: url(chrome://resources/cr_components/searchbox/icons/chrome_product.svg);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  box-sizing: border-box;
+  margin: 0 12px 0 8px;
+  width: 32px;
+  height: 32px;
+}
+
+.rightSide {
+  flex-grow: 1;
+}
+
+#rightButtonContainer {
+  float: right;
+  padding-right: 16px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+}
+
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 10px;
+  background-size: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.dropdown-item cr-icon {
+  padding-inline-end: 10px;
+}
+
+cr-action-menu {
+  --cr-menu-border-radius: 16px;
+}
+
+cr-action-menu > button {
+  padding: 4px 16px;
+  min-width: 230px;
+}
+
+button > cr-icon {
+  width: 20px;
+  height: 20px;
+}
+
+cr-icon-button {
+  --cr-icon-button-margin-start: 8px;
+}
+
+cr-icon-button[hidden] {
+  display: none;
+}
+
+.header {
+  font-weight: bold;
+  padding: 8px 16px;
+}
+
+.tab-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-title {
+  font-weight: 500;
+}
+
+.tab-url {
+  font-size: 0.875rem;
+  color: var(--cr-secondary-text-color);
+}

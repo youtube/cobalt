@@ -1,0 +1,12 @@
+include_rules = [
+  "+chromeos/crosapi",
+  "+gpu/command_buffer/client",
+  "+gpu/ipc/client/client_shared_image_interface.h",
+  "+media/base",
+  "+media/device_monitors",
+  "+media/mojo",
+  "+media/capture",
+  "+media/media_buildflags.h",
+  "+ui/gfx",
+  "+services/viz/public/cpp/gpu",
+]

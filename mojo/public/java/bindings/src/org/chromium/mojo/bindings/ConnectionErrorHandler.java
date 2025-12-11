@@ -1,0 +1,17 @@
+// Copyright 2014 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.mojo.bindings;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.mojo.system.MojoException;
+
+/**
+ * A {@link ConnectionErrorHandler} is notified of an error happening while using the bindings over
+ * message pipes.
+ */
+@NullMarked
+public interface ConnectionErrorHandler {
+    void onConnectionError(MojoException e);
+}

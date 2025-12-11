@@ -1,0 +1,11 @@
+features:
+- name: constraint-validation
+  files:
+  - fieldset-checkvalidity.html
+  - fieldset-setcustomvalidity.html
+  - fieldset-validationmessage.html
+  - fieldset-validity.html
+  - fieldset-willvalidate.html
+- name: input-file
+  files:
+  - disabled-002.xhtml

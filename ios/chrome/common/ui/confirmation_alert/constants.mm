@@ -1,0 +1,14 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#import "ios/chrome/common/ui/confirmation_alert/constants.h"
+
+NSString* const kConfirmationAlertTitleAccessibilityIdentifier =
+    @"kConfirmationAlertTitleAccessibilityIdentifier";
+NSString* const kConfirmationAlertSecondaryTitleAccessibilityIdentifier =
+    @"kConfirmationAlertSecondaryTitleAccessibilityIdentifier";
+NSString* const kConfirmationAlertSubtitleAccessibilityIdentifier =
+    @"kConfirmationAlertSubtitleAccessibilityIdentifier";
+NSString* const kConfirmationAlertUnderTitleViewAccessibilityIdentifier =
+    @"kConfirmationAlertUnderTitleViewAccessibilityIdentifier";

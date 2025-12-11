@@ -1,0 +1,12 @@
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module IPC.mojom;
+
+// NOTE: Formerly the values of MSG_ROUTING_* in ipc/ipc_message.h.
+const int32 kRoutingIdNone = -2;
+const int32 kRoutingIdControl = 2147483647;
+
+// NOTE: Formerly the value of kMaximumMessageSize in ipc/ipc_channel.h
+const uint32 kChannelMaximumMessageSize = 134217728;

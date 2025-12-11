@@ -1,0 +1,23 @@
+specific_include_rules = {
+    "background_tracing_helper.cc": [
+        "+base/strings/string_split.h",
+        "+crypto/obsolete/md5.h",
+        "+url/url_constants.h",
+    ],
+    ".*test\.cc": [
+      "+base/test/trace_event_analyzer.h",
+      "+base/json/json_reader.h",
+    ],
+    "performance_mark_test.cc": [
+        "+components/page_load_metrics/browser/observers/use_counter_page_load_metrics_observer.h",
+    ],
+    "performance_resource_timing.cc": [
+        "+base/containers/fixed_flat_set.h",
+    ],
+    "animation_frame_timing_info.h": [
+        "+components/viz/common/frame_sinks/begin_frame_args.h",
+    ],
+    "window_performance.h": [
+        "+components/viz/common/frame_sinks/begin_frame_args.h",
+    ],
+}

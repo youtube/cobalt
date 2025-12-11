@@ -1,0 +1,19 @@
+{
+  "name": "A test for making sure media keys that get reassigned don't get
+  reinstated during update.",
+  "version": "1.0",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab", "scripting"],
+  "commands": {
+    "test_mediakeys_update": {
+      "suggested_key": {
+        "default": "MediaPlayPause"
+      },
+      "description": "Test for mediakeys update overwrite",
+      "global": true
+    }
+  }
+}

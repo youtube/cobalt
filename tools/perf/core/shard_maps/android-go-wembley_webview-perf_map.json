@@ -1,0 +1,73 @@
+{
+    "0": {
+        "benchmarks": {
+            "speedometer": {
+                "abridged": false
+            },
+            "speedometer2": {
+                "abridged": false
+            },
+            "speedometer3": {
+                "abridged": false
+            }
+        }
+    },
+    "1": {
+        "benchmarks": {
+            "startup.mobile": {
+                "abridged": false
+            },
+            "system_health.common_mobile": {
+                "end": 38,
+                "abridged": false
+            }
+        }
+    },
+    "2": {
+        "benchmarks": {
+            "system_health.common_mobile": {
+                "begin": 38,
+                "abridged": false
+            },
+            "system_health.memory_mobile": {
+                "end": 7,
+                "abridged": false
+            }
+        }
+    },
+    "3": {
+        "benchmarks": {
+            "system_health.memory_mobile": {
+                "begin": 7,
+                "end": 59,
+                "abridged": false
+            }
+        }
+    },
+    "4": {
+        "benchmarks": {
+            "system_health.memory_mobile": {
+                "begin": 59,
+                "abridged": false
+            },
+            "system_health.webview_startup": {
+                "abridged": false
+            },
+            "v8.browsing_mobile": {
+                "abridged": false
+            }
+        }
+    },
+    "extra_infos": {
+        "num_stories": 191,
+        "predicted_min_shard_time": 1017.0,
+        "predicted_min_shard_index": 4,
+        "predicted_max_shard_time": 1083.0,
+        "predicted_max_shard_index": 3,
+        "shard #0": 1077.0,
+        "shard #1": 1036.0,
+        "shard #2": 1047.0,
+        "shard #3": 1083.0,
+        "shard #4": 1017.0
+    }
+}

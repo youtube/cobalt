@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+table {
+    border-collapse: collapse;
+}
+td {
+    background-color: #ddd;
+    border: 1px solid black;
+}
+.td {
+  color: blue;
+}
+tr {
+    break-inside: avoid;
+}
+</style>
+<p>crbug.com/99124: Table rows shouldn't straddle page boundaries.</p>
+<div style="columns:3; line-height: 20px; column-fill: auto; gap:0; width:720px; height:210px; background-color: yellow;">
+    <table>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td class="td" data-total-x="241" data-total-y="1">Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td class="td" data-total-x="481" data-total-y="44">Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+        <tr><td>Text Text Text <br> Text Text</td><td>Text Text Text <br> Text Text</td></tr>
+    </table>
+</div>
+<div id="console"></div>
+<script src="../resources/check-layout.js"></script>
+<script>
+checkLayout(".td", document.getElementById("console"));
+</script>

@@ -1,0 +1,2 @@
+ALERT: should be inner: parser/resources/script-modify-page-inner.html
+DONE

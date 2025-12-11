@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test OscillatorNode.start() with a past time argument
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100;
+      const renderLength = 1;
+
+      // Test the oscillator node is rendered correctly when the start time of
+      // start() call is in the past in terms of the context time.
+      promise_test(async () => {
+        const context =
+            new OfflineAudioContext(1, sampleRate * renderLength, sampleRate);
+
+        // Set up a dummy signal path to keep the audio context running and
+        // spend processing time before calling `start()`.
+        const osc = new OscillatorNode(context);
+        const silent = new GainNode(context, {gain: 0.0});
+
+        osc.connect(silent).connect(context.destination);
+        osc.start();
+
+        const node = new OscillatorNode(context);
+        node.connect(context.destination);
+        // The node's start time will be clamped to the render quantum boundary
+        // >0.1 sec. Thus the rendered buffer will have non-zero frames.
+        // See issue: crbug.com/462167
+        const suspendTime = 0.1;
+        const suspendFrame = 128 * Math.floor(0.1 * context.sampleRate / 128);
+
+        context.suspend(suspendTime).then(() => {
+          node.start();
+          context.resume();
+        });
+
+        // Start rendering and verify result: this verifies if 1) the rendered
+        // buffer contains at least one non-zero value and 2) the non-zero value
+        // is found later than the first output sample.
+        const buffer = await context.startRendering();
+
+        const channelData = buffer.getChannelData(0);
+        const nonZeroValueIndex = channelData.findIndex(x => x != 0);
+
+        assert_greater_than_equal(
+            nonZeroValueIndex,
+            suspendFrame,
+            `The index (${nonZeroValueIndex}) of first non-zero `+
+                `output value should be greater than or equal to suspendFrame`);
+
+        const prefix = channelData.slice(0, suspendFrame);
+        const expected = new Float32Array(suspendFrame);
+        assert_array_equals(
+            prefix,
+            expected,
+            `Output before suspendFrame should be 0`);
+      }, 'Oscillator start time in the past should be clamped correctly.');
+    </script>
+  </body>
+</html>

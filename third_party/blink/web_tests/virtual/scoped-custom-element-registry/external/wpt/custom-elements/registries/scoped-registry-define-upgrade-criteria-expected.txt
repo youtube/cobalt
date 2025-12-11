@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] Adding definition to global registry should upgrade nodes even after the node is moved into a separate shadow tree.
+  assert_true: expected true got false
+Harness: the test ran to completion.
+

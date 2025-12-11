@@ -1,0 +1,146 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "services/network/shared_dictionary/shared_dictionary_writer_in_memory.h"
+
+#include "base/functional/callback_helpers.h"
+#include "base/test/bind.h"
+#include "crypto/hash.h"
+#include "net/base/hash_value.h"
+#include "net/base/io_buffer.h"
+#include "services/network/shared_dictionary/shared_dictionary_constants.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace network {
+
+namespace {
+
+const std::string kTestData = "Hello world";
+const std::string kTestData1 = "Hello ";
+const std::string kTestData2 = "world";
+
+}  // namespace
+
+TEST(SharedDictionaryWriterInMemory, SimpleWrite) {
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer =
+      base::MakeRefCounted<SharedDictionaryWriterInMemory>(
+          base::BindLambdaForTesting(
+              [&](SharedDictionaryWriterInMemory::Result result,
+                  scoped_refptr<net::IOBuffer> buffer, size_t size,
+                  const net::SHA256HashValue& hash) {
+                EXPECT_EQ(SharedDictionaryWriterInMemory::Result::kSuccess,
+                          result);
+                EXPECT_EQ(
+                    kTestData,
+                    std::string(reinterpret_cast<const char*>(buffer->data()),
+                                size));
+                EXPECT_EQ(crypto::hash::Sha256(kTestData), hash);
+                finish_callback_called = true;
+              }));
+  writer->Append(base::as_byte_span(kTestData));
+  writer->Finish();
+  EXPECT_TRUE(finish_callback_called);
+}
+
+TEST(SharedDictionaryWriterInMemory, MultipleWrite) {
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer =
+      base::MakeRefCounted<SharedDictionaryWriterInMemory>(
+          base::BindLambdaForTesting(
+              [&](SharedDictionaryWriterInMemory::Result result,
+                  scoped_refptr<net::IOBuffer> buffer, size_t size,
+                  const net::SHA256HashValue& hash) {
+                EXPECT_EQ(SharedDictionaryWriterInMemory::Result::kSuccess,
+                          result);
+                EXPECT_EQ(
+                    kTestData1 + kTestData2,
+                    std::string(reinterpret_cast<const char*>(buffer->data()),
+                                size));
+                EXPECT_EQ(crypto::hash::Sha256(kTestData1 + kTestData2), hash);
+                finish_callback_called = true;
+              }));
+  writer->Append(base::as_byte_span(kTestData1));
+  writer->Append(base::as_byte_span(kTestData2));
+  writer->Finish();
+  EXPECT_TRUE(finish_callback_called);
+}
+
+TEST(SharedDictionaryWriterInMemory, AbortedWithoutWrite) {
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer =
+      base::MakeRefCounted<SharedDictionaryWriterInMemory>(
+          base::BindLambdaForTesting(
+              [&](SharedDictionaryWriterInMemory::Result result,
+                  scoped_refptr<net::IOBuffer> buffer, size_t size,
+                  const net::SHA256HashValue& hash) {
+                EXPECT_EQ(SharedDictionaryWriterInMemory::Result::kErrorAborted,
+                          result);
+                finish_callback_called = true;
+              }));
+  writer.reset();
+  EXPECT_TRUE(finish_callback_called);
+}
+
+TEST(SharedDictionaryWriterInMemory, AbortedAfterWrite) {
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer =
+      base::MakeRefCounted<SharedDictionaryWriterInMemory>(
+          base::BindLambdaForTesting(
+              [&](SharedDictionaryWriterInMemory::Result result,
+                  scoped_refptr<net::IOBuffer> buffer, size_t size,
+                  const net::SHA256HashValue& hash) {
+                EXPECT_EQ(SharedDictionaryWriterInMemory::Result::kErrorAborted,
+                          result);
+                finish_callback_called = true;
+              }));
+  writer->Append(base::as_byte_span(kTestData));
+  writer.reset();
+  EXPECT_TRUE(finish_callback_called);
+}
+
+TEST(SharedDictionaryWriterInMemory, ErrorSizeZero) {
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer =
+      base::MakeRefCounted<SharedDictionaryWriterInMemory>(
+          base::BindLambdaForTesting(
+              [&](SharedDictionaryWriterInMemory::Result result,
+                  scoped_refptr<net::IOBuffer> buffer, size_t size,
+                  const net::SHA256HashValue& hash) {
+                EXPECT_EQ(
+                    SharedDictionaryWriterInMemory::Result::kErrorSizeZero,
+                    result);
+                finish_callback_called = true;
+              }));
+  writer->Finish();
+  writer.reset();
+  EXPECT_TRUE(finish_callback_called);
+}
+
+TEST(SharedDictionaryWriterInMemory, ErrorSizeExceedsLimit) {
+  base::ScopedClosureRunner size_limit_resetter =
+      shared_dictionary::SetDictionarySizeLimitForTesting(kTestData1.size());
+
+  bool finish_callback_called = false;
+  scoped_refptr<SharedDictionaryWriterInMemory> writer = base::MakeRefCounted<
+      SharedDictionaryWriterInMemory>(base::BindLambdaForTesting(
+      [&](SharedDictionaryWriterInMemory::Result result,
+          scoped_refptr<net::IOBuffer> buffer, size_t size,
+          const net::SHA256HashValue& hash) {
+        EXPECT_EQ(
+            SharedDictionaryWriterInMemory::Result::kErrorSizeExceedsLimit,
+            result);
+        finish_callback_called = true;
+      }));
+  writer->Append(base::as_byte_span(kTestData1));
+  EXPECT_FALSE(finish_callback_called);
+  writer->Append(std::to_array<uint8_t>({'x'}));
+  EXPECT_TRUE(finish_callback_called);
+
+  // Test that calling Append() and Finish() doesn't cause unexpected crash.
+  writer->Append(base::as_byte_span(kTestData2));
+  writer->Finish();
+}
+
+}  // namespace network

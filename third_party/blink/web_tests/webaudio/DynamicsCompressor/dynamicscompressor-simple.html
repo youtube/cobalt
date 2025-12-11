@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test DynamicsCompressor's pre-emphasis effect and reduction value.
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100;
+      const lengthInSeconds = 1;
+      // This threshold experimentally determined. It depends on the the gain
+      // value of the gain node below and the dynamics compressor.  When the
+      // DynamicsCompressor had the pre-emphasis filters, the peak value is
+      // about 0.21.  Without it, the peak is about 0.84.
+      const peakThreshold = 0.83;
+
+      function checkResult(renderedBuffer, compressor) {
+        const renderedData = renderedBuffer.getChannelData(0);
+        // Search for a peak in the last part of the data.
+        const startSample = sampleRate * (lengthInSeconds - 0.1);
+        const endSample = renderedData.length;
+        let peak = -1;
+
+        for (let k = startSample; k < endSample; ++k) {
+          const sample = Math.abs(renderedData[k]);
+          if (peak < sample) {
+            peak = sample;
+          }
+        }
+
+        assert_greater_than_equal(peak, peakThreshold,
+            'Pre-emphasis effect not applied');
+        assert_not_equals(compressor.reduction, 0, 'Reduction value changed');
+      }
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(
+            1, sampleRate * lengthInSeconds, sampleRate);
+        // Connect an oscillator to a gain node to the compressor.  The
+        // oscillator frequency is set to a high value for the (original)
+        // emphasis to kick in. The gain is a little extra boost to get the
+        // compressor enabled.
+        const osc = new OscillatorNode(context, {frequency: 15000});
+        const gain = new GainNode(context, {gain: 1.5});
+        const compressor = new DynamicsCompressorNode(context);
+        osc.connect(gain).connect(compressor).connect(context.destination);
+        osc.start();
+
+        const buffer = await context.startRendering();
+        checkResult(buffer, compressor);
+      }, 'Test pre-emphasis in DynamicsCompressor is removed');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,269 @@
+# Copyright 2012 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/buildflag_header.gni")
+import("//build/config/features.gni")
+import("//ipc/features.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
+import("//testing/test.gni")
+import("//third_party/protobuf/proto_library.gni")
+import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
+
+component("ipc") {
+  sources = [
+    # These are the param_traits sources needed by all platforms,
+    # including ios. The rest are added in a conditional block below.
+    "mojo_param_traits.cc",
+    "mojo_param_traits.h",
+    "param_traits_macros.h",
+    "param_traits_read_macros.h",
+    "param_traits_utils.cc",
+    "param_traits_utils.h",
+    "param_traits_write_macros.h",
+  ]
+
+  if (use_blink) {
+    sources += [
+      # Most sources go here since ios only needs the param_traits
+      # code.
+      "ipc_channel.cc",
+      "ipc_channel.h",
+      "ipc_channel_factory.cc",
+      "ipc_channel_factory.h",
+      "ipc_channel_proxy.cc",
+      "ipc_channel_proxy.h",
+      "ipc_listener.cc",
+      "ipc_listener.h",
+      "ipc_message_pipe_reader.cc",
+      "ipc_message_pipe_reader.h",
+      "ipc_mojo_bootstrap.cc",
+      "ipc_mojo_bootstrap.h",
+      "ipc_sync_channel.cc",
+      "ipc_sync_channel.h",
+      "urgent_message_observer.h",
+    ]
+  }
+
+  defines = [ "IS_IPC_IMPL" ]
+
+  public_deps = [
+    ":message_support",
+    ":mojom",
+    ":mojom_constants",
+    ":param_traits",
+    "//base",
+    "//mojo/public/cpp/base",
+    "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/system",
+    "//services/tracing/public/cpp",
+  ]
+
+  deps = [ "//base" ]
+
+  if (enable_ipc_fuzzer) {
+    public_configs = [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
+  }
+}
+
+component("message_support") {
+  sources = [
+    "ipc_message.cc",
+    "ipc_message.h",
+    "ipc_message_attachment.cc",
+    "ipc_message_attachment.h",
+    "ipc_message_attachment_set.cc",
+    "ipc_message_attachment_set.h",
+    "ipc_message_support_export.h",
+    "ipc_mojo_handle_attachment.cc",
+    "ipc_mojo_handle_attachment.h",
+    "ipc_mojo_message_helper.cc",
+    "ipc_mojo_message_helper.h",
+  ]
+
+  if (is_win) {
+    sources += [
+      "handle_attachment_win.cc",
+      "handle_attachment_win.h",
+      "handle_win.cc",
+      "handle_win.h",
+    ]
+  }
+
+  if (is_posix || is_fuchsia) {
+    sources += [
+      "ipc_platform_file_attachment_posix.cc",
+      "ipc_platform_file_attachment_posix.h",
+    ]
+  }
+
+  if (is_apple) {
+    sources += [
+      "mach_port_attachment_mac.cc",
+      "mach_port_attachment_mac.h",
+      "mach_port_mac.cc",
+      "mach_port_mac.h",
+    ]
+  }
+
+  if (is_fuchsia) {
+    sources += [
+      "handle_attachment_fuchsia.cc",
+      "handle_attachment_fuchsia.h",
+    ]
+  }
+
+  defines = [ "IPC_MESSAGE_SUPPORT_IMPL" ]
+
+  public_deps = [
+    ":param_traits",
+    "//base",
+    "//mojo/public/cpp/system",
+  ]
+
+  if (is_win || is_mac) {
+    # On Windows HandleAttachmentWin needs to generate random IDs.
+    # On Mac MachPortAttachmentMac needs to generate random IDs.
+    deps = [ "//crypto" ]
+  }
+}
+
+mojom_component("mojom") {
+  output_prefix = "ipc_mojom"
+  macro_prefix = "IPC_MOJOM"
+  sources = [ "ipc.mojom" ]
+  public_deps = [
+    "//mojo/public/interfaces/bindings",
+    "//mojo/public/mojom/base",
+  ]
+
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "IPC.mojom.Message"
+          cpp = "::IPC::MessageView"
+          move_only = true
+        },
+      ]
+      traits_headers = [ "//ipc/message_mojom_traits.h" ]
+      traits_sources = [
+        "//ipc/message_mojom_traits.cc",
+        "//ipc/message_view.cc",
+        "//ipc/message_view.h",
+      ]
+      traits_public_deps = [ "//ipc:message_support" ]
+    },
+  ]
+
+  # Don't generate a variant sources since we depend on generated internal
+  # bindings types and we don't generate or build variants of those.
+  disable_variants = true
+}
+
+mojom("mojom_constants") {
+  sources = [ "constants.mojom" ]
+}
+
+mojom("test_interfaces") {
+  testonly = true
+  sources = [ "ipc_test.test-mojom" ]
+}
+
+# This is provided as a separate target so other targets can provide param
+# traits implementations without necessarily linking to all of IPC.
+source_set("param_traits") {
+  public = [ "param_traits.h" ]
+}
+
+# This is provided as a separate target so other targets can use IPC without
+# necessarily linking to protobuf.
+source_set("protobuf_support") {
+  public = [ "param_traits_protobuf_utils.h" ]
+  public_deps = [
+    ":ipc",
+    "//third_party/protobuf:protobuf_lite",
+  ]
+}
+
+if (use_blink) {
+  source_set("run_all_unittests") {
+    testonly = true
+
+    sources = [ "run_all_unittests.cc" ]
+
+    deps = [
+      "//base",
+      "//base/test:test_support",
+      "//mojo/core/embedder",
+      "//mojo/core/test:test_support",
+      "//third_party/ipcz/src:ipcz_test_support_chromium",
+      "//third_party/ipcz/src:test_buildflags",
+    ]
+  }
+
+  proto_library("test_proto") {
+    sources = [ "test_proto.proto" ]
+  }
+
+  test("ipc_tests") {
+    sources = [
+      "ipc_channel_unittest.cc",
+      "ipc_message_unittest.cc",
+      "ipc_mojo_bootstrap_unittest.cc",
+      "ipc_sync_channel_unittest.cc",
+      "param_traits_protobuf_utils_unittest.cc",
+      "param_traits_utils_unittest.cc",
+    ]
+
+    if (is_posix || is_fuchsia) {
+      sources += [ "ipc_message_attachment_set_posix_unittest.cc" ]
+    }
+
+    if (is_win) {
+      sources += [ "handle_win_unittest.cc" ]
+    }
+
+    deps = [
+      ":ipc",
+      ":protobuf_support",
+      ":run_all_unittests",
+      ":test_interfaces",
+      ":test_proto",
+      "//base",
+      "//base:i18n",
+      "//base/test:test_support",
+      "//crypto",
+      "//mojo/core:driver_for_ipcz_tests",
+      "//mojo/core/test:test_support",
+      "//testing/gtest",
+      "//third_party/ipcz/src:ipcz_tests_sources_chromium",
+    ]
+
+    if (is_mac) {
+      deps += [ "//sandbox/mac:seatbelt" ]
+    }
+  }
+
+  test("ipc_perftests") {
+    sources = [
+      "ipc_cpu_perftest.cc",
+      "ipc_mojo_perftest.cc",
+      "ipc_perftest_util.cc",
+      "ipc_perftest_util.h",
+      "run_all_perftests.cc",
+    ]
+
+    deps = [
+      ":ipc",
+      ":test_interfaces",
+      "//base",
+      "//base:i18n",
+      "//base/test:test_support",
+      "//mojo/core/embedder",
+      "//mojo/core/test:test_support",
+      "//mojo/core/test:test_support_impl",
+      "//testing/gtest",
+    ]
+  }
+}

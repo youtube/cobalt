@@ -1,0 +1,11 @@
+Tests that console logging dumps proper messages with broken Unicode.
+
+obj
+[obj]
+obj.foo
+[obj.foo]
+{foo: '  𝐔𝐍𝐈𝐂𝐎𝐃\uD835', "  𝐔𝐍𝐈𝐂𝐎𝐃���": 'foo'}
+[{…}]
+'  𝐔𝐍𝐈𝐂𝐎𝐃\uD835'
+['  𝐔𝐍𝐈𝐂𝐎𝐃\uD835']
+

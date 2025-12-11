@@ -1,0 +1,23 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "desktop_android"
+    ],
+    "simple_policy_pref_mapping_test": {
+      "pref_name": "extensions.install.denylist",
+      "default_value": [],
+      "values_to_test": [
+        [
+          "*"
+        ],
+        [
+          "lcncmkcnkcdbbanbjakcencbaoegdjlp"
+        ]
+      ]
+    }
+  }
+]

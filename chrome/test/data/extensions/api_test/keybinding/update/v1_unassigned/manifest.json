@@ -1,0 +1,12 @@
+{
+  "name": "A browser action simply for updating",
+  "version": "1.0",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab"],
+  "action": {
+    "default_title": "Make this page red"
+  }
+}

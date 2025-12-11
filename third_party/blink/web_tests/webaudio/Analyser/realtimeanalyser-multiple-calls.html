@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Multiple Calls to getFloatFrequencyData
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+
+      const sampleRate = 48000;
+      // Render enough data to run the test.
+      const renderFrames = 2048;
+
+      // Convert the float frequency data (in dB), |floatFreqData|, to byte
+      // values using the dB limits |minDecibels| and |maxDecibels|.  The new
+      // byte array is returned.
+      function convertFloatToByte(floatFreqData, minDecibels, maxDecibels) {
+        const scale = 255 / (maxDecibels - minDecibels);
+
+        return floatFreqData.map(x => {
+          const value = Math.floor(scale * (x - minDecibels));
+          return Math.min(255, Math.max(0, value));
+        });
+      }
+
+      // Single promise_test that schedules four suspend / resume pairs
+      // exactly as the original audit.js version did.
+      promise_test(async t => {
+        const context = new OfflineAudioContext(1, renderFrames, sampleRate);
+
+        // Use sawtooth oscillator as the source because it has
+        // quite a bit of harmonic content.  Otherwise, the type
+        // doesn't really matter.
+        const osc = new OscillatorNode(context, { type: 'sawtooth' });
+
+        // Create an analyser with 256-point FFT.  The FFT size
+        // doesn't really matter much.
+        const analyser = new AnalyserNode(context, { fftSize: 256 });
+
+        osc.connect(analyser).connect(context.destination);
+        osc.start();
+
+        // Kick‑off offline rendering before the first suspend
+        const renderingCompletePromise = context.startRendering();
+
+        // Suspend after getting a full analyser frame. (Not really necessary,
+        // but it's nice that the frame doesn't include any initial zeroes.)
+        let suspendFrame = analyser.fftSize;
+        await context.suspend(suspendFrame / sampleRate);
+        {
+          // Test successive calls to getFloatFrequencyData in the same
+          // rendering quantum.
+          const f1 = new Float32Array(analyser.frequencyBinCount);
+          const f2 = new Float32Array(analyser.frequencyBinCount);
+          analyser.getFloatFrequencyData(f1);
+          analyser.getFloatFrequencyData(f2);
+          assert_array_equals(f2, f1,
+              'Second call to getFloatFrequencyData returns identical data');
+        }
+
+        suspendFrame += 128;
+        const p2 = context.suspend(suspendFrame / sampleRate);
+        await context.resume();
+        await p2;
+        {
+          // Test successive calls to getByteFrequencyData in the same
+          // rendering quantum.
+          const b1 = new Uint8Array(analyser.frequencyBinCount);
+          const b2 = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(b1);
+          analyser.getByteFrequencyData(b2);
+          assert_array_equals(b2, b1,
+              'Second call to getByteFrequencyData returns identical data');
+        }
+
+        suspendFrame += 128;
+        const p3 = context.suspend(suspendFrame / sampleRate);
+        await context.resume();
+        await p3;
+        {
+          // Test calls to getFloatFrequencyData followed by
+          // getByteFrequencyData.  The float data, when converted to byte
+          // values should be identical to the result from
+          // getByteFrequencyData.
+          const f = new Float32Array(analyser.frequencyBinCount);
+          const b = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getFloatFrequencyData(f);
+          analyser.getByteFrequencyData(b);
+          const expected = convertFloatToByte(
+              f, analyser.minDecibels, analyser.maxDecibels);
+          assert_array_equals(
+              b,
+              convertFloatToByte(f, analyser.minDecibels, analyser.maxDecibels),
+              'getByte after getFloat matches conversion',
+          );
+        }
+        suspendFrame += 128;
+        const p4 = context.suspend(suspendFrame / sampleRate);
+        await context.resume();
+        await p4;
+        {
+          // Test calls to getByteFrequencyData followed by
+          // getFloatFrequencyData.  The float data, when converted to byte
+          // values should be identical to the result from
+          // getByteFrequencyData.
+          const b = new Uint8Array(analyser.frequencyBinCount);
+          const f = new Float32Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(b);
+          analyser.getFloatFrequencyData(f);
+          const expected = convertFloatToByte(
+              f, analyser.minDecibels, analyser.maxDecibels);
+          assert_array_equals(b,
+              convertFloatToByte(f, analyser.minDecibels, analyser.maxDecibels),
+              'Float data (converted) after getByteFrequencyData' +
+              'matches original bytes');
+        }
+        await context.resume();
+
+        await renderingCompletePromise;
+      }, 'AnalyserNode: multiple getFloat/getByteFrequencyData' +
+          'calls behave consistently');
+    </script>
+  </body>
+</html>

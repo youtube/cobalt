@@ -1,0 +1,9 @@
+This is a testharness.js-based test.
+[FAIL] Property background-position-y value 'y-start'
+  assert_true: 'y-start' is a supported value for background-position-y. expected true got false
+[FAIL] Property background-position-y value 'y-end'
+  assert_true: 'y-end' is a supported value for background-position-y. expected true got false
+[FAIL] Property background-position-y value '0.5em, y-start, y-end'
+  assert_true: '0.5em, y-start, y-end' is a supported value for background-position-y. expected true got false
+Harness: the test ran to completion.
+

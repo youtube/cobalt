@@ -1,0 +1,84 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/features.gni")
+
+assert(use_blink,
+       "Policy Throttle should not be referenced on non-blink platforms")
+
+source_set("safe_sites_navigation_throttle") {
+  sources = [
+    "proceed_until_response_navigation_throttle.cc",
+    "proceed_until_response_navigation_throttle.h",
+    "safe_search_service.cc",
+    "safe_search_service.h",
+    "safe_sites_navigation_throttle.cc",
+    "safe_sites_navigation_throttle.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/captive_portal/content",
+    "//components/captive_portal/core:buildflags",
+    "//components/keyed_service/content",
+    "//components/policy/core/browser",
+    "//components/safe_search_api",
+    "//components/safe_search_api:safe_search_client",
+    "//components/url_matcher",
+    "//content/public/browser",
+    "//net",
+  ]
+}
+
+source_set("content") {
+  # TODO(crbug.com/452575535): Disable policy_blocklist_navigation_throttle.cc/h
+  # until the iOS-specific implementation of PolicyBlocklistService is resolved.
+  # The PolicyBlocklistService is currently duplicated in
+  # `ios/chrome/browser/policy_url_blocking/model/policy_url_blocking_service.h`.
+  if (!is_ios) {
+    sources = [
+      "policy_blocklist_navigation_throttle.cc",
+      "policy_blocklist_navigation_throttle.h",
+    ]
+  }
+
+  deps = [
+    ":safe_sites_navigation_throttle",
+    "//components/keyed_service/content",
+    "//components/policy/core/browser",
+    "//components/prefs",
+    "//components/user_prefs",
+    "//content/public/browser",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "proceed_until_response_navigation_throttle_unittest.cc" ]
+
+  # TODO(crbug.com/452575535): Disable policy_blocklist_navigation_throttle_unittests.cc
+  # as well until the iOS-specific implementation of PolicyBlocklistService is
+  # resolved. The PolicyBlocklistService is currently duplicated in
+  # `ios/chrome/browser/policy_url_blocking/model/policy_url_blocking_service.h`.
+  if (!is_ios) {
+    sources += [ "policy_blocklist_navigation_throttle_unittest.cc" ]
+  }
+
+  deps = [
+    ":content",
+    ":safe_sites_navigation_throttle",
+    "//base",
+    "//components/keyed_service/content",
+    "//components/policy/core/browser",
+    "//components/safe_search_api",
+    "//components/safe_search_api:safe_search_client",
+    "//components/safe_search_api:test_support",
+    "//components/sync_preferences:test_support",
+    "//components/user_prefs",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gtest",
+    "//url",
+  ]
+}

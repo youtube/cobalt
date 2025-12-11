@@ -1,0 +1,13 @@
+# https://crbug.com/1241502
+-All/LayerWithRealCompositorTest.CompositorObservers/*
+-All/LayerWithRealCompositorTest.Delegate/*
+-All/LayerWithRealCompositorTest.Draw/*
+-All/LayerWithRealCompositorTest.DrawAlphaBlendedPixels/*
+-All/LayerWithRealCompositorTest.DrawAlphaThresholdFilterPixels/*
+-All/LayerWithRealCompositorTest.DrawPixels/*
+-All/LayerWithRealCompositorTest.DrawTree/*
+-All/LayerWithRealCompositorTest.Hierarchy/*
+-All/LayerWithRealCompositorTest.HierarchyNoTexture/*
+-All/LayerWithRealCompositorTest.ModifyHierarchy/*
+-All/LayerWithRealCompositorTest.Opacity/*
+-All/LayerWithRealCompositorTest.SchedulePaintUpdatesMask/*

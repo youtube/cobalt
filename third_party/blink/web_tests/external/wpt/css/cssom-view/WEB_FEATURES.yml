@@ -1,0 +1,13 @@
+features:
+- name: check-visibility
+  files:
+  - checkVisibility.html
+- name: element-from-point
+  files:
+  - elementFromPoint*
+  - elementsFromPoint*
+  - negativeMargins.html
+- name: scroll-into-view
+  files:
+  - scrollIntoView-*
+  - scrollintoview.html

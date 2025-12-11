@@ -1,0 +1,10 @@
+noparent = True
+
+include_rules = [
+  "+base",
+  "+chromeos/ash/components/dbus",
+  "+chromeos/dbus",
+  "+dbus",
+  "+testing",
+  "+third_party/cros_system_api",
+]

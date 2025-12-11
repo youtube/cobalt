@@ -1,0 +1,5 @@
+include_rules = [
+  # Other libraries.
+  "+components/google/core/common",
+  "+third_party/boringssl/src/pki",
+]

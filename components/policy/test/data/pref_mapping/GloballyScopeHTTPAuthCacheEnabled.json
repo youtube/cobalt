@@ -1,0 +1,20 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "fuchsia",
+      "android"
+    ],
+    "simple_policy_pref_mapping_test": {
+      "pref_name": "auth.globally_scoped_http_auth_cache_enabled",
+      "default_value": false,
+      "values_to_test": [
+        true,
+        false
+      ]
+    }
+  }
+]

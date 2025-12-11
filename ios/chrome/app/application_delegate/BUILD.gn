@@ -1,0 +1,289 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/buildflag_header.gni")
+import("//ios/build/chrome_build.gni")
+import("//ios/chrome/features.gni")
+
+source_set("application_delegate") {
+  sources = [
+    "memory_warning_helper.h",
+    "memory_warning_helper.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/previous_session_info",
+    "//ios/chrome/browser/crash_report/model",
+  ]
+  frameworks = [ "Foundation.framework" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "app_state_unittest.mm",
+    "memory_warning_helper_unittest.mm",
+    "metric_kit_subscriber_unittest.mm",
+    "metrics_mediator_unittest.mm",
+    "url_opener_params_unittest.mm",
+    "url_opener_unittest.mm",
+  ]
+  deps = [
+    ":app_state",
+    ":application_delegate",
+    ":metric_kit_subscriber",
+    ":metrics_mediator",
+    ":observing_app_state_agent",
+    ":startup_information",
+    ":tab_opening",
+    ":test_support",
+    ":url_opener",
+    ":url_opener_params",
+    "//base",
+    "//base/test:test_support",
+    "//components/crash/core/app",
+    "//components/crash/core/common:reporter_running_ios",
+    "//components/metrics",
+    "//components/previous_session_info",
+    "//ios/chrome/app",
+    "//ios/chrome/app:enterprise_app_agent",
+    "//ios/chrome/app:safe_mode_app_state_agent",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/app/startup",
+    "//ios/chrome/browser/crash_report/model",
+    "//ios/chrome/browser/device_orientation/ui_bundled",
+    "//ios/chrome/browser/device_sharing/model",
+    "//ios/chrome/browser/geolocation/model",
+    "//ios/chrome/browser/main/ui_bundled",
+    "//ios/chrome/browser/metrics/model",
+    "//ios/chrome/browser/safe_mode/ui_bundled",
+    "//ios/chrome/browser/settings/ui_bundled",
+    "//ios/chrome/browser/settings/ui_bundled:settings_root",
+    "//ios/chrome/browser/shared/coordinator/scene",
+    "//ios/chrome/browser/shared/coordinator/scene/test",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/browser/tabs/model",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/chrome/browser/web_state_list/model/web_usage_enabler",
+    "//ios/chrome/common/app_group",
+    "//ios/chrome/common/crash_report",
+    "//ios/chrome/test:test_support",
+    "//ios/chrome/test/providers/app_distribution",
+    "//ios/public/provider/chrome/browser/app_distribution:app_distribution_api",
+    "//ios/testing:block_swizzler",
+    "//ios/testing:ocmock_support",
+    "//ios/testing:open_url_context",
+    "//ios/web",
+    "//ios/web/public/test",
+    "//ios/web/public/test/fakes",
+    "//net:test_support",
+    "//testing/gtest",
+    "//third_party/crashpad/crashpad/client:common",
+    "//third_party/ocmock",
+    "//ui/base",
+    "//url",
+  ]
+}
+
+source_set("tab_opening") {
+  sources = [ "tab_opening.h" ]
+  deps = [
+    "//base",
+    "//ios/chrome/app",
+    "//ios/chrome/app:mode",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ui/base",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("url_opener_params") {
+  sources = [
+    "url_opener_params.h",
+    "url_opener_params.mm",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("metric_kit_subscriber") {
+  sources = [
+    "metric_kit_subscriber.h",
+    "metric_kit_subscriber.mm",
+  ]
+  frameworks = [ "MetricKit.framework" ]
+  deps = [
+    "//base",
+    "//components/crash/core/app",
+    "//components/crash/core/common:reporter_running_ios",
+    "//components/previous_session_info",
+    "//components/version_info",
+    "//ios/chrome/browser/crash_report/model",
+  ]
+}
+
+source_set("app_init_stage") {
+  sources = [ "app_init_stage.h" ]
+}
+
+source_set("startup_information") {
+  sources = [ "startup_information.h" ]
+}
+
+source_set("app_state") {
+  sources = [
+    "app_state+Testing.h",
+    "app_state.h",
+    "app_state.mm",
+    "app_state_agent.h",
+    "app_state_observer.h",
+  ]
+  deps = [
+    ":app_init_stage",
+    ":startup_information",
+    "//base",
+    "//ios/chrome/app",
+    "//ios/chrome/app:task_names",
+    "//ios/chrome/app/background_refresh:headers",
+    "//ios/chrome/browser/crash_report/model",
+    "//ios/chrome/browser/device_orientation/ui_bundled",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/public/commands",
+  ]
+
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("observing_app_state_agent") {
+  sources = [
+    "observing_app_state_agent.h",
+    "observing_app_state_agent.mm",
+  ]
+
+  frameworks = [ "UIKit.framework" ]
+
+  deps = [
+    ":app_state",
+    "//base",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+  ]
+}
+
+source_set("url_opener") {
+  sources = [
+    "url_opener.h",
+    "url_opener.mm",
+  ]
+  deps = [
+    ":startup_information",
+    ":tab_opening",
+    ":url_opener_params",
+    "//base",
+    "//components/prefs",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/app/startup",
+    "//ios/chrome/browser/policy/model:policy_util",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/url",
+    "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/url_loading/model:url_loading_params_header",
+    "//ios/components/webui:url_constants",
+    "//url",
+  ]
+}
+
+source_set("metrics_mediator") {
+  sources = [
+    "metrics_mediator.h",
+    "metrics_mediator.mm",
+  ]
+  deps = [
+    ":app_state",
+    ":metric_kit_subscriber",
+    ":startup_information",
+    "//base",
+    "//build:branding_buildflags",
+    "//components/crash/core/common",
+    "//components/metrics",
+    "//components/metrics:metrics_pref_names",
+    "//components/prefs",
+    "//components/previous_session_info",
+    "//components/signin/public/identity_manager:tribool",
+    "//components/ukm/ios:ukm_reporting_ios_util",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/app/startup:ios_enable_sandbox_dump_buildflags",
+    "//ios/chrome/browser/crash_report/model",
+    "//ios/chrome/browser/default_browser/model:default_browser_interest_signals",
+    "//ios/chrome/browser/metrics/model:metrics_internal",
+    "//ios/chrome/browser/ntp/model:util",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/signin/model:signin_util",
+    "//ios/chrome/browser/tabs/model/inactive_tabs",
+    "//ios/chrome/browser/widget_kit/model:features",
+    "//ios/chrome/common/app_group",
+    "//ios/chrome/common/app_group:main_app",
+    "//ios/chrome/common/credential_provider",
+    "//ios/components/ui_util",
+    "//ios/public/provider/chrome/browser/app_distribution:app_distribution_api",
+    "//ios/web/public",
+    "//ios/web/public/thread",
+    "//url",
+  ]
+
+  if (ios_enable_widget_kit_extension) {
+    deps += [ "//ios/chrome/browser/widget_kit/model" ]
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "app_init_stage_test_utils.cc",
+    "app_init_stage_test_utils.h",
+    "fake_startup_information.h",
+    "fake_startup_information.mm",
+    "metrics_mediator_testing.h",
+    "mock_metrickit_metric_payload.h",
+    "mock_metrickit_metric_payload.mm",
+    "mock_tab_opener.h",
+    "mock_tab_opener.mm",
+  ]
+  deps = [
+    ":app_init_stage",
+    ":app_state",
+    ":startup_information",
+    ":tab_opening",
+    "//base",
+    "//base/test:test_support",
+    "//components/version_info",
+    "//ios/chrome/app",
+    "//ios/chrome/app:mode",
+    "//ios/chrome/browser/url_loading/model",
+    "//net",
+    "//third_party/ocmock",
+    "//ui/base",
+    "//url",
+  ]
+  frameworks = [
+    "MetricKit.framework",
+    "UIKit.framework",
+  ]
+}

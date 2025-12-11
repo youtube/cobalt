@@ -1,0 +1,23 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "desktop_android"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "WebRtcEventLogCollectionAllowed": false
+        },
+        "prefs": {
+          "webrtc.event_logs_collection": {
+            "value": false
+          }
+        }
+      }
+    ]
+  }
+]

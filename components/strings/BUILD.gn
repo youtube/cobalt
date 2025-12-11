@@ -1,0 +1,87 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/features.gni")
+import("//build/config/locales.gni")
+import("//content/public/common/features.gni")
+import("//device/vr/buildflags/buildflags.gni")
+import("//pdf/features.gni")
+import("//printing/buildflags/buildflags.gni")
+import("//services/screen_ai/buildflags/features.gni")
+import("//tools/grit/grit_rule.gni")
+
+if (is_android) {
+  import("//build/config/android/rules.gni")
+}
+
+group("strings") {
+  public_deps = [
+    ":components_branded_strings",
+    ":components_locale_settings",
+    ":components_strings",
+    ":privacy_sandbox_strings",
+  ]
+}
+
+grit_strings("components_strings") {
+  source = "../components_strings.grd"
+  defines = [
+    "enable_arcore=$enable_arcore",
+    "enable_cardboard=$enable_cardboard",
+    "enable_pdf=$enable_pdf",
+    "enable_pdf_ink2=$enable_pdf_ink2",
+    "enable_pdf_save_to_drive=$enable_pdf_save_to_drive",
+    "enable_plugins=$enable_plugins",
+    "enable_print_preview=$enable_print_preview",
+    "enable_screen_ai_service=$enable_screen_ai_service",
+    "enable_vr=$enable_vr",
+    "use_blink=$use_blink",
+  ]
+
+  outputs = [ "grit/components_strings.h" ]
+  if (is_android) {
+    create_android_resources = true
+  }
+}
+
+if (is_android) {
+  java_strings_grd_prebuilt("components_strings_grd") {
+    generating_target = ":components_strings"
+  }
+}
+
+grit_strings("components_branded_strings") {
+  source = "../components_${branding_path_product}_strings.grd"
+  outputs = [ "grit/components_branded_strings.h" ]
+}
+
+grit_strings("components_locale_settings") {
+  source = "../components_locale_settings.grd"
+  outputs = [ "grit/components_locale_settings.h" ]
+
+  if (is_android) {
+    create_android_resources = true
+  }
+}
+
+if (is_android) {
+  java_strings_grd_prebuilt("components_locale_settings_grd") {
+    generating_target = ":components_locale_settings"
+  }
+}
+
+grit_strings("privacy_sandbox_strings") {
+  source = "../privacy_sandbox_strings.grd"
+  outputs = [ "grit/privacy_sandbox_strings.h" ]
+
+  if (is_android) {
+    create_android_resources = true
+  }
+}
+
+if (is_android) {
+  java_strings_grd_prebuilt("privacy_sandbox_strings_grd") {
+    generating_target = ":privacy_sandbox_strings"
+  }
+}

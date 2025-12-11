@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>
+    Test linearRampToValue Updates the Param Value
+  </title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../resources/audit-util.js"></script>
+</head>
+
+<body>
+  <script>
+    const renderQuantumSize = 128;
+    // Should be a power of two to get rid of rounding errors when converting
+    // between time and frame.
+    const sampleRate = 8192;
+    const renderDuration = 1;
+    // End time of the linear ramp automation
+    const rampEndTime = renderDuration / 2;
+
+    // Test that linearRampToValue properly sets the AudioParam .value
+    // attribute when the linearRamp automation is running.
+    promise_test(() => {
+      const context =
+          new OfflineAudioContext(1, renderDuration * sampleRate, sampleRate);
+
+      // Create a constant source.
+      const bufferSource = new AudioBufferSourceNode(
+          context, {buffer: createConstantBuffer(context, 1, 1), loop: true});
+
+      // The gain node to be automated for testing.
+      const gain = new GainNode(context);
+
+      gain.gain.setValueAtTime(0, 0);
+      gain.gain.linearRampToValueAtTime(1, rampEndTime);
+
+      // Connect up the graph
+      bufferSource.connect(gain).connect(context.destination);
+
+      // The number of rendering quanta that will be processed in the context.
+      // At the beginning of each rendering quantum (except the first), we
+      // will check that gain.gain.value has the expected value.
+      const renderLoops =
+          Math.floor(renderDuration * sampleRate / renderQuantumSize);
+
+      for (let k = 1; k < renderLoops; ++k) {
+        const time = k * renderQuantumSize / sampleRate;
+        context.suspend(time).then(() => {
+          let expected = 1;
+
+          if (context.currentTime <= rampEndTime) {
+            // The expected value of the gain is the last computed value
+            // from the previous rendering quantum because suspend() stops
+            // at the beginning of a rendering quantum, so we haven't
+            // computed the new value yet.
+            expected = (context.currentTime - 1 / sampleRate) / rampEndTime;
+          }
+
+          const frame = context.currentTime * sampleRate - 1;
+          assert_equals(
+              gain.gain.value, expected, 'gain.gain.value at frame ' + frame);
+          context.resume();
+        });
+      }
+
+      // Rock and roll!
+      bufferSource.start();
+      return context.startRendering();
+    }, 'propagate: linearRampToValue properly updates AudioParam.value');
+  </script>
+</body>
+</html>

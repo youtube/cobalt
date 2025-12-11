@@ -1,0 +1,54 @@
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "third_party/blink/public/mojom/manifest/manifest.mojom";
+import "url/mojom/url.mojom";
+
+
+struct RequestManifestError {
+  // This cannot be kSuccess, as this struct represents an error.
+  // This cannot be kNoManifestSpecified, as that is also a success case where
+  // the default manifest is returned.
+  ManifestRequestResult error;
+  array<ManifestError> details;
+};
+
+// Interface implemented in the renderer, associated with a specific frame,
+// that is used by the browser process to request the manifest and manifest
+// url from a document.
+interface ManifestManager {
+  // Requests the manifest URL and the Manifest of the frame's document. `url`
+  // will be empty if the document specifies no manifest. `manifest` can be
+  // empty if `result` is `kUnexpectedFailure`. Note that `manifest` may be the
+  // 'default' manifest if none was specified by the document or if the one
+  // specified by the document failed to load or parse.
+  RequestManifest()
+      => (ManifestRequestResult result, url.mojom.Url url, Manifest manifest);
+
+  // Fetches the manifest from the frame's document. If the document has no
+  // manifest, a default manifest is returned (where the manifest's
+  // `manifest_url` is empty).
+  RequestManifestAndErrors()
+      => result<Manifest, RequestManifestError>;
+
+  // Requests the manifest URL and the debug info for Manifest of the frame's
+  // document. |url| will be empty if the document specifies no manifest.
+  //
+  // This method is temporary until all clients are migrated from
+  // content/renderer into blink.
+  RequestManifestDebugInfo() => (url.mojom.Url url,
+                                 Manifest parsed_manifest,
+                                 ManifestDebugInfo debug_info);
+
+  // Parses the given |manifest_content| JSON string. |manifest_url| is the URL
+  // that the manifest content was fetched from, and |document_url| is the URL
+  // of a document which contained a link to the manifest. Returns a null
+  // Manifest if parsing fails.
+  ParseManifestFromString(url.mojom.Url document_url,
+                          url.mojom.Url manifest_url,
+                          string manifest_content)
+      => (Manifest? parsed_manifest);
+};

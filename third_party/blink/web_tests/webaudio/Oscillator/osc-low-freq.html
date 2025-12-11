@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Custom Oscillator at Very Low Frequency
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Create a custom oscillator and verify that the parts of a periodic wave
+      // that should be ignored really are ignored.
+
+      const sampleRate = 48000;
+
+      // The desired frequency of the oscillator.  The value to be used depends
+      // on the implementation of the PeriodicWave and should be less than then
+      // lowest fundamental frequency. The lowest frequency is the Nyquist
+      // frequency divided by the max number of coefficients used for the FFT.
+      // In the current implementation, the max number of coefficients is 2048
+      // (for a sample rate of 48 kHz) so the lowest frequency is 24000/2048 =
+      // 11.78 Hz.
+      const desiredFrequencyHz = 1;
+
+      // Minimum allowed SNR between the actual oscillator and the expected
+      // result.  Experimentally determined.
+      const snrThreshold = 130;
+
+      // Compute the SNR between the actual result and expected cosine wave
+      function checkCosineResult(result, freq, sampleRate) {
+        let signal = 0;
+        let noise = 0;
+        const omega = 2 * Math.PI * freq / sampleRate;
+
+        const actual = result.getChannelData(0);
+
+        for (let k = 0; k < actual.length; ++k) {
+          const x = Math.cos(omega * k);
+          const diff = x - actual[k];
+          signal += x * x;
+          noise += diff * diff;
+        }
+
+        const snr = 10 * Math.log10(signal / noise);
+
+        assert_greater_than_equal(
+            snr,
+            snrThreshold,
+            'SNR of ' + desiredFrequencyHz + ' Hz sine wave');
+      }
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, sampleRate, sampleRate);
+        const osc = new OscillatorNode(context);
+
+        // Create the custom oscillator.  For simplicity of testing, we use just
+        // a cosine wave, but the initial elements of the real and imaginary
+        // parts are explicitly set to non-zero to test that they are ignored.
+        const r = new Float32Array(2);
+        const i = new Float32Array(2);
+        r[0] = 1; // DC component to be ignored
+        r[1] = 1; // Fundamental
+        i[0] = 1; // Sine term that doesn't actually exist in a Fourier series
+        i[1] = 0;
+        const wave = new PeriodicWave(context, {real: r, imag: i});
+
+        osc.setPeriodicWave(wave);
+        osc.frequency.value = desiredFrequencyHz;
+        osc.connect(context.destination);
+        osc.start();
+
+        const resultBuffer = await context.startRendering();
+        checkCosineResult(resultBuffer, desiredFrequencyHz, sampleRate);
+      }, 'low-freq-oscillator: Custom oscillator at very low frequency');
+    </script>
+  </body>
+</html>

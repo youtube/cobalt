@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head><script src="resources/ad-iframe-writer.js"></script></head>
+<body>
+<script type="text/javascript">
+if (window.testRunner) {
+  testRunner.setHighlightAds();
+}
+
+ad_frame = createAdFrame();
+ad_frame.width = 100;
+ad_frame.height = 200;
+
+ad_frame.onload = function () {
+  // Finish the test after the ad highlight is drawn.
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      if (window.testRunner)
+        testRunner.notifyDone();
+    });
+  });
+}
+ad_frame.src = "about:blank";
+
+if (window.testRunner)
+  testRunner.waitUntilDone();
+</script>
+</body>
+</html>
