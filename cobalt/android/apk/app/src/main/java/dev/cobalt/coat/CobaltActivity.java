@@ -24,7 +24,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -111,8 +110,6 @@ public abstract class CobaltActivity extends Activity {
 
   private Boolean isMainFrameLoaded = false;
   private final Object lock = new Object();
-  private Handler mShowAppShellHandler;
-  private Runnable mShowAppShellRunnable;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -249,19 +246,11 @@ public abstract class CobaltActivity extends Activity {
 
           @Override
           public void onWebContentsLoaded() {
-            if (mShowAppShellHandler == null) {
-              mShowAppShellHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-            }
-            if (mShowAppShellRunnable != null) {
-              mShowAppShellHandler.removeCallbacks(mShowAppShellRunnable);
-            }
-            mShowAppShellRunnable = new Runnable() {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed(
+                    new Runnable() {
                       @Override
                       public void run() {
-                        if (isFinishing() || isDestroyed()) {
-                          Log.w(TAG, "NativeSplash: activity is finishing or destroyed, skipping showAppShell.");
-                          return;
-                        }
                         synchronized (lock) {
                           if (isMainFrameLoaded == false) {
                             // Main app loaded in App shell, switch to it.
@@ -271,8 +260,8 @@ public abstract class CobaltActivity extends Activity {
                           }
                         }
                       }
-                    };
-            mShowAppShellHandler.postDelayed(mShowAppShellRunnable, mSplashTimeoutMs);
+                    },
+                    mSplashTimeoutMs);
           }
         });
     if (mDisableNativeSplash) {
@@ -615,9 +604,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mShowAppShellHandler != null && mShowAppShellRunnable != null) {
-      mShowAppShellHandler.removeCallbacks(mShowAppShellRunnable);
-    }
     if (cobaltConnectivityDetector != null) {
       cobaltConnectivityDetector.destroy();
     }
