@@ -1,7 +1,7 @@
 {
     "archive_datas": [
         {
-            "zipfiles": [
+            "unzip_files": [
                 "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip"
             ],
             "files": [
