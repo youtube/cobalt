@@ -14,27 +14,51 @@
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 
+#include "starboard/common/log.h"
 #include "third_party/icu/source/common/unicode/localebuilder.h"
-#include "third_party/icu/source/common/unicode/locid.h"
-#include "third_party/icu/source/common/unicode/ucnv.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/icu/source/i18n/unicode/decimfmt.h"
-#include "third_party/icu/source/i18n/unicode/dtfmtsym.h"
 #include "third_party/icu/source/i18n/unicode/unum.h"
 
 namespace cobalt {
 namespace {
 
-// Specific values for |cs_precedes|
+// |cs_precedes| uses these values to determine if the currency symbol precedes
+// or succeeds the value for a formatted monetary quantity.
 constexpr char kCurrencySymbolSucceeds = 0;
 constexpr char kCurrencySymbolPrecedes = 1;
 
-// Specific values for |sep_by_space|
+// The POSIX specification defines three distinct definitions for what
+// |sep_by_space| and all variations of it can be. These are:
+//
+// 0: No space separates the currency symbol and value.
+//
+// 1: If the currency symbol and sign string are adjacent, a space separates
+// them from the value; otherwise, a space separates the currency symbol from
+// the value.
+//
+// 2: If the currency symbol and sign string are adjacent, a space separates
+// them; otherwise, a space separates the sign string from the value.
 constexpr char kNoSpace = 0;
 constexpr char kSpaceBetweenClusterAndValue = 1;
 constexpr char kSpaceBetweenSignAndSym = 2;
 
-// Specific values for |sign_posn|
+// The POSIX specification defines 5 distinct definitions for the possible
+// values |sign_posn| can be. These are:
+//
+// 0: Parentheses surround the quantity and currency_symbol or int_curr_symbol.
+//
+// 1: The sign string precedes the quantity and currency_symbol or
+// int_curr_symbol.
+//
+// 2: The sign string succeeds the quantity and currency_symbol or
+// int_curr_symbol.
+//
+// 3: The sign string immediately precedes the currency_symbol or
+// int_curr_symbol.
+//
+// 4: The sign string immediately succeeds the currency_symbol or
+// int_curr_symbol.
 constexpr char kSignPosnParens = 0;
 constexpr char kSignPrecedesAll = 1;
 constexpr char kSignSucceedsAll = 2;
@@ -83,6 +107,12 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
     UErrorCode script_status = U_ZERO_ERROR;
     int32_t num_codes = uscript_getCode(variant, codes, 1, &script_status);
 
+    if (script_status == U_BUFFER_OVERFLOW_ERROR) {
+      SB_LOG(WARNING) << "uscript_getCode returned U_BUFFER_OVERFLOW_ERROR. "
+                         "We expected to receive only 1 code, but received "
+                      << num_codes << " codes instead.";
+    }
+
     if (U_SUCCESS(script_status) && num_codes == 1) {
       UScriptCode actual_script = codes[0];
 
@@ -105,18 +135,133 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
   return loc;
 }
 
+bool StartsWithSpace(const icu::UnicodeString& s) {
+  return s.length() > 0 &&
+         (s.startsWith((UChar)' ') || s.startsWith((UChar)0x00A0));
+}
+
+bool EndsWithSpace(const icu::UnicodeString& s) {
+  return s.length() > 0 &&
+         (s.endsWith((UChar)' ') || s.endsWith((UChar)0x00A0));
+}
+
+// Checks if there is a space *between* two fields within the same string
+bool HasInternalGap(const icu::UnicodeString& text,
+                    int idx_a,
+                    int len_a,
+                    int idx_b,
+                    int len_b) {
+  int start = (idx_a < idx_b) ? idx_a + len_a : idx_b + len_b;
+  int end = (idx_a < idx_b) ? idx_b : idx_a;
+  int len = end - start;
+
+  if (len <= 0) {
+    return false;
+  }
+
+  icu::UnicodeString gap = text.tempSubString(start, len);
+  return (gap.indexOf((UChar)' ') >= 0 || gap.indexOf((UChar)0x00A0) >= 0);
+}
+
+// Helper function that will the derive the sign position of a locale's currency
+// format.
+char GetSignPosition(const icu::UnicodeString& prefix,
+                     const icu::UnicodeString& suffix,
+                     int sign_p_idx,
+                     int sign_s_idx,
+                     int sym_p_idx,
+                     int sym_s_idx,
+                     char cs_precedes) {
+  if (prefix.indexOf((UChar)'(') >= 0 && suffix.indexOf((UChar)')') >= 0) {
+    return kSignPosnParens;
+  }
+
+  if (sign_p_idx == -1 && sign_s_idx == -1) {
+    return kSignPrecedesAll;
+  }
+
+  if (cs_precedes == kCurrencySymbolPrecedes) {
+    if (sign_p_idx >= 0) {
+      if (sign_p_idx > sym_p_idx) {
+        return kSignSucceedsSymbol;
+      }
+      return kSignPrecedesAll;
+    }
+    return kSignSucceedsAll;
+  }
+
+  if (sign_s_idx >= 0) {
+    if (sym_s_idx >= 0 && sign_s_idx < sym_s_idx) {
+      return kSignPrecedesSymbol;
+    }
+    return kSignSucceedsAll;
+  }
+
+  // It's possible that a currency layout has no currency symbol in its pattern.
+  // In this case, we will just return kSignPrecedesAll.
+  return kSignPrecedesAll;
+}
+
+// Helper function that will determine the |sep_by_space| category for the given
+// ICU currency layout.
+char GetSepBySpace(const icu::UnicodeString& prefix,
+                   const icu::UnicodeString& suffix,
+                   const icu::UnicodeString& sign_symbol,
+                   const icu::UnicodeString& currency_symbol,
+                   int sign_p_idx,
+                   int sign_s_idx,
+                   int sym_p_idx,
+                   int sym_s_idx,
+                   char cs_precedes) {
+  bool space_touches_val = (cs_precedes == kCurrencySymbolPrecedes)
+                               ? EndsWithSpace(prefix)
+                               : StartsWithSpace(suffix);
+
+  if (space_touches_val) {
+    return kSpaceBetweenClusterAndValue;
+  }
+
+  bool internal_space_between_sign_and_sym = false;
+  bool adjacent_prefix = (sign_p_idx >= 0 && sym_p_idx >= 0);
+  bool adjacent_suffix = (sign_s_idx >= 0 && sym_s_idx >= 0);
+
+  if (adjacent_prefix) {
+    internal_space_between_sign_and_sym =
+        HasInternalGap(prefix, sign_p_idx, sign_symbol.length(), sym_p_idx,
+                       currency_symbol.length());
+  } else if (adjacent_suffix) {
+    internal_space_between_sign_and_sym =
+        HasInternalGap(suffix, sign_s_idx, sign_symbol.length(), sym_s_idx,
+                       currency_symbol.length());
+  } else {
+    if (cs_precedes == kCurrencySymbolPrecedes) {
+      if (sign_s_idx >= 0 && StartsWithSpace(suffix)) {
+        internal_space_between_sign_and_sym = true;
+      }
+    } else {
+      if (sign_p_idx >= 0 && EndsWithSpace(prefix)) {
+        internal_space_between_sign_and_sym = true;
+      }
+    }
+  }
+
+  return internal_space_between_sign_and_sym ? kSpaceBetweenSignAndSym
+                                             : kNoSpace;
+}
+
 // Attempts to convert the currency layout of an ICU monetary format to the
 // lconv's format specifiers for monetary values (cs_precedes, sep_by_space
-// etc.) This function will parse through an ICU's monetary format prefix and
-// suffix string to set the lconv values to the best of its ability. Due to the
-// design differences in how ICU stores this data versus what POSIX wants, these
-// conversions will not always be perfect.
+// etc.) This function will call helper functions that will parse through an
+// ICU's monetary format prefix and suffix string to set the lconv values to the
+// best of its ability. Due to the design differences in how ICU stores this
+// data versus what POSIX wants, these conversions will not always be perfect.
 CurrencyLayout DeriveCurrencyLayout(const icu::DecimalFormat* monetary_format,
                                     const icu::UnicodeString& currency_symbol,
                                     const icu::UnicodeString& sign_symbol,
                                     bool is_negative) {
   CurrencyLayout result;
   icu::UnicodeString prefix, suffix;
+
   if (is_negative) {
     monetary_format->getNegativePrefix(prefix);
     monetary_format->getNegativeSuffix(suffix);
@@ -129,8 +274,6 @@ CurrencyLayout DeriveCurrencyLayout(const icu::DecimalFormat* monetary_format,
   result.cs_precedes =
       (sym_p_idx >= 0) ? kCurrencySymbolPrecedes : kCurrencySymbolSucceeds;
 
-  // The currency symbol (if present) can either be in the prefix or suffix, so
-  // we must check both.
   const bool has_sign = !sign_symbol.isEmpty();
   int sign_p_idx = has_sign ? prefix.indexOf(sign_symbol) : -1;
   int sign_s_idx = has_sign ? suffix.indexOf(sign_symbol) : -1;
@@ -142,91 +285,12 @@ CurrencyLayout DeriveCurrencyLayout(const icu::DecimalFormat* monetary_format,
     result.sign = "";
   }
 
-  if (prefix.indexOf((UChar)'(') >= 0 && suffix.indexOf((UChar)')') >= 0) {
-    result.sign_posn = kSignPosnParens;
-  } else {
-    if (sign_p_idx == -1 && sign_s_idx == -1) {
-      result.sign_posn = kSignPrecedesAll;
-    } else if (result.cs_precedes == kCurrencySymbolPrecedes) {
-      if (sign_p_idx >= 0) {
-        // Both Symbol and Sign are in the prefix.
-        if (sign_p_idx > sym_p_idx) {
-          result.sign_posn = kSignSucceedsSymbol;
-        } else {
-          result.sign_posn = kSignPrecedesAll;
-        }
-      } else {
-        result.sign_posn = kSignSucceedsAll;
-      }
-    } else {
-      if (sign_s_idx >= 0) {
-        // Both Symbol and Sign are in the suffix.
-        if (sym_s_idx >= 0 && sign_s_idx < sym_s_idx) {
-          result.sign_posn = kSignPrecedesSymbol;
-        } else {
-          result.sign_posn = kSignSucceedsAll;
-        }
-      } else {
-        result.sign_posn = kSignPrecedesAll;
-      }
-    }
-  }
+  result.sign_posn = GetSignPosition(prefix, suffix, sign_p_idx, sign_s_idx,
+                                     sym_p_idx, sym_s_idx, result.cs_precedes);
 
-  // To deduce the value of |sep_by_space|, we must:
-  // - Check to see if the currency symbol is next to a space
-  // - If not, check to see if the sign and currency symbol are in the same
-  // affix
-  // - If they are, see if there is a space between the symbol and sign
-  bool touches_space = false;
-  if (result.cs_precedes == kCurrencySymbolPrecedes) {
-    touches_space = (prefix.endsWith(" ") || prefix.endsWith((UChar)0x00A0));
-  } else {
-    touches_space =
-        (suffix.startsWith(" ") || suffix.startsWith((UChar)0x00A0));
-  }
-
-  if (touches_space) {
-    result.sep_by_space = kSpaceBetweenClusterAndValue;
-  } else {
-    const icu::UnicodeString* shared_affix = nullptr;
-    int sign_idx = -1;
-    int sym_idx = -1;
-
-    if (sign_p_idx >= 0 && sym_p_idx >= 0) {
-      shared_affix = &prefix;
-      sign_idx = sign_p_idx;
-      sym_idx = sym_p_idx;
-    } else if (sign_s_idx >= 0 && sym_s_idx >= 0) {
-      shared_affix = &suffix;
-      sign_idx = sign_s_idx;
-      sym_idx = sym_s_idx;
-    }
-
-    bool internal_space = false;
-
-    if (shared_affix) {
-      int gap_start = 0;
-      int gap_end = 0;
-
-      if (sign_idx < sym_idx) {
-        gap_start = sign_idx + sign_symbol.length();
-        gap_end = sym_idx;
-      } else {
-        gap_start = sym_idx + currency_symbol.length();
-        gap_end = sign_idx;
-      }
-
-      int gap_len = gap_end - gap_start;
-      if (gap_len > 0) {
-        icu::UnicodeString gap =
-            shared_affix->tempSubString(gap_start, gap_len);
-        if (gap.indexOf((UChar)' ') >= 0 || gap.indexOf((UChar)0x00A0) >= 0) {
-          internal_space = true;
-        }
-      }
-    }
-    result.sep_by_space = internal_space ? kSpaceBetweenSignAndSym : kNoSpace;
-  }
+  result.sep_by_space =
+      GetSepBySpace(prefix, suffix, sign_symbol, currency_symbol, sign_p_idx,
+                    sign_s_idx, sym_p_idx, sym_s_idx, result.cs_precedes);
 
   return result;
 }
