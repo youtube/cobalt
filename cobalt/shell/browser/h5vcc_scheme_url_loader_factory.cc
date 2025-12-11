@@ -44,7 +44,7 @@
 namespace {
 const std::string kSplashDomain = "https://www.youtube.com";
 const std::string kSplashPath = "static/splash.html";
-const char16_t kSplashCacheName[] = u"splash-cache-v1";
+const char16_t kSplashCacheName[] = u"splash-cache";
 }  // namespace
 
 namespace content {
@@ -182,19 +182,15 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     FileContents file_contents = resource_map[key];
     std::string mime_type = "application/octet-stream";
-
+    content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
+                           file_contents.size);
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type = "text/html";
-      content_html_ =
-          std::string(reinterpret_cast<const char*>(file_contents.data),
-                      file_contents.size);
       ReadSplashCache();
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       // TODO(b/454630524): Support cached webm files.
       mime_type = "video/webm";
-      std::string content(reinterpret_cast<const char*>(file_contents.data),
-                          file_contents.size);
-      SendResponse(content, mime_type);
+      SendResponse(content_, mime_type);
     }
     return;
   }
@@ -225,7 +221,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     cache_storage_control->AddReceiver(
         network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-        bucket_locator, ::storage::mojom::CacheStorageOwner::kCacheAPI,
+        bucket_locator, storage::mojom::CacheStorageOwner::kCacheAPI,
         cache_storage_remote_.BindNewPipeAndPassReceiver());
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
@@ -259,12 +255,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                            weak_factory_.GetWeakPtr(), mime_type));
       } else {
         LOG(INFO) << "Splash video cache is empty. Fallback to builtin.";
-        SendResponse(content_html_, "text/html");
+        SendResponse(content_, "text/html");
       }
     } else {
       LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
-      SendResponse(content_html_, "text/html");
+      SendResponse(content_, "text/html");
     }
   }
 
@@ -272,7 +268,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                        std::vector<uint8_t> content) {
     if (content.empty()) {
       LOG(ERROR) << "Empty cache. Fallback to built-in splash.";
-      SendResponse(content_html_, "text/html");
+      SendResponse(content_, "text/html");
       return;
     }
     std::string cached_html(reinterpret_cast<const char*>(content.data()),
@@ -348,7 +344,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   GURL url_;
   ShellBrowserContext* browser_context_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
-  std::string content_html_;
+  std::string content_;
   std::unique_ptr<BlobReader> blob_reader_;
   const GeneratedResourceMap* resource_map_test_ = nullptr;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};

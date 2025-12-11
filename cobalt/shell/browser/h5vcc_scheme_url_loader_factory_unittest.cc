@@ -21,9 +21,11 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "base/test/task_environment.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
+#include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_browser_context.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -124,7 +126,9 @@ const char kTestHtmlContent[] = "<html><body><h1>Test</h1></body></html>";
 class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
  public:
   H5vccSchemeURLLoaderFactoryTest()
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {}
+      : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP),
+        browser_context_(std::make_unique<ShellBrowserContext>(false, false)),
+        factory_(browser_context_.get()) {}
 
   void SetUp() override {
     testing::Test::SetUp();
@@ -138,7 +142,8 @@ class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
   }
 
  protected:
-  base::test::TaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_;
+  std::unique_ptr<ShellBrowserContext> browser_context_;
   H5vccSchemeURLLoaderFactory factory_;
   GeneratedResourceMap test_resource_map_;
 };
