@@ -224,14 +224,7 @@ public abstract class CobaltActivity extends Activity {
     //     Otherwise, it loads the native splash screen URL.
     //   - mShellManager.showAppShell() switches the visible shell from
     //     the active shell to the App shell.
-    if (mShellManager.getSplashShell() == null) {
-      // If splash shell is not created by default, create one. This also allows to show splash
-      // screen after swtiching ATV accounts.
-      Log.i(TAG, "NativeSplash: create splash shell");
-      mShellManager.launchShell("");
-    }
-    mShellManager.launchShell(
-        "",
+    mShellManager.launchShell("",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -246,20 +239,18 @@ public abstract class CobaltActivity extends Activity {
 
           @Override
           public void onWebContentsLoaded() {
-            new android.os.Handler(android.os.Looper.getMainLooper())
-                .postDelayed(
-                    new Runnable() {
-                      @Override
-                      public void run() {
-                        synchronized (lock) {
-                          if (isMainFrameLoaded == false) {
-                            // Main app loaded in App shell, switch to it.
-                            Log.i(TAG, "NativeSplash: main shell is loaded");
-                            isMainFrameLoaded = true;
-                            mShellManager.showAppShell();
-                          }
-                        }
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                  @Override
+                  public void run() {
+                    synchronized(lock) {
+                      if (isMainFrameLoaded == false) {
+                        // Main app loaded in App shell, switch to it.
+                        Log.i(TAG, "main shell is loaded");
+                        isMainFrameLoaded = true;
+                        mShellManager.showAppShell();
                       }
+                    }
+                  }
                     },
                     mSplashTimeoutMs);
           }
@@ -269,45 +260,32 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Show main app without splash screen.");
       mShellManager.showAppShell();
     } else {
-      // Native splash enabled: Load splash in active shell and set a timeout to switch to App
-      // shell.
-      mShellManager
-          .getSplashShell()
-          .setWebContentsReadyListener(
-              new Shell.OnWebContentsReadyListener() {
-                @Override
-                public void onWebContentsReady() {}
+      // Native splash enabled: Load splash in active shell and set a timeout to switch to App shell.
+      mShellManager.getSplashAppShell().setWebContentsReadyListener(
+        new Shell.OnWebContentsReadyListener() {
+          @Override
+              public void onWebContentsReady() {}
 
-                @Override
-                public void onWebContentsLoaded() {
-                  // Switch to pending shell after a timeout, or when the main app finishes loading,
-                  // whichever comes first.
-                  Log.i(
-                      TAG,
-                      "NativeSplash: shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
-                  new android.os.Handler(android.os.Looper.getMainLooper())
-                      .postDelayed(
-                          new Runnable() {
-                            @Override
-                            public void run() {
-                              synchronized (lock) {
-                                if (isMainFrameLoaded == false) {
-                                  Log.i(
-                                      TAG,
-                                      "NativeSplash: switch to main shell after timeout "
-                                          + mSplashTimeoutMs
-                                          + "ms");
-                                  isMainFrameLoaded = true;
-                                  mShellManager.showAppShell();
-                                }
-                              }
-                            }
-                          },
-                          mSplashTimeoutMs);
-                }
-              });
+          @Override
+          public void onWebContentsLoaded() {
+            // Switch to pending shell after a timeout, or when the main app finishes loading, whichever comes first.
+            Log.i(TAG, "shellManager load splash timeout:" + mSplashTimeoutMs + "ms");
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                  @Override
+                  public void run() {
+                    synchronized(lock) {
+                      if (isMainFrameLoaded == false) {
+                        Log.i(TAG, "switch to main shell after timeout " + mSplashTimeoutMs + "ms");
+                        isMainFrameLoaded = true;
+                        mShellManager.showAppShell();
+                      }
+                    }
+                  }
+                }, mSplashTimeoutMs);
+          }
+      });
       Log.i(TAG, "shellManager load splash url:" + mSplashUrl);
-      mShellManager.getSplashShell().loadUrl(mSplashUrl);
+      mShellManager.getSplashAppShell().loadUrl(mSplashUrl);
     }
   }
 
