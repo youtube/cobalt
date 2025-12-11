@@ -22,7 +22,12 @@ namespace media {
 AudioInputStreamStarboard::AudioInputStreamStarboard(
     AudioManagerStarboard* audio_manager,
     const AudioParameters& params)
-    : params_(params), thread_("AudioInputStreamStarboard") {}
+    : params_(params), thread_("AudioInputStreamStarboard") {
+  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::AudioInputStreamStarboard"
+            << " sample_rate: " << params_.sample_rate()
+            << " channels: " << params_.channels()
+            << " frames_per_buffer: " << params_.frames_per_buffer();
+}
 
 AudioInputStreamStarboard::~AudioInputStreamStarboard() {
   Close();
@@ -65,13 +70,14 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 }
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
+  LOG(INFO) << "YO THOR - AUDIO INPUT - START !";
   DCHECK(callback);
   DCHECK(!thread_.IsRunning());
   callback_ = callback;
   stop_event_.Reset();
   thread_.Start();
   thread_.task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&AudioInputStreamStarboard::ThreadMain,
+      FROM_HERE, base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
                                 base::Unretained(this)));
 }
 
@@ -118,42 +124,78 @@ bool AudioInputStreamStarboard::GetAutomaticGainControl() {
 void AudioInputStreamStarboard::SetOutputDeviceForAec(
     const std::string& output_device_id) {}
 
-void AudioInputStreamStarboard::ThreadMain() {
-  auto audio_bus = AudioBus::Create(params_);
+void AudioInputStreamStarboard::ReadAudio() {
+  LOG(INFO) << "YO THOR - AUDIO INPUT READ AUDIO!";
+  if (stop_event_.IsSignaled()) {
+    return;
+  }
 
-  // The read buffer is for mono data from the microphone.
+  int available_frames = SbMicrophoneGetAvailableFrames(microphone_);
+  if (available_frames < 0) {
+    LOG(ERROR) << "SbMicrophoneGetAvailableFrames failed: " << available_frames;
+    // An error occurred. Schedule a retry shortly to avoid busy-looping on
+    // a permanent error.
+    thread_.task_runner()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                       base::Unretained(this)),
+        params_.GetBufferDuration() / 2);
+    return;
+  }
+
+  if (available_frames < params_.frames_per_buffer()) {
+    // Not enough data yet. Check again in a little bit to avoid starving the
+    // consumer thread on the other side.
+    thread_.task_runner()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                       base::Unretained(this)),
+        params_.GetBufferDuration() / 2);
+    return;
+  }
+
+  // At least one full buffer is available. Read all available buffers.
+  int num_buffers = available_frames / params_.frames_per_buffer();
+  auto audio_bus = AudioBus::Create(params_);
   const int buffer_size_frames = params_.frames_per_buffer();
   std::vector<int16_t> mono_buffer(buffer_size_frames);
 
-  while (!stop_event_.IsSignaled()) {
-    // Read mono data. The size is frames * 1 channel * 2 bytes/sample.
+  while (num_buffers-- > 0) {
+    if (stop_event_.IsSignaled()) {
+      return;
+    }
+
     int bytes_read = SbMicrophoneRead(microphone_, mono_buffer.data(),
-                                      mono_buffer.size() * sizeof(int16_t));
+                                      buffer_size_frames * sizeof(int16_t));
 
     if (bytes_read > 0) {
-      int frames = bytes_read / sizeof(int16_t);
-      DCHECK_LE(frames, buffer_size_frames);
-      LOG(INFO) << "YO THOR - Read " << bytes_read << " bytes for " << frames
-                << " frames.";
+      int frames_read = bytes_read / sizeof(int16_t);
+      DCHECK_LE(frames_read, buffer_size_frames);
+      LOG(INFO) << "YO THOR - Read " << bytes_read << " bytes for "
+                << frames_read << " frames.";
 
-      // Create a temporary stereo buffer on the stack and duplicate the mono
-      // samples.
-      std::vector<int16_t> stereo_buffer(frames * 2);
-      for (int i = 0; i < frames; ++i) {
-        stereo_buffer[i * 2] = mono_buffer[i];
-        stereo_buffer[i * 2 + 1] = mono_buffer[i];
-      }
-
-      // Convert the stereo PCM data into the planar float format of the
-      // AudioBus.
+      // If |frames_read| is less than |buffer_size_frames|, the remainder of
+      // the audio_bus will be filled with silence.
       audio_bus->FromInterleaved<SignedInt16SampleTypeTraits>(
-          stereo_buffer.data(), frames);
+          mono_buffer.data(), frames_read);
 
-      LOG(INFO) << "YO THOR - Calling OnData with stereo bus.";
+      LOG(INFO) << "YO THOR - Calling OnData with mono bus.";
       callback_->OnData(audio_bus.get(), base::TimeTicks::Now(), 0.0, {});
       LOG(INFO) << "YO THOR - Returned from OnData.";
+    } else {
+      LOG(WARNING) << "YO THOR SbMicrophoneRead returned " << bytes_read
+                   << ". Dropping this buffer and stopping read loop.";
+      // Break the loop on a read error to avoid busy-looping.
+      break;
     }
   }
+
+  // Schedule the next read for a standard interval.
+  thread_.task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                     base::Unretained(this)),
+      params_.GetBufferDuration());
 }
 
 }  // namespace media

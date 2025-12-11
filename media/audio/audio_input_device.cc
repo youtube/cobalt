@@ -135,6 +135,7 @@ void AudioInputDevice::Start() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback_) << "Initialize hasn't been called";
   TRACE_EVENT0("audio", "AudioInputDevice::Start");
+  LOG(INFO) << "YO THOR - AudioInputDevice::Start";
 
   // Make sure we don't call Start() more than once.
   if (state_ != IDLE)
@@ -237,6 +238,7 @@ void AudioInputDevice::OnStreamCreated(
 #endif
   DCHECK_GT(shared_memory_region.GetSize(), 0u);
 
+  LOG(INFO) << "YO THOR! AUDIO INPUT DEVICE - ON STREAM CREATED!";
   if (state_ != CREATING_STREAM)
     return;
 
@@ -425,6 +427,7 @@ void AudioInputDevice::AudioThreadCallback::MapSharedMemory() {
 
 void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   TRACE_EVENT_BEGIN0("audio", "AudioInputDevice::AudioThreadCallback::Process");
+  LOG(INFO) << "YO THOR - AudioInputDevice::AudioThreadCallback::Process - pending_data: " << pending_data;
   // The shared memory represents parameters, size of the data buffer and the
   // actual data buffer containing audio data. Map the memory into this
   // structure and parse out parameters and the data area.

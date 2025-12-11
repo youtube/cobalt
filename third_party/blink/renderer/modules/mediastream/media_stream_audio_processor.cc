@@ -82,6 +82,7 @@ void MediaStreamAudioProcessor::ProcessCapturedAudio(
     double volume,
     bool key_pressed) {
   DCHECK_CALLED_ON_VALID_THREAD(capture_thread_checker_);
+  LOG(INFO) << "YO THOR - MediaStreamAudioProcessor::ProcessCapturedAudio";
   audio_processor_->ProcessCapturedAudio(audio_source, audio_capture_time,
                                          num_preferred_channels, volume,
                                          key_pressed);

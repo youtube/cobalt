@@ -51,7 +51,7 @@ class AudioInputStreamStarboard : public AudioInputStream {
   base::WaitableEvent stop_event_;
   SbMicrophone microphone_ = kSbMicrophoneInvalid;
 
-  void ThreadMain();
+  void ReadAudio();
 };
 
 }  // namespace media

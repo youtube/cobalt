@@ -605,6 +605,12 @@ void UserMediaProcessor::SetupAudioInput() {
   DCHECK(current_request_info_);
   DCHECK(current_request_info_->request()->Audio());
 
+  LOG(INFO) << "YO THOR - UserMediaProcessor::SetupAudioInput - constraints "
+            << current_request_info_->request()
+                   ->AudioConstraints()
+                   .ToString()
+                   .Utf8();
+
   UserMediaRequest* const request = current_request_info_->request();
 
   SendLogMessage(base::StringPrintf(

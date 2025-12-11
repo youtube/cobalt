@@ -15,6 +15,7 @@
 #include <sys/types.h>
 
 #include "base/check_op.h"
+#include "base/logging.h"
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/numerics/safe_conversions.h"
@@ -50,6 +51,7 @@ size_t SendHelper(SyncSocket::Handle handle,
 
 // static
 bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
+  LOG(INFO) << "YO THOR - BASE SYNC SOCKET CREATE PAIR!";
   DCHECK_NE(socket_a, socket_b);
   DCHECK(!socket_a->IsValid());
   DCHECK(!socket_b->IsValid());
@@ -62,6 +64,7 @@ bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
 
   {
     Handle raw_handles[2] = {kInvalidHandle, kInvalidHandle};
+    LOG(INFO) << "YO THOR - SOCKETPAIR BEING CALLED";
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, raw_handles) != 0) {
       return false;
     }
@@ -92,11 +95,13 @@ void SyncSocket::Close() {
 }
 
 size_t SyncSocket::Send(const void* buffer, size_t length) {
+  LOG(INFO) << "YO THOR - SYNC SOCKER SEND! leng:" << length;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   return SendHelper(handle(), buffer, length);
 }
 
 size_t SyncSocket::Receive(void* buffer, size_t length) {
+  LOG(INFO) << "YO THOR - SYNC SOCKER RCV! leng:" << length;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK_GT(length, 0u);
   DCHECK_LE(length, kMaxMessageLength);
@@ -217,7 +222,10 @@ size_t CancelableSyncSocket::Send(const void* buffer, size_t length) {
     fcntl(handle(), F_SETFL, flags | O_NONBLOCK);
   }
 
+  LOG(INFO) << "YO THOR - CancelableSyncSocket: PRE-SendHelper on fd " << handle() << " length " << length;
   const size_t len = SendHelper(handle(), buffer, length);
+  // Log errno explicitly, as SendHelper might return 0 on error, or -1 with errno.
+  LOG(INFO) << "YO THOR - CancelableSyncSocket: POST-SendHelper. Result: " << len << " errno: " << errno << " (" << strerror(errno) << ")";
 
   if (flags != -1 && (flags & O_NONBLOCK) == 0) {
     // Restore the original flags.

@@ -161,6 +161,7 @@ class AudioCallback : public media::AudioInputStream::AudioInputCallback {
               base::TimeTicks capture_time,
               double volume,
               const media::AudioGlitchInfo& glitch_info) override {
+    LOG(INFO) << "YO THOR - INPUT CONTROLLER - ON DATA!";
     TRACE_EVENT1("audio", "InputController::OnData", "capture time (ms)",
                  (capture_time - base::TimeTicks()).InMillisecondsF());
 
@@ -199,6 +200,7 @@ InputController::InputController(
       sync_writer_(sync_writer),
       type_(type),
       user_input_monitor_(user_input_monitor) {
+        LOG(INFO) << "YO THOR - INPUT CONTROLLER CTOR";
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(event_handler_);
   DCHECK(sync_writer_);
@@ -332,6 +334,7 @@ std::unique_ptr<InputController> InputController::Create(
 void InputController::Record() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.RecordTime");
+  LOG(INFO) << "YO THOR - INPUT CONTROLLER -- RECORD";
 
   if (!stream_ || audio_callback_)
     return;
@@ -748,6 +751,7 @@ void InputController::OnData(const media::AudioBus* source,
   } else
 #endif
   {
+    LOG(INFO) << "YO THOR - INPUT CONTROLLER - ON DATA - CALLING SYNC WRITE WITH SOURCE!";
     sync_writer_->Write(source, volume, key_pressed, capture_time, glitch_info);
   }
 

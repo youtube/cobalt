@@ -32,7 +32,11 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       : id_(id),
         sample_rate_in_hz_(sample_rate_in_hz),
         buffer_size_(buffer_size),
-        handle_(NULL) {}
+        handle_(NULL) {
+    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::SbMicrophoneImpl"
+                 << " sample_rate_in_hz: " << sample_rate_in_hz
+                 << " buffer_size: " << buffer_size;
+  }
   ~SbMicrophoneImpl() override { Close(); }
 
   bool Open() override {
@@ -110,6 +114,12 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       return false;
     }
 
+    error = snd_pcm_start(handle_);
+    if (error < 0) {
+      Close();
+      return false;
+    }
+
     return true;
   }
 
@@ -146,6 +156,13 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
     }
 
     return frames_read * kChannels * sizeof(int16_t);
+  }
+
+  int GetAvailableFrames() {
+    if (!handle_) {
+      return -1;
+    }
+    return snd_pcm_avail_update(handle_);
   }
 
  private:
@@ -332,4 +349,11 @@ int SbMicrophoneRead(SbMicrophone microphone,
 
 void SbMicrophoneDestroy(SbMicrophone microphone) {
   SbMicrophonePrivate::DestroyMicrophone(microphone);
+}
+
+int SbMicrophoneGetAvailableFrames(SbMicrophone microphone) {
+  if (!SbMicrophoneIsValid(microphone)) {
+    return -1;
+  }
+  return static_cast<SbMicrophoneImpl*>(microphone)->GetAvailableFrames();
 }

@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "base/check_op.h"
+#include "base/logging.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
 
@@ -60,6 +61,7 @@ AudioDeviceThread::AudioDeviceThread(Callback* callback,
                                              thread_type));
 
   DCHECK(!thread_handle_.is_null());
+  LOG(INFO) << "YO THOR - AUDIO DEVICE TRHEAD! CTOR";
 }
 
 AudioDeviceThread::~AudioDeviceThread() {
@@ -77,14 +79,19 @@ base::TimeDelta AudioDeviceThread::GetRealtimePeriod() {
 
 void AudioDeviceThread::ThreadMain() {
   base::PlatformThread::SetName(thread_name_);
+  LOG(INFO) << "YO THOR - AudioDeviceThread::ThreadMain - thread_name: " << thread_name_;
   callback_->InitializeOnAudioThread();
 
   uint32_t buffer_index = 0;
   while (true) {
     uint32_t pending_data = 0;
     size_t bytes_read = socket_.Receive(&pending_data, sizeof(pending_data));
-    if (bytes_read != sizeof(pending_data))
+    if (bytes_read != sizeof(pending_data)) {
+      LOG(INFO) << "YO THOR - AUDIO DEVICE THREAD _ THREWAD MAIN - WHILE TRUE - BYTES-READ:" << bytes_read << " PENDINGDATA:" << pending_data;
       break;
+    }
+
+    LOG(INFO) << "YO THOR - AudioDeviceThread::ThreadMain - received pending_data: " << pending_data;
 
     // std::numeric_limits<uint32_t>::max() is a special signal which is
     // returned after the browser stops the output device in response to a
@@ -108,7 +115,9 @@ void AudioDeviceThread::ThreadMain() {
     // expects. For more details on how this works see
     // AudioSyncReader::WaitUntilDataIsReady().
     ++buffer_index;
+    LOG(INFO) << "YO THOR - SEND DATA OVER SOCKET";
     size_t bytes_sent = socket_.Send(&buffer_index, sizeof(buffer_index));
+    LOG(INFO) << "YO THOR - SENTTTTTT DATA OVER SOCKET";
     if (bytes_sent != sizeof(buffer_index))
       break;
   }

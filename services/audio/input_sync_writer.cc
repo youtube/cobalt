@@ -105,6 +105,7 @@ std::unique_ptr<InputSyncWriter> InputSyncWriter::Create(
     uint32_t shared_memory_segment_count,
     const media::AudioParameters& params,
     base::CancelableSyncSocket* foreign_socket) {
+  LOG(INFO) << "YO THOR - InputSyncWriter::Create";
   // Having no shared memory doesn't make sense, so fail creation in that case.
   if (shared_memory_segment_count == 0)
     return nullptr;
@@ -146,6 +147,8 @@ void InputSyncWriter::Write(const media::AudioBus* data,
   TRACE_EVENT1("audio", "InputSyncWriter::Write", "capture time (ms)",
                (capture_time - base::TimeTicks()).InMillisecondsF());
   CheckTimeSinceLastWrite();
+
+  LOG(INFO) << "YO THOR! InputSyncWriter::Write";
 
   pending_glitch_info_ += glitch_info;
 
@@ -325,8 +328,14 @@ bool InputSyncWriter::WriteDataToCurrentSegment(
 }
 
 bool InputSyncWriter::SignalDataWrittenAndUpdateCounters() {
-  if (socket_->Send(&current_segment_id_, sizeof(current_segment_id_)) !=
-      sizeof(current_segment_id_)) {
+
+  LOG(INFO) << "YO THOR - InputSyncWriter: PRE-SEND on socket->Send()";
+
+  size_t sent_bytes =  socket_->Send(&current_segment_id_, sizeof(current_segment_id_));
+
+  LOG(INFO) << "YO THOR - InputSyncWriter: POST-SEND on socket->Send() -- Bytes sent:" << sent_bytes;
+
+  if (sent_bytes != sizeof(current_segment_id_)) {
     // Ensure we don't log consecutive errors as this can lead to a large
     // amount of logs.
     if (!had_socket_error_) {

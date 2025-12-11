@@ -71,6 +71,10 @@ AudioInputStream* AudioManagerStarboard::MakeAudioInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  LOG(INFO) << "YO THOR - AudioManagerStarboard::MakeAudioInputStream"
+            << " sample_rate: " << params.sample_rate()
+            << " channels: " << params.channels()
+            << " frames_per_buffer: " << params.frames_per_buffer();
   return new AudioInputStreamStarboard(this, params);
 }
 
@@ -85,8 +89,9 @@ void AudioManagerStarboard::ShutdownOnAudioThread() {
 AudioParameters AudioManagerStarboard::GetInputStreamParameters(
     const std::string& device_id) {
   // TODO(b/294816013): Get the device info and check for sample rate support.
-  return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         ChannelLayoutConfig::Stereo(), 48000, 1024);
+  AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                         ChannelLayoutConfig::Mono(), 48000, 480);
+  return params;
 }
 
 AudioParameters AudioManagerStarboard::GetPreferredOutputStreamParameters(

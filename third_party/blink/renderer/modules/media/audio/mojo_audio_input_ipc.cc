@@ -117,6 +117,8 @@ void MojoAudioInputIPC::StreamCreated(
   DCHECK(!stream_);
   DCHECK(!stream_client_receiver_.is_bound());
 
+  LOG(INFO) << "YO THOR - MojoAudioInputIPC::StreamCreated";
+
   stream_.Bind(std::move(stream));
   stream_client_receiver_.Bind(std::move(stream_client_receiver));
 
