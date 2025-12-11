@@ -99,7 +99,6 @@ InputSyncWriter::InputSyncWriter(
 
 InputSyncWriter::~InputSyncWriter() = default;
 
-// static
 std::unique_ptr<InputSyncWriter> InputSyncWriter::Create(
     base::RepeatingCallback<void(const std::string&)> log_callback,
     uint32_t shared_memory_segment_count,

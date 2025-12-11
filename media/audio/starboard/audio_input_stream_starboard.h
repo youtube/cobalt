@@ -50,6 +50,7 @@ class AudioInputStreamStarboard : public AudioInputStream {
   AudioInputCallback* callback_ = nullptr;
   base::WaitableEvent stop_event_;
   SbMicrophone microphone_ = kSbMicrophoneInvalid;
+  base::TimeTicks next_read_time_;
 
   void ReadAudio();
 };

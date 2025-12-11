@@ -184,13 +184,13 @@ class InputSyncWriter final : public InputController::SyncWriter {
 
   std::unique_ptr<InputGlitchCounter> glitch_counter_;
 
-  // Glitch info that has yet to be successfully communicated to the renderer.
-  media::AudioGlitchInfo pending_glitch_info_;
-
-  // Represents the glitch info of one dropped buffer.
-  const media::AudioGlitchInfo dropped_buffer_glitch_;
-};
-
-}  // namespace audio
-
+    // Glitch info that has yet to be successfully communicated to the renderer.
+     media::AudioGlitchInfo pending_glitch_info_;
+   
+     // Represents the glitch info of one dropped buffer.
+     const media::AudioGlitchInfo dropped_buffer_glitch_;
+  raw_ptr<base::WaitableEvent> data_ready_event_;
+ };
+ 
+ }  // namespace audio
 #endif  // SERVICES_AUDIO_INPUT_SYNC_WRITER_H_

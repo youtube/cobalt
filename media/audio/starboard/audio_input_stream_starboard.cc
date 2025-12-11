@@ -75,10 +75,20 @@ void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   DCHECK(!thread_.IsRunning());
   callback_ = callback;
   stop_event_.Reset();
+
+  // We start reading data half |buffer_duration_| later than when the
+  // buffer might have got filled, to accommodate some delays in the audio
+  // driver. This could also give us a smooth read sequence going forward.
+  base::TimeDelta initial_delay = params_.GetBufferDuration() / 2;
+  next_read_time_ = base::TimeTicks::Now() + initial_delay;
+
   thread_.Start();
-  thread_.task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                                base::Unretained(this)));
+  base::TimeDelta delay = next_read_time_ - base::TimeTicks::Now();
+  thread_.task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                     base::Unretained(this)),
+      delay);
 }
 
 void AudioInputStreamStarboard::Stop() {
@@ -144,8 +154,7 @@ void AudioInputStreamStarboard::ReadAudio() {
   }
 
   if (available_frames < params_.frames_per_buffer()) {
-    // Not enough data yet. Check again in a little bit to avoid starving the
-    // consumer thread on the other side.
+    // Not enough data yet. Check again in a little bit.
     thread_.task_runner()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
@@ -154,48 +163,47 @@ void AudioInputStreamStarboard::ReadAudio() {
     return;
   }
 
-  // At least one full buffer is available. Read all available buffers.
-  int num_buffers = available_frames / params_.frames_per_buffer();
+  // At least one full buffer is available. Read one buffer.
   auto audio_bus = AudioBus::Create(params_);
   const int buffer_size_frames = params_.frames_per_buffer();
   std::vector<int16_t> mono_buffer(buffer_size_frames);
 
-  while (num_buffers-- > 0) {
-    if (stop_event_.IsSignaled()) {
-      return;
-    }
+  int bytes_read = SbMicrophoneRead(microphone_, mono_buffer.data(),
+                                    buffer_size_frames * sizeof(int16_t));
 
-    int bytes_read = SbMicrophoneRead(microphone_, mono_buffer.data(),
-                                      buffer_size_frames * sizeof(int16_t));
+  if (bytes_read > 0) {
+    int frames_read = bytes_read / sizeof(int16_t);
+    DCHECK_LE(frames_read, buffer_size_frames);
+    LOG(INFO) << "YO THOR - Read " << bytes_read << " bytes for " << frames_read
+              << " frames.";
 
-    if (bytes_read > 0) {
-      int frames_read = bytes_read / sizeof(int16_t);
-      DCHECK_LE(frames_read, buffer_size_frames);
-      LOG(INFO) << "YO THOR - Read " << bytes_read << " bytes for "
-                << frames_read << " frames.";
+    // If |frames_read| is less than |buffer_size_frames|, the remainder of
+    // the audio_bus will be filled with silence.
+    audio_bus->FromInterleaved<SignedInt16SampleTypeTraits>(mono_buffer.data(),
+                                                            frames_read);
 
-      // If |frames_read| is less than |buffer_size_frames|, the remainder of
-      // the audio_bus will be filled with silence.
-      audio_bus->FromInterleaved<SignedInt16SampleTypeTraits>(
-          mono_buffer.data(), frames_read);
-
-      LOG(INFO) << "YO THOR - Calling OnData with mono bus.";
-      callback_->OnData(audio_bus.get(), base::TimeTicks::Now(), 0.0, {});
-      LOG(INFO) << "YO THOR - Returned from OnData.";
-    } else {
-      LOG(WARNING) << "YO THOR SbMicrophoneRead returned " << bytes_read
-                   << ". Dropping this buffer and stopping read loop.";
-      // Break the loop on a read error to avoid busy-looping.
-      break;
-    }
+    LOG(INFO) << "YO THOR - Calling OnData with mono bus.";
+    callback_->OnData(audio_bus.get(), base::TimeTicks::Now(), 0.0, {});
+    LOG(INFO) << "YO THOR - Returned from OnData.";
+  } else {
+    LOG(WARNING) << "YO THOR SbMicrophoneRead returned " << bytes_read
+                 << ". Dropping this buffer.";
   }
 
-  // Schedule the next read for a standard interval.
+  // Schedule the next read.
+  next_read_time_ += params_.GetBufferDuration();
+  base::TimeTicks now = base::TimeTicks::Now();
+  if (next_read_time_ < now) {
+    // If we are behind, schedule the next read immediately.
+    next_read_time_ = now;
+  }
+
+  base::TimeDelta delay = next_read_time_ - base::TimeTicks::Now();
   thread_.task_runner()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
                      base::Unretained(this)),
-      params_.GetBufferDuration());
+      delay);
 }
 
 }  // namespace media
