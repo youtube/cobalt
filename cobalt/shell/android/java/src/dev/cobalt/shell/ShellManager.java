@@ -32,8 +32,6 @@ public class ShellManager {
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
-    private Shell mSplashShell;
-    private Shell mAppShell;
 
     private String mStartupUrl = DEFAULT_SHELL_URL;
 
@@ -94,21 +92,7 @@ public class ShellManager {
      * @return The currently visible shell view or null if one is not showing.
      */
     public Shell getActiveShell() {
-        return mSplashShell == null? mAppShell : mSplashShell;
-    }
-
-    /**
-     * @return The current Splash shell.
-     */
-    public Shell getSplashAppShell() {
-        return mSplashShell;
-    }
-
-    /**
-     * @return The current App shell.
-     */
-    public Shell getAppShell() {
-        return mAppShell;
+        return mActiveShell;
     }
 
     /**
@@ -130,6 +114,7 @@ public class ShellManager {
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url);
+        if (previousShell != null) previousShell.close();
     }
 
     @CalledByNative
@@ -144,12 +129,10 @@ public class ShellManager {
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
 
-        if (mActiveShell == null) {
-            mSplashShell = shellView;
-            showSplashShell();
-        } else {
-            mAppShell = shellView;
-        }
+        // TODO(tedchoc): Allow switching back to these inactive shells.
+        if (mActiveShell != null) removeShell(mActiveShell);
+
+        showShell(shellView);
         return shellView;
     }
 
@@ -164,20 +147,6 @@ public class ShellManager {
             mContentViewRenderView.setCurrentWebContents(webContents);
             webContents.onShow();
         }
-    }
-
-    private void showSplashShell() {
-        // mActiveShell will be mSplashShell.
-        showShell(mSplashShell);
-    }
-
-    public void showAppShell() {
-        // mActiveShell will be mAppShell, and close mSplashShell.
-        if (mSplashShell != null) {
-            mSplashShell.close();
-        }
-        showShell(mAppShell);
-        mSplashShell = null;
     }
 
     @CalledByNative
