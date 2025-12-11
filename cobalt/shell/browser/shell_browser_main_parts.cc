@@ -35,7 +35,6 @@
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/common/url_constants.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/embedder/performance_manager_lifetime.h"
 #include "content/public/browser/browser_thread.h"
@@ -143,7 +142,7 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size(), kCobaltSplashMainFrameName);
+                         gfx::Size());
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {

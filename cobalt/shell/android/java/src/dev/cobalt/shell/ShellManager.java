@@ -15,7 +15,6 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
-import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -146,11 +145,9 @@ public class ShellManager {
         mNextWebContentsReadyListener = null;
 
         if (mActiveShell == null) {
-            Log.i(TAG, "SplashShell is created.");
             mSplashShell = shellView;
             showSplashShell();
         } else {
-            Log.i(TAG, "AppShell is created.");
             mAppShell = shellView;
         }
         return shellView;
