@@ -141,19 +141,17 @@ public class ShellManager {
         }
 
         Shell shellView = new Shell(getContext());
-        if (mActiveShell == null) {
-            Log.i(TAG, "SplashShell is created.");
-            mSplashShell = shellView;
-        } else {
-            Log.i(TAG, "AppShell is created.");
-            mAppShell = shellView;
-        }
         shellView.initialize(nativeShellPtr, mWindow);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
 
         if (mActiveShell == null) {
+            Log.i(TAG, "SplashShell is created.");
+            mSplashShell = shellView;
             showSplashShell();
+        } else {
+            Log.i(TAG, "AppShell is created.");
+            mAppShell = shellView;
         }
         return shellView;
     }
