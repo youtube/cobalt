@@ -72,14 +72,6 @@ bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
     handles[1].reset(raw_handles[1]);
   }
 
-#if BUILDFLAG(IS_COBALT)
-  // Set non-blocking to avoid a deadlock on synchronous send.
-  if (!base::SetNonBlocking(handles[0].get()) ||
-      !base::SetNonBlocking(handles[1].get())) {
-    return false;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
-
 #if BUILDFLAG(IS_APPLE)
   // On OSX an attempt to read or write to a closed socket may generate a
   // SIGPIPE rather than returning -1.  setsockopt will shut this off.
