@@ -19,6 +19,35 @@ jinja_template("cobalt_manifest") {
   }
 }
 
+java_cpp_features("java_features_srcjar") {
+  # External code should depend on ":cobalt_features_java" instead.
+  visibility = [ ":*" ]
+  sources = [ "//cobalt/common/features/cobalt_features.cc" ]
+  template = "//cobalt/android/java_templates/CobaltFeatures.java.tmpl"
+}
+
+# We must create a new generate_jni build target, as "jni_headers" is a part of
+# the "starboard_platform". Starboard should have no reliance on Cobalt features.
+generate_jni("cobalt_features_jni") {
+  sources =
+      [ "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureList.java" ]
+}
+
+android_library("cobalt_features_java") {
+  sources =
+      [ "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureList.java" ]
+
+  srcjar_deps = [ ":java_features_srcjar" ]
+
+  deps = [
+    ":cobalt_features_jni",
+    "//base:base_java",
+    "//base:jni_java",
+  ]
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+}
+
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
@@ -39,6 +68,7 @@ android_library("cobalt_main_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
+    ":cobalt_features_java",
     ":jni_headers",
     "//base:base_java",
     "//base:jni_java",

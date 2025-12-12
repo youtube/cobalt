@@ -32,6 +32,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
 import androidx.annotation.Nullable;
+import dev.cobalt.features.CobaltFeatureList;
+import dev.cobalt.features.CobaltFeatures;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import dev.cobalt.util.UsedByNative;
@@ -513,8 +515,12 @@ class MediaCodecBridge {
 
   @CalledByNative
   private boolean isDecodeOnlyFlagEnabled() {
-    // Right now, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
-    if (!mIsTunnelingPlayback) {
+    // By default, we only enable BUFFER_FLAG_DECODE_ONLY for tunneling playback.
+    // We enable BUFFER_FLAG_DECODE_ONLY for non-tunneling playback if the
+    // cobalt experiment for it is enabled.
+    boolean enableNonTunnelDecodeOnly =
+        CobaltFeatureList.isEnabled(CobaltFeatures.NON_TUNNELED_DECODE_ONLY);
+    if (!(mIsTunnelingPlayback || enableNonTunnelDecodeOnly)) {
       return false;
     }
     // BUFFER_FLAG_DECODE_ONLY is added in Android 14.
@@ -883,10 +889,10 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
     try {
       if (isDecodeOnlyFlagEnabled()
-          && is_decode_only
+          && isDecodeOnly
           && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
@@ -911,7 +917,7 @@ class MediaCodecBridge {
       int blocksToEncrypt,
       int blocksToSkip,
       long presentationTimeUs,
-      boolean is_decode_only) {
+      boolean isDecodeOnly) {
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
@@ -925,7 +931,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
+      if (isDecodeOnlyFlagEnabled() && isDecodeOnly) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
 
