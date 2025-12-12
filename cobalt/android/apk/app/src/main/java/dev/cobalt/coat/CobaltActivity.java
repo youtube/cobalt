@@ -50,6 +50,8 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.annotations.JNINamespace;
@@ -79,6 +81,10 @@ public abstract class CobaltActivity extends Activity {
   private static final String META_DATA_APP_SPLASH_TIMEOUT_MS = "cobalt.APP_SPLASH_TIMEOUT_MS";
   private static final String DISABLE_NATIVE_SPLASH = "disable-native-splash";
 
+
+  // Features
+  public static final String FEATURE_ENABLE_QUIC = "EnableQUIC";
+
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
@@ -87,6 +93,7 @@ public abstract class CobaltActivity extends Activity {
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
+  private Map<String, String> featureFlags = new HashMap<>();
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
@@ -124,9 +131,21 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
+
+      Map<String, String> featureFlags = getFeatureFlags();
+      List<String> extraCommandLineArgs = new ArrayList<>();
+      if (!featureFlags.containsKey(FEATURE_ENABLE_QUIC)) {
+        extraCommandLineArgs.add("--disable-quic");
+      }
+
+      if (commandLineArgs != null) {
+        // Add all array elements to index 0 of the list
+        extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+      }
+
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
+              VersionInfo.isOfficialBuild(), extraCommandLineArgs.toArray(new String[0])));
     }
     mDisableNativeSplash = CommandLine.getInstance().hasSwitch(DISABLE_NATIVE_SPLASH);
 
@@ -650,6 +669,11 @@ public abstract class CobaltActivity extends Activity {
         .findAny()
         .map(arg -> arg.substring(argName.length()))
         .orElse(null);
+  }
+
+  // Overrided by Kimono
+  protected Map<String, String> getFeatureFlags() {
+    return this.featureFlags;
   }
 
   /**
