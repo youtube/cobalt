@@ -196,7 +196,7 @@ class SbPlayerBridge {
     void OnPlayerError(void* player,
                        SbPlayerError error,
                        const std::string& message);
-    void OnDeallocateSample(const void* sample_buffer);
+    void OnDeallocateSample(uintptr_t sample_buffer_id);
 
     void ResetPlayer();
 
@@ -216,7 +216,7 @@ class SbPlayerBridge {
     int usage_count;
     SbMediaType type;
   };
-  using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
+  using DecodingBuffers = absl::flat_hash_map<uintptr_t, DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
@@ -257,7 +257,7 @@ class SbPlayerBridge {
   void OnPlayerError(SbPlayer player,
                      SbPlayerError error,
                      const std::string& message);
-  void OnDeallocateSample(const void* sample_buffer);
+  void OnDeallocateSample(uintptr_t sample_buffer_id);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,

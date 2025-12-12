@@ -84,6 +84,10 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
+uintptr_t GetMemoryId(const void* addr) {
+  return reinterpret_cast<uintptr_t>(addr);
+}
+
 }  // namespace
 
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
@@ -138,13 +142,13 @@ void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
 }
 
 void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
-    const void* sample_buffer) {
+    uintptr_t sample_buffer_id) {
   if (!player_bridge_) {
     return;
   }
   CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
 
-  player_bridge_->OnDeallocateSample(sample_buffer);
+  player_bridge_->OnDeallocateSample(sample_buffer_id);
 }
 
 void SbPlayerBridge::CallbackHelper::ResetPlayer() {
@@ -910,8 +914,9 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->data(), buffer, /*usage_count=*/1, sample_type);
+    if (auto [iter, inserted] =
+            decoding_buffers_.try_emplace(GetMemoryId(buffer->data()), buffer,
+                                          /*usage_count=*/1, sample_type);
         !inserted) {
       ++iter->second.usage_count;
     }
@@ -1174,17 +1179,17 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
   host_->OnPlayerError(error, message);
 }
 
-void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
+void SbPlayerBridge::OnDeallocateSample(uintptr_t sample_buffer_id) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer_id);
   DCHECK(iter != decoding_buffers_.end());
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
-               << "sample_buffer " << sample_buffer;
+               << "sample_buffer_id " << sample_buffer_id;
     return;
   }
 
@@ -1278,11 +1283,7 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_,
-                     // SAFETY: `sample_buffer` is from a `DecoderBuffer` that
-                     // is kept alive by a `scoped_refptr` in `decoder_buffers_`
-                     // until this callback runs and releases it.
-                     base::UnsafeDanglingUntriaged(sample_buffer)));
+                     helper->callback_helper_, GetMemoryId(sample_buffer)));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
