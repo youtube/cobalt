@@ -14,14 +14,24 @@
 
 static_library("features") {
   sources = [
+    "cobalt_features.cc",
+    "cobalt_features.h",
     "features.cc",
     "features.h",
     "starboard_features_initialization.cc",
     "starboard_features_initialization.h",
   ]
 
+  if (is_android) {
+    sources += [ "cobalt_feature_list.cc" ]
+  }
+
   deps = [
     "//base",
     "//starboard/common:common",
   ]
+
+  if (is_android) {
+    deps += [ "//cobalt/android:cobalt_features_jni" ]
+  }
 }
