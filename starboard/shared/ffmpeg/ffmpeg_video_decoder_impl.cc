@@ -105,7 +105,8 @@ FfmpegVideoDecoderImpl<FFMPEG>::FfmpegVideoDecoderImpl(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider)
-    : video_codec_(video_codec),
+    : Thread("ff_video_dec"),
+      video_codec_(video_codec),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
@@ -164,12 +165,9 @@ void FfmpegVideoDecoderImpl<FFMPEG>::WriteInputBuffers(
   }
 
   if (!decoder_thread_) {
-    pthread_t thread;
-    const int result =
-        pthread_create(&thread, nullptr,
-                       &FfmpegVideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_CHECK_EQ(result, 0);
-    decoder_thread_ = thread;
+    SbThreadSetPriority(kSbThreadPriorityHigh);
+    Start();
+    decoder_thread_ = SbThreadGetId();
   }
   queue_.Put(Event(input_buffer));
 }
@@ -195,7 +193,7 @@ void FfmpegVideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
   if (decoder_thread_) {
     queue_.Put(Event(kReset));
-    pthread_join(*decoder_thread_, nullptr);
+    Join();
   }
 
   if (codec_context_ != NULL) {
@@ -219,18 +217,7 @@ bool FfmpegVideoDecoderImpl<FFMPEG>::is_valid() const {
   return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
 }
 
-// static
-void* FfmpegVideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "ff_video_dec");
-  SbThreadSetPriority(kSbThreadPriorityHigh);
-  SB_DCHECK(context);
-  FfmpegVideoDecoderImpl<FFMPEG>* decoder =
-      reinterpret_cast<FfmpegVideoDecoderImpl<FFMPEG>*>(context);
-  decoder->DecoderThreadFunc();
-  return NULL;
-}
-
-void FfmpegVideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
+void FfmpegVideoDecoderImpl<FFMPEG>::Run() {
   for (;;) {
     Event event = queue_.Get();
     if (event.type == kReset) {

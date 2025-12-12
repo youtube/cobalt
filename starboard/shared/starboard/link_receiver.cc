@@ -35,8 +35,8 @@
 #include <unordered_map>
 
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/system.h"
 
 namespace starboard {
 
@@ -183,10 +183,10 @@ void CreateTemporaryFile(const char* name, const char* contents, int size) {
 }  // namespace
 
 // --- LinkReceiverImpl Class ---
-class LinkReceiverImpl {
+class LinkReceiverImpl : public Thread {
  public:
   LinkReceiverImpl(Application* application, int port);
-  ~LinkReceiverImpl();
+  ~LinkReceiverImpl() override;
 
  private:
   // Encapsulates connection state.
@@ -209,10 +209,9 @@ class LinkReceiverImpl {
     std::string data;
   };
 
-  void Run();
+  void Run() override;
   void HandleEvents(struct epoll_event* events, int num_events);
   void PostRunCleanup();
-  static void* RunThread(void* context);
 
   void OnAcceptReady();
   void OnReadReady(Connection* connection);
@@ -222,7 +221,6 @@ class LinkReceiverImpl {
   Application* application_;
   const int specified_port_;
   int actual_port_;
-  pthread_t thread_ = 0;
   std::atomic_bool quit_{false};
 
   int listen_socket_ = -1;
@@ -238,15 +236,14 @@ class LinkReceiverImpl {
 // --- LinkReceiverImpl Implementation ---
 
 LinkReceiverImpl::LinkReceiverImpl(Application* application, int port)
-    : application_(application), specified_port_(port) {
+    : Thread("LinkReceiver"), application_(application), specified_port_(port) {
   sem_init(&server_started_sem_, 0, 0);
-  pthread_create(&thread_, nullptr, &LinkReceiverImpl::RunThread, this);
+  Start();
   // Block until the server thread is initialized.
   sem_wait(&server_started_sem_);
 }
 
 LinkReceiverImpl::~LinkReceiverImpl() {
-  SB_CHECK_NE(thread_, pthread_self());
   quit_.store(true);
 
   // Wake up the epoll_wait() call by writing to the eventfd.
@@ -255,14 +252,8 @@ LinkReceiverImpl::~LinkReceiverImpl() {
     HANDLE_EINTR([&]() { return write(event_fd_, &val, sizeof(val)); });
   }
 
-  pthread_join(thread_, nullptr);
+  Join();
   sem_destroy(&server_started_sem_);
-}
-
-void* LinkReceiverImpl::RunThread(void* context) {
-  pthread_setname_np(pthread_self(), "LinkReceiver");
-  reinterpret_cast<LinkReceiverImpl*>(context)->Run();
-  return nullptr;
 }
 
 void LinkReceiverImpl::Run() {

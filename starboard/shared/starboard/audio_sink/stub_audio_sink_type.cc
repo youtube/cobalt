@@ -14,22 +14,21 @@
 
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 
-#include <pthread.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <mutex>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace {
 
-class StubAudioSink : public SbAudioSinkPrivate {
+class StubAudioSink : public SbAudioSinkPrivate, public starboard::Thread {
  public:
   StubAudioSink(Type* type,
                 int sampling_frequency_hz,
@@ -44,8 +43,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
   void SetVolume(double volume) override {}
 
  private:
-  static void* ThreadEntryPoint(void* context);
-  void AudioThreadFunc();
+  void Run() override;
 
   Type* type_;
   const int sampling_frequency_hz_;
@@ -53,7 +51,6 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ConsumeFramesFunc consume_frames_func_;
   void* context_;
 
-  pthread_t audio_out_thread_;
   std::mutex mutex_;
 
   bool destroying_;
@@ -65,16 +62,15 @@ StubAudioSink::StubAudioSink(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
     void* context)
-    : type_(type),
+    : Thread("stub_audio_out"),
+      type_(type),
       sampling_frequency_hz_(sampling_frequency_hz),
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
-      audio_out_thread_(0),
       destroying_(false) {
-  const int result = pthread_create(&audio_out_thread_, nullptr,
-                                    &StubAudioSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
+  Start();
 }
 
 StubAudioSink::~StubAudioSink() {
@@ -82,29 +78,13 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
+  Join();
 }
 
-// static
-void* StubAudioSink::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("stub_audio_out");
-#else
-  pthread_setname_np(pthread_self(), "stub_audio_out");
-#endif
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  SB_DCHECK(context);
-  StubAudioSink* sink = reinterpret_cast<StubAudioSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
-}
-
-void StubAudioSink::AudioThreadFunc() {
+void StubAudioSink::Run() {
   const int kMaxFramesToConsumePerRequest = 1024;
 
-  for (;;) {
+  while (!join_called()) {
     {
       std::lock_guard lock(mutex_);
       if (destroying_) {
@@ -119,11 +99,16 @@ void StubAudioSink::AudioThreadFunc() {
       int frames_to_consume =
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
-      usleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
+      if (WaitForJoin(frames_to_consume * 1'000'000LL /
+                      sampling_frequency_hz_)) {
+        break;
+      }
       consume_frames_func_(frames_to_consume, CurrentMonotonicTime(), context_);
     } else {
       // Wait for five millisecond if we are paused.
-      usleep(5'000);
+      if (WaitForJoin(5'000)) {
+        break;
+      }
     }
   }
 }

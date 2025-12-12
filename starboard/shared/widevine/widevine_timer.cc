@@ -18,6 +18,7 @@
 #include <mutex>
 
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 
 namespace starboard {
 
@@ -45,9 +46,16 @@ class WidevineTimer::WaitEvent {
 
 namespace {
 
-struct ThreadParam {
-  WidevineTimer* timer;
-  WidevineTimer::WaitEvent* wait_event;
+class TimerThread : public Thread {
+ public:
+  TimerThread(WidevineTimer* timer, WidevineTimer::WaitEvent* wait_event)
+      : Thread("wv_timer"), timer_(timer), wait_event_(wait_event) {}
+
+  void Run() override { timer_->RunLoop(wait_event_); }
+
+ private:
+  WidevineTimer* timer_;
+  WidevineTimer::WaitEvent* wait_event_;
 };
 
 }  // namespace
@@ -63,17 +71,16 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                void* context) {
   std::unique_lock lock(mutex_);
   if (active_clients_.empty()) {
-    SB_DCHECK_EQ(thread_, 0);
+    SB_DCHECK(!thread_);
     SB_DCHECK(!job_queue_);
 
     WaitEvent wait_event(mutex_);
-    ThreadParam thread_param = {this, &wait_event};
-    pthread_create(&thread_, nullptr, &WidevineTimer::ThreadFunc,
-                   &thread_param);
+    thread_ = std::make_unique<TimerThread>(this, &wait_event);
+    thread_->Start();
     wait_event.Wait(lock);
   }
 
-  SB_DCHECK_NE(thread_, 0);
+  SB_DCHECK(thread_);
   SB_DCHECK(job_queue_);
 
   auto iter = active_clients_.find(client);
@@ -103,19 +110,10 @@ void WidevineTimer::cancel(IClient* client) {
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
     job_queue_->StopSoon();
-    pthread_join(thread_, NULL);
-    thread_ = 0;
+    thread_->Join();
+    thread_.reset();
     job_queue_ = NULL;
   }
-}
-
-// static
-void* WidevineTimer::ThreadFunc(void* param) {
-  SB_DCHECK(param);
-  pthread_setname_np(pthread_self(), "wv_timer");
-  ThreadParam* thread_param = static_cast<ThreadParam*>(param);
-  thread_param->timer->RunLoop(thread_param->wait_event);
-  return NULL;
 }
 
 void WidevineTimer::RunLoop(WaitEvent* wait_event) {

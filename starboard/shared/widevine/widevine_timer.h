@@ -15,11 +15,11 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_
 #define STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_
 
-#include <pthread.h>
-
 #include <map>
+#include <memory>
 #include <mutex>
 
+#include "starboard/common/thread.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
@@ -40,15 +40,14 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   // the specific client after this function returns.
   void cancel(IClient* client) override;
 
- private:
   class WaitEvent;
-
-  static void* ThreadFunc(void* param);
   void RunLoop(WaitEvent* wait_event);
+
+ private:
   void CancelAllJobsOnClient(IClient* client, WaitEvent* wait_event);
 
   std::mutex mutex_;
-  pthread_t thread_ = 0;
+  std::unique_ptr<Thread> thread_;
   JobQueue* job_queue_ = NULL;
   std::map<IClient*, JobQueue::JobOwner*> active_clients_;
 };

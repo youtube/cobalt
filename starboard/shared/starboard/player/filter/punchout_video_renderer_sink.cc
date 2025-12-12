@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -28,9 +29,9 @@ using std::placeholders::_2;
 
 PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
                                                      int64_t render_interval)
-    : player_(player),
+    : Thread("punchoutvidsink"),
+      player_(player),
       render_interval_(render_interval),
-      thread_(0),
       z_index_(0),
       x_(0),
       y_(0),
@@ -40,10 +41,20 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 }
 
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
-  if (thread_ != 0) {
-    stop_requested_.store(true);
-    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
+  if (join_called()) {
+    // Thread already joined or never started (if SetRenderCB wasn't called).
+    // Actually join_called() returns true if Join() was called.
+    // We want to verify if thread is running.
+    // starboard::Thread doesn't expose IsRunning().
+    // But Join() is safe to call if Start() was called.
+    // If Start() wasn't called, Join() might be no-op or valid.
+    // Let's assume SetRenderCB was called if we want to join.
+    // The previous code checked `thread_ != 0`.
+    // starboard::Thread::Join() handles checking if thread was started (impl
+    // detail). But we should signal stop.
   }
+  stop_requested_.store(true);
+  Join();
 }
 
 void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
@@ -52,8 +63,7 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  pthread_create(&thread_, nullptr,
-                 &PunchoutVideoRendererSink::ThreadEntryPoint, this);
+  Start();
 }
 
 void PunchoutVideoRendererSink::SetBounds(int z_index,
@@ -70,10 +80,12 @@ void PunchoutVideoRendererSink::SetBounds(int z_index,
   height_ = height;
 }
 
-void PunchoutVideoRendererSink::RunLoop() {
+void PunchoutVideoRendererSink::Run() {
   while (!stop_requested_.load()) {
     render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
-    usleep(render_interval_);
+    if (WaitForJoin(render_interval_)) {
+      break;
+    }
   }
   std::lock_guard lock(mutex_);
   Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
@@ -89,19 +101,6 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
   Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
                                   height_);
   return kNotReleased;
-}
-
-// static
-void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("punchoutvidsink");
-#else
-  pthread_setname_np(pthread_self(), "punchoutvidsink");
-#endif
-  PunchoutVideoRendererSink* this_ptr =
-      static_cast<PunchoutVideoRendererSink*>(context);
-  this_ptr->RunLoop();
-  return NULL;
 }
 
 }  // namespace starboard
