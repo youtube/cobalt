@@ -195,6 +195,7 @@ test("cobalt_browsertests") {
     "content_main_runner_impl_browsertest.cc",
     "encrypted_media_browsertest.cc",
     "frame_tree_browsertest.cc",
+    "main.cc",
     "media_browsertest.cc",
     "media_browsertest.h",
     "media_session_browsertest.cc",

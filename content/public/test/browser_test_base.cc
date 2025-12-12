@@ -317,9 +317,9 @@ void BrowserTestBase::SetUp() {
 
   // Override the child process connection timeout since tests can exceed that
   // when sharded.
-  command_line->AppendSwitchASCII(
-      switches::kIPCConnectionTimeout,
-      base::NumberToString(TestTimeouts::action_max_timeout().InSeconds()));
+  // command_line->AppendSwitchASCII(
+  //     switches::kIPCConnectionTimeout,
+  //     base::NumberToString(TestTimeouts::action_max_timeout().InSeconds()));
 
   command_line->AppendSwitch(switches::kDomAutomationController);
 

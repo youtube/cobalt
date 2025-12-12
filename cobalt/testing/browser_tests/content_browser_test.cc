@@ -60,21 +60,21 @@
 
 namespace content {
 
-static ContentBrowserTest* g_instance = nullptr;
+// namespace {
 
-void SbEventHandle(const SbEvent* event) {
-  // This is a global function that is passed to SbRunStarboardMain.
-  // We need to route this to the ContentBrowserTest instance.
-  if (g_instance) {
-    g_instance->OnStarboardEvent(event);
-  }
-}
+// base::WaitableEvent* g_sb_player_wait_event = nullptr;
 
-ContentBrowserTest::ContentBrowserTest()
-    : starboard_setup_complete_(
-          base::WaitableEvent::ResetPolicy::MANUAL,
-          base::WaitableEvent::InitialState::NOT_SIGNALED) {
-  g_instance = this;
+// void SbEventHandle(const SbEvent* event) {
+//   if (g_sb_player_wait_event &&
+//       (event->type == kSbEventTypePreload || event->type == kSbEventTypeStart)) {
+//     g_sb_player_wait_event->Signal();
+//   }
+// }
+
+// }  // namespace
+
+
+ContentBrowserTest::ContentBrowserTest() {
   // In content browser tests ContentBrowserTestContentBrowserClient must be
   // used. ContentBrowserTestContentBrowserClient's constructor (and destructor)
   // uses this same function to change the ContentBrowserClient.
@@ -87,18 +87,14 @@ ContentBrowserTest::ContentBrowserTest()
   RenderFrameHostImpl::max_accessibility_resets_ = 0;
 }
 
-ContentBrowserTest::~ContentBrowserTest() {
-  if (g_instance == this) {
-    g_instance = nullptr;
-  }
-}
+ContentBrowserTest::~ContentBrowserTest() {}
 
-void ContentBrowserTest::OnStarboardEvent(const SbEvent* event) {
-  if (event->type == kSbEventTypePreload || event->type == kSbEventTypeStart) {
-    BrowserTestBase::SetUp();
-    starboard_setup_complete_.Signal();
-  }
-}
+// void ContentBrowserTest::OnStarboardEvent(const SbEvent* event) {
+//   if (event->type == kSbEventTypePreload || event->type == kSbEventTypeStart) {
+//     BrowserTestBase::SetUp();
+//     starboard_setup_complete_.Signal();
+//   }
+// }
 
 void ContentBrowserTest::SetUp() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -134,8 +130,8 @@ void ContentBrowserTest::SetUp() {
   ui::PlatformEventSource::SetIgnoreNativePlatformEvents(true);
 
   // Initialize and run the SB Application player on a separate thread.
-  starboard_thread_ = std::make_unique<base::Thread>("StarboardMainThread");
-  starboard_thread_->Start();
+  // starboard_thread_ = std::make_unique<base::Thread>("StarboardMainThread");
+  // starboard_thread_->Start();
 
   // Create a mutable copy of the command line arguments for SbRunStarboardMain.
   // The ownership of this data will be passed to the task posted to the
@@ -147,20 +143,24 @@ void ContentBrowserTest::SetUp() {
     argv_vector->push_back(arg_copy);
   }
 
-  starboard_thread_->task_runner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](std::unique_ptr<std::vector<char*>> argv_vector) {
-            SbRunStarboardMain(argv_vector->size(), argv_vector->data(),
-                               SbEventHandle);
-            // Clean up the allocated strings.
-            for (char* arg : *argv_vector) {
-              delete[] arg;
-            }
-          },
-          std::move(argv_vector)));
+  // base::WaitableEvent wait_event;
+  // g_sb_player_wait_event = &wait_event;
+  // starboard_thread_->task_runner()->PostTask(
+  //     FROM_HERE,
+  //     base::BindOnce(
+  //         [](std::unique_ptr<std::vector<char*>> argv_vector) {
+  //           SbRunStarboardMain(argv_vector->size(), argv_vector->data(),
+  //                              SbEventHandle);
+  //           // Clean up the allocated strings.
+  //           for (char* arg : *argv_vector) {
+  //             delete[] arg;
+  //           }
+  //         },
+  //         std::move(argv_vector)));
+  // wait_event.Wait();
+  // g_sb_player_wait_event = nullptr;
 
-  starboard_setup_complete_.Wait();
+  BrowserTestBase::SetUp();
 }
 
 void ContentBrowserTest::TearDown() {
@@ -168,9 +168,9 @@ void ContentBrowserTest::TearDown() {
 
   // Stop the Starboard application and join the thread.
   SbSystemRequestStop(0);
-  if (starboard_thread_) {
-    starboard_thread_->Stop();
-  }
+  // if (starboard_thread_) {
+  //   starboard_thread_->Stop();
+  // }
 
 // LinuxInputMethodContextFactory has to be shutdown.
 // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch

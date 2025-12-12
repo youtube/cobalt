@@ -61,9 +61,9 @@ class Shell;
 // Base class for browser tests which use content_shell.
 class ContentBrowserTest : public BrowserTestBase {
 
- public: 
-  // Member functions for handling Starboard events.
-  void OnStarboardEvent(const SbEvent* event);
+//  public: 
+//   // Member functions for handling Starboard events.
+//   void OnStarboardEvent(const SbEvent* event);
 
  protected:
   ContentBrowserTest();
@@ -104,8 +104,8 @@ class ContentBrowserTest : public BrowserTestBase {
   raw_ptr<base::mac::ScopedNSAutoreleasePool> pool_ = nullptr;
 #endif
 
-  std::unique_ptr<base::Thread> starboard_thread_;
-  base::WaitableEvent starboard_setup_complete_;
+  // std::unique_ptr<base::Thread> starboard_thread_;
+  // base::WaitableEvent starboard_setup_complete_;
 
   // Used to detect incorrect overriding of PreRunTestOnMainThread() with
   // missung call to base implementation.
