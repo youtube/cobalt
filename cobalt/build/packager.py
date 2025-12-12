@@ -25,6 +25,7 @@ import argparse
 import json
 import os
 import shutil
+import tarfile
 import tempfile
 import zipfile
 
@@ -50,21 +51,38 @@ def remove_empty_directories(directory):
 
 
 def layout(archive_data, out_dir, base_dir):
-  for z in archive_data.get('zipfiles', []):
+  for z in archive_data.get('unzip_files', []):
     with zipfile.ZipFile(os.path.join(out_dir, z)) as zf:
       zf.extractall(out_dir)
 
-  for f in archive_data.get('files', []):
-    copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
+  for z in archive_data.get('tar_paths', []):
+    with tarfile.open(z['to_tar'], 'w:gz') as tar:
+      tar.add(z['from_path'], arcname=os.path.basename(z['from_path']))
 
-  for d in archive_data.get('dirs', []):
-    shutil.copytree(
-        os.path.join(out_dir, d), os.path.join(base_dir, d), dirs_exist_ok=True)
+  for f in archive_data.get('files', []):
+    if isinstance(f, dict):
+      copy(
+          os.path.join(out_dir, f['from_file']),
+          os.path.join(base_dir, f['to_file']))
+    else:
+      copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
 
   for f in archive_data.get('rename_files', []):
     move(
         os.path.join(base_dir, f['from_file']),
         os.path.join(base_dir, f['to_file']))
+
+  for d in archive_data.get('dirs', []):
+    if isinstance(d, dict):
+      shutil.copytree(
+          os.path.join(out_dir, d['from_dir']),
+          os.path.join(base_dir, d['to_dir']),
+          dirs_exist_ok=True)
+    else:
+      shutil.copytree(
+          os.path.join(out_dir, d),
+          os.path.join(base_dir, d),
+          dirs_exist_ok=True)
 
   for d in archive_data.get('rename_dirs', []):
     shutil.move(
