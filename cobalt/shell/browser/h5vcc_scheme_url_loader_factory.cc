@@ -185,14 +185,16 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                            file_contents.size);
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
+      if (browser_context_) {
+        ReadSplashCache();
+        return;
+      }
       mime_type = "text/html";
-      ReadSplashCache();
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       // TODO(b/454630524): Support cached webm files.
       mime_type = "video/webm";
-      SendResponse(content_, mime_type);
     }
-    return;
+    SendResponse(content_, mime_type);
   }
   ~H5vccSchemeURLLoader() override = default;
 
